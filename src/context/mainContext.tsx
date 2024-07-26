@@ -1,11 +1,27 @@
-import { createContext, ReactNode} from "react"
+import { createContext, ReactNode, useState} from "react"
+import { MainContextValues } from "../interfaces/contextInterfaces"; 
+import { Teacher } from "../interfaces/teacher";
 
-export const MainContext = createContext<object | undefined>(undefined);
+
+//Place Holder Data
+import { teachersList } from "../dev/placeHolderData";
+
+export const MainContext = createContext<MainContextValues | null>(null);
 
 export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
-  const values = {
+  const [teachers, setTeachers] = useState<Teacher[]>(teachersList);
+  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
 
+  const setSelectedTeacherById = (id: number) => {
+    setSelectedTeacher(teachers[id]);
+  }
+  const values = {
+    teachers,
+    setTeachers,
+    selectedTeacher, 
+    setSelectedTeacher,
+    setSelectedTeacherById
   }
 
 

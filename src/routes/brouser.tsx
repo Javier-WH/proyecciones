@@ -2,6 +2,7 @@ import {  createBrowserRouter} from "react-router-dom";
 import MainLayout from "../components/layout/MainLaout";
 import NotFound from "../components/notFound/NotFoundPage";
 import ElementNotFound from "../components/notFound/ElementNotFoud";
+import ProyeccionesContainer from "../components/proyecciones/ProyeccionesContainer";
 
 const router = createBrowserRouter([
   {
@@ -15,7 +16,7 @@ const router = createBrowserRouter([
     children: [
       {
         path: "proyecciones",
-        element: <h1>proyecciones</h1>,
+        element: <ProyeccionesContainer />,
       },
       {
         path: "config",
