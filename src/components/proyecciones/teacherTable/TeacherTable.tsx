@@ -5,6 +5,7 @@ import { Button, Input, Space, Table } from 'antd';
 import type { FilterDropdownProps } from 'antd/es/table/interface';
 import { MainContext } from '../../../context/mainContext';
 import { Teacher } from '../../../interfaces/teacher';
+import "./teacherTable.css"
 
 
 
@@ -13,6 +14,7 @@ type DataIndex = keyof Teacher;
 
 
 const TeacherTable: React.FC = () => {
+
   const searchInput = useRef<InputRef>(null);
   const context = useContext(MainContext);
   if (!context) {
@@ -32,7 +34,7 @@ const TeacherTable: React.FC = () => {
 
   };
 
-  const getColumnSearchProps = (dataIndex: DataIndex): TableColumnType<DataType> => ({
+  const getColumnSearchProps = (dataIndex: DataIndex): TableColumnType<Teacher> => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
       <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
         <Input
@@ -86,7 +88,7 @@ const TeacherTable: React.FC = () => {
       <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />
     ),
     onFilter: (value, record) =>
-      record[dataIndex]
+      record.id
         .toString()
         .toLowerCase()
         .includes((value as string).toLowerCase()),
@@ -144,16 +146,7 @@ const TeacherTable: React.FC = () => {
       ...getColumnSearchProps('partTime'),
       sorter: (a, b) => a.partTime - b.partTime,
       sortDirections: ['descend', 'ascend'],
-    },
-    {
-      title: 'Carga Academica',
-      dataIndex: [],
-      key: 'id',
-      width: '3%',
-      ...getColumnSearchProps('partTime'),
-      sorter: (a, b) => a.partTime - b.partTime,
-      sortDirections: ['descend', 'ascend'],
-    },
+    }
   ];
 
   const onRow = (record: Teacher) => {
@@ -162,7 +155,7 @@ const TeacherTable: React.FC = () => {
     };
   }
 
-  return <Table columns={columns} dataSource={data ?? []} onRow={onRow} style={{ height: "100%" }} />;
+  return <Table pagination={{ position: ["topLeft", "none"] }} columns={columns} dataSource={data ?? []} rowKey="id" onRow={onRow} style={{ height: "100%" }} />;
 };
 
 export default TeacherTable;

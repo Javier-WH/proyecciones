@@ -11,5 +11,6 @@ export interface Teacher {
   partTime: number;
   load: Array<Subject> | null;
   perfil: string[];
+  gender: string;
 }
 

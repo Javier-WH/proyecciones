@@ -7,7 +7,7 @@ export const teachersList: Teacher[] = [
     lastName: "Doe",
     ci: "12345678",
     type: { value: "full-time", label: "Full-time" },
-    photo: "https://example.com/john-doe.jpg",
+    photo: "https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg",
     title: "Professor",
     partTime: 16,
     load: [
@@ -15,6 +15,7 @@ export const teachersList: Teacher[] = [
       { id: "6", subject: "Physics", hours: 8 },
     ],
     perfil: ["5", "6", "7"],
+    gender: "m",
   },
   {
     id: "2",
@@ -22,7 +23,7 @@ export const teachersList: Teacher[] = [
     lastName: "Smith",
     ci: "87654321",
     type: { value: "part-time", label: "Part-time" },
-    photo: "https://example.com/jane-smith.jpg",
+    photo: null,
     title: "Lecturer",
     partTime: 10,
     load: [
@@ -30,6 +31,7 @@ export const teachersList: Teacher[] = [
       { id: "2", subject: "Literature", hours: 6 },
     ],
     perfil: ["1", "2", "3"],
+    gender: "f",
   },
   {
     id: "3",
@@ -37,7 +39,7 @@ export const teachersList: Teacher[] = [
     lastName: "Johnson",
     ci: "24681012",
     type: { value: "full-time", label: "Full-time" },
-    photo: "https://example.com/michael-johnson.jpg",
+    photo: null,
     title: "Associate Professor",
     partTime: 18,
     load: [
@@ -45,6 +47,7 @@ export const teachersList: Teacher[] = [
       { id: "4", subject: "Data Structures", hours: 6 },
     ],
     perfil: ["3", "4"],
+    gender: "m",
   },
   {
     id: "4",
@@ -52,7 +55,7 @@ export const teachersList: Teacher[] = [
     lastName: "Davis",
     ci: "13579246",
     type: { value: "part-time", label: "Part-time" },
-    photo: "https://example.com/emily-davis.jpg",
+    photo: null,
     title: "Adjunct Professor",
     partTime: 6,
     load: [
@@ -60,6 +63,7 @@ export const teachersList: Teacher[] = [
       { id: "8", subject: "Ecology", hours: 3 },
     ],
     perfil: ["5", "6", "7", "8"],
+    gender: "f",
   },
   {
     id: "5",
@@ -67,7 +71,7 @@ export const teachersList: Teacher[] = [
     lastName: "Lee",
     ci: "24681357",
     type: { value: "full-time", label: "Full-time" },
-    photo: "https://example.com/david-lee.jpg",
+    photo: null,
     title: "Professor",
     partTime: 20,
     load: [
@@ -75,6 +79,7 @@ export const teachersList: Teacher[] = [
       { id: "10", subject: "Entrepreneurship", hours: 8 },
     ],
     perfil: ["9", "10"],
+    gender: "m",
   },
   {
     id: "6",
@@ -82,7 +87,7 @@ export const teachersList: Teacher[] = [
     lastName: "Gonzalez",
     ci: "97531486",
     type: { value: "part-time", label: "Part-time" },
-    photo: "https://example.com/sophia-gonzalez.jpg",
+    photo: null,
     title: "Lecturer",
     partTime: 8,
     load: [
@@ -90,6 +95,7 @@ export const teachersList: Teacher[] = [
       { id: "12", subject: "Latin American Literature", hours: 4 },
     ],
     perfil: ["9", "10", "11", "12"],
+    gender: "f",
   },
   {
     id: "7",
@@ -97,7 +103,7 @@ export const teachersList: Teacher[] = [
     lastName: "Müller",
     ci: "86420159",
     type: { value: "full-time", label: "Full-time" },
-    photo: "https://example.com/alexander-mueller.jpg",
+    photo: null,
     title: "Associate Professor",
     partTime: 22,
     load: [
@@ -105,6 +111,7 @@ export const teachersList: Teacher[] = [
       { id: "14", subject: "European History", hours: 6 },
     ],
     perfil: ["13", "14"],
+    gender: "m",
   },
   {
     id: "8",
@@ -112,7 +119,7 @@ export const teachersList: Teacher[] = [
     lastName: "Fernandez",
     ci: "47853912",
     type: { value: "part-time", label: "Part-time" },
-    photo: "https://example.com/olivia-fernandez.jpg",
+    photo: null,
     title: "Lecturer",
     partTime: 12,
     load: [
@@ -120,6 +127,7 @@ export const teachersList: Teacher[] = [
       { id: "16", subject: "Painting", hours: 6 },
     ],
     perfil: ["15", "16", "18"],
+    gender: "f",
   },
   {
     id: "9",
@@ -127,7 +135,7 @@ export const teachersList: Teacher[] = [
     lastName: "Rodriguez",
     ci: "31975842",
     type: { value: "full-time", label: "Full-time" },
-    photo: "https://example.com/william-rodriguez.jpg",
+    photo: null,
     title: "Professor",
     partTime: 24,
     load: [
@@ -135,6 +143,7 @@ export const teachersList: Teacher[] = [
       { id: "18", subject: "Ethics", hours: 8 },
     ],
     perfil: ["Experienced", "Research-oriented"],
+    gender: "m",
   },
   {
     id: "10",
@@ -142,7 +151,7 @@ export const teachersList: Teacher[] = [
     lastName: "Nguyen",
     ci: "64782910",
     type: { value: "part-time", label: "Part-time" },
-    photo: "https://example.com/isabella-nguyen.jpg",
+    photo: null,
     title: "Lecturer",
     partTime: 10,
     load: [
@@ -150,6 +159,7 @@ export const teachersList: Teacher[] = [
       { id: "20", subject: "Sociology", hours: 5 },
     ],
     perfil: ["Passionate", "Innovative"],
+    gender: "f",
   },
   {
     id: "11",
@@ -157,7 +167,7 @@ export const teachersList: Teacher[] = [
     lastName: "Patel",
     ci: "85231746",
     type: { value: "full-time", label: "Full-time" },
-    photo: "https://example.com/daniel-patel.jpg",
+    photo: null,
     title: "Associate Professor",
     partTime: 20,
     load: [
@@ -165,6 +175,7 @@ export const teachersList: Teacher[] = [
       { id: "22", subject: "Robotics", hours: 8 },
     ],
     perfil: ["Experienced", "Researcher"],
+    gender: "m",
   },
   {
     id: "12",
@@ -172,7 +183,7 @@ export const teachersList: Teacher[] = [
     lastName: "Hernandez",
     ci: "73495128",
     type: { value: "part-time", label: "Part-time" },
-    photo: "https://example.com/ava-hernandez.jpg",
+    photo: null,
     title: "Lecturer",
     partTime: 8,
     load: [
@@ -180,6 +191,7 @@ export const teachersList: Teacher[] = [
       { id: "24", subject: "Composition", hours: 4 },
     ],
     perfil: ["1", "22", "23", "24"],
+    gender: "f",
   },
   {
     id: "13",
@@ -187,7 +199,7 @@ export const teachersList: Teacher[] = [
     lastName: "Saito",
     ci: "92617534",
     type: { value: "full-time", label: "Full-time" },
-    photo: "https://example.com/jacob-saito.jpg",
+    photo: null,
     title: "Professor",
     partTime: 22,
     load: [
@@ -195,6 +207,7 @@ export const teachersList: Teacher[] = [
       { id: "26", subject: "Asian Studies", hours: 8 },
     ],
     perfil: ["23", "24", "25", "26"],
+    gender: "m",
   },
   {
     id: "14",
@@ -202,7 +215,7 @@ export const teachersList: Teacher[] = [
     lastName: "Tanaka",
     ci: "48375612",
     type: { value: "part-time", label: "Part-time" },
-    photo: "https://example.com/emma-tanaka.jpg",
+    photo: null,
     title: "Lecturer",
     partTime: 6,
     load: [
@@ -210,6 +223,7 @@ export const teachersList: Teacher[] = [
       { id: "28", subject: "Textile Arts", hours: 3 },
     ],
     perfil: ["27", "28"],
+    gender: "f",
   },
   {
     id: "15",
@@ -217,7 +231,7 @@ export const teachersList: Teacher[] = [
     lastName: "Morales",
     ci: "71928354",
     type: { value: "full-time", label: "Full-time" },
-    photo: "https://example.com/ethan-morales.jpg",
+    photo: null,
     title: "Associate Professor",
     partTime: 24,
     load: [
@@ -225,5 +239,6 @@ export const teachersList: Teacher[] = [
       { id: "30", subject: "Advertising", hours: 8 },
     ],
     perfil: ["22", "29", "30"],
+    gender: "m",
   },
 ];
