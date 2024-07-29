@@ -1,0 +1,10 @@
+.teacher-subjects-container{
+  width: 90%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 500px;
+}
+
+.teacher-subjects-container h2{
+ font-size: 14px;
+}

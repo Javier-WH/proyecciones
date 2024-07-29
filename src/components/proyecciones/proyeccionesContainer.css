@@ -1,0 +1,30 @@
+.proyecciones-container-data{
+  display: grid;
+  grid-template-columns: 6fr 4fr;
+  grid-gap: 2px;
+}
+.selected-teacher-container {
+  margin-top: 70px;
+  padding-left: 20px;
+}
+
+.selected-teacher-container>div>img {
+  width: 10em;
+  height: auto;
+}
+
+.teacher-name {
+  font-size: 18px;
+    font-weight: 700;
+}
+.teacher-info {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.title-bar-container{
+  background-color: #001529;
+  color: white;
+  padding: 10px;
+}
+/* #001529;*/
