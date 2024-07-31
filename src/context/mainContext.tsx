@@ -12,16 +12,33 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   const [teachers, setTeachers] = useState<Teacher[]>(teachersList);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [selectedTeacerId, setSelectedTeacerId] = useState<number | null>(null);
 
   const setSelectedTeacherById = (id: number) => {
+    setSelectedTeacerId(id);
     setSelectedTeacher(teachers[id]);
   }
+
+  const getTeachersHoursData = (id: number) => {
+    const subjects = teachers[id].load ?? [];
+    const asignedHpours = subjects.reduce((acc, subject) => acc + subject.hours, 0);
+
+    return {
+      partTime: teachers[id].partTime,
+      asignedHpours,
+      aviableHours: teachers[id].partTime - asignedHpours
+    }
+  }
+
   const values = {
     teachers,
     setTeachers,
     selectedTeacher, 
     setSelectedTeacher,
-    setSelectedTeacherById
+    setSelectedTeacherById,
+    getTeachersHoursData,
+    selectedTeacerId,
+    setSelectedTeacerId
   }
 
 

@@ -17,21 +17,7 @@ export default function ProyeccionesContainer() {
     </div>
     <div className="proyecciones-container-data">
       <TeacherTable />
-      <div style={
-        { 
-          width: "100%", 
-          height: "90vh",
-          display: "grid",
-          gridTemplateRows: "600px 1fr",
-        }
-      }>
-        <SelectedTeacher />
-        <div style={{ height: "100%" , borderTop: "1px solid gray" }}>
-
-          
-
-        </div>
-      </div>
+      <SelectedTeacher />
     </div>
   </>
 }

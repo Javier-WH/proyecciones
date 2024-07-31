@@ -2,23 +2,26 @@
   display: grid;
   grid-template-columns: 6fr 4fr;
   grid-gap: 2px;
+  max-height: 80%;
 }
 .selected-teacher-container {
   margin-top: 70px;
   padding-left: 20px;
+  max-height: calc(90vh - 70px);
 }
 
 .selected-teacher-container>div>img {
-  width: 10em;
+  width: 10rem;
   height: auto;
 }
 
 .teacher-name {
-  font-size: 18px;
-    font-weight: 700;
+  font-size: 1.3rem;
+  font-weight: 700;
+  width: 100%;
 }
 .teacher-info {
-  font-size: 14px;
+  font-size: 0.9rem;
   font-weight: 500;
 }
 

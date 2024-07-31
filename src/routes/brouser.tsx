@@ -3,11 +3,12 @@ import MainLayout from "../components/layout/MainLaout";
 import NotFound from "../components/notFound/NotFoundPage";
 import ElementNotFound from "../components/notFound/ElementNotFoud";
 import ProyeccionesContainer from "../components/proyecciones/ProyeccionesContainer";
+import Login from "../components/login/login";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <h1>Login</h1>,
+    element: <Login />,
     errorElement: <h1>404 no encontrado</h1>,
   },
   {

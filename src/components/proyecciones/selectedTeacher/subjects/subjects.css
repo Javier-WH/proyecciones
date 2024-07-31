@@ -1,10 +1,35 @@
-.teacher-subjects-container{
-  width: 90%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  max-height: 500px;
+.teacher-subjects-container {
+  width: 100%;
+  position: relative;
 }
 
-.teacher-subjects-container h2{
- font-size: 14px;
+.teacher-subjects-header {
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  position: sticky;
+  background-color: #f5f5f5;
+  width: 100%;
+}
+
+.teacher-subjects-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: calc(60vh - 70px);
+}
+
+.teacher-subjects-body h4 {
+  border-radius: 10px;
+  text-indent: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+}
+
+.teacher-subjects-body>div {
+  background-color: #001529;
+  color: white;
+  padding-bottom: 10px;
 }

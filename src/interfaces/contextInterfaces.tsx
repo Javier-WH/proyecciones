@@ -5,4 +5,7 @@ export interface MainContextValues {
   selectedTeacher: Teacher | null;
   setSelectedTeacher: React.Dispatch<React.SetStateAction<Teacher | null>>
   setSelectedTeacherById(id: number): void
+  getTeachersHoursData(id: number): {partTime: number, asignedHpours: number, aviableHours: number},
+  selectedTeacerId : number | null,
+  setSelectedTeacerId : React.Dispatch<React.SetStateAction<number | null>>
 }

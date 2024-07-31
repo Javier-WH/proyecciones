@@ -5,7 +5,7 @@ export interface Teacher {
   name: string;
   lastName: string;
   ci: string;
-  type: object;
+  type: string;
   photo: string | null;
   title: string;
   partTime: number;
