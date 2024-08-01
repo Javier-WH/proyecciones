@@ -60,7 +60,7 @@ export default function ProyeccionesContainer() {
           : 
           <>
             <SubjectItem subjects={aviableSubjects} title="Asignaturas Disponibles"  gridArea="table" />
-            <SubjectItem subjects={tankenSubjects} title="Asignaturas Tomadas"  gridArea="selected" />
+            <SubjectItem subjects={tankenSubjects} title="Asignaturas Asignadas"  gridArea="selected" />
           </>
       }
 

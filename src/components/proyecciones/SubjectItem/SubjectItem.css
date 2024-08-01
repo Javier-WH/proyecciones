@@ -27,6 +27,12 @@
   padding-right: 50px;
 
 }
+.footer-subject-item svg{
+  color: transparent;
+}
+.footer-subject-item:hover svg {
+  color: white;
+}
 .footer-subject-item:hover{
   background-color: #001529;
   color: white;
@@ -35,4 +41,5 @@
 .footer-subject-item svg:hover{
   color: cyan;
   filter: drop-shadow(0 0 5px white);
+  scale: 1.3;
 }

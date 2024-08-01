@@ -29,9 +29,7 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
           : data.map((subject, i) => (
             <div key={i} style={{ marginBottom: "5px" }}>
               <h4>{subject.subject}
-                <div style={{
-                  display: "flex"
-                }}>
+                <div className="teacher-subjects-buttons">
                   <Button type="link" shape='round' style={{ color: "white", fontSize: "18px" }}>
                     <IoMdSwap />
                   </Button>

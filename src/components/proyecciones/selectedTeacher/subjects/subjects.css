@@ -32,3 +32,11 @@
   color: white;
   padding-bottom: 10px;
 }
+
+.teacher-subjects-buttons {
+  display: flex;
+}
+.teacher-subjects-buttons svg:hover {
+  scale: 1.3;
+  filter: drop-shadow(0 0 5px white);
+}
