@@ -3,7 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { Table } from 'antd';
 import { MainContext } from '../../../context/mainContext';
 import { Teacher } from '../../../interfaces/teacher';
-import "./teacherTable.css"
+
 
 
 const TeacherTable: React.FC = () => {
@@ -71,7 +71,7 @@ const TeacherTable: React.FC = () => {
     };
   }
 
-  return <Table pagination={{ position: ["topLeft", "none"] }} columns={columns} dataSource={data ?? []} rowKey="id" onRow={onRow} style={{ height: "100%", cursor: "pointer"}} />;
+  return <Table pagination={{ position: ["topLeft", "none"] }} columns={columns} dataSource={data ?? []} rowKey="id" onRow={onRow} style={{ height: "100%", cursor: "pointer", gridArea: "table" }} />;
 };
 
 export default TeacherTable;

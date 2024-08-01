@@ -1,6 +1,6 @@
 .teacher-subjects-container {
-  width: 100%;
   position: relative;
+  grid-column-end: span 2;
 }
 
 .teacher-subjects-header {
@@ -10,13 +10,12 @@
   padding: 10px;
   position: sticky;
   background-color: #f5f5f5;
-  width: 100%;
 }
 
 .teacher-subjects-body {
-  overflow-y: auto;
+  overflow-y: scroll;
   overflow-x: hidden;
-  max-height: calc(60vh - 70px);
+  height: 440px;
 }
 
 .teacher-subjects-body h4 {

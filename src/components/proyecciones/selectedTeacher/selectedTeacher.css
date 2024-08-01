@@ -1,0 +1,27 @@
+.selected-teacher-container {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  height: 680px;
+}
+
+.teacher-info {
+  display: flex;
+  flex-direction: column;
+  margin-left: 20px;
+  row-gap: 2px;
+  justify-self: stretch;
+}
+
+.selected-teacher-container>img {
+  width: 180px;
+  height: auto;
+  justify-self: center;
+}
+
+.teacher-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  width: 100%;
+}
+

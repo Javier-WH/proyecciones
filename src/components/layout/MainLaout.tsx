@@ -8,7 +8,7 @@ import { FaUsers } from "react-icons/fa6";
 import type { MenuProps } from 'antd';
 import { Layout, Menu } from 'antd';
 
-const {  Sider } = Layout;
+const { Sider } = Layout;
 
 type MenuItem = Required<MenuProps>['items'][number];
 
@@ -27,7 +27,7 @@ function getItem(
 }
 
 const items: MenuItem[] = [
-  getItem('Proyecciones', '/app/proyecciones', <FaCalendarAlt />, ),
+  getItem('Proyecciones', '/app/proyecciones', <FaCalendarAlt />,),
   getItem('Profesores', '/app/profesores', <FaChalkboardTeacher />, [
     getItem('Registrar', '/app/registrar', <IoPersonAddSharp />),
     getItem('Editar', '/app/editar', <FaUserEdit />),
@@ -39,7 +39,7 @@ const items: MenuItem[] = [
     getItem('Alex', '5'),
   ]),
   getItem('Horarios', '/app/horarios', <GrSchedules />, [
-    getItem('Team 1', '6'), 
+    getItem('Team 1', '6'),
     getItem('Team 2', '8')
   ]),
   getItem('Configuración', '/app/config', <GrConfigure />),
@@ -57,11 +57,11 @@ const MainLayout: React.FC = () => {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
-        <div className="demo-logo-vertical" style={{ height: 32, margin: 16}} />
-        <Menu theme="dark" defaultSelectedKeys={['1']} mode="inline" items={items}  onClick={handleClick}/>
+        <div className="demo-logo-vertical" style={{ height: 32, margin: 16 }} />
+        <Menu theme="dark" defaultSelectedKeys={['1']} mode="inline" items={items} onClick={handleClick} />
       </Sider>
-      <Layout>
-          <Outlet />
+      <Layout >
+        <Outlet />
       </Layout>
     </Layout>
   );

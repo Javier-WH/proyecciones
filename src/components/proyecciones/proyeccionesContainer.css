@@ -1,33 +1,28 @@
-.proyecciones-container-data{
+
+.proyecciones-container {
   display: grid;
-  grid-template-columns: 6fr 4fr;
-  grid-gap: 2px;
-  max-height: 80%;
-}
-.selected-teacher-container {
-  margin-top: 70px;
-  padding-left: 20px;
-  max-height: calc(90vh - 70px);
-}
-
-.selected-teacher-container>div>img {
-  width: 10rem;
-  height: auto;
-}
-
-.teacher-name {
-  font-size: 1.3rem;
-  font-weight: 700;
-  width: 100%;
-}
-.teacher-info {
-  font-size: 0.9rem;
-  font-weight: 500;
+  grid-template-areas:
+    "header header header header"
+    "table table selected selected"
+    "table table selected selected"
+    "table table selected selected"
+    "table table selected selected"
+    "footer footer footer footer"
+    "footer footer footer footer"
+    "footer footer footer footer"
+    "footer footer footer footer"
+  ;
+  height: 100vh;
+  column-gap: 5px;
+  overflow: hidden;
 }
 
-.title-bar-container{
+.title-bar-container {
   background-color: #001529;
   color: white;
   padding: 10px;
 }
+
+
+
 /* #001529;*/

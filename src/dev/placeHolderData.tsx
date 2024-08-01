@@ -51,10 +51,7 @@ export const teachersList: Teacher[] = [
     photo: null,
     title: "Associate Professor",
     partTime: 18,
-    load: [
-      { id: "3", subject: "Computer Science", hours: 6, pnf: "Administracion", seccion: "1" },
-      { id: "4", subject: "Data Structures", hours: 6,  pnf: "Informatica", seccion: "1" },
-    ],
+    load: [],
     perfil: ["3", "4"],
     gender: "m",
   },

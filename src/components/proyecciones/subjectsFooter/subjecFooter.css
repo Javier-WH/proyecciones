@@ -1,0 +1,6 @@
+.subject-footer{
+  grid-area: "footer";
+  overflow-x: hidden;
+  overflow-y: scroll;
+  height: 100%;
+}
