@@ -1,39 +1,69 @@
 import TeacherTable from "./teacherTable/TeacherTable";
 import SelectedTeacher from "./selectedTeacher/selectedTeacher";
-import SubjectFooter from "./subjectsFooter/subjectFooter";
 import "./proyeccionesContainer.css"
-import { Button, Select } from 'antd';
+import { Button, Select, Radio} from 'antd';
 import { GiSave } from "react-icons/gi";
 import { RiFileExcel2Line } from "react-icons/ri";
 import { MdOutlineRefresh } from "react-icons/md";
+import { useState } from "react";
+import SubjectItem from "./SubjectItem/SubjectItem";
+import useSubjectsInfo from "../../hooks/useSubjectsInfo";
+
 
 export default function ProyeccionesContainer() {
 
+  const { tankenSubjects, aviableSubjects } = useSubjectsInfo();
+  const [ teacherTab, setTeacherTab ] = useState(true);
+
   const iconStyle = { color: "white", fontSize: "2rem"}
 
-  const handleChange = (value: string) => {
+  const handleChangeSelector = (value: string) => {
     console.log(`selected ${value}`);
   };
 
+  const handleChangeRadio = (value: string) => {
+    setTeacherTab(value === "a");
+  };
 
   return <div className="proyecciones-container" >
     
     <div className="title-bar-container" style={{ gridArea: "header", display: "flex", alignItems: "center", justifyContent: "space-between"}}>
       <h1>Proyecciones</h1>
+
+      <Radio.Group defaultValue="a" size="small" onChange={(e) => handleChangeRadio(e.target.value)}>
+        <Radio.Button value="a">Profesores</Radio.Button>
+        <Radio.Button value="b">Materias</Radio.Button>
+      </Radio.Group>
+
       <Select
         defaultValue="Inscripciones 2024"
         style={{ width: 300 }}
         options={[{ value: 'Inscripciones 2024', label: 'Inscripciones 2024' }]}
-        onChange={handleChange}
+        onChange={handleChangeSelector}
       />
+      
       <div style={{ display: "flex", alignItems: "center", columnGap: "20px"}}>
         <Button type="link" shape="circle" icon={<GiSave />} style={iconStyle}/>
         <Button type="link" shape="circle" icon={<RiFileExcel2Line />} style={iconStyle} />
         <Button type="link" shape="circle" icon={<MdOutlineRefresh />} style={iconStyle} />
       </div>
+      
     </div>
-      <TeacherTable />
-      <SelectedTeacher />
-      <SubjectFooter />
+
+      {
+        teacherTab
+          ? 
+          <>
+            <TeacherTable />
+            <SelectedTeacher />
+          </>
+          : 
+          <>
+            <SubjectItem subjects={aviableSubjects} title="Asignaturas Disponibles"  gridArea="table" />
+            <SubjectItem subjects={tankenSubjects} title="Asignaturas Tomadas"  gridArea="selected" />
+          </>
+      }
+
+   
   </div>
 }
