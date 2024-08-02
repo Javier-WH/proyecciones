@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useContext} from 'react';
 import { Subject } from '../../../../interfaces/subject';
 import { Button } from 'antd';
 import { FaTrashAlt } from "react-icons/fa";
@@ -6,6 +6,8 @@ import { MdAssignmentAdd } from "react-icons/md";
 import { IoMdSwap } from "react-icons/io";
 import { Tag } from 'antd';
 import { ExclamationCircleOutlined, } from '@ant-design/icons';
+import { MainContext } from '../../../../context/mainContext';
+import { MainContextValues } from '../../../../interfaces/contextInterfaces';
 
 
 import "./subjects.css"
@@ -13,13 +15,14 @@ import "./subjects.css"
 
 const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
 
+  const { setOpenAddSubjectToTeacherModal } = useContext(MainContext) as MainContextValues;
 
 
 
   return <div className='teacher-subjects-container'>
     <div className='teacher-subjects-header'>
       <h2>Asignaturas Asignadas</h2>
-      <Button type="link" shape="round" size='large' style={{ fontSize: "14px" }}> <MdAssignmentAdd />Agregar</Button>
+      <Button type="link" shape="round" size='large' style={{ fontSize: "14px" }} onClick={() => setOpenAddSubjectToTeacherModal(true)}> <MdAssignmentAdd />Agregar</Button>
     </div>
 
     <div className='teacher-subjects-body'>

@@ -2,6 +2,7 @@ import { createContext, ReactNode, useState} from "react"
 import { MainContextValues } from "../interfaces/contextInterfaces"; 
 import { Teacher } from "../interfaces/teacher";
 import { Subject } from "../interfaces/subject";
+import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/addSubjectToTeacherModal";
 
 
 //Place Holder Data
@@ -16,6 +17,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [selectedTeacerId, setSelectedTeacerId] = useState<number | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>(subjectsList);
+  const [openAddSubjectToTeacherModal, setOpenAddSubjectToTeacherModal] = useState(false);
 
   const setSelectedTeacherById = (id: number) => {
     setSelectedTeacerId(id);
@@ -43,13 +45,25 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     selectedTeacerId,
     setSelectedTeacerId,
     subjects, 
-    setSubjects
+    setSubjects,
+    openAddSubjectToTeacherModal, 
+    setOpenAddSubjectToTeacherModal
   }
 
 
   return (
     <MainContext.Provider value={values}>
       {children}
+      <AddSubjectToTeacherModal 
+        open={openAddSubjectToTeacherModal} 
+        setOpen={setOpenAddSubjectToTeacherModal}
+        teachers = {teachers}
+        setTeachers = {setTeachers}
+        selectedTeacerId = {selectedTeacerId}
+        subjects = {subjects}
+        setSubjects = {setSubjects}
+
+      />
     </MainContext.Provider>
   );
 }

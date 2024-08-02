@@ -10,5 +10,7 @@ export interface MainContextValues {
   selectedTeacerId : number | null,
   setSelectedTeacerId : React.Dispatch<React.SetStateAction<number | null>>
   subjects: Array<Subject> | null,
-  setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>
+  setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>,
+  openAddSubjectToTeacherModal : boolean, 
+  setOpenAddSubjectToTeacherModal: React.Dispatch<React.SetStateAction<boolean>>
 }
