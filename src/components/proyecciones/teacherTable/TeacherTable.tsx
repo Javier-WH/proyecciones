@@ -80,8 +80,10 @@ const TeacherTable: React.FC = () => {
   ];
 
   const onRow = (record: Teacher) => {
+    
     return {
-      onClick: () => { setSelectedTeacherById(Number.parseInt(record.id) - 1) },
+      //onClick: () => { setSelectedTeacherById(Number.parseInt(record.id) - 1) },
+      onClick: () => { setSelectedTeacherById(record.id) },
     };
   }
 

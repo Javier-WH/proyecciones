@@ -5,15 +5,18 @@ import { Button, Select, Radio} from 'antd';
 import { GiSave } from "react-icons/gi";
 import { RiFileExcel2Line } from "react-icons/ri";
 import { MdOutlineRefresh } from "react-icons/md";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import SubjectItem from "./SubjectItem/SubjectItem";
 import useSubjectsInfo from "../../hooks/useSubjectsInfo";
+import { MainContext } from "../../context/mainContext";
+import { MainContextValues } from "../../interfaces/contextInterfaces";
 
 
 export default function ProyeccionesContainer() {
 
   const { tankenSubjects, aviableSubjects } = useSubjectsInfo();
   const [ teacherTab, setTeacherTab ] = useState(true);
+  const { setSelectedTeacerId, setSelectedTeacher} = useContext(MainContext) as MainContextValues
 
   const iconStyle = { color: "white", fontSize: "2rem"}
 
@@ -23,6 +26,9 @@ export default function ProyeccionesContainer() {
 
   const handleChangeRadio = (value: string) => {
     setTeacherTab(value === "a");
+    //se deben colocar en null para prevenir posible bugs
+    setSelectedTeacerId(null);
+    setSelectedTeacher(null);
   };
 
   return <div className="proyecciones-container" >

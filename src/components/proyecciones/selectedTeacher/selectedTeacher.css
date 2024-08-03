@@ -12,7 +12,19 @@
   row-gap: 2px;
   justify-self: stretch;
 }
+.teacher-info > span{
+  margin-bottom: 5px;
+}
+.teacher-search-button {
+  position: relative;
 
+}
+.teacher-search-button:hover::after{
+  content: "Buscar docente";
+  position: absolute;
+  right: -85px;
+
+}
 .selected-teacher-container>img {
   width: 180px;
   height: auto;

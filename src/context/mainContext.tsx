@@ -3,6 +3,7 @@ import { MainContextValues } from "../interfaces/contextInterfaces";
 import { Teacher } from "../interfaces/teacher";
 import { Subject } from "../interfaces/subject";
 import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/addSubjectToTeacherModal";
+import ChangeSubjectFromTeacherModal from "../components/changeSubjectFromTeacherModal/changeSubjectFromTeacherModal";
 
 
 //Place Holder Data
@@ -15,13 +16,16 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   const [teachers, setTeachers] = useState<Teacher[]>(teachersList);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
-  const [selectedTeacerId, setSelectedTeacerId] = useState<number | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [selectedTeacerId, setSelectedTeacerId] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>(subjectsList);
   const [openAddSubjectToTeacherModal, setOpenAddSubjectToTeacherModal] = useState(false);
+  const [openChangeSubjectFromTeacherModal, setOpenChangeSubjectFromTeacherModal] = useState(false);
 
-  const setSelectedTeacherById = (id: number) => {
+  const setSelectedTeacherById = (id: string) => {
+    const teacher = teachers.find(teacher => teacher.id === id);
     setSelectedTeacerId(id);
-    setSelectedTeacher(teachers[id]);
+    setSelectedTeacher(teacher || null);
   }
 
   const getTeachersHoursData = (id: number) => {
@@ -47,7 +51,11 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     subjects, 
     setSubjects,
     openAddSubjectToTeacherModal, 
-    setOpenAddSubjectToTeacherModal
+    setOpenAddSubjectToTeacherModal,
+    openChangeSubjectFromTeacherModal, 
+    setOpenChangeSubjectFromTeacherModal,
+    selectedSubject,
+    setSelectedSubject
   }
 
 
@@ -63,6 +71,16 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         subjects = {subjects}
         setSubjects = {setSubjects}
 
+      />
+      <ChangeSubjectFromTeacherModal 
+        open={openChangeSubjectFromTeacherModal} 
+        setOpen={setOpenChangeSubjectFromTeacherModal}
+        teachers = {teachers}
+        setTeachers = {setTeachers}
+        selectedTeacerId = {selectedTeacerId}
+        subjects = {subjects}
+        setSubjects = {setSubjects}
+        selectedSubject = {selectedSubject}
       />
     </MainContext.Provider>
   );

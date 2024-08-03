@@ -3,11 +3,19 @@ import { Tag } from 'antd';
 import { ExclamationCircleOutlined, } from '@ant-design/icons';
 import "./SubjectItem.css"
 import { IoMdSwap } from "react-icons/io";
+import { useContext } from "react";
+import { MainContext } from "../../../context/mainContext";
+import { MainContextValues } from "../../../interfaces/contextInterfaces";
 
 export default function SubjectItem({ subjects, title, gridArea }: { subjects: Array<Subject> | null, title: string, gridArea: string }) {
 
-  const handleClick = (e:string) => {
-    console.log(e);
+  const { setSelectedSubject, setOpenChangeSubjectFromTeacherModal} = useContext(MainContext) as MainContextValues
+
+  const handleClick = (id:string) => {
+    if(subjects === null) return
+    const selected = subjects.find(subject => subject.id === id);
+    setSelectedSubject(selected!);
+    setOpenChangeSubjectFromTeacherModal(true);
   }
 
   return (

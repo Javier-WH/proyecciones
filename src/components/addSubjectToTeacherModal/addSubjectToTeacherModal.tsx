@@ -9,7 +9,7 @@ const AddSubjectToTeacherModal: React.FC<{
   setOpen: (open: boolean) => void;
   teachers: Array<Teacher> | null
   setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>
-  selectedTeacerId: number | null
+  selectedTeacerId: string | null
   subjects: Array<Subject> | null
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>
 }> = ({ open, setOpen, teachers, selectedTeacerId, subjects, setSubjects, setTeachers }) => {
@@ -20,21 +20,24 @@ const AddSubjectToTeacherModal: React.FC<{
   const [perfilOption, setPerfilOption] = useState('perfil');
   const [erroMessage, setErrorMessage] = useState<string | null>(null);
   const [overLoad, setOverLoad] = useState(false);
+  const [teacherIndex, setTeacherIndex] = useState(0);
 
 
 
   useEffect(() => {
-    if (!subjects || !teachers || selectedTeacerId === null) return
+    if (!subjects || !teachers || !selectedTeacerId) return
     //obtengo la lista de asignaturas
     let subjectsData = subjects.map((subject) => ({ value: subject.id, label: `${subject.subject} (PNF ${subject.pnf} - Sección T0-${subject.seccion})` }));
-    const teacherPerfil = new Set(teachers[selectedTeacerId]?.perfil ?? []);
+    const t_index = teachers.findIndex(teacher => teacher.id === selectedTeacerId);
+    setTeacherIndex(t_index);
+    const teacherPerfil = new Set(teachers[t_index]?.perfil ?? []);
     if (perfilOption === 'perfil') {
       subjectsData = subjectsData.filter(subject => teacherPerfil.has(subject.value))
     }
     //las horas que tiene usadas el profesor
-    const tehacherLoad = teachers[selectedTeacerId]?.load?.map(subject => subject.hours).reduce((acc, curr) => acc + curr, 0);
+    const tehacherLoad = teachers[t_index]?.load?.map(subject => subject.hours).reduce((acc, curr) => acc + curr, 0);
     //maximo de horas que puede tener el profesor
-    const maxHours = teachers[selectedTeacerId]?.partTime;
+    const maxHours = teachers[t_index]?.partTime;
 
     ///// FILTRADO DE HORAS DISPONIBLES
     if(!overLoad){
@@ -69,12 +72,12 @@ const AddSubjectToTeacherModal: React.FC<{
   const handleOk = () => {
     setLoading(true);
     //valido para no tener errores mas adelante
-    if (!teachers || selectedTeacerId === null || subjects === null || selectedOption === null) return
+    if (!teachers || subjects === null || selectedOption === null || teacherIndex === null) return
     //obtengo el index de la asignatura
     const index = subjects.findIndex((subject) => subject.id === selectedOption);
     //agrego la asignatura al load del profesor
     const teachersCopy = JSON.parse(JSON.stringify(teachers));
-    teachersCopy[selectedTeacerId]?.load?.push(subjects[index]);
+    teachersCopy[teacherIndex]?.load?.push(subjects[index]);
     setTeachers(teachersCopy);
     //elimino la asignatura de la lista de asignaturas
     setSubjects(subjects.filter((subject) => subject.id !== selectedOption));
@@ -110,7 +113,7 @@ const AddSubjectToTeacherModal: React.FC<{
     <>
       <Modal
         open={open}
-        title={`Materias disponibles para el docente ${teachers?.[selectedTeacerId ?? 0]?.name ?? ''} ${teachers?.[selectedTeacerId ?? 0]?.lastName ?? ''}`}
+        title={`Materias disponibles para el docente ${teachers?.[teacherIndex ?? 0]?.name ?? ''} ${teachers?.[teacherIndex ?? 0]?.lastName ?? ''}`}
         onOk={handleOk}
         onCancel={handleCancel}
         footer={[

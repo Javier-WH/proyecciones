@@ -1,0 +1,8 @@
+.change-subject-modal-container-teacher-select {
+  overflow-x: hidden;
+  overflow-y: scroll;
+}
+
+.change-subject-modal-container-teacher-select .ant-radio-button-wrapper{
+  border-radius: 0px !important;
+}

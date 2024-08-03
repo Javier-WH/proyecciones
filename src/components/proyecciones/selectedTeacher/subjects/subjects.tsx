@@ -15,7 +15,7 @@ import "./subjects.css"
 
 const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
 
-  const { setOpenAddSubjectToTeacherModal, teachers, selectedTeacerId, setTeachers, subjects, setSubjects } = useContext(MainContext) as MainContextValues;
+  const { setOpenAddSubjectToTeacherModal, teachers, selectedTeacerId, setTeachers, subjects, setSubjects, setOpenChangeSubjectFromTeacherModal, setSelectedSubject } = useContext(MainContext) as MainContextValues;
 
 
   const handleRemoveSubject = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -24,12 +24,19 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
 
     //copio el array para no modificar el original y hago el filtro para eliminar la materia
     const teachersCopy = JSON.parse(JSON.stringify(teachers));
-    teachersCopy[selectedTeacerId].load = teachers[selectedTeacerId].load?.filter(subject => subject.id !== subjectId)
+    const teacherIndex = teachers.findIndex(teacher => teacher.id === selectedTeacerId)
+    teachersCopy[teacherIndex].load = teachers[teacherIndex].load?.filter(subject => subject.id !== subjectId)
     
     //guardado la materia para reintegrarla a la lista de materias
-    const savedSubject = teachers[selectedTeacerId].load?.find(subject => subject.id === subjectId)
+    const savedSubject = teachers[teacherIndex].load?.find(subject => subject.id === subjectId)
     setSubjects([...subjects, savedSubject!])
     setTeachers(teachersCopy)
+  }
+
+  const handleSwapSubjects = () => {
+    if(!data) return
+    setSelectedSubject(data[0]);
+    setOpenChangeSubjectFromTeacherModal(true)
   }
 
   return <div className='teacher-subjects-container'>
@@ -46,7 +53,7 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
             <div key={i} style={{ marginBottom: "5px" }}>
               <h4>{subject.subject}
                 <div className="teacher-subjects-buttons">
-                  <Button type="link" shape='round' style={{ color: "white", fontSize: "18px" }}>
+                  <Button type="link" shape='round' style={{ color: "white", fontSize: "18px" }} onClick={handleSwapSubjects}>
                     <IoMdSwap />
                   </Button>
                   <Button id={subject.id} type="link" shape='round' danger onClick={handleRemoveSubject}>

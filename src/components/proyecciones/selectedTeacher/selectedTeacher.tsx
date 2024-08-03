@@ -3,8 +3,9 @@ import { MainContext } from "../../../context/mainContext";
 import femalePlaceHolder from "../../../assets/femalePlaceHolder.svg";
 import malePlaceHolder from "../../../assets/malePlaceHolder.svg";
 import Subjects from "./subjects/subjects";
-import { Tag } from 'antd';
+import { Tag, Button } from 'antd';
 import { ExclamationCircleOutlined, } from '@ant-design/icons';
+import { FaSearch } from "react-icons/fa";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import "./selectedTeacher.css"
 
@@ -12,11 +13,13 @@ import "./selectedTeacher.css"
 export default function SelectedTeacher() {
 
   const { selectedTeacher, getTeachersHoursData, selectedTeacerId, teachers } = useContext(MainContext) as MainContextValues;
-  const [teacherData, setTeacherData] = useState(getTeachersHoursData(selectedTeacerId || 0));
+  const [teacherData, setTeacherData] = useState(getTeachersHoursData( 0));
   const [teacherPhoto, setTeacherPhoto] = useState(malePlaceHolder);
 
   useEffect(() => {
-    setTeacherData(getTeachersHoursData(selectedTeacerId || 0));
+    if(!teachers || !selectedTeacerId) return
+    const teacherIndex = teachers.findIndex(teacher => teacher.id === selectedTeacerId);
+    setTeacherData(getTeachersHoursData(teacherIndex || 0));
 
     if (selectedTeacher?.photo) {
       //aqui se hace el fetch de la foto
@@ -29,7 +32,7 @@ export default function SelectedTeacher() {
 
 
 
-  }, [selectedTeacerId, getTeachersHoursData, selectedTeacher]);
+  }, [selectedTeacerId, getTeachersHoursData, selectedTeacher, teachers]);
 
 
   if (!selectedTeacher) {
@@ -44,7 +47,12 @@ export default function SelectedTeacher() {
       <img src={teacherPhoto} alt="" />
       <div className="teacher-info">
         <span className="teacher-name" >{`${selectedTeacher?.name} ${selectedTeacher?.lastName}`}</span>
-        <span >{`CI: ${selectedTeacher?.ci}`}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "30px" }}>
+          <span >{`CI: ${selectedTeacher?.ci}`} </span>
+          <Button type="link" shape='round' className="teacher-search-button">
+            <FaSearch />
+          </Button>
+        </div>
         <span >{`Titulo: ${selectedTeacher?.title}`}</span>
         <span >{`Tipo de contrato: ${selectedTeacher?.type}`}</span>
         <span >{`Carga Horaria: ${teacherData.partTime}`}</span>
@@ -66,7 +74,7 @@ export default function SelectedTeacher() {
       </div>
 
 
-      <Subjects data={teachers?.[selectedTeacerId ?? 0]?.load ?? null} />
+      <Subjects data={teachers?.[teachers.findIndex(teacher => teacher.id === selectedTeacerId) ?? 0]?.load ?? null} />
 
 
     </div>

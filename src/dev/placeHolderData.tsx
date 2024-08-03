@@ -2,7 +2,7 @@ import { Teacher } from "../interfaces/teacher";
 
 export const teachersList: Teacher[] = [
   {
-    id: "1",
+    id: "yo",
     name: "John",
     lastName: "Doe",
     ci: "12345678",
@@ -180,7 +180,7 @@ export const teachersList: Teacher[] = [
     title: "Lecturer",
     partTime: 18,
     load: [],
-    perfil: ["27", "28"],
+    perfil: ["5", "6", "7"],
     gender: "f",
   },
   {
@@ -193,7 +193,7 @@ export const teachersList: Teacher[] = [
     title: "Associate Professor",
     partTime: 24,
     load: [],
-    perfil: ["22", "29", "30"],
+    perfil: ["5", "6", "7"],
     gender: "m",
   },
 ];
