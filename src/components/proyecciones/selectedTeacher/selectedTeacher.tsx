@@ -11,7 +11,7 @@ import "./selectedTeacher.css"
 
 export default function SelectedTeacher() {
 
-  const { selectedTeacher, getTeachersHoursData, selectedTeacerId } = useContext(MainContext) as MainContextValues;
+  const { selectedTeacher, getTeachersHoursData, selectedTeacerId, teachers } = useContext(MainContext) as MainContextValues;
   const [teacherData, setTeacherData] = useState(getTeachersHoursData(selectedTeacerId || 0));
   const [teacherPhoto, setTeacherPhoto] = useState(malePlaceHolder);
 
@@ -19,6 +19,7 @@ export default function SelectedTeacher() {
     setTeacherData(getTeachersHoursData(selectedTeacerId || 0));
 
     if (selectedTeacher?.photo) {
+      //aqui se hace el fetch de la foto
       console.log(selectedTeacher.photo)
     } else if (selectedTeacher?.gender === "f") {
       setTeacherPhoto(femalePlaceHolder);
@@ -32,7 +33,7 @@ export default function SelectedTeacher() {
 
 
   if (!selectedTeacher) {
-    return <div  style={{ gridArea: "selected", display: "flex", justifyContent: "center", alignItems: "center" }}>
+    return <div style={{ gridArea: "selected", display: "flex", justifyContent: "center", alignItems: "center" }}>
       <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`No hay docente seleccionado`}</Tag>
     </div>
   }
@@ -43,17 +44,30 @@ export default function SelectedTeacher() {
       <img src={teacherPhoto} alt="" />
       <div className="teacher-info">
         <span className="teacher-name" >{`${selectedTeacher?.name} ${selectedTeacher?.lastName}`}</span>
-        <Tag color="blue">{`CI: ${selectedTeacher?.ci}`}</Tag>
-        <Tag color="blue">{`Titulo: ${selectedTeacher?.title}`}</Tag>
-        <Tag color="blue">{`Tipo de contrato: ${selectedTeacher?.type}`}</Tag>
-        <Tag color="blue">{`Horas asignadas: ${teacherData.asignedHpours}`}</Tag>
-        <Tag color="blue">{`Horas disponibles: ${getTeachersHoursData(selectedTeacerId || 0).aviableHours}`}</Tag>
-        <Tag color="blue">{`Carga Horaria: ${getTeachersHoursData(selectedTeacerId || 0).partTime}`}</Tag>
+        <span >{`CI: ${selectedTeacher?.ci}`}</span>
+        <span >{`Titulo: ${selectedTeacher?.title}`}</span>
+        <span >{`Tipo de contrato: ${selectedTeacher?.type}`}</span>
+        <span >{`Carga Horaria: ${teacherData.partTime}`}</span>
+        <span style={{ color: teacherData.asignedHpours > teacherData.partTime ? "red" : "black" }} >{`Horas asignadas: ${teacherData.asignedHpours}`}</span>
+        <span style={{ color: teacherData.asignedHpours > teacherData.partTime ? "red" : "black" }}>{`Horas disponibles: ${teacherData.aviableHours}`}</span>
+      </div>
+
+      <div style={{ width: "100%", height: "30px", marginLeft: "30px", display: "flex", alignItems: "center" }}>
+        {
+          teacherData.asignedHpours > teacherData.partTime
+            ? <Tag color="error" icon={<ExclamationCircleOutlined />}>{`Sobrecarga de Horas`}</Tag>
+            : null
+        }
+        {
+          teacherData.asignedHpours === 0
+            ? <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`Sin Horas Asignadas`}</Tag>
+            : null
+        }
       </div>
 
 
+      <Subjects data={teachers?.[selectedTeacerId ?? 0]?.load ?? null} />
 
-      <Subjects data={selectedTeacher?.load} />
 
     </div>
   );

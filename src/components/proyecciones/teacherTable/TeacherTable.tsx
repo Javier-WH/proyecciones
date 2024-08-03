@@ -56,7 +56,21 @@ const TeacherTable: React.FC = () => {
         //no se puede usar el metodo desde el context, porque no funcionan los filtros
         const subjects = record.load ?? [];
         const totalHours = subjects.reduce((acc, subject) => acc + subject.hours, 0);
-        return `${totalHours} / ${value}`; 
+        let color = "black";
+
+        if (totalHours > value) {
+          color = "red";
+        } else if (totalHours == 0) {
+          color = "grey";
+        }
+        
+        return <div style={
+          { 
+            textAlign: "center",
+            color
+          }
+        }>
+        {`${totalHours} / ${value}`}</div> ; 
       },
       key: 'partTime',
       width: '3%',

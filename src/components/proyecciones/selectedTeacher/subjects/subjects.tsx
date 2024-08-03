@@ -15,9 +15,22 @@ import "./subjects.css"
 
 const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
 
-  const { setOpenAddSubjectToTeacherModal } = useContext(MainContext) as MainContextValues;
+  const { setOpenAddSubjectToTeacherModal, teachers, selectedTeacerId, setTeachers, subjects, setSubjects } = useContext(MainContext) as MainContextValues;
 
 
+  const handleRemoveSubject = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const subjectId = e.currentTarget.id
+    if (!subjectId || !teachers || selectedTeacerId === null || subjects === null) return
+
+    //copio el array para no modificar el original y hago el filtro para eliminar la materia
+    const teachersCopy = JSON.parse(JSON.stringify(teachers));
+    teachersCopy[selectedTeacerId].load = teachers[selectedTeacerId].load?.filter(subject => subject.id !== subjectId)
+    
+    //guardado la materia para reintegrarla a la lista de materias
+    const savedSubject = teachers[selectedTeacerId].load?.find(subject => subject.id === subjectId)
+    setSubjects([...subjects, savedSubject!])
+    setTeachers(teachersCopy)
+  }
 
   return <div className='teacher-subjects-container'>
     <div className='teacher-subjects-header'>
@@ -36,7 +49,7 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
                   <Button type="link" shape='round' style={{ color: "white", fontSize: "18px" }}>
                     <IoMdSwap />
                   </Button>
-                  <Button type="link" shape='round' danger>
+                  <Button id={subject.id} type="link" shape='round' danger onClick={handleRemoveSubject}>
                     <FaTrashAlt />
                   </Button>
                 </div>

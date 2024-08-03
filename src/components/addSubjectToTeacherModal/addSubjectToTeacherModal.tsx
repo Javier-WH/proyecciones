@@ -12,7 +12,7 @@ const AddSubjectToTeacherModal: React.FC<{
   selectedTeacerId: number | null
   subjects: Array<Subject> | null
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>
-}> = ({ open, setOpen, teachers, selectedTeacerId, subjects, setSubjects }) => {
+}> = ({ open, setOpen, teachers, selectedTeacerId, subjects, setSubjects, setTeachers }) => {
 
   const [loading, setLoading] = useState(false);
   const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
@@ -46,7 +46,7 @@ const AddSubjectToTeacherModal: React.FC<{
 
         // Validar si los valores son NaN
         if (isNaN(teacherLoadNumber) || isNaN(subjectHourNumber) || isNaN(maxHoursNumber)) {
-          return false; // Excluir el elemento si alguno de los valores es NaN
+          return false;
         }
         return teacherLoadNumber + subjectHourNumber <= maxHoursNumber;
       });
@@ -73,7 +73,9 @@ const AddSubjectToTeacherModal: React.FC<{
     //obtengo el index de la asignatura
     const index = subjects.findIndex((subject) => subject.id === selectedOption);
     //agrego la asignatura al load del profesor
-    teachers[selectedTeacerId]?.load?.push(subjects[index]);
+    const teachersCopy = JSON.parse(JSON.stringify(teachers));
+    teachersCopy[selectedTeacerId]?.load?.push(subjects[index]);
+    setTeachers(teachersCopy);
     //elimino la asignatura de la lista de asignaturas
     setSubjects(subjects.filter((subject) => subject.id !== selectedOption));
     //limpio el select
