@@ -1,6 +1,8 @@
 .change-subject-modal-container-teacher-select {
   overflow-x: hidden;
-  overflow-y: scroll;
+  overflow-y: auto;
+  max-height: 400px;
+  padding: 10px;
 }
 
 .change-subject-modal-container-teacher-select .ant-radio-button-wrapper{
