@@ -1,18 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Modal, Select, Radio, Tag, Switch } from 'antd';
 import type { RadioChangeEvent } from 'antd';
-import { Teacher } from '../../interfaces/teacher';
+import { Quarter } from '../../interfaces/teacher';
 import { Subject } from '../../interfaces/subject';
 import { CloseCircleOutlined } from '@ant-design/icons';
 const AddSubjectToTeacherModal: React.FC<{
   open: boolean;
   setOpen: (open: boolean) => void;
-  teachers: Array<Teacher> | null
-  setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>
+  teachers: Quarter | null
+  setTeachers: React.Dispatch<React.SetStateAction<Quarter| null>>
   selectedTeacerId: string | null
   subjects: Array<Subject> | null
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>
-}> = ({ open, setOpen, teachers, selectedTeacerId, subjects, setSubjects, setTeachers }) => {
+  selectedQuarter: "q1" | "q2" | "q3"
+  setSelectedQuarter: React.Dispatch<React.SetStateAction<"q1" | "q2" | "q3">>
+}> = ({ open, setOpen, teachers, selectedTeacerId, subjects, setSubjects, setTeachers, selectedQuarter, setSelectedQuarter }) => {
 
   const [loading, setLoading] = useState(false);
   const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
@@ -28,21 +30,21 @@ const AddSubjectToTeacherModal: React.FC<{
     if (!subjects || !teachers || !selectedTeacerId) return
     //obtengo la lista de asignaturas
     let subjectsData = subjects.map((subject) => ({ value: subject.id, label: `${subject.subject} (PNF ${subject.pnf} - Sección T0-${subject.seccion})` }));
-    const t_index = teachers.findIndex(teacher => teacher.id === selectedTeacerId);
+    const t_index = teachers[selectedQuarter].findIndex(teacher => teacher.id === selectedTeacerId);
     setTeacherIndex(t_index);
-    const teacherPerfil = new Set(teachers[t_index]?.perfil ?? []);
+
+    const teacherPerfil = new Set(teachers[selectedQuarter][t_index]?.perfil ?? []);
     if (perfilOption === 'perfil') {
       subjectsData = subjectsData.filter(subject => teacherPerfil.has(subject.value))
     }
     //las horas que tiene usadas el profesor
-    const tehacherLoad = teachers[t_index]?.load?.map(subject => subject.hours).reduce((acc, curr) => acc + curr, 0);
+    const tehacherLoad = teachers[selectedQuarter][t_index]?.load?.map(subject => subject.hours).reduce((acc, curr) => acc + curr, 0);
     //maximo de horas que puede tener el profesor
-    const maxHours = teachers[t_index]?.partTime;
-
+    const maxHours = teachers[selectedQuarter][t_index]?.partTime;
     ///// FILTRADO DE HORAS DISPONIBLES
     if(!overLoad){
       subjectsData = subjectsData.filter((subject) => {
-        const index = Number.parseInt(subject.value);
+        const index = subjects.findIndex((s) => s.id === subject.value);
         const subjectHourNumber = subjects[index]?.hours;
         const teacherLoadNumber = Number.parseInt(tehacherLoad?.toString() ?? '0');
         const maxHoursNumber = Number.parseInt(maxHours.toString());
@@ -55,9 +57,21 @@ const AddSubjectToTeacherModal: React.FC<{
       });
     }
 
+
+    //filtrado por trimestre
+    subjectsData = subjectsData.filter(subject =>{
+      const index = subjects.findIndex((s) => s.id === subject.value);
+      const subjectQuarter = subjects[index]?.quarter;
+      const quarter = selectedQuarter === 'q1' ? 1 : selectedQuarter === 'q2' ? 2 : 3;
+      return subjectQuarter && subjectQuarter.includes(quarter);
+  
+    });
+
+
+
     setOptions(subjectsData);
 
-  }, [subjects, perfilOption, teachers, selectedTeacerId, overLoad]);
+  }, [subjects, perfilOption, teachers, selectedTeacerId, overLoad, selectedQuarter]);
 
   //aqui vigilo si existen asignaturas
   useEffect(() => {
@@ -72,12 +86,21 @@ const AddSubjectToTeacherModal: React.FC<{
   const handleOk = () => {
     setLoading(true);
     //valido para no tener errores mas adelante
-    if (!teachers || subjects === null || selectedOption === null || teacherIndex === null) return
+    if (!teachers || subjects === null || selectedOption === null || teacherIndex === null || selectedQuarter === null) return
     //obtengo el index de la asignatura
     const index = subjects.findIndex((subject) => subject.id === selectedOption);
     //agrego la asignatura al load del profesor
     const teachersCopy = JSON.parse(JSON.stringify(teachers));
-    teachersCopy[teacherIndex]?.load?.push(subjects[index]);
+    if (subjects[index].quarter.includes(1)) {
+      teachersCopy["q1"][teacherIndex]?.load?.push(subjects[index]);
+    }
+    if (subjects[index].quarter.includes(2)) {
+      teachersCopy["q2"][teacherIndex]?.load?.push(subjects[index]);
+    }
+    if (subjects[index].quarter.includes(3)) {
+      teachersCopy["q3"][teacherIndex]?.load?.push(subjects[index]);
+    }
+    //teachersCopy[selectedQuarter][teacherIndex]?.load?.push(subjects[index]);
     setTeachers(teachersCopy);
     //elimino la asignatura de la lista de asignaturas
     setSubjects(subjects.filter((subject) => subject.id !== selectedOption));
@@ -109,11 +132,15 @@ const AddSubjectToTeacherModal: React.FC<{
     setSelectedOption(null);
   };
 
+  const handleChangeQuarterSelector = (value: string) => {
+    setSelectedQuarter(value as "q1" | "q2" | "q3");
+  };
+
   return (
     <>
       <Modal
         open={open}
-        title={`Materias disponibles para el docente ${teachers?.[teacherIndex ?? 0]?.name ?? ''} ${teachers?.[teacherIndex ?? 0]?.lastName ?? ''}`}
+        title={`Materias disponibles para el docente ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.name ?? ''} ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.lastName ?? ''}`}
         onOk={handleOk}
         onCancel={handleCancel}
         footer={[
@@ -125,8 +152,17 @@ const AddSubjectToTeacherModal: React.FC<{
           </Button>
         ]}
       >
+        <Select
+          value={selectedQuarter}
+          style={{ width: 300 }}
+          options={[
+            { value: 'q1', label: 'Primer Trimestre' },
+            { value: 'q2', label: 'Segundo Trimestre' },
+            { value: 'q3', label: 'Tercer Trimestre' }
+          ]}
+          onChange={handleChangeQuarterSelector}
+        />
         <div style={{ display: "flex", flexDirection: "column", gap: "1px", alignItems: "end", marginBottom: "5px", marginTop: "30px" }}>
-
           <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
             <Switch  onChange={() => setOverLoad(!overLoad)} value={overLoad}/>

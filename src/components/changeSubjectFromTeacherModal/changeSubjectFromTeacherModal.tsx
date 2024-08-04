@@ -1,20 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Modal, Flex, Select, Radio, Tag, Switch } from 'antd';
+import { Button, Modal, Radio} from 'antd';
 import type { RadioChangeEvent } from 'antd';
-import { Teacher } from '../../interfaces/teacher';
+import { Teacher, Quarter } from '../../interfaces/teacher';
 import { Subject } from '../../interfaces/subject';
-import { CloseCircleOutlined } from '@ant-design/icons';
+
 import './changeSubjectFromTeacherModal.css'
 const ChangeSubjectFromTeacherModal: React.FC<{
   open: boolean;
   setOpen: (open: boolean) => void;
-  teachers: Array<Teacher> | null
-  setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>
+  teachers: Quarter | null
+  setTeachers: React.Dispatch<React.SetStateAction<Quarter | null>>
   selectedTeacerId: string | null
   subjects: Array<Subject> | null
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>
   selectedSubject: Subject | null
-}> = ({ open, setOpen, teachers, selectedTeacerId, subjects, setSubjects, setTeachers, selectedSubject }) => {
+  selectedQuarter: "q1" | "q2" | "q3"
+}> = ({ open, setOpen, teachers, selectedTeacerId, subjects, setSubjects, setTeachers, selectedSubject, selectedQuarter }) => {
 
 
   const [viableTeachersList, setViableTeachersList] = useState<Array<Teacher>>([]);
@@ -24,7 +25,7 @@ const ChangeSubjectFromTeacherModal: React.FC<{
     if (selectedSubject === null || teachers === null) return;
     const subjectId = selectedSubject.id
 
-    let viableTeachers = teachers.filter((teacher) => {
+    let viableTeachers = teachers[selectedQuarter].filter((teacher) => {
       return teacher.perfil?.some((subject) => subject === subjectId)
     })
 
@@ -34,7 +35,7 @@ const ChangeSubjectFromTeacherModal: React.FC<{
     }
 
     setViableTeachersList(viableTeachers)
-  }, [selectedSubject, teachers, selectedTeacerId])
+  }, [selectedSubject, teachers, selectedTeacerId, selectedQuarter])
 
   const handleOk = () => {
     console.log(teacherID)

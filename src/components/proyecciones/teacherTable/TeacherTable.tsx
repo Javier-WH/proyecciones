@@ -2,18 +2,17 @@ import React, {  useContext} from 'react';
 import type { TableColumnsType } from 'antd';
 import { Table } from 'antd';
 import { MainContext } from '../../../context/mainContext';
-import { Teacher } from '../../../interfaces/teacher';
+import { Teacher} from '../../../interfaces/teacher';
+import { MainContextValues } from '../../../interfaces/contextInterfaces';
 
 
 
 const TeacherTable: React.FC = () => {
 
-  const context = useContext(MainContext);
-  if (!context) {
-    return <div>Loading...</div>;
-  }
-  const { teachers, setSelectedTeacherById } = context;
-  const data: Teacher[] | null = teachers;
+  const context = useContext(MainContext) as MainContextValues;
+  const { teachers, setSelectedTeacherById, selectedQuarter } = context;
+  if(!teachers) return null
+  const data: Teacher[] | null = teachers[selectedQuarter] || null;
 
 
   const columns: TableColumnsType<Teacher> = [

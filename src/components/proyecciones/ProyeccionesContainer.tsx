@@ -16,12 +16,15 @@ export default function ProyeccionesContainer() {
 
   const { tankenSubjects, aviableSubjects } = useSubjectsInfo();
   const [ teacherTab, setTeacherTab ] = useState(true);
-  const { setSelectedTeacerId, setSelectedTeacher} = useContext(MainContext) as MainContextValues
+  const { setSelectedTeacerId, setSelectedTeacher, setSelectedQuarter } = useContext(MainContext) as MainContextValues
 
   const iconStyle = { color: "white", fontSize: "2rem"}
 
   const handleChangeSelector = (value: string) => {
     console.log(`selected ${value}`);
+  };
+  const handleChangeQuarterSelector = (value: string) => {
+    setSelectedQuarter(value as "q1" | "q2" | "q3");
   };
 
   const handleChangeRadio = (value: string) => {
@@ -46,6 +49,17 @@ export default function ProyeccionesContainer() {
         style={{ width: 300 }}
         options={[{ value: 'Inscripciones 2024', label: 'Inscripciones 2024' }]}
         onChange={handleChangeSelector}
+      />
+
+      <Select
+        defaultValue="Primer Trimestre"
+        style={{ width: 300 }}
+        options={[
+          { value: 'q1', label: 'Primer Trimestre' },
+          { value: 'q2', label: 'Segundo Trimestre' },
+          { value: 'q3', label: 'Tercer Trimestre' }
+        ]}
+        onChange={handleChangeQuarterSelector}
       />
       
       <div style={{ display: "flex", alignItems: "center", columnGap: "20px"}}>

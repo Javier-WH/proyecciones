@@ -14,3 +14,8 @@ export interface Teacher {
   gender: string;
 }
 
+export interface Quarter{
+  q1: Array<Teacher>;
+  q2: Array<Teacher>;
+  q3: Array<Teacher>;
+}

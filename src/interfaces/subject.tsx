@@ -4,5 +4,6 @@ export interface Subject {
   hours: number;
   pnf: string;
   seccion: string;
+  quarter: Array<number>;
 }
 

@@ -1,8 +1,9 @@
-import  { Teacher } from "../interfaces/teacher";
+import  { Teacher, Quarter } from "../interfaces/teacher";
 import { Subject } from "../interfaces/subject";
+
 export interface MainContextValues {
-  teachers: Array<Teacher> | null;
-  setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
+  teachers: Quarter | null;
+  setTeachers: React.Dispatch<React.SetStateAction<Quarter | null>>;
   selectedTeacher: Teacher | null;
   setSelectedTeacher: React.Dispatch<React.SetStateAction<Teacher | null>>;
   setSelectedTeacherById(id: string): void;
@@ -17,4 +18,6 @@ export interface MainContextValues {
   setOpenChangeSubjectFromTeacherModal: React.Dispatch<React.SetStateAction<boolean>>;
   selectedSubject: Subject | null;
   setSelectedSubject : React.Dispatch<React.SetStateAction<Subject | null>>;
+  selectedQuarter : "q1" | "q2" | "q3"; 
+  setSelectedQuarter : React.Dispatch<React.SetStateAction<"q1" | "q2" | "q3">>;
 }

@@ -15,20 +15,23 @@ import "./subjects.css"
 
 const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
 
-  const { setOpenAddSubjectToTeacherModal, teachers, selectedTeacerId, setTeachers, subjects, setSubjects, setOpenChangeSubjectFromTeacherModal, setSelectedSubject } = useContext(MainContext) as MainContextValues;
+  const { setOpenAddSubjectToTeacherModal, teachers, selectedTeacerId, setTeachers, subjects, setSubjects, setOpenChangeSubjectFromTeacherModal, setSelectedSubject, selectedQuarter } = useContext(MainContext) as MainContextValues;
 
-
+ 
   const handleRemoveSubject = (e: React.MouseEvent<HTMLButtonElement>) => {
     const subjectId = e.currentTarget.id
     if (!subjectId || !teachers || selectedTeacerId === null || subjects === null) return
 
     //copio el array para no modificar el original y hago el filtro para eliminar la materia
     const teachersCopy = JSON.parse(JSON.stringify(teachers));
-    const teacherIndex = teachers.findIndex(teacher => teacher.id === selectedTeacerId)
-    teachersCopy[teacherIndex].load = teachers[teacherIndex].load?.filter(subject => subject.id !== subjectId)
-    
+    const teacherIndex = teachers[selectedQuarter].findIndex(teacher => teacher.id === selectedTeacerId)
+
+    teachersCopy["q1"][teacherIndex].load = teachers["q1"][teacherIndex].load?.filter(subject => subject.id !== subjectId)
+    teachersCopy["q2"][teacherIndex].load = teachers["q2"][teacherIndex].load?.filter(subject => subject.id !== subjectId)
+    teachersCopy["q3"][teacherIndex].load = teachers["q3"][teacherIndex].load?.filter(subject => subject.id !== subjectId)
+
     //guardado la materia para reintegrarla a la lista de materias
-    const savedSubject = teachers[teacherIndex].load?.find(subject => subject.id === subjectId)
+    const savedSubject = teachers[selectedQuarter][teacherIndex].load?.find(subject => subject.id === subjectId)
     setSubjects([...subjects, savedSubject!])
     setTeachers(teachersCopy)
   }
