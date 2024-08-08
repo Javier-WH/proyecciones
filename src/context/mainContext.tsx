@@ -4,8 +4,6 @@ import { Teacher, Quarter} from "../interfaces/teacher";
 import { Subject } from "../interfaces/subject";
 import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/addSubjectToTeacherModal";
 import ChangeSubjectFromTeacherModal from "../components/changeSubjectFromTeacherModal/changeSubjectFromTeacherModal";
-import fetchTeacherData from "../fetch/fetchTeacherData";
-import fetchSubjectsData from "../fetch/fetchSubjectsData";
 import io, {Socket} from 'socket.io-client';
 
 
@@ -23,21 +21,6 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [openAddSubjectToTeacherModal, setOpenAddSubjectToTeacherModal] = useState(false);
   const [openChangeSubjectFromTeacherModal, setOpenChangeSubjectFromTeacherModal] = useState(false);
-
-
-  useEffect(() => {
-
-    setSocket(import.meta.env.MODE === 'development' ? io('ws://localhost:3000') : io());
-
-    fetchTeacherData().then((data) => {
-      setTeachers(data);
-    })
-
-    fetchSubjectsData().then((data) => {
-      setSubjects(data);
-    })
-  }, []);
-
 
   const setSelectedTeacherById = (id: string) => {
     if (!teachers) return;
@@ -65,6 +48,10 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
 ///websocket
   useEffect(() => {
+    setSocket(import.meta.env.MODE === 'development' ? io('ws://localhost:3000') : io());
+  }, []);
+
+  useEffect(() => {
     if (!socket) return;
     // Escuchar eventos de actualización de los profesores
     socket.on('updateTeachers', (newTeachers) => {
@@ -75,10 +62,18 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
       setSubjects(newSubjects);
     });
 
-    // Desconectar al desmontar el componente
+    socket.on('connect_error', (err) => {
+      console.error('WebSocket connection error:', err);
+    })
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from WebSocket');
+    });
+
     return () => {
       socket.disconnect();
     };
+
   }, [socket]);
 
   const handleTeacherChange = (data: Quarter) => {
