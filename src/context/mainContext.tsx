@@ -6,6 +6,7 @@ import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/add
 import ChangeSubjectFromTeacherModal from "../components/changeSubjectFromTeacherModal/changeSubjectFromTeacherModal";
 import fetchTeacherData from "../fetch/fetchTeacherData";
 import fetchSubjectsData from "../fetch/fetchSubjectsData";
+import io, {Socket} from 'socket.io-client';
 
 
 
@@ -13,6 +14,7 @@ export const MainContext = createContext<MainContextValues | null>(null);
 
 export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [teachers, setTeachers] = useState< Quarter | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [selectedQuarter, setSelectedQuarter] = useState<"q1" | "q2" | "q3">("q1");
@@ -24,6 +26,9 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
 
   useEffect(() => {
+
+    setSocket(import.meta.env.MODE === 'development' ? io('ws://localhost:3000') : io());
+
     fetchTeacherData().then((data) => {
       setTeachers(data);
     })
@@ -42,7 +47,12 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   }
 
   const getTeachersHoursData = (id: number) => {
-    if (!teachers) return;
+    if (!teachers) return {
+      partTime: null,
+      asignedHpours: null,
+      aviableHours: null
+    };
+
     const subjects = teachers[selectedQuarter][id]?.load ?? [];
     const asignedHpours = subjects.reduce((acc, subject) => acc + subject.hours, 0);
 
@@ -53,27 +63,55 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   }
 
-  const values = {
+///websocket
+  useEffect(() => {
+    if (!socket) return;
+    // Escuchar eventos de actualización de los profesores
+    socket.on('updateTeachers', (newTeachers) => {
+      //console.log(newTeachers);
+      setTeachers(newTeachers);
+    });
+    socket.on('updateSubjects', (newSubjects) => {
+      setSubjects(newSubjects);
+    });
+
+    // Desconectar al desmontar el componente
+    return () => {
+      socket.disconnect();
+    };
+  }, [socket]);
+
+  const handleTeacherChange = (data: Quarter) => {
+    if (!socket) return;
+    socket.emit('updateTeachers', data);
+  };
+  const handleSubjectChange = (data: Subject[]) => {
+    if (!socket) return;
+    socket.emit('updateSubjects', data);
+  };
+
+  const values: MainContextValues = {
     teachers,
     setTeachers,
-    selectedTeacher, 
+    selectedTeacher,
     setSelectedTeacher,
     setSelectedTeacherById,
     getTeachersHoursData,
     selectedTeacerId,
     setSelectedTeacerId,
-    subjects, 
+    subjects,
     setSubjects,
-    openAddSubjectToTeacherModal, 
+    openAddSubjectToTeacherModal,
     setOpenAddSubjectToTeacherModal,
-    openChangeSubjectFromTeacherModal, 
+    openChangeSubjectFromTeacherModal,
     setOpenChangeSubjectFromTeacherModal,
     selectedSubject,
     setSelectedSubject,
-    selectedQuarter, 
-    setSelectedQuarter
+    selectedQuarter,
+    setSelectedQuarter,
+    handleTeacherChange,
+    handleSubjectChange
   }
-
 
   return (
     <MainContext.Provider value={values}>
@@ -88,6 +126,8 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         setSubjects = {setSubjects}
         selectedQuarter = {selectedQuarter}
         setSelectedQuarter = {setSelectedQuarter}
+        handleTeacherChange = {handleTeacherChange}
+        handleSubjectChange = {handleSubjectChange}
 
       />
       <ChangeSubjectFromTeacherModal 

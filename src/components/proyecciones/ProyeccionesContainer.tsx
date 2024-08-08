@@ -53,7 +53,7 @@ export default function ProyeccionesContainer() {
 
       <Select
         defaultValue="Primer Trimestre"
-        style={{ width: 300 }}
+        style={{ width: 180 }}
         options={[
           { value: 'q1', label: 'Primer Trimestre' },
           { value: 'q2', label: 'Segundo Trimestre' },

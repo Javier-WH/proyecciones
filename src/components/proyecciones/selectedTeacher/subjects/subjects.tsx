@@ -15,7 +15,7 @@ import "./subjects.css"
 
 const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
 
-  const { setOpenAddSubjectToTeacherModal, teachers, selectedTeacerId, setTeachers, subjects, setSubjects, setOpenChangeSubjectFromTeacherModal, setSelectedSubject, selectedQuarter } = useContext(MainContext) as MainContextValues;
+  const { setOpenAddSubjectToTeacherModal, teachers, selectedTeacerId, subjects, setOpenChangeSubjectFromTeacherModal, setSelectedSubject, selectedQuarter, handleSubjectChange, handleTeacherChange } = useContext(MainContext) as MainContextValues;
 
  
   const handleRemoveSubject = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -32,8 +32,10 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
 
     //guardado la materia para reintegrarla a la lista de materias
     const savedSubject = teachers[selectedQuarter][teacherIndex].load?.find(subject => subject.id === subjectId)
-    setSubjects([...subjects, savedSubject!])
-    setTeachers(teachersCopy)
+    //setSubjects([...subjects, savedSubject!])
+    handleSubjectChange([...subjects, savedSubject!])
+    //setTeachers(teachersCopy)
+    handleTeacherChange(teachersCopy)
   }
 
   const handleSwapSubjects = () => {

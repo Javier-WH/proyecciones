@@ -14,7 +14,9 @@ const AddSubjectToTeacherModal: React.FC<{
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>
   selectedQuarter: "q1" | "q2" | "q3"
   setSelectedQuarter: React.Dispatch<React.SetStateAction<"q1" | "q2" | "q3">>
-}> = ({ open, setOpen, teachers, selectedTeacerId, subjects, setSubjects, setTeachers, selectedQuarter, setSelectedQuarter }) => {
+  handleTeacherChange: (data: Quarter) => void
+  handleSubjectChange: (data: Subject[]) => void
+}> = ({ open, setOpen, teachers, selectedTeacerId, subjects, selectedQuarter, setSelectedQuarter, handleTeacherChange, handleSubjectChange }) => {
 
   const [loading, setLoading] = useState(false);
   const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
@@ -100,10 +102,11 @@ const AddSubjectToTeacherModal: React.FC<{
     if (subjects[index].quarter.includes(3)) {
       teachersCopy["q3"][teacherIndex]?.load?.push(subjects[index]);
     }
-    //teachersCopy[selectedQuarter][teacherIndex]?.load?.push(subjects[index]);
-    setTeachers(teachersCopy);
+    //setTeachers(teachersCopy);
+    handleTeacherChange(teachersCopy);
     //elimino la asignatura de la lista de asignaturas
-    setSubjects(subjects.filter((subject) => subject.id !== selectedOption));
+    //setSubjects(subjects.filter((subject) => subject.id !== selectedOption));
+    handleSubjectChange(subjects.filter((subject) => subject.id !== selectedOption));
     //limpio el select
     setSelectedOption(null);
     //cierro el modal

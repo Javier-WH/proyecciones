@@ -39,6 +39,22 @@ export default function SelectedTeacher() {
     </div>
   }
 
+  const hoursDataStyle = () => {
+    let color = "black";
+
+    if(!teacherData || !teacherData.asignedHpours || !teacherData.partTime) return {color}
+
+    if (teacherData.asignedHpours > teacherData.partTime) {
+      color = "red";
+    } else if (teacherData && teacherData.asignedHpours == 0) {
+      color = "grey";
+    }
+
+    return {  color }
+  
+
+  }
+
   return (
     <div className="selected-teacher-container" style={{ gridArea: "selected" }}>
 
@@ -54,13 +70,13 @@ export default function SelectedTeacher() {
         <span >{`Titulo: ${selectedTeacher?.title}`}</span>
         <span >{`Tipo de contrato: ${selectedTeacher?.type}`}</span>
         <span >{`Carga Horaria: ${ teacherData && teacherData.partTime}`}</span>
-        <span style={{ color: teacherData && (teacherData.asignedHpours > teacherData.partTime ? "red" : "black") }} >{`Horas asignadas: ${teacherData && teacherData.asignedHpours}`}</span>
-        <span style={{ color: teacherData && (teacherData.asignedHpours > teacherData.partTime ? "red" : "black") }}>{`Horas disponibles: ${teacherData && teacherData.aviableHours}`}</span>
+        <span style={hoursDataStyle()} >{`Horas asignadas: ${teacherData && teacherData.asignedHpours}`}</span>
+        <span style={hoursDataStyle()} >{`Horas disponibles: ${teacherData && teacherData.aviableHours}`}</span>
       </div>
 
       <div style={{ width: "100%", height: "30px", marginLeft: "30px", display: "flex", alignItems: "center" }}>
         {
-          teacherData && teacherData.asignedHpours > teacherData.partTime
+          (teacherData.asignedHpours && teacherData.partTime) && teacherData.asignedHpours > teacherData.partTime
             ? <Tag color="error" icon={<ExclamationCircleOutlined />}>{`Sobrecarga de Horas`}</Tag>
             : null
         }

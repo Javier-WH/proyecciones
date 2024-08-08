@@ -7,7 +7,7 @@ export interface MainContextValues {
   selectedTeacher: Teacher | null;
   setSelectedTeacher: React.Dispatch<React.SetStateAction<Teacher | null>>;
   setSelectedTeacherById(id: string): void;
-  getTeachersHoursData(id: number): {partTime: number, asignedHpours: number, aviableHours: number};
+  getTeachersHoursData(id: number): {partTime: number | null, asignedHpours: number | null, aviableHours: number | null};
   selectedTeacerId : string | null;
   setSelectedTeacerId : React.Dispatch<React.SetStateAction<string | null>>;
   subjects: Array<Subject> | null;
@@ -20,4 +20,6 @@ export interface MainContextValues {
   setSelectedSubject : React.Dispatch<React.SetStateAction<Subject | null>>;
   selectedQuarter : "q1" | "q2" | "q3"; 
   setSelectedQuarter : React.Dispatch<React.SetStateAction<"q1" | "q2" | "q3">>;
+  handleTeacherChange: (data: Quarter) => void;
+  handleSubjectChange: (data: Subject[]) => void;
 }

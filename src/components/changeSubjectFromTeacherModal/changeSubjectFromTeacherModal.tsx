@@ -15,7 +15,7 @@ const ChangeSubjectFromTeacherModal: React.FC<{
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>
   selectedSubject: Subject | null
   selectedQuarter: "q1" | "q2" | "q3"
-}> = ({ open, setOpen, teachers, selectedTeacerId, subjects, setSubjects, setTeachers, selectedSubject, selectedQuarter }) => {
+}> = ({ open, setOpen, teachers, selectedTeacerId, selectedSubject, selectedQuarter }) => {
 
 
   const [viableTeachersList, setViableTeachersList] = useState<Array<Teacher>>([]);
