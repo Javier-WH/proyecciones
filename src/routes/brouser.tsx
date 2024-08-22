@@ -4,6 +4,7 @@ import NotFound from "../components/notFound/NotFoundPage";
 import ElementNotFound from "../components/notFound/ElementNotFoud";
 import ProyeccionesContainer from "../components/proyecciones/ProyeccionesContainer";
 import Login from "../components/login/login";
+import ProyeccionesSubjects from "../components/proyeccionesSubjects/proyeccionesSubjects";
 
 const router = createBrowserRouter([
   {
@@ -22,6 +23,10 @@ const router = createBrowserRouter([
       {
         path: "config",
         element: <h1>config</h1>,
+      },
+      {
+        path: "proyecciones/subjects",
+        element: <ProyeccionesSubjects />,
       },
       {
         path: "*",

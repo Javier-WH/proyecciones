@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate } from "react-router-dom";
 import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit } from "react-icons/fa";
+import { MdSubject } from "react-icons/md";
 import { LiaSchoolSolid } from "react-icons/lia";
 import { GrSchedules, GrConfigure } from "react-icons/gr";
 import { IoPersonAddSharp } from "react-icons/io5";
@@ -27,14 +28,16 @@ function getItem(
 }
 
 const items: MenuItem[] = [
-  getItem('Proyecciones', '/app/proyecciones', <FaCalendarAlt />,),
+  getItem('Proyecciones', '/app/_proyecciones', <FaCalendarAlt />,[
+    getItem('Materias', '/app/proyecciones/subjects', <MdSubject />),
+    getItem('Proyecciones', '/app/proyecciones', <FaCalendarAlt />),
+  ]),
   getItem('Profesores', '/app/profesores', <FaChalkboardTeacher />, [
     getItem('Registrar', '/app/registrar', <IoPersonAddSharp />),
     getItem('Editar', '/app/editar', <FaUserEdit />),
     getItem('Perfiles', '/app/perfiles', <FaUsers />),
   ]),
   getItem('Pensum', '/app/pensum', <LiaSchoolSolid />, [
-    getItem('Tom', '3'),
     getItem('Bill', '4'),
     getItem('Alex', '5'),
   ]),

@@ -46,7 +46,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   }
 
-///websocket
+///websocket/////////////////////////////////////////////////////////////////////////////////
   useEffect(() => {
     setSocket(import.meta.env.MODE === 'development' ? io('ws://localhost:3000') : io());
   }, []);

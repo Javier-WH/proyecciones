@@ -5,5 +5,6 @@ export interface Subject {
   pnf: string;
   seccion: string;
   quarter: Array<number>;
+  pensum_id: string;
 }
 

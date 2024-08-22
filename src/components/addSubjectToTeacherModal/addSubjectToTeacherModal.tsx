@@ -19,7 +19,7 @@ const AddSubjectToTeacherModal: React.FC<{
 }> = ({ open, setOpen, teachers, selectedTeacerId, subjects, selectedQuarter, setSelectedQuarter, handleTeacherChange, handleSubjectChange }) => {
 
   const [loading, setLoading] = useState(false);
-  const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
+  const [options, setOptions] = useState<{ value: string; label: string, key: string }[]>([]);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [perfilOption, setPerfilOption] = useState('perfil');
   const [erroMessage, setErrorMessage] = useState<string | null>(null);
@@ -31,7 +31,7 @@ const AddSubjectToTeacherModal: React.FC<{
   useEffect(() => {
     if (!subjects || !teachers || !selectedTeacerId) return
     //obtengo la lista de asignaturas
-    let subjectsData = subjects.map((subject) => ({ value: subject.id, label: `${subject.subject} (PNF ${subject.pnf} - Sección T0-${subject.seccion})` }));
+    let subjectsData = subjects.map((subject) => ({ value: subject.id, label: `${subject.subject} (PNF ${subject.pnf} - Sección T0-${subject.seccion})`, key: subject.pensum_id }));
     const t_index = teachers[selectedQuarter].findIndex(teacher => teacher.id === selectedTeacerId);
     setTeacherIndex(t_index);
 
@@ -183,6 +183,8 @@ const AddSubjectToTeacherModal: React.FC<{
           <br />
 
           <Select
+            key={"pensum_id"}
+            optionFilterProp="label"
             placeholder="Selecciona una materia"
             size="large"
             onChange={handleChange}

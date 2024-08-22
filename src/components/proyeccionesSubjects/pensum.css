@@ -1,0 +1,26 @@
+.pensum-subjects-container > .pensum-subjects-header,
+.pensum-subjects-container .pensum-subjects-row {
+  display: grid;
+  grid-template-columns: 5fr 7fr 1fr 3fr 3fr;
+}
+
+
+.pensum-subjects-row:hover{
+  background-color: #001529 !important;
+  color: white !important;
+  cursor: pointer;
+}
+
+.pensum-subjects-row:hover .ant-btn {
+  color: white;
+}
+
+.pensum-subjects-row .ant-btn:hover{
+  color: cyan !important;
+  scale: 1.4;
+}
+
+.pensum-subjects-row-container{
+  overflow-y: auto;
+  height: 80vh;
+}
