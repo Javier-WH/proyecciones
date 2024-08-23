@@ -1,10 +1,13 @@
 import { createContext, ReactNode, useEffect, useState} from "react"
 import { MainContextValues } from "../interfaces/contextInterfaces"; 
 import { Teacher, Quarter} from "../interfaces/teacher";
-import { Subject } from "../interfaces/subject";
+import { PNF } from "../interfaces/pnf.tsx";
+import { Subject, SimpleSubject } from "../interfaces/subject";
 import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/addSubjectToTeacherModal";
 import ChangeSubjectFromTeacherModal from "../components/changeSubjectFromTeacherModal/changeSubjectFromTeacherModal";
 import io, {Socket} from 'socket.io-client';
+import getPnf from "../fetch/getPnf.ts";
+import getSubjects from "../fetch/getSubjects.ts";
 
 
 
@@ -21,6 +24,26 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [openAddSubjectToTeacherModal, setOpenAddSubjectToTeacherModal] = useState(false);
   const [openChangeSubjectFromTeacherModal, setOpenChangeSubjectFromTeacherModal] = useState(false);
+  const [pnfList, setPnfList] = useState<PNF[] | null>(null);
+  const [subjectList, setSubjectList] = useState<SimpleSubject[] | null>(null);
+
+  useEffect(() => {
+    getPnf()
+      .then((data) => {
+        setPnfList(data);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+
+    getSubjects()
+      .then((data) => {
+        setSubjectList(data);
+      })
+      .catch((error) => {
+        console.error(error);
+      })
+  }, []);
 
   const setSelectedTeacherById = (id: string) => {
     if (!teachers) return;
@@ -105,7 +128,9 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     selectedQuarter,
     setSelectedQuarter,
     handleTeacherChange,
-    handleSubjectChange
+    handleSubjectChange,
+    pnfList,
+    subjectList
   }
 
   return (

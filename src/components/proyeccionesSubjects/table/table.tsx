@@ -1,10 +1,11 @@
-import React, {useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { SearchOutlined, DeleteOutlined, EditOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import type { InputRef, TableColumnsType, TableColumnType } from 'antd';
 import { Button, Input, Space, Table, Tag } from 'antd';
 import type { FilterDropdownProps } from 'antd/es/table/interface';
 import Highlighter from 'react-highlight-words';
 import { Subject } from '../../../interfaces/subject';
+import EditProyeccionesSubjectModal from '../editProyeccionesSubjectModal/editProyeccionesSubjectModal';
 
 
 
@@ -14,6 +15,9 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
   const [searchText, setSearchText] = useState('');
   const [searchedColumn, setSearchedColumn] = useState('');
   const searchInput = useRef<InputRef>(null);
+
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
 
   const handleSearch = (
     selectedKeys: string[],
@@ -29,7 +33,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
     clearFilters();
     setSearchText('');
   };
- 
+
 
   const getColumnSearchProps = (dataIndex: DataIndex): TableColumnType<Subject> => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
@@ -117,12 +121,13 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
   const getRowContent = (value: string | null | undefined | React.ReactNode[]): React.ReactNode | string => {
     return value ?? <Tag icon={<CloseCircleOutlined />} color="error">Vacío</Tag>
   }
-  
+
   const onDelete = (record: Subject) => {
     console.log(record)
   }
   const onEdit = (record: Subject) => {
-    console.log(record)
+    setSelectedSubject(record);
+    setOpenEditModal(true);
   }
 
   const columns: TableColumnsType<Subject> = [
@@ -132,12 +137,12 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       key: 'pnf',
       width: '20%',
       align: 'center',
-      ...getColumnSearchProps('pnf', ),
+      ...getColumnSearchProps('pnf',),
       onFilter: (value, record) => {
         const pnfValue = typeof record.pnf === 'string' ? record.pnf : '';
         return pnfValue.toLowerCase().includes((String(value) || '').toLowerCase());
       },
-      sorter: (a, b) =>  a?.subject?.localeCompare(b?.subject),
+      sorter: (a, b) => a?.subject?.localeCompare(b?.subject),
       sortDirections: ['descend', 'ascend'],
       render: (value) => {
         return <div style={getRowStyle(value)}>{getRowContent(value)}</div>;
@@ -206,8 +211,13 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
   ];
 
 
-  return <Table pagination={{
-    position: ["topLeft", "none"], defaultCurrent: 1, showSizeChanger: true }} rowKey="pensum_id" columns={columns} dataSource={subjects ?? []} />;
+  return <>
+    <Table pagination={{
+      position: ["topLeft", "none"], defaultCurrent: 1, showSizeChanger: true
+    }} rowKey="pensum_id" columns={columns} dataSource={subjects ?? []} />;
+    <EditProyeccionesSubjectModal open={openEditModal} setOpen={setOpenEditModal} subject={selectedSubject} setSelectedSubject = {setSelectedSubject}/>
+  </>
+
 };
 
 export default TablePensum;

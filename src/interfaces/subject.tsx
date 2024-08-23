@@ -8,3 +8,8 @@ export interface Subject {
   pensum_id: string;
 }
 
+export interface SimpleSubject {
+  id: string;
+  name: string;
+  active: number;
+}

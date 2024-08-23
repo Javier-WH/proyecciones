@@ -1,6 +1,7 @@
 import  { Teacher, Quarter } from "../interfaces/teacher";
-import { Subject } from "../interfaces/subject";
-
+import { Subject, SimpleSubject } from "../interfaces/subject";
+import { PNF } from "../interfaces/pnf";
+ 
 export interface MainContextValues {
   teachers: Quarter | null;
   setTeachers: React.Dispatch<React.SetStateAction<Quarter | null>>;
@@ -22,4 +23,6 @@ export interface MainContextValues {
   setSelectedQuarter : React.Dispatch<React.SetStateAction<"q1" | "q2" | "q3">>;
   handleTeacherChange: (data: Quarter) => void;
   handleSubjectChange: (data: Subject[]) => void;
+  pnfList: Array<PNF> | null;
+  subjectList: Array<SimpleSubject> | null;
 }

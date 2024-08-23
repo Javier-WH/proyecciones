@@ -35,6 +35,8 @@ export default function ProyeccionesSubjects() {
           return Object.values(subject).some(value => value === null);
         })
     } />
+
+
   </>
   )
 }
