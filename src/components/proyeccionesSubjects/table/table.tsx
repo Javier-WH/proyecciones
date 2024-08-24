@@ -210,11 +210,11 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
     },
   ];
 
-
+  let key = 0
   return <>
     <Table pagination={{
       position: ["topLeft", "none"], defaultCurrent: 1, showSizeChanger: true
-    }} rowKey="pensum_id" columns={columns} dataSource={subjects ?? []} />;
+    }} rowKey={"id" + key++} columns={columns} dataSource={subjects ?? []} />;
     <EditProyeccionesSubjectModal open={openEditModal} setOpen={setOpenEditModal} subject={selectedSubject} setSelectedSubject = {setSelectedSubject}/>
   </>
 
