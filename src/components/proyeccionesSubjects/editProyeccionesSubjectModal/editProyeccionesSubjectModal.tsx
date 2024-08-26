@@ -2,7 +2,7 @@ import { Button, Modal, Select, Tag, InputNumber } from 'antd';
 import type { InputNumberProps } from 'antd';
 import { CloseCircleOutlined } from '@ant-design/icons';
 import { Subject } from '../../../interfaces/subject';
-import { Teacher, Quarter } from '../../../interfaces/teacher';
+import { Teacher } from '../../../interfaces/teacher';
 import { useEffect, useContext, useState } from 'react';
 import { MainContext } from '../../../context/mainContext';
 import { MainContextValues } from '../../../interfaces/contextInterfaces';
@@ -23,6 +23,7 @@ const EditProyeccionesSubjectModal: React.FC<{
   const [subjectValue, setSubjectValue] = useState<string | null>(null)
   const [trimestreValue, setTrimestreValue] = useState<number[]>([])
   const [hourValue, setHourValue] = useState<number | null>(null)
+  const [seccionValue, setSeccionValue] = useState<string>('4')
 
   useEffect(() => {
     if (subject === null) {
@@ -32,6 +33,7 @@ const EditProyeccionesSubjectModal: React.FC<{
     setSubjectValue(subject?.subject || null)
     setHourValue(subject?.hours || null)
     setTrimestreValue(subject?.quarter || [])
+    setSeccionValue(subject?.seccion || '1')
   }, [subject, setOpen]);
 
   useEffect(() => {
@@ -85,6 +87,7 @@ const EditProyeccionesSubjectModal: React.FC<{
         sub.pnf = pnfValue
         sub.subject = subjectValue
         sub.quarter = trimestreValue
+        sub.seccion = seccionValue
       }
       return sub
     })
@@ -101,17 +104,17 @@ const EditProyeccionesSubjectModal: React.FC<{
 
     for (let i = 1; i <= 3; i++) {
       //se verifica que el indice del profesor sea valido
-      if (teacherIndexes[0]===undefined || teacherIndexes[0]===null) continue
+      if (teacherIndexes[0] === undefined || teacherIndexes[0] === null) continue
 
       if (!trimestreValue.includes(i)) {
         //si el valor de trimestre seleccionado en el frontend no incluye el trimestre actual se elimina la materia
         const newLoad = _teachers[`q${i}`][teacherIndexes[0]]?.load.filter((sub: Subject) => sub.pensum_id !== subject.pensum_id)
-       _teachers[`q${i}`][teacherIndexes[0]].load = newLoad
-      }else{
+        _teachers[`q${i}`][teacherIndexes[0]].load = newLoad
+      } else {
         //se verifica si la materia ya se encuentra cargada
         const exist = _teachers[`q${i}`][teacherIndexes[0]]?.load.some((sub: Subject) => sub.pensum_id === subject.pensum_id)
         //si la materia no se encuentra cargada se agrega
-        if(!exist) _teachers[`q${i}`][teacherIndexes[0]].load.push(subject)
+        if (!exist) _teachers[`q${i}`][teacherIndexes[0]].load.push(subject)
       }
     }
 
@@ -124,8 +127,8 @@ const EditProyeccionesSubjectModal: React.FC<{
             sub.pnf = pnfValue
             sub.subject = subjectValue
             sub.quarter = trimestreValue
+            sub.seccion = seccionValue
           }
-
         })
       })
     })
@@ -146,6 +149,10 @@ const EditProyeccionesSubjectModal: React.FC<{
   const _handleSubjectChange = (value: string) => {
     const subjectName = subjectList?.filter((subject) => subject.id === value)[0].name
     setSubjectValue(subjectName ?? null)
+  }
+
+  const handleSeccionChange = (value: string) => {
+    setSeccionValue(value)
   }
 
   const handleTrimestreChange = (trimestre: number) => {
@@ -186,18 +193,43 @@ const EditProyeccionesSubjectModal: React.FC<{
         ]}
       >
         <div className='change-proyecciones-subject-modal-container' style={{ width: "100%", display: "flex", flexDirection: "column", rowGap: "1rem", marginBottom: "2rem" }}>
-          <div>
-            <label style={{
-              color: !pnfValue ? "red" : "black",
-            }}>Programa</label>
-            <Select
-              value={pnfValue}
-              style={{ width: "100%" }}
-              status={pnfValue ? "" : "error"}
-              onChange={handlePnfChange}
-              options={!pnfs ? [] : pnfs}
-            />
-            {!pnfValue && <Tag icon={<CloseCircleOutlined />} color="error" >{`No hay PNF seleccionado`}</Tag>}
+          {
+            <span style={{ color: 'gray', fontSize: "0.7rem" }}>{subject?.pensum_id}</span> 
+          }
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "1rem" }}>
+            <div>
+              <label style={{
+                color: !pnfValue ? "red" : "black",
+              }}>Programa</label>
+              <Select
+                value={pnfValue}
+                style={{ width: "100%" }}
+                status={pnfValue ? "" : "error"}
+                onChange={handlePnfChange}
+                options={!pnfs ? [] : pnfs}
+              />
+              {!pnfValue && <Tag icon={<CloseCircleOutlined />} color="error" >{`No hay PNF seleccionado`}</Tag>}
+            </div>
+
+            <div>
+              <label style={{
+                color: !seccionValue ? "red" : "black",
+              }}>Seccion</label>
+              <Select
+                value={seccionValue}
+                style={{ width: "100%" }}
+                status={seccionValue ? "" : "error"}
+                onChange={handleSeccionChange}
+                options={[
+                  { value: '1', label: '1' },
+                  { value: '2', label: '2' },
+                  { value: '3', label: '3' },
+                  { value: '4', label: '4' },
+                  { value: '5', label: '5' }
+                ]}
+              />
+              {!seccionValue && <Tag icon={<CloseCircleOutlined />} color="error" >{`No hay seccion seleccionada`}</Tag>}
+            </div>
           </div>
 
 
@@ -216,7 +248,7 @@ const EditProyeccionesSubjectModal: React.FC<{
             {!subjectValue && <Tag icon={<CloseCircleOutlined />} color="error" >{`No hay materia seleccionada`}</Tag>}
           </div>
 
-          <div className='horas-trimestres-container' style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", columnGap: "1rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "1rem" }}>
 
             <div>
               <label style={{

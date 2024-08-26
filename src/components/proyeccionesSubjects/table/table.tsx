@@ -1,17 +1,23 @@
-import React, { useRef, useState } from 'react';
-import { SearchOutlined, DeleteOutlined, EditOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import React, { useRef, useState, useContext } from 'react';
+import { SearchOutlined, DeleteOutlined, EditOutlined, CloseCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import type { InputRef, TableColumnsType, TableColumnType } from 'antd';
-import { Button, Input, Space, Table, Tag } from 'antd';
+import { Button, Input, Space, Table, Tag, message, Popconfirm } from 'antd';
 import type { FilterDropdownProps } from 'antd/es/table/interface';
 import Highlighter from 'react-highlight-words';
 import { Subject } from '../../../interfaces/subject';
+import { Teacher } from '../../../interfaces/teacher';
 import EditProyeccionesSubjectModal from '../editProyeccionesSubjectModal/editProyeccionesSubjectModal';
+import { MainContext } from '../../../context/mainContext';
+import { MainContextValues } from '../../../interfaces/contextInterfaces';
 
 
 
 type DataIndex = keyof Subject;
 
 const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ subjects }) => {
+
+  const { subjects: subjectsContext, handleSubjectChange, handleTeacherChange, teachers } = useContext(MainContext) as MainContextValues
+
   const [searchText, setSearchText] = useState('');
   const [searchedColumn, setSearchedColumn] = useState('');
   const searchInput = useRef<InputRef>(null);
@@ -123,7 +129,26 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
   }
 
   const onDelete = (record: Subject) => {
-    console.log(record)
+    const _subs = JSON.parse(JSON.stringify(subjectsContext))
+    const index = _subs.findIndex((subject: Subject) => subject.pensum_id === record.pensum_id)
+    if (index === -1) {
+      //si no se encuentra la materia en el array de materias, entonces esta materia esta en el array de profesores
+      const tech = JSON.parse(JSON.stringify(teachers))
+      Object.keys(tech).forEach((quarter) => {
+        tech[quarter].forEach((teacher: Teacher) => {
+          if (!teacher.load) return
+          const filteredLoad = teacher.load.filter((sub: Subject) => sub.pensum_id !== record.pensum_id)
+          teacher.load = filteredLoad
+        })
+      })
+      handleTeacherChange(tech)
+      return
+    } else {
+      _subs.splice(index, 1)
+      handleSubjectChange(_subs)
+    }
+
+    message.success("La asignatura fue eliminada de la proyección");
   }
   const onEdit = (record: Subject) => {
     setSelectedSubject(record);
@@ -196,6 +221,23 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
 
     },
     {
+      title: 'Seccion',
+      dataIndex: 'seccion',
+      width: '5%',
+      key: 'seccion',
+      align: 'center',
+      ...getColumnSearchProps('seccion'),
+      onFilter: (value, record) => {
+        const hoursValue = typeof record.hours === 'number' ? record.hours : '';
+        return hoursValue.toString().includes((String(value) || ''));
+      },
+      sorter: (a, b) => a.hours - b.hours,
+      sortDirections: ['descend', 'ascend'],
+      render: (value) => {
+        return <div >{getRowContent(value)}</div>;
+      }
+    },
+    {
       title: 'Acciones',
       dataIndex: 'seccion',
       width: '2%',
@@ -203,7 +245,19 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       align: 'center',
       render: (_value, record) => {
         return <div style={{ display: 'flex', justifyContent: 'space-evenly' }}>
-          <Button type='link' danger shape="circle" icon={<DeleteOutlined />} onClick={() => onDelete(record)} />
+          <Popconfirm
+            title="¿Deseas borrar esta materia?"
+            description="Esta operación no se puede deshacer"
+            onConfirm={() => onDelete(record)}
+            onCancel={() => { }}
+            okText="Borrar"
+            cancelText="Cancelar"
+            icon={<QuestionCircleOutlined style={{ color: 'red' }} />}
+            okButtonProps={{ danger: true }}
+          >
+            <Button type='link' danger shape="circle" icon={<DeleteOutlined />} />
+          </Popconfirm>
+
           <Button type='link' shape="circle" icon={<EditOutlined />} onClick={() => onEdit(record)} />
         </div>;
       }
@@ -212,10 +266,15 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
 
   let key = 0
   return <>
-    <Table pagination={{
-      position: ["topLeft", "none"], defaultCurrent: 1, showSizeChanger: true
-    }} rowKey={"id" + key++} columns={columns} dataSource={subjects ?? []} />;
-    <EditProyeccionesSubjectModal open={openEditModal} setOpen={setOpenEditModal} subject={selectedSubject} setSelectedSubject = {setSelectedSubject}/>
+    <Table
+      pagination={{
+        position: ["topLeft", "none"], defaultCurrent: 1, showSizeChanger: true
+      }}
+      rowKey={"id" + key++}
+      columns={columns}
+      dataSource={subjects ?? []}
+    />;
+    <EditProyeccionesSubjectModal open={openEditModal} setOpen={setOpenEditModal} subject={selectedSubject} setSelectedSubject={setSelectedSubject} />
   </>
 
 };
