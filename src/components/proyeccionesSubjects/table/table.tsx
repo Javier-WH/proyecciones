@@ -25,6 +25,8 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
 
+
+
   const handleSearch = (
     selectedKeys: string[],
     confirm: FilterDropdownProps['confirm'],
@@ -185,6 +187,23 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
         return subjectValue.toLowerCase().includes((String(value) || '').toLowerCase());
       },
       sorter: (a, b) => a?.subject?.localeCompare(b?.subject),
+      sortDirections: ['descend', 'ascend'],
+      render: (value) => {
+        return <div style={getRowStyle(value)}>{getRowContent(value)}</div>;
+      }
+    },
+    {
+      title: 'Trayecto',
+      dataIndex: 'trayectoName',
+      key: 'trayectoName',
+      width: '30%',
+      align: 'center',
+      ...getColumnSearchProps('trayectoName'),
+      onFilter: (value, record) => {
+        const trayectoValue = typeof record.trayectoName === 'string' ? record.trayectoName : '';
+        return trayectoValue.toLowerCase().includes((String(value) || '').toLowerCase());
+      },
+      sorter: (a, b) => a?.trayectoName?.localeCompare(b?.trayectoName),
       sortDirections: ['descend', 'ascend'],
       render: (value) => {
         return <div style={getRowStyle(value)}>{getRowContent(value)}</div>;
