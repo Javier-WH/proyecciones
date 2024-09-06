@@ -2,12 +2,14 @@ import { createContext, ReactNode, useEffect, useState} from "react"
 import { MainContextValues } from "../interfaces/contextInterfaces"; 
 import { Teacher, Quarter} from "../interfaces/teacher";
 import { PNF } from "../interfaces/pnf.tsx";
+import { Trayecto } from "../interfaces/trayecto.tsx";
 import { Subject, SimpleSubject } from "../interfaces/subject";
 import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/addSubjectToTeacherModal";
 import ChangeSubjectFromTeacherModal from "../components/changeSubjectFromTeacherModal/changeSubjectFromTeacherModal";
 import io, {Socket} from 'socket.io-client';
 import getPnf from "../fetch/getPnf.ts";
 import getSubjects from "../fetch/getSubjects.ts";
+import getTrayectos from "../fetch/getTrayectos.ts";
 
 
 
@@ -26,6 +28,8 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [openChangeSubjectFromTeacherModal, setOpenChangeSubjectFromTeacherModal] = useState(false);
   const [pnfList, setPnfList] = useState<PNF[] | null>(null);
   const [subjectList, setSubjectList] = useState<SimpleSubject[] | null>(null);
+  const [trayectosList, setTrayectosList] = useState<Trayecto[]>([]);
+
 
   useEffect(() => {
     getPnf()
@@ -43,6 +47,15 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
       .catch((error) => {
         console.error(error);
       })
+
+    getTrayectos()
+      .then((data) => {
+        setTrayectosList(data);
+      })
+      .catch((error) => {
+        console.error(error);
+      })
+
   }, []);
 
   const setSelectedTeacherById = (id: string) => {
@@ -130,7 +143,9 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     handleTeacherChange,
     handleSubjectChange,
     pnfList,
-    subjectList
+    subjectList,
+    trayectosList, 
+    setTrayectosList
   }
 
   return (

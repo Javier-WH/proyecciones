@@ -5,6 +5,7 @@ import ElementNotFound from "../components/notFound/ElementNotFoud";
 import ProyeccionesContainer from "../components/proyecciones/ProyeccionesContainer";
 import Login from "../components/login/login";
 import ProyeccionesSubjects from "../components/proyeccionesSubjects/proyeccionesSubjects";
+import NewProyectionPanel from "../components/newProyectionPanel/NewProyectionPanel";
 
 const router = createBrowserRouter([
   {
@@ -27,6 +28,10 @@ const router = createBrowserRouter([
       {
         path: "proyecciones/subjects",
         element: <ProyeccionesSubjects />,
+      },
+      {
+        path: "proyecciones/create",
+        element: <NewProyectionPanel />,
       },
       {
         path: "*",

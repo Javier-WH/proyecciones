@@ -1,6 +1,7 @@
 import  { Teacher, Quarter } from "../interfaces/teacher";
 import { Subject, SimpleSubject } from "../interfaces/subject";
 import { PNF } from "../interfaces/pnf";
+import { Trayecto } from "./trayecto";
  
 export interface MainContextValues {
   teachers: Quarter | null;
@@ -25,4 +26,6 @@ export interface MainContextValues {
   handleSubjectChange: (data: Subject[]) => void;
   pnfList: Array<PNF> | null;
   subjectList: Array<SimpleSubject> | null;
+  trayectosList: Array<Trayecto> | null;
+  setTrayectosList: React.Dispatch<React.SetStateAction<Trayecto[]>>
 }

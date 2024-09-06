@@ -62,7 +62,7 @@ export default function ProyeccionesContainer() {
   return <div className="proyecciones-container" >
 
     <div className="title-bar-container" style={{ gridArea: "header", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-      <h1>Proyecciones</h1>
+      <h1>Proyección</h1>
 
       <Radio.Group defaultValue="a" size="small" onChange={(e) => handleChangeRadio(e.target.value)}>
         <Radio.Button value="a">Profesores</Radio.Button>
