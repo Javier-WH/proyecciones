@@ -2,6 +2,7 @@ import  { Teacher, Quarter } from "../interfaces/teacher";
 import { Subject, SimpleSubject } from "../interfaces/subject";
 import { PNF } from "../interfaces/pnf";
 import { Trayecto } from "./trayecto";
+import { Turno } from "./turnos";
  
 export interface MainContextValues {
   teachers: Quarter | null;
@@ -27,5 +28,7 @@ export interface MainContextValues {
   pnfList: Array<PNF> | null;
   subjectList: Array<SimpleSubject> | null;
   trayectosList: Array<Trayecto> | null;
-  setTrayectosList: React.Dispatch<React.SetStateAction<Trayecto[]>>
+  setTrayectosList: React.Dispatch<React.SetStateAction<Trayecto[]>>;
+  turnosList: Array<Turno> | null;
+  setTurnosList: React.Dispatch<React.SetStateAction<Turno[]>>;
 }

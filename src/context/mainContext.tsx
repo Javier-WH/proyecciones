@@ -4,12 +4,14 @@ import { Teacher, Quarter} from "../interfaces/teacher";
 import { PNF } from "../interfaces/pnf.tsx";
 import { Trayecto } from "../interfaces/trayecto.tsx";
 import { Subject, SimpleSubject } from "../interfaces/subject";
+import { Turno } from "../interfaces/turnos.tsx";
 import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/addSubjectToTeacherModal";
 import ChangeSubjectFromTeacherModal from "../components/changeSubjectFromTeacherModal/changeSubjectFromTeacherModal";
 import io, {Socket} from 'socket.io-client';
 import getPnf from "../fetch/getPnf.ts";
 import getSubjects from "../fetch/getSubjects.ts";
 import getTrayectos from "../fetch/getTrayectos.ts";
+import getTurnos from "../fetch/getTurnos.ts";
 
 
 
@@ -29,6 +31,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [pnfList, setPnfList] = useState<PNF[] | null>(null);
   const [subjectList, setSubjectList] = useState<SimpleSubject[] | null>(null);
   const [trayectosList, setTrayectosList] = useState<Trayecto[]>([]);
+  const [turnosList, setTurnosList] = useState<Turno[]>([]);
 
 
   useEffect(() => {
@@ -54,6 +57,11 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
       })
       .catch((error) => {
         console.error(error);
+      })
+
+    getTurnos()
+      .then((data) => {
+        setTurnosList(data);
       })
 
   }, []);
@@ -145,7 +153,9 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     pnfList,
     subjectList,
     trayectosList, 
-    setTrayectosList
+    setTrayectosList,
+    turnosList, 
+    setTurnosList
   }
 
   return (

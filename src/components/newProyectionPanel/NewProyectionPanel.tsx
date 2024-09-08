@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from "react"
 import { MainContext } from "../../context/mainContext"
 import { MainContextValues } from "../../interfaces/contextInterfaces"
 import { Select, SelectProps } from 'antd';
+import NewProyectionContainer from "./newProyectionContainer/NewProyectionContainer";
 
 export default function NewProyectionPanel() {
 
@@ -21,12 +22,14 @@ export default function NewProyectionPanel() {
     if (!pnfList) return
     setPnfOptions(pnfList.map(pnf => ({ value: pnf.id.toString(), label: pnf.name.toString() })))
     setPnfLabel(pnfList[0]?.name?.toString())
+    setPnfValue(pnfList[0]?.id?.toString())
   }, [pnfList])
 
   useEffect(() => {
     if (!trayectosList) return
     setTrayectoOptions(trayectosList.map(trayecto => ({ value: trayecto.id.toString(), label: trayecto.name.toString() })))
     setTrayectoLabel(trayectosList[0]?.name?.toString())
+    setTrayectoValue(trayectosList[0]?.id?.toString())
   }, [trayectosList])
 
   const handlePnfChange = (value: string) => {
@@ -66,6 +69,7 @@ export default function NewProyectionPanel() {
         />
       </div>
     </div>
+    <NewProyectionContainer programaId={pnfValue} trayectoId={trayectoValue}/>
   </>
 
 }
