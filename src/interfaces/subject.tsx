@@ -16,3 +16,10 @@ export interface SimpleSubject {
   name: string;
   active: number;
 }
+
+export interface subjectType {
+  hours: number
+  id: string
+  subject: string
+  subject_id: string
+}

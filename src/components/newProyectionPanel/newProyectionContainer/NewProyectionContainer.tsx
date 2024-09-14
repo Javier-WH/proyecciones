@@ -3,23 +3,46 @@ import { useEffect, useState } from "react"
 import { InscriptionData, InscripionTurno } from "../../../interfaces/inscriptionData"
 import { Tag, Slider, message, Card, Button } from 'antd';
 import { CloseCircleOutlined, AppstoreAddOutlined, OrderedListOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import getPensum from "../../../fetch/getPensum";
 import Spinner from "../../spinner/spinner"
-
+import { subjectType, Subject } from "../../../interfaces/subject";
+import ShowArrayModal from "../../SowArrayModal/showArrayModal";
 import "./NewProyectionContainer.css"
 
 export default function NewProyectionContainer({ programaId, trayectoId }: { programaId: string | null | undefined, trayectoId: string | null | undefined }) {
+
+  interface Pensum {
+    hours:number
+    id:string
+    quarter:Array<number>
+    subject:string
+    subject_id:string
+    trayecto_saga_id:number
+  }
 
   const [inscriptionData, setInscriptionData] = useState<InscriptionData | null>(null)
   const [loading, setLoading] = useState(false)
   const [passed, setPassed] = useState<Record<string, InscripionTurno> | null>(null)
   const [turnos, setTurnos] = useState<Array<{ turnoName: string, seccions: number, total: number } | null> | null>(null)
+  const [modalArrayList, setModalArrayList] = useState<string[] | null>(null)
+  const [pensumSlist, setPensumSlist] = useState<string[] | null>(null)
+  const [openModal, setOpenModal] = useState(false)
+  const [modalTitle, setModalTitle] = useState("")
   const [errorShown, setErrorShown] = useState(false)
+  const [pensum, setPensum] = useState<Pensum[] | null>(null)
 
   useEffect(() => {
     if (!programaId || !trayectoId) return
     setLoading(true)
     getInscriptionData({ programId: programaId, trayectoId: trayectoId })
       .then(data => setInscriptionData(data))
+      .catch(error => console.log(error))
+    getPensum({ programaId, trayectoId })
+      .then(data => {
+        setPensumSlist(data.data.pensums.map((subject: subjectType) => subject.subject))
+        setPensum(data.data.pensums)
+      })
+      .catch(error => console.log(error))
   }, [programaId, trayectoId])
 
   useEffect(() => {
@@ -62,20 +85,101 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
     setTurnos(_turnos)
   }
 
+
+
+  const handlePensum = () => {
+    if (!pensumSlist || !inscriptionData) return
+    setModalArrayList(pensumSlist ?? [])
+    const pnfName = inscriptionData.data.pnfName
+    const trayectoName = inscriptionData.data.trayectoName
+    setModalTitle(`Pensum de ${pnfName} - ${trayectoName}`)
+    setOpenModal(true)
+  }
+
+  const handleStudents = () => {
+    if (!passed || !inscriptionData) return
+    const studentList: string[] = []
+
+    Object.keys(passed).forEach((key) => {
+      const list = passed[key].inscriptionData.map(student => {
+        const name = `${student.last_name} ${student.name}`
+          .toLowerCase()
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ')
+        return `${name} - CI: ${student.ci}`
+      })
+      studentList.push(...list)
+    })
+
+    setModalArrayList(studentList)
+    const pnfName = inscriptionData.data.pnfName
+    const trayectoName = inscriptionData.data.trayectoName
+    setModalTitle(`Estudiantes inscritos en ${pnfName} - ${trayectoName}`)
+    setOpenModal(true)
+
+  }
+
+  const handleProyecction = () => {
+    if (!turnos || !pensum || !inscriptionData || !trayectoId ) return
+    const totalSections = turnos.reduce((total, turno) => {
+      if (turno) {
+        return total + turno.seccions;
+      }
+      return total; 
+    }, 0);
+    let list: Subject[] | [] = []
+
+    for (let i = 1; i <= totalSections; i++) {
+      const subjects = pensum.map(subject =>{
+        return {
+          id: subject.subject_id,
+          subject: subject.subject,
+          hours: subject.hours,
+          pnf: inscriptionData.data.pnfName,
+          seccion: `T0-${i}`,
+          quarter: subject.quarter,
+          pensum_id: subject.id,
+          trayectoId: trayectoId,
+          trayectoName: inscriptionData.data.trayectoName,
+          trayecto_saga_id: subject.trayecto_saga_id.toString()
+        }
+      })
+
+      list = [...list, ...subjects]
+    }
+  
+    console.log(list)
+  }
+  
+  /*
+    id: string; //pensum.subject_id*
+    subject: string; //pensum.subject*
+    hours: number; //pensum.hours*
+    pnf: string; //inscriptionData.data.pnfName *
+    seccion: string;
+    quarter: Array<number>; // pensum.quarter*
+    pensum_id: string; // pensum.id*
+    trayectoId: string; // trayectoId*
+    trayectoName: string; // inscriptionData.data.trayectoName*
+    trayecto_saga_id: string; // trayecto_saga_id*
+  */
+
+
   return <div>
-   
+    <ShowArrayModal arrayList={modalArrayList ?? []} isModalOpen={openModal} setIsModalOpen={setOpenModal} title={modalTitle} />
     {
       loading
         ? <Spinner />
         : <div style={{ margin: "20px", display: "flex", flexDirection: "column", rowGap: "10px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 3fr", gap: "20px" }}>
-            <Button type="primary" icon={<AppstoreAddOutlined />} size={'large'}>
+            <Button type="primary" icon={<AppstoreAddOutlined />} size={'large'} onClick={handleProyecction}>
               Generar
             </Button>
-            <Button type="primary" icon={<OrderedListOutlined />} size={'large'}>
+            <Button type="primary" icon={<OrderedListOutlined />} size={'large'} onClick={handlePensum}>
               Pensum
             </Button>
-            <Button type="primary" icon={<UnorderedListOutlined />} size={'large'}>
+            <Button type="primary" icon={<UnorderedListOutlined />} size={'large'} onClick={handleStudents}>
               Estudiantes
             </Button>
           </div>
@@ -113,9 +217,9 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
                         const estudiantesEnEstaSeccion = j < seccionesConMasEstudiantes ? estudiantesPorSeccion + 1 : estudiantesPorSeccion;
 
                         return (
-                          <Card key={j} title={`Sección ${j + 1}`} size="small"  style={{ width: 300 }}>
+                          <Card key={j} title={`Sección ${j + 1}`} size="small" style={{ width: 300 }}>
                             <p>{`Número de Estudiantes: ${estudiantesEnEstaSeccion}`}</p>
-                          
+
                           </Card>
 
                         );
