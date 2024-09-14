@@ -21,20 +21,37 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
   const handleRemoveSubject = (e: React.MouseEvent<HTMLButtonElement>) => {
     const subjectId = e.currentTarget.id
     if (!subjectId || !teachers || selectedTeacerId === null || subjects === null) return
+    
+    const subData = subjectId.split(" ")
+    const [_subjectId, _pensumId, _seccion] = subData;
+    const targetKey = `${_subjectId}${_pensumId}${_seccion}`
 
     //copio el array para no modificar el original y hago el filtro para eliminar la materia
     const teachersCopy = JSON.parse(JSON.stringify(teachers));
     const teacherIndex = teachers[selectedQuarter].findIndex(teacher => teacher.id === selectedTeacerId)
 
-    teachersCopy["q1"][teacherIndex].load = teachers["q1"][teacherIndex].load?.filter(subject => subject.id !== subjectId)
-    teachersCopy["q2"][teacherIndex].load = teachers["q2"][teacherIndex].load?.filter(subject => subject.id !== subjectId)
-    teachersCopy["q3"][teacherIndex].load = teachers["q3"][teacherIndex].load?.filter(subject => subject.id !== subjectId)
+    teachersCopy["q1"][teacherIndex].load = teachers["q1"][teacherIndex].load?.filter(subject => {
+      const subjecKey = `${subject.id}${subject.pensum_id}${subject.seccion}`
+      return subjecKey !== targetKey
+    })
+
+
+    teachersCopy["q2"][teacherIndex].load = teachers["q2"][teacherIndex].load?.filter(subject => {
+      const subjecKey = `${subject.id}${subject.pensum_id}${subject.seccion}`
+      return subjecKey !== targetKey
+    })
+
+
+    teachersCopy["q3"][teacherIndex].load = teachers["q3"][teacherIndex].load?.filter(subject => {
+      const subjecKey = `${subject.id}${subject.pensum_id}${subject.seccion}`
+      return subjecKey !== targetKey
+    })
+    
 
     //guardado la materia para reintegrarla a la lista de materias
-    const savedSubject = teachers[selectedQuarter][teacherIndex].load?.find(subject => subject.id === subjectId)
-    //setSubjects([...subjects, savedSubject!])
+    const savedSubject = teachers[selectedQuarter][teacherIndex].load?.find(subject => subject.id === _subjectId && subject.pensum_id === _pensumId && subject.seccion === _seccion)
+ 
     handleSubjectChange([...subjects, savedSubject!])
-    //setTeachers(teachersCopy)
     handleTeacherChange(teachersCopy)
   }
 
@@ -43,6 +60,7 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
     setSelectedSubject(data[0]);
     setOpenChangeSubjectFromTeacherModal(true)
   }
+
 
   return <div className='teacher-subjects-container'>
     <div className='teacher-subjects-header'>
@@ -56,19 +74,21 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
           ? <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`No hay asignaturas asignadas`}</Tag>
           : data.map((subject, i) => (
             <div key={i} style={{ marginBottom: "5px" }}>
+              
               <h4>{subject.subject}
                 <div className="teacher-subjects-buttons">
                   <Button type="link" shape='round' style={{ color: "white", fontSize: "18px" }} onClick={handleSwapSubjects}>
                     <IoMdSwap />
                   </Button>
-                  <Button id={subject.id} type="link" shape='round' danger onClick={handleRemoveSubject}>
+                  <Button id={`${subject.id} ${subject.pensum_id} ${subject.seccion}`} type="link" shape='round' danger onClick={handleRemoveSubject}>
                     <FaTrashAlt />
                   </Button>
                 </div>
               </h4>
               <div style={{ marginLeft: "20px", marginTop: "3px", display: "flex", gap: "1px", justifyContent: "start", flexWrap: "wrap" }}>
-                <Tag color="default" >{`PNF:${subject.pnf}`}</Tag>
-                <Tag color="default">{`Seccion: T-0${subject.seccion}`}</Tag>
+                <Tag color="default" >{subject.pnf}</Tag>
+                <Tag color="default">{`Seccion: ${subject.seccion}`}</Tag>
+                <Tag color="default">{subject.trayectoName}</Tag>
                 <Tag color="default">{`Horas: ${subject.hours}`}</Tag>
               </div>
             </div>

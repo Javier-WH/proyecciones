@@ -1,5 +1,5 @@
 import getInscriptionData from "../../../fetch/getInscriptionData"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useContext } from "react"
 import { InscriptionData, InscripionTurno } from "../../../interfaces/inscriptionData"
 import { Tag, Slider, message, Card, Button } from 'antd';
 import { CloseCircleOutlined, AppstoreAddOutlined, OrderedListOutlined, UnorderedListOutlined } from '@ant-design/icons';
@@ -7,6 +7,8 @@ import getPensum from "../../../fetch/getPensum";
 import Spinner from "../../spinner/spinner"
 import { subjectType, Subject } from "../../../interfaces/subject";
 import ShowArrayModal from "../../SowArrayModal/showArrayModal";
+import { MainContext } from "../../../context/mainContext";
+import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import "./NewProyectionContainer.css"
 
 export default function NewProyectionContainer({ programaId, trayectoId }: { programaId: string | null | undefined, trayectoId: string | null | undefined }) {
@@ -20,6 +22,7 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
     trayecto_saga_id:number
   }
 
+  const { subjects, handleSubjectChange } = useContext(MainContext) as MainContextValues
   const [inscriptionData, setInscriptionData] = useState<InscriptionData | null>(null)
   const [loading, setLoading] = useState(false)
   const [passed, setPassed] = useState<Record<string, InscripionTurno> | null>(null)
@@ -97,7 +100,7 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
   }
 
   const handleStudents = () => {
-    if (!passed || !inscriptionData) return
+    if (!passed || !inscriptionData || !subjects) return
     const studentList: string[] = []
 
     Object.keys(passed).forEach((key) => {
@@ -122,6 +125,7 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
 
   const handleProyecction = () => {
     if (!turnos || !pensum || !inscriptionData || !trayectoId ) return
+    
     const totalSections = turnos.reduce((total, turno) => {
       if (turno) {
         return total + turno.seccions;
@@ -131,14 +135,15 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
     let list: Subject[] | [] = []
 
     for (let i = 1; i <= totalSections; i++) {
-      const subjects = pensum.map(subject =>{
+      const subList = pensum.map(subject =>{
+
         return {
           id: subject.subject_id,
           subject: subject.subject,
-          hours: subject.hours,
+          hours: subject.hours ?? 0,
           pnf: inscriptionData.data.pnfName,
-          seccion: `T0-${i}`,
-          quarter: subject.quarter,
+          seccion: `T-0${i}`,
+          quarter: JSON.parse(subject.quarter.toString()),
           pensum_id: subject.id,
           trayectoId: trayectoId,
           trayectoName: inscriptionData.data.trayectoName,
@@ -146,24 +151,14 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
         }
       })
 
-      list = [...list, ...subjects]
+      list = [...list, ...subList]
     }
-  
-    console.log(list)
+    
+    handleSubjectChange([...subjects ?? [], ...list ?? []]);
+
   }
   
-  /*
-    id: string; //pensum.subject_id*
-    subject: string; //pensum.subject*
-    hours: number; //pensum.hours*
-    pnf: string; //inscriptionData.data.pnfName *
-    seccion: string;
-    quarter: Array<number>; // pensum.quarter*
-    pensum_id: string; // pensum.id*
-    trayectoId: string; // trayectoId*
-    trayectoName: string; // inscriptionData.data.trayectoName*
-    trayecto_saga_id: string; // trayecto_saga_id*
-  */
+ 
 
 
   return <div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Modal, Select, Radio, Tag, Switch } from 'antd';
-import type { RadioChangeEvent } from 'antd';
+import type { RadioChangeEvent, } from 'antd';
 import { Quarter } from '../../interfaces/teacher';
 import { Subject } from '../../interfaces/subject';
 import { CloseCircleOutlined } from '@ant-design/icons';
@@ -28,16 +28,25 @@ const AddSubjectToTeacherModal: React.FC<{
 
 
 
+
   useEffect(() => {
     if (!subjects || !teachers || !selectedTeacerId) return
+    //console.log(subjects)
     //obtengo la lista de asignaturas
-    let subjectsData = subjects.map((subject) => ({ value: subject.id, label: `${subject.subject} (PNF ${subject.pnf} - Sección T0-${subject.seccion})`, key: subject.pensum_id }));
+    let subjectsData = subjects.map((subject) => (
+      {  
+        value: `${subject.id} ${subject.pensum_id} ${subject.seccion}`,
+        label: `${subject.subject} (${subject.pnf} - Sección ${subject.seccion} - Trayecto ${subject.trayectoName})`, 
+        key: `${subject.id} ${subject.pensum_id} ${subject.seccion}`,
+        subjectId: subject.id,
+      }
+    ));
     const t_index = teachers[selectedQuarter].findIndex(teacher => teacher.id === selectedTeacerId);
     setTeacherIndex(t_index);
 
     const teacherPerfil = new Set(teachers[selectedQuarter][t_index]?.perfil ?? []);
     if (perfilOption === 'perfil') {
-      subjectsData = subjectsData.filter(subject => teacherPerfil.has(subject.value))
+      subjectsData = subjectsData.filter(subject => teacherPerfil.has(subject.subjectId))
     }
     //las horas que tiene usadas el profesor
     const tehacherLoad = teachers[selectedQuarter][t_index]?.load?.map(subject => subject.hours).reduce((acc, curr) => acc + curr, 0);
@@ -46,7 +55,7 @@ const AddSubjectToTeacherModal: React.FC<{
     ///// FILTRADO DE HORAS DISPONIBLES
     if(!overLoad){
       subjectsData = subjectsData.filter((subject) => {
-        const index = subjects.findIndex((s) => s.id === subject.value);
+        const index = subjects.findIndex((s) => s.id === subject.subjectId);
         const subjectHourNumber = subjects[index]?.hours;
         const teacherLoadNumber = Number.parseInt(tehacherLoad?.toString() ?? '0');
         const maxHoursNumber = Number.parseInt(maxHours.toString());
@@ -62,14 +71,14 @@ const AddSubjectToTeacherModal: React.FC<{
 
     //filtrado por trimestre
     subjectsData = subjectsData.filter(subject =>{
-      const index = subjects.findIndex((s) => s.id === subject.value);
+      const index = subjects.findIndex((s) => s.id === subject.subjectId);
       const subjectQuarter = subjects[index]?.quarter;
       const quarter = selectedQuarter === 'q1' ? 1 : selectedQuarter === 'q2' ? 2 : 3;
       return subjectQuarter && subjectQuarter.includes(quarter);
   
     });
 
-
+    //console.log(subjectsData)
 
     setOptions(subjectsData);
 
@@ -90,7 +99,10 @@ const AddSubjectToTeacherModal: React.FC<{
     //valido para no tener errores mas adelante
     if (!teachers || subjects === null || selectedOption === null || teacherIndex === null || selectedQuarter === null) return
     //obtengo el index de la asignatura
-    const index = subjects.findIndex((subject) => subject.id === selectedOption);
+    const optionData = selectedOption.split(' ');
+    const [subjectId, pensumId, seccion] = optionData;
+    const index = subjects.findIndex((subject) => subject.id === subjectId && subject.pensum_id === pensumId && subject.seccion === seccion);
+
     //agrego la asignatura al load del profesor
     const teachersCopy = JSON.parse(JSON.stringify(teachers));
     if (subjects[index].quarter.includes(1)) {
@@ -102,11 +114,11 @@ const AddSubjectToTeacherModal: React.FC<{
     if (subjects[index].quarter.includes(3)) {
       teachersCopy["q3"][teacherIndex]?.load?.push(subjects[index]);
     }
-    //setTeachers(teachersCopy);
     handleTeacherChange(teachersCopy);
+
     //elimino la asignatura de la lista de asignaturas
-    //setSubjects(subjects.filter((subject) => subject.id !== selectedOption));
-    handleSubjectChange(subjects.filter((subject) => subject.id !== selectedOption));
+    handleSubjectChange(subjects.filter((_, i) => i !== index));
+   
     //limpio el select
     setSelectedOption(null);
     //cierro el modal
@@ -121,7 +133,7 @@ const AddSubjectToTeacherModal: React.FC<{
   };
 
 
-  const handleChange = (value: string) => {
+  const handleChange = (value: string, ) => {
     setSelectedOption(value);
   };
 
@@ -138,6 +150,7 @@ const AddSubjectToTeacherModal: React.FC<{
   const handleChangeQuarterSelector = (value: string) => {
     setSelectedQuarter(value as "q1" | "q2" | "q3");
   };
+
 
   return (
     <>
@@ -183,7 +196,6 @@ const AddSubjectToTeacherModal: React.FC<{
           <br />
 
           <Select
-            key={"pensum_id"}
             optionFilterProp="label"
             placeholder="Selecciona una materia"
             size="large"
@@ -197,6 +209,7 @@ const AddSubjectToTeacherModal: React.FC<{
             }
             disabled={options.length === 0 || selectedTeacerId === null}
           />
+
           <div style={{ width: "100%", paddingLeft: "20px", visibility: erroMessage ? "visible" : "hidden" }}>
             <Tag icon={<CloseCircleOutlined />} color="error">
               {erroMessage}

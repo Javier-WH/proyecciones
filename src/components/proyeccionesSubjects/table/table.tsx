@@ -288,7 +288,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       pagination={{
         position: ["topLeft", "none"], defaultCurrent: 1, showSizeChanger: true
       }}
-      rowKey={record => record.id + record.pensum_id + record.trayectoId}
+      rowKey={record => record.id + record.pensum_id + record.trayectoId + record.seccion}
       columns={columns}
       dataSource={subjects ?? []}
     />;
