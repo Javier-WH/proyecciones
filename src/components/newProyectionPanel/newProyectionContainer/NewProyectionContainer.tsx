@@ -1,7 +1,7 @@
 import getInscriptionData from "../../../fetch/getInscriptionData"
 import { useEffect, useState, useContext } from "react"
 import { InscriptionData, InscripionTurno } from "../../../interfaces/inscriptionData"
-import { Tag, Slider, message, Card, Button } from 'antd';
+import { Tag, Slider, message, Card, Button, Popconfirm } from 'antd';
 import { CloseCircleOutlined, AppstoreAddOutlined, OrderedListOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import getPensum from "../../../fetch/getPensum";
 import Spinner from "../../spinner/spinner"
@@ -14,15 +14,15 @@ import "./NewProyectionContainer.css"
 export default function NewProyectionContainer({ programaId, trayectoId }: { programaId: string | null | undefined, trayectoId: string | null | undefined }) {
 
   interface Pensum {
-    hours:number
-    id:string
-    quarter:Array<number>
-    subject:string
-    subject_id:string
-    trayecto_saga_id:number
+    hours: number
+    id: string
+    quarter: Array<number>
+    subject: string
+    subject_id: string
+    trayecto_saga_id: number
   }
 
-  const { subjects, handleSubjectChange } = useContext(MainContext) as MainContextValues
+  const { subjects, handleSubjectChange, proyectionsDone, handleProyectionsDoneChange } = useContext(MainContext) as MainContextValues
   const [inscriptionData, setInscriptionData] = useState<InscriptionData | null>(null)
   const [loading, setLoading] = useState(false)
   const [passed, setPassed] = useState<Record<string, InscripionTurno> | null>(null)
@@ -124,18 +124,18 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
   }
 
   const handleProyecction = () => {
-    if (!turnos || !pensum || !inscriptionData || !trayectoId ) return
-    
+    if (!turnos || !pensum || !inscriptionData || !trayectoId) return
+
     const totalSections = turnos.reduce((total, turno) => {
       if (turno) {
         return total + turno.seccions;
       }
-      return total; 
+      return total;
     }, 0);
     let list: Subject[] | [] = []
 
     for (let i = 1; i <= totalSections; i++) {
-      const subList = pensum.map(subject =>{
+      const subList = pensum.map(subject => {
 
         return {
           id: subject.subject_id,
@@ -153,12 +153,31 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
 
       list = [...list, ...subList]
     }
-    
+
     handleSubjectChange([...subjects ?? [], ...list ?? []]);
 
+    // registrar que se hizo esta proyección
+    const _proyectionsDone = [...proyectionsDone]
+    _proyectionsDone.push(`${programaId}${trayectoId}`)
+    handleProyectionsDoneChange(_proyectionsDone)
+    
+    message.success('Proyección generada con exito')
   }
-  
- 
+
+
+  // si la proyeccion ya se genero, no se puede generar de nuevo
+  if (proyectionsDone.find((id) => id === `${programaId}${trayectoId}`)) {
+    return <div style={{ margin: "20px", display: "flex", flexDirection: "column", rowGap: "10px" }}>
+      <Tag icon={<CloseCircleOutlined />} color="warning">Ya se generó esta proyección</Tag>
+    </div>
+  }
+
+  // si no hay materias, no se puede generar la proyeccion
+  if(pensumSlist?.length === 0){
+    return <div style={{ margin: "20px", display: "flex", flexDirection: "column", rowGap: "10px" }}>
+      <Tag icon={<CloseCircleOutlined />} color="error">No hay materias en el pensum</Tag>
+    </div>
+  }
 
 
   return <div>
@@ -167,14 +186,22 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
       loading
         ? <Spinner />
         : <div style={{ margin: "20px", display: "flex", flexDirection: "column", rowGap: "10px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 3fr", gap: "20px" }}>
-            <Button type="primary" icon={<AppstoreAddOutlined />} size={'large'} onClick={handleProyecction}>
-              Generar
-            </Button>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 4.7fr", gap: "20px" }}>
+            <Popconfirm
+              placement="bottom"
+              title={"¿Deseas generar esta proyección?"}
+              description={"Esta accion no se puede deshacer"}
+              okText="Si"
+              cancelText="No"
+              onConfirm={handleProyecction}
+            >
+              <Button type="primary" icon={<AppstoreAddOutlined />} size={'large'} disabled={!turnos || turnos.length === 0}>Generar</Button>
+            </Popconfirm>
+
             <Button type="primary" icon={<OrderedListOutlined />} size={'large'} onClick={handlePensum}>
               Pensum
             </Button>
-            <Button type="primary" icon={<UnorderedListOutlined />} size={'large'} onClick={handleStudents}>
+            <Button type="primary" icon={<UnorderedListOutlined />} size={'large'} onClick={handleStudents} disabled={!turnos || turnos.length === 0}>
               Estudiantes
             </Button>
           </div>
@@ -214,9 +241,7 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
                         return (
                           <Card key={j} title={`Sección ${j + 1}`} size="small" style={{ width: 300 }}>
                             <p>{`Número de Estudiantes: ${estudiantesEnEstaSeccion}`}</p>
-
                           </Card>
-
                         );
                       })}
                   </div>

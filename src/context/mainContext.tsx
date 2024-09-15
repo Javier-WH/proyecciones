@@ -32,6 +32,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [subjectList, setSubjectList] = useState<SimpleSubject[] | null>(null);
   const [trayectosList, setTrayectosList] = useState<Trayecto[]>([]);
   const [turnosList, setTurnosList] = useState<Turno[]>([]);
+  const [proyectionsDone, setProyectionsDone] = useState<string[] | []>([]);
 
 
   useEffect(() => {
@@ -99,11 +100,13 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     if (!socket) return;
     // Escuchar eventos de actualización de los profesores
     socket.on('updateTeachers', (newTeachers) => {
-      //console.log(newTeachers);
       setTeachers(newTeachers);
     });
     socket.on('updateSubjects', (newSubjects) => {
       setSubjects(newSubjects);
+    });
+    socket.on('proyectionsDone', (proyections) => {
+      setProyectionsDone(proyections);
     });
 
     socket.on('connect_error', (err) => {
@@ -128,6 +131,10 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     if (!socket) return;
     socket.emit('updateSubjects', data);
   };
+  const handleProyectionsDoneChange = (proyections: string[]) => {
+    if (!socket) return;
+    socket.emit('proyectionsDone', proyections);
+  }
 
   const values: MainContextValues = {
     teachers,
@@ -150,12 +157,15 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     setSelectedQuarter,
     handleTeacherChange,
     handleSubjectChange,
+    handleProyectionsDoneChange,
     pnfList,
     subjectList,
     trayectosList, 
     setTrayectosList,
     turnosList, 
-    setTurnosList
+    setTurnosList,
+    proyectionsDone, 
+    setProyectionsDone
   }
 
   return (

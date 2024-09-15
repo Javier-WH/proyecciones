@@ -25,10 +25,13 @@ export interface MainContextValues {
   setSelectedQuarter : React.Dispatch<React.SetStateAction<"q1" | "q2" | "q3">>;
   handleTeacherChange: (data: Quarter) => void;
   handleSubjectChange: (data: Subject[]) => void;
+  handleProyectionsDoneChange: (proyections: string[]) => void;
   pnfList: Array<PNF> | null;
   subjectList: Array<SimpleSubject> | null;
   trayectosList: Array<Trayecto> | null;
   setTrayectosList: React.Dispatch<React.SetStateAction<Trayecto[]>>;
   turnosList: Array<Turno> | null;
   setTurnosList: React.Dispatch<React.SetStateAction<Turno[]>>;
+  proyectionsDone: string[] | [], 
+  setProyectionsDone: React.Dispatch<React.SetStateAction<string[] | []>>;
 }
