@@ -9,6 +9,7 @@ export interface Subject {
   trayectoId: string;
   trayectoName: string;
   trayecto_saga_id: string;
+  turnoName: string;
 }
 
 export interface SimpleSubject {

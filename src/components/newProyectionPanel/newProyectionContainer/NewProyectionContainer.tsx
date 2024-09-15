@@ -122,37 +122,36 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
     setOpenModal(true)
 
   }
+  
 
   const handleProyecction = () => {
     if (!turnos || !pensum || !inscriptionData || !trayectoId) return
-
-    const totalSections = turnos.reduce((total, turno) => {
-      if (turno) {
-        return total + turno.seccions;
-      }
-      return total;
-    }, 0);
     let list: Subject[] | [] = []
+    turnos.forEach((turno) => {
 
-    for (let i = 1; i <= totalSections; i++) {
-      const subList = pensum.map(subject => {
+      const totalSections = turno?.seccions ?? 0
+      for (let i = 1; i <= totalSections; i++) {
+        const subList = pensum.map(subject => {
 
-        return {
-          id: subject.subject_id,
-          subject: subject.subject,
-          hours: subject.hours ?? 0,
-          pnf: inscriptionData.data.pnfName,
-          seccion: `T-0${i}`,
-          quarter: JSON.parse(subject.quarter.toString()),
-          pensum_id: subject.id,
-          trayectoId: trayectoId,
-          trayectoName: inscriptionData.data.trayectoName,
-          trayecto_saga_id: subject.trayecto_saga_id.toString()
-        }
-      })
+          return {
+            id: subject.subject_id,
+            subject: subject.subject,
+            hours: subject.hours ?? 0,
+            pnf: inscriptionData.data.pnfName,
+            seccion: `T-0${i}`,
+            quarter: JSON.parse(subject.quarter.toString()),
+            pensum_id: subject.id,
+            turnoName: turno?.turnoName ?? "no asignado",
+            trayectoId: trayectoId,
+            trayectoName: inscriptionData.data.trayectoName,
+            trayecto_saga_id: subject.trayecto_saga_id.toString()
+          }
+        })
 
-      list = [...list, ...subList]
-    }
+        list = [...list, ...subList]
+      }
+
+    })
 
     handleSubjectChange([...subjects ?? [], ...list ?? []]);
 

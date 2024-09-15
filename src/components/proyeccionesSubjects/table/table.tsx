@@ -196,7 +196,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       title: 'Trayecto',
       dataIndex: 'trayectoName',
       key: 'trayectoName',
-      width: '30%',
+      width: '20%',
       align: 'center',
       ...getColumnSearchProps('trayectoName'),
       onFilter: (value, record) => {
@@ -210,9 +210,26 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       }
     },
     {
+      title: 'Turno',
+      dataIndex: 'turnoName',
+      key: 'turnoName',
+      width: '10%',
+      align: 'center',
+      ...getColumnSearchProps('turnoName'),
+      onFilter: (value, record) => {
+        const turnoValue = typeof record.turnoName === 'string' ? record.turnoName : '';
+        return turnoValue.toLowerCase().includes((String(value) || '').toLowerCase());
+      },
+      sorter: (a, b) => a?.turnoName?.localeCompare(b?.turnoName),
+      sortDirections: ['descend', 'ascend'],
+      render: (value) => {
+        return <div style={getRowStyle(value)}>{getRowContent(value)}</div>;
+      }
+    },
+    {
       title: 'Horas',
       dataIndex: 'hours',
-      width: '5%',
+      width: '3%',
       key: 'hours',
       align: 'center',
       ...getColumnSearchProps('hours'),
@@ -223,6 +240,11 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       sorter: (a, b) => a.hours - b.hours,
       sortDirections: ['descend', 'ascend'],
       render: (value) => {
+
+        if (value <= 0) {
+          return <div style={getRowStyle(value)}><Tag icon={<CloseCircleOutlined />} color="warning">{`  ${value}`}</Tag></div>
+        }
+
         return <div >{getRowContent(value)}</div>;
       }
 
@@ -230,7 +252,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
     {
       title: 'Trimestre',
       dataIndex: 'quarter',
-      width: '10%',
+      width: '20%',
       align: 'center',
       key: 'quarter',
       render: (value) => {
@@ -242,7 +264,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
     {
       title: 'Seccion',
       dataIndex: 'seccion',
-      width: '5%',
+      width: '3%',
       key: 'seccion',
       align: 'center',
       ...getColumnSearchProps('seccion'),
@@ -259,7 +281,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
     {
       title: 'Acciones',
       dataIndex: 'seccion',
-      width: '2%',
+      width: '1%',
       key: 'seccion',
       align: 'center',
       render: (_value, record) => {

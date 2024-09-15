@@ -7,13 +7,15 @@ import type { RadioChangeEvent} from 'antd';
 import { QuestionCircleOutlined, DeleteOutlined } from '@ant-design/icons';
 import TablePensum from "./table/table";
 import { Subject } from "../../interfaces/subject";
-
+import { GiAutoRepair } from "react-icons/gi";
+import { useNavigate } from "react-router-dom";
 
 
 export default function ProyeccionesSubjects() {
   const { subjects, teachers, handleSubjectChange } = useContext(MainContext) as MainContextValues
   const [errorRadio, setErrorRadio] = useState(true);
   const [asignedSubjects, setAsignedSubjects] = useState<Subject[]>([]);
+  const navigate = useNavigate()
   
   const onChangeRadioError = (e: RadioChangeEvent) => {
     //console.log('radio checked', e.target.value);
@@ -41,12 +43,30 @@ export default function ProyeccionesSubjects() {
   const handleRemoveErrorSubject = () => {
     if(!subjects) return;
     const subjectsCopy = JSON.parse(JSON.stringify(subjects));
+    //filtra que no tenga null
     const filteredSubjects = subjectsCopy.filter((subject: Subject) =>
       Object.values(subject).every(value => value !== null)
     );
-    handleSubjectChange(filteredSubjects);
+    //filtra las horas
+    const filteredHours = filteredSubjects.filter((subject: Subject) => subject.hours > 0);
+    handleSubjectChange(filteredHours);
     message.success("Las materias con error fueron eliminadas de la proyección");
   }
+  const iconStyle = { color: "white", fontSize: "2rem" }
+  // si no hay proyecciones
+  if (subjects?.length === 0) {
+    return <div className="proyecciones-container" style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "20px" }}>
+      <h1>No se ha encontrado ninguna proyección</h1>
+      <Button
+        style={{ height: "60px", width: "300px", fontSize: "20px" }}
+        type="primary"
+        icon={<GiAutoRepair style={iconStyle} />}
+        onClick={() => navigate("/app/proyecciones/create")}>
+        Crear proyección
+      </Button>
+    </div>
+  }
+
 
   return (<>
     <div className="title-bar-container" style={{ gridArea: "header", display: "flex", alignItems: "center", justifyContent: "start", columnGap: "3rem"}}>
@@ -67,7 +87,7 @@ export default function ProyeccionesSubjects() {
         okButtonProps={{ danger: true }}
       >
         <Tooltip placement="bottom" title={"Borrar TODAS las materias con error"} >
-        <Button type='link' danger shape="circle" icon={<DeleteOutlined style={{fontSize: "1.5rem"}} />} />
+          <Button type='link' danger shape="circle" icon={<DeleteOutlined style={{fontSize: "1.5rem"}} />} />
         </Tooltip>
       </Popconfirm>
     </div>
@@ -77,7 +97,7 @@ export default function ProyeccionesSubjects() {
       errorRadio
         ? subjects?.concat(asignedSubjects)
         : subjects?.concat(asignedSubjects)?.filter((subject) => {
-          return Object.values(subject).some(value => value === null);
+          return Object.values(subject).some(value => value === null || value === 0);
         })
     } />
 

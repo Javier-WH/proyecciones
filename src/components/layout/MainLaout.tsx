@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useContext, useEffect} from 'react';
 import { Outlet, useNavigate } from "react-router-dom";
 import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit, FaProductHunt } from "react-icons/fa";
 import { MdSubject } from "react-icons/md";
@@ -8,6 +8,8 @@ import { IoPersonAddSharp } from "react-icons/io5";
 import { FaUsers } from "react-icons/fa6";
 import type { MenuProps } from 'antd';
 import { Layout, Menu } from 'antd';
+import { MainContext } from '../../context/mainContext';
+import { MainContextValues } from '../../interfaces/contextInterfaces';
 
 const { Sider } = Layout;
 
@@ -50,6 +52,9 @@ const items: MenuItem[] = [
 ];
 
 const MainLayout: React.FC = () => {
+
+  const { subjects} = useContext<MainContextValues>(MainContext);
+
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
 
@@ -57,6 +62,14 @@ const MainLayout: React.FC = () => {
   const handleClick: MenuProps['onClick'] = ({ key }) => {
     navigate(key);
   };
+
+  useEffect(() => {
+    if(!subjects) return
+    if(subjects.length === 0){
+      navigate('/app/proyecciones/create')
+    }
+  }, [subjects, navigate])
+    
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

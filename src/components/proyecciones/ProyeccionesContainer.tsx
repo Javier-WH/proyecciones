@@ -43,7 +43,10 @@ export default function ProyeccionesContainer() {
   //aqui se revisa si existe algun valor null en la tabla subjects
   useEffect(() => {
     if (!subjects) return
-    setError(subjects.some(obj => Object.values(obj).some(value => value === null)))
+    setError(
+      subjects.some(obj => Object.values(obj).some(value => value === null))
+      || subjects.some(subjec => subjec.hours <= 0)
+    )
   }, [subjects])
 
   if (error) {
@@ -55,6 +58,20 @@ export default function ProyeccionesContainer() {
         icon={<GiAutoRepair style={iconStyle} />}
         onClick={() => navigate("/app/proyecciones/subjects")}>
         Solucionar
+      </Button> 
+    </div>
+  }
+
+  // si no hay proyecciones
+  if (subjects?.length === 0) {
+    return <div className="proyecciones-container" style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "20px" }}>
+      <h1>No se ha encontrado ninguna proyección</h1>
+      <Button
+        style={{height: "60px", width: "300px", fontSize: "20px"}}
+        type="primary"
+        icon={<GiAutoRepair style={iconStyle} />}
+        onClick={() => navigate("/app/proyecciones/create")}>
+        Crear proyección
       </Button> 
     </div>
   }
