@@ -38,9 +38,21 @@ export default function NewProyectionPanel() {
     setPnfValue(value);
   };
 
+  // esta funcion recibe el id del trayecto seleccionado
   const handleTrayectoChange = (value: string) => {
-    const trayectoName = trayectosList?.filter((trayecto) => trayecto.id === value)[0].name
+    const selectedTrayecto = trayectosList?.filter((trayecto) => trayecto.id === value)[0]
+    const trayectoName = selectedTrayecto?.name
     setTrayectoLabel(trayectoName?.toString() ?? null);
+    const selectedTrayectoOrder = selectedTrayecto?.order
+   
+    //corrige el valor del trayecto seleccionado para que sea el trayecto anterior al seleccionado
+    if (selectedTrayectoOrder !== 0 && selectedTrayectoOrder !== undefined) {
+      const fixxedValue = selectedTrayectoOrder - 1
+      const trayectoId = trayectosList?.filter((trayecto) => trayecto.order === fixxedValue)[0].id
+      setTrayectoValue(trayectoId?.toString() ?? null);
+      return
+    }
+    
     setTrayectoValue(value);
   };
 
