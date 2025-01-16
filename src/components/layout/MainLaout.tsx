@@ -1,15 +1,16 @@
 import { useState, useContext, useEffect} from 'react';
 import { Outlet, useNavigate } from "react-router-dom";
 import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit, FaProductHunt } from "react-icons/fa";
-import { MdSubject } from "react-icons/md";
+import { MdSubject, MdEditRoad } from "react-icons/md";
 import { LiaSchoolSolid } from "react-icons/lia";
 import { GrSchedules, GrConfigure } from "react-icons/gr";
 import { IoPersonAddSharp } from "react-icons/io5";
+import { PiStepsDuotone } from "react-icons/pi";
 import { FaUsers } from "react-icons/fa6";
 import type { MenuProps } from 'antd';
 import { Layout, Menu } from 'antd';
 import { MainContext } from '../../context/mainContext';
-import { MainContextValues } from '../../interfaces/contextInterfaces';
+
 
 const { Sider } = Layout;
 
@@ -44,6 +45,9 @@ const items: MenuItem[] = [
     getItem('Bill', '4'),
     getItem('Alex', '5'),
   ]),
+  getItem('Trayectos', '/app/trayectos', <PiStepsDuotone />, [
+    getItem('Editar Trayectos', '/app/editTrayectos', <MdEditRoad />),
+  ]),
   getItem('Horarios', '/app/horarios', <GrSchedules />, [
     getItem('Team 1', '6'),
     getItem('Team 2', '8')
@@ -53,7 +57,8 @@ const items: MenuItem[] = [
 
 const MainLayout: React.FC = () => {
 
-  const { subjects} = useContext<MainContextValues>(MainContext);
+  const context = useContext(MainContext);
+  const subjects = context?.subjects;
 
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
