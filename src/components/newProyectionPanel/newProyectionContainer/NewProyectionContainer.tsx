@@ -11,7 +11,12 @@ import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import "./NewProyectionContainer.css"
 
-export default function NewProyectionContainer({ programaId, trayectoId }: { programaId: string | null | undefined, trayectoId: string | null | undefined }) {
+export default function NewProyectionContainer({ programaId, trayectoId, trayectoDataValue }: 
+  { 
+    programaId: string | null | undefined, 
+    trayectoId: string | null | undefined,
+    trayectoDataValue: string | null | undefined
+  }) {
 
   interface Pensum {
     hours: number
@@ -37,16 +42,16 @@ export default function NewProyectionContainer({ programaId, trayectoId }: { pro
   useEffect(() => {
     if (!programaId || !trayectoId) return
     setLoading(true)
-    getInscriptionData({ programId: programaId, trayectoId: trayectoId })
+    getInscriptionData({ programId: programaId, trayectoId: (trayectoDataValue ? trayectoDataValue : trayectoId) })
       .then(data => setInscriptionData(data))
       .catch(error => console.log(error))
     getPensum({ programaId, trayectoId })
       .then(data => {
-        setPensumSlist(data.data.pensums.map((subject: subjectType) => subject.subject))
-        setPensum(data.data.pensums)
+        setPensumSlist(data?.data?.pensums.map((subject: subjectType) => subject.subject))
+        setPensum(data?.data?.pensums)
       })
       .catch(error => console.log(error))
-  }, [programaId, trayectoId])
+  }, [programaId, trayectoId, trayectoDataValue])
 
   useEffect(() => {
     if (!inscriptionData) return

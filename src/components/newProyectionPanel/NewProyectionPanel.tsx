@@ -15,6 +15,7 @@ export default function NewProyectionPanel() {
   const [trayectoOptions, setTrayectoOptions] = useState<SelectProps['options'] | []>([])
   const [trayectoLabel, setTrayectoLabel] = useState<string | null>(null)
   const [trayectoValue, setTrayectoValue] = useState<string | null>(null)
+  const [trayectoDataValue, setTrayectoDataValue] = useState<string | null>(null)
 
 
 
@@ -43,17 +44,20 @@ export default function NewProyectionPanel() {
     const selectedTrayecto = trayectosList?.filter((trayecto) => trayecto.id === value)[0]
     const trayectoName = selectedTrayecto?.name
     setTrayectoLabel(trayectoName?.toString() ?? null);
-    const selectedTrayectoOrder = selectedTrayecto?.order
-   
+
     //corrige el valor del trayecto seleccionado para que sea el trayecto anterior al seleccionado
-    if (selectedTrayectoOrder !== 0 && selectedTrayectoOrder !== undefined) {
+    const selectedTrayectoOrder = selectedTrayecto?.order
+    console.log({selectedTrayectoOrder})
+    if (selectedTrayectoOrder) {
       const fixxedValue = selectedTrayectoOrder - 1
+      console.log({fixxedValue})
       const trayectoId = trayectosList?.filter((trayecto) => trayecto.order === fixxedValue)[0].id
-      setTrayectoValue(trayectoId?.toString() ?? null);
+      setTrayectoDataValue(trayectoId?.toString() ?? null);
       return
     }
     
     setTrayectoValue(value);
+
   };
 
 
@@ -81,7 +85,7 @@ export default function NewProyectionPanel() {
         />
       </div>
     </div>
-    <NewProyectionContainer programaId={pnfValue} trayectoId={trayectoValue}/>
+    <NewProyectionContainer programaId={pnfValue} trayectoId={trayectoValue} trayectoDataValue ={trayectoDataValue}/>
   </>
 
 }

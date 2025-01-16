@@ -1,0 +1,14 @@
+.register-teacher-form-container{
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  align-items: left;
+  justify-content: center;
+  row-gap: 1rem;
+  margin-left: 2rem;
+  margin-top: 1rem;
+}
+
+.register-teacher-form-container label {
+  color: rgb(61, 58, 58);
+}

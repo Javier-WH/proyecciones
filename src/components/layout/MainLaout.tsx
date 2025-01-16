@@ -37,9 +37,9 @@ const items: MenuItem[] = [
     getItem('Proyeccion', '/app/proyecciones', <FaCalendarAlt />),
   ]),
   getItem('Profesores', '/app/profesores', <FaChalkboardTeacher />, [
-    getItem('Registrar', '/app/registrar', <IoPersonAddSharp />),
-    getItem('Editar', '/app/editar', <FaUserEdit />),
-    getItem('Perfiles', '/app/perfiles', <FaUsers />),
+    getItem('Registrar', '/app/registerTeacher', <IoPersonAddSharp />),
+    getItem('Editar', '/app/editTeacher', <FaUserEdit />),
+    getItem('Perfiles', '/app/TeacherProfiles', <FaUsers />),
   ]),
   getItem('Pensum', '/app/pensum', <LiaSchoolSolid />, [
     getItem('Bill', '4'),

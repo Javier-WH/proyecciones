@@ -5,7 +5,8 @@ import { Trayecto } from "../../interfaces/trayecto"
 import TrayectoModal from "./TrayectoModal"
 import NewTrayectoModal from "./newTrayectoModal"
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
-import { Button, message} from 'antd';
+import { Button, message, Popconfirm } from 'antd';
+import type { PopconfirmProps } from 'antd';
 import deleteTrayecto from "../../fetch/deleteTrayecto"
 import getTrayectos from '../../fetch/getTrayectos';
 import './EditTrayectos.css'
@@ -54,7 +55,9 @@ export default function EditTrayectos() {
 
       <div style={{ width: '80%', display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
         {
-          sortTrayectos().map(trayecto => {
+          sortTrayectos().length === 0
+          ? <h2>No se han encontrado trayectos</h2> 
+          :sortTrayectos().map(trayecto => {
             return <div 
               key={trayecto.id} 
               style={{ 
@@ -73,7 +76,16 @@ export default function EditTrayectos() {
                 <span>{trayecto.name}</span>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', columnGap: '10px' }}>
                 <Button type="primary" shape="circle" icon={<FiEdit2 />} onClick={() => onClickEdit(trayecto)} />
-                <Button type="primary" shape="circle" icon={<FiTrash2 />} danger onClick={()=>onClickDelete(trayecto)}/>
+                <Popconfirm
+                  title="¿Estas seguro que deseas eliminar este trayecto?"
+                  description="Esta operacion NO se puede deshacer"
+                  onConfirm={() => onClickDelete(trayecto)}
+                  //onCancel={cancel}
+                  okText="Si"
+                  cancelText="No"
+                >
+                  <Button type="primary" shape="circle" icon={<FiTrash2 />} danger/>
+                </Popconfirm>
                 </div>
               </div>
           })

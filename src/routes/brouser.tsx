@@ -7,6 +7,8 @@ import Login from "../components/login/login";
 import ProyeccionesSubjects from "../components/proyeccionesSubjects/proyeccionesSubjects";
 import NewProyectionPanel from "../components/newProyectionPanel/NewProyectionPanel";
 import EditTrayectos from "../components/editTrayectos/EditTrayectos";
+import RegisterTeacher from "../components/teachers/registerTeacher/RegisterTeacher";
+import EditTeachers from "../components/teachers/editTeachers/EditTeachers";
 
 const router = createBrowserRouter([
   {
@@ -33,6 +35,14 @@ const router = createBrowserRouter([
       {
         path: "proyecciones/create",
         element: <NewProyectionPanel />,
+      },
+      {
+        path: "/app/registerTeacher",
+        element: <RegisterTeacher />,
+      },
+      {
+        path: "/app/editTeacher",
+        element: <EditTeachers />,
       },
       {
         path: "/app/editTrayectos",
