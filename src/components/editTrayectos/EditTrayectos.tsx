@@ -1,18 +1,24 @@
-import { useContext, useEffect, useState } from "react"
+import { useContext, useState } from "react"
 import { MainContext } from "../../context/mainContext"
 import { MainContextValues } from "../../interfaces/contextInterfaces"
 import { Trayecto } from "../../interfaces/trayecto"
 import TrayectoModal from "./TrayectoModal"
+import NewTrayectoModal from "./newTrayectoModal"
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
-import { Button} from 'antd';
+import { Button, message} from 'antd';
+import deleteTrayecto from "../../fetch/deleteTrayecto"
+import getTrayectos from '../../fetch/getTrayectos';
 import './EditTrayectos.css'
 
 
 
 export default function EditTrayectos() {
 
+  const { setTrayectosList } = useContext(MainContext) as MainContextValues
+
   const { trayectosList } = useContext(MainContext) as MainContextValues
   const [selectedTrayecto, setSelectedTrayecto] = useState<Trayecto | null>(null)
+  const [newTrayectoModalOpen, setNewTrayectoModalOpen] = useState<boolean>(false)
 
 
   const sortTrayectos = () => {
@@ -20,8 +26,20 @@ export default function EditTrayectos() {
     return trayectosList.sort((a: Trayecto, b: Trayecto) => a.order - b.order);
   }
 
-  const onClick = (trayecto:Trayecto) => {
+  const onClickEdit = (trayecto:Trayecto) => {
     setSelectedTrayecto(trayecto)
+  }
+
+  const onClickDelete = async (trayecto:Trayecto) => {
+    const id = trayecto.id
+    const response = await deleteTrayecto({id})
+    if(!response){
+      message.error("No se ha podido eliminar el trayecto")
+      return
+    }
+    const trayectos = await getTrayectos()
+    setTrayectosList(trayectos)
+    message.success("Trayecto eliminado")
   }
 
   return <>
@@ -30,6 +48,7 @@ export default function EditTrayectos() {
     </div>
 
     <TrayectoModal trayecto={selectedTrayecto} setSelectedTrayecto={setSelectedTrayecto} />
+    <NewTrayectoModal isModalOpen={newTrayectoModalOpen} setIsModalOpen={setNewTrayectoModalOpen} />
 
     <div style={{ width: '80%', display: 'flex', justifyContent: 'space-evenly', columnGap: '20px', margin: '10px 20px', flexDirection: "column"}}>
 
@@ -53,8 +72,8 @@ export default function EditTrayectos() {
             >
                 <span>{trayecto.name}</span>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', columnGap: '10px' }}>
-                <Button type="primary" shape="circle" icon={<FiEdit2 />} onClick={()=> onClick(trayecto)} />
-                <Button type="primary" shape="circle" icon={<FiTrash2 />} danger/>
+                <Button type="primary" shape="circle" icon={<FiEdit2 />} onClick={() => onClickEdit(trayecto)} />
+                <Button type="primary" shape="circle" icon={<FiTrash2 />} danger onClick={()=>onClickDelete(trayecto)}/>
                 </div>
               </div>
           })
@@ -68,7 +87,7 @@ export default function EditTrayectos() {
           justifyContent: 'right',
           marginTop: '20px',
         }}>
-            <Button type="primary">Agregar Trayecto</Button>
+            <Button type="primary" onClick={()=> setNewTrayectoModalOpen(true)}>Agregar Trayecto</Button>
         </div>
     </div>
   </>

@@ -2,3 +2,14 @@
   background-color: #001529;
   color: white;
 }
+.trayecto-modal-input-container{
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+.trayecto-modal-trayectoID{
+ display: block;
+ margin-bottom: 20px;
+ font-size: small;
+ color: gray;
+}
