@@ -9,6 +9,7 @@ import NewProyectionPanel from "../components/newProyectionPanel/NewProyectionPa
 import EditTrayectos from "../components/editTrayectos/EditTrayectos";
 import RegisterTeacher from "../components/teachers/registerTeacher/RegisterTeacher";
 import EditTeachers from "../components/teachers/editTeachers/EditTeachers";
+import Profiles from "../components/teachers/profiles/Profiles";
 
 const router = createBrowserRouter([
   {
@@ -43,6 +44,10 @@ const router = createBrowserRouter([
       {
         path: "/app/editTeacher",
         element: <EditTeachers />,
+      },
+      {
+        path: "/app/teacherProfiles",
+        element: <Profiles />,
       },
       {
         path: "/app/editTrayectos",
