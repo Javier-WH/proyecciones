@@ -10,6 +10,7 @@ export interface Teacher {
   title: string;
   partTime: number;
   load: Array<Subject> | null;
+  perfilName: string;
   perfil: string[];
   gender: string;
 }
