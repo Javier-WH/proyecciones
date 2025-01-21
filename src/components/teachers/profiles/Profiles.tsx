@@ -111,6 +111,11 @@ export default function Profiles() {
     message.success("Materia añadida al perfil");
   };
 
+  const filterOption = (input: string, option: SubjectOption) => {
+    const label = String(option?.label ?? "").toLowerCase();
+    return label.includes(input.toLowerCase());
+  };
+
   return (
     <div>
       <ProfileModal
@@ -171,11 +176,12 @@ export default function Profiles() {
         <div style={{ flex: 1 }}>
           <label htmlFor="">Materia</label>
           <Select
-            //showSearch
+            showSearch
             placeholder="Seleccione una materia o más materias"
             style={selectorStyle}
             onChange={handleSubjectChange}
             options={subjectList}
+            filterOption={filterOption}
           />
         </div>
 
@@ -185,6 +191,7 @@ export default function Profiles() {
           icon={<FaPlus />}
           style={{ flex: 1, maxWidth: "1rem", marginTop: "1rem" }}
           onClick={addSubjectToPefil}
+          disabled={selectedSubject === null || selectedPerfil === null}
         />
       </div>
 
