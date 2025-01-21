@@ -4,6 +4,9 @@ import getProfileNames from "../../../fetch/getProfileNames";
 import getProfile from "../../../fetch/getProfile";
 import getSubjects from "../../../fetch/getSubjects";
 import ProfileModal from "./profileModal/ProfileModal";
+import { FaTrashCan, FaPlus } from "react-icons/fa6";
+import deleteSubjectInProfile from "../../../fetch/deleteSubjectInPerfil";
+import postSubjectToPerfil from "../../../fetch/postSubjectToPerfil";
 
 interface basicSubject {
   id: string;
@@ -19,34 +22,40 @@ export default function Profiles() {
   const [selectedPerfil, setSelectedPerfil] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
-  useEffect(() => {}, [selectedPerfil, selectedSubject]);
+  const getPerfilList = async () => {
+    const profileData = await getProfileNames();
+
+    if (profileData.error) {
+      message.error(profileData.error);
+      return;
+    }
+
+    const profileInputData = profileData.map((profile: { id: string; name: string }) => {
+      return { value: profile.id, label: profile.name };
+    });
+
+    setPerfilList(profileInputData);
+  };
+
+  const getSubjectList = async () => {
+    const subjectData = await getSubjects();
+
+    if (subjectData.error) {
+      message.error(subjectData.error);
+      return;
+    }
+
+    const subjectInputData = subjectData.map((subject: { id: string; name: string }) => {
+      return { value: subject.id, label: subject.name };
+    });
+
+    setSubjectList(subjectInputData);
+  };
 
   useEffect(() => {
     async function fetchData() {
-      const profileData = await getProfileNames();
-
-      if (profileData.error) {
-        message.error(profileData.error);
-        return;
-      }
-
-      const profileInputData = profileData.map((profile: { id: string; name: string }) => {
-        return { value: profile.id, label: profile.name };
-      });
-
-      setPerfilList(profileInputData);
-
-      const subjectData = await getSubjects();
-
-      if (subjectData.error) {
-        message.error(subjectData.error);
-        return;
-      }
-
-      const subjectInputData = subjectData.map((subject: { id: string; name: string }) => {
-        return { value: subject.id, label: subject.name };
-      });
-      setSubjectList(subjectInputData);
+      await getPerfilList();
+      await getSubjectList();
     }
     fetchData();
   }, []);
@@ -72,12 +81,42 @@ export default function Profiles() {
     minWidth: "300px",
   };
 
+  const handleDeleteSubjectInPerfil = async (subjectID: string) => {
+    const response = await deleteSubjectInProfile({
+      id: subjectID,
+    });
+
+    if (response === 0) {
+      message.error("No se ha podido eliminar la materia del perfil");
+      return;
+    }
+    handlePerfilChange(selectedPerfil as string);
+    message.success("Materia eliminada del perfil");
+  };
+
+  const addSubjectToPefil = async () => {
+    if (selectedPerfil === null || selectedSubject === null) {
+      message.error("Debe seleccionar un perfil y una materia");
+      return;
+    }
+    const request = await postSubjectToPerfil({
+      perfil_name_id: selectedPerfil,
+      subject_id: selectedSubject,
+    });
+    if (request.error) {
+      message.error(request.error);
+      return;
+    }
+    handlePerfilChange(selectedPerfil as string);
+    message.success("Materia añadida al perfil");
+  };
+
   return (
     <div>
       <ProfileModal
         isModalOpen={openProfileModal}
         setIsModalOpen={setOpenProfileModal}
-        setPerfilList={setPerfilList}
+        getPerfilList={getPerfilList}
       />
       <div
         className="title-bar-container"
@@ -117,6 +156,7 @@ export default function Profiles() {
           minWidth: "500px",
           flexWrap: "wrap",
           margin: "50px auto",
+          alignItems: "center",
         }}>
         <div style={{ flex: 1 }}>
           <label htmlFor="">Perfil</label>
@@ -138,13 +178,52 @@ export default function Profiles() {
             options={subjectList}
           />
         </div>
+
+        <Button
+          shape="circle"
+          type="primary"
+          icon={<FaPlus />}
+          style={{ flex: 1, maxWidth: "1rem", marginTop: "1rem" }}
+          onClick={addSubjectToPefil}
+        />
       </div>
 
-      <div>
+      <h3 style={{ color: "grey", width: "100%", textAlign: "center" }}>Materias en el Perfil</h3>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          rowGap: "1rem",
+          width: "100%",
+          maxWidth: "1000px",
+          minWidth: "500px",
+          margin: "50px auto",
+          maxHeight: "calc(95vh - 350px)",
+          overflowY: "auto",
+        }}>
         {subjectsINperfil.map((subject) => {
           return (
-            <div key={subject.id}>
-              <h2>{subject.subject_name}</h2>
+            <div
+              key={subject.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                columnGap: "1rem",
+                width: "100%",
+                maxWidth: "600px",
+                minWidth: "400px",
+              }}>
+              <span>{subject.subject_name}</span>
+              <div>
+                <Button
+                  shape="circle"
+                  type="primary"
+                  danger
+                  icon={<FaTrashCan />}
+                  onClick={() => handleDeleteSubjectInPerfil(subject.id)}
+                />
+              </div>
             </div>
           );
         })}

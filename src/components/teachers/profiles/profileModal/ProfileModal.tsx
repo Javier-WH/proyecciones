@@ -1,16 +1,15 @@
 import { Modal, Input, message, SelectProps } from "antd";
 import { useEffect, useState } from "react";
 import setProfile from "../../../../fetch/setProfile";
-import getProfileNames from "../../../../fetch/getProfileNames";
 
 export default function ProfileModal({
   isModalOpen,
   setIsModalOpen,
-  setPerfilList,
+  getPerfilList,
 }: {
   isModalOpen: boolean;
   setIsModalOpen: (open: boolean) => void;
-  setPerfilList: (data: SelectProps["options"]) => void;
+  getPerfilList: () => Promise<void>;
 }) {
   const [nameValue, setNameValue] = useState<string>("");
   const [descriptionValue, setDescriptionValue] = useState<string>("");
@@ -29,19 +28,7 @@ export default function ProfileModal({
       message.error("No se ha podido crear el perfil");
       return;
     }
-
-    const profileData = await getProfileNames();
-
-    if (profileData.error) {
-      message.error(profileData.error);
-      return;
-    }
-    const profileInputData = profileData.map((profile: { id: string; name: string }) => {
-      return { value: profile.id, label: profile.name };
-    });
-
-    setPerfilList(profileInputData);
-
+    await getPerfilList();
     message.success("Perfil creado");
     setIsModalOpen(false);
   };
