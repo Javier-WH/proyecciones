@@ -11,8 +11,11 @@ export interface Teacher {
   partTime: number;
   load: Array<Subject> | null;
   perfilName: string;
+  perfil_name_id: string;
   perfil: string[];
   gender: string;
+  genderId: string;
+  contractTypeId: string;
 }
 
 export interface Quarter{

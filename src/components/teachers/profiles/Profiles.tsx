@@ -14,6 +14,11 @@ interface basicSubject {
   subject_name: string;
 }
 
+interface SubjectOption {
+  label: string;
+  value: string;
+}
+
 export default function Profiles() {
   const [openProfileModal, setOpenProfileModal] = useState<boolean>(false);
   const [perfilList, setPerfilList] = useState<SelectProps["options"]>([]);
