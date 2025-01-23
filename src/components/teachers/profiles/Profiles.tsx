@@ -7,6 +7,7 @@ import ProfileModal from "./profileModal/ProfileModal";
 import { FaTrashCan, FaPlus } from "react-icons/fa6";
 import deleteSubjectInProfile from "../../../fetch/deleteSubjectInPerfil";
 import postSubjectToPerfil from "../../../fetch/postSubjectToPerfil";
+import DeleteProfileModal from "./profileModal/deleteProfileModal";
 
 interface basicSubject {
   id: string;
@@ -21,6 +22,7 @@ interface SubjectOption {
 
 export default function Profiles() {
   const [openProfileModal, setOpenProfileModal] = useState<boolean>(false);
+  const [openDeleteProfileModal, setOpenDeleteProfileModal] = useState<boolean>(false);
   const [perfilList, setPerfilList] = useState<SelectProps["options"]>([]);
   const [subjectList, setSubjectList] = useState<SelectProps["options"]>([]);
   const [subjectsINperfil, setSubjectsINperfil] = useState<basicSubject[]>([]);
@@ -128,6 +130,12 @@ export default function Profiles() {
         setIsModalOpen={setOpenProfileModal}
         getPerfilList={getPerfilList}
       />
+      <DeleteProfileModal
+        isModalOpen={openDeleteProfileModal}
+        setIsModalOpen={setOpenDeleteProfileModal}
+        getPerfilList={getPerfilList}
+        perfilList={perfilList}
+      />
       <div
         className="title-bar-container"
         style={{
@@ -153,7 +161,7 @@ export default function Profiles() {
         <Button type="primary" style={{ flex: 1 }} onClick={() => setOpenProfileModal(true)}>
           Crear Perfil
         </Button>
-        <Button type="dashed" style={{ flex: 1 }}>
+        <Button type="dashed" style={{ flex: 1 }} onClick={() => setOpenDeleteProfileModal(true)}>
           Eliminar Perfil
         </Button>
       </div>
