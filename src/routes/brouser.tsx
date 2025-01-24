@@ -10,6 +10,7 @@ import EditTrayectos from "../components/editTrayectos/EditTrayectos";
 import RegisterTeacher from "../components/teachers/registerTeacher/RegisterTeacher";
 import EditTeachers from "../components/teachers/editTeachers/EditTeachers";
 import Profiles from "../components/teachers/profiles/Profiles";
+import EditSubjects from "../components/pensum/editSubjects";
 
 const router = createBrowserRouter([
   {
@@ -48,6 +49,10 @@ const router = createBrowserRouter([
       {
         path: "/app/teacherProfiles",
         element: <Profiles />,
+      },
+      {
+        path: "/app/editSubject",
+        element: <EditSubjects />,
       },
       {
         path: "/app/editTrayectos",

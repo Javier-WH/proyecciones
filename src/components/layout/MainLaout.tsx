@@ -1,7 +1,7 @@
 import { useState, useContext, useEffect} from 'react';
 import { Outlet, useNavigate } from "react-router-dom";
-import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit, FaProductHunt } from "react-icons/fa";
-import { MdSubject, MdEditRoad } from "react-icons/md";
+import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit, FaProductHunt, FaThList } from "react-icons/fa";
+import { MdSubject, MdEditRoad, MdEditLocation, MdAddToPhotos } from "react-icons/md";
 import { LiaSchoolSolid } from "react-icons/lia";
 import { GrSchedules, GrConfigure } from "react-icons/gr";
 import { IoPersonAddSharp } from "react-icons/io5";
@@ -42,15 +42,15 @@ const items: MenuItem[] = [
     getItem('Perfiles', '/app/teacherProfiles', <FaUsers />),
   ]),
   getItem('Pensum', '/app/pensum', <LiaSchoolSolid />, [
-    getItem('Bill', '4'),
-    getItem('Alex', '5'),
+    getItem('Editar Materias', '/app/editSubject', <MdEditLocation />),
+    getItem('Editar Pensum', '/app/pensum/edit', <FaThList />),
   ]),
   getItem('Trayectos', '/app/trayectos', <PiStepsDuotone />, [
     getItem('Editar Trayectos', '/app/editTrayectos', <MdEditRoad />),
   ]),
   getItem('Horarios', '/app/horarios', <GrSchedules />, [
-    getItem('Team 1', '6'),
-    getItem('Team 2', '8')
+    getItem('Crear Horario', '6'),
+    getItem('Editar Horario', '8')
   ]),
   getItem('Configuración', '/app/config', <GrConfigure />),
 ];

@@ -1,0 +1,38 @@
+.edit-subject-container {
+  width: 100%;
+  max-width: 900px;
+  margin-left: 10px;
+}
+.edit-subject-container h3{
+  color: gray;
+}
+
+.edit-subject-item-container {
+  overflow: auto;
+  height: calc(100vh - 300px);
+  width: 100%;
+
+}
+
+.edit-subject-item-row {
+  display: grid;
+  grid-template-columns: 6fr 1fr;
+  align-items: center;
+  column-gap: 1rem;
+  margin-top: 1rem;
+}
+
+.edit-subject-item-row:hover {
+  background-color: #001529;
+  color: white;
+}
+
+.edit-subject-container-search{
+  padding-top: 2rem;
+  margin-top: 1rem;
+  border-top: 1px solid gray;
+}
+
+.edit-subject-container-search>div> span{
+  color: gray;
+}
