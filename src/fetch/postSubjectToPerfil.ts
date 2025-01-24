@@ -4,7 +4,7 @@ export default async function postSubjectToPerfil({ perfil_name_id, subject_id }
       "Accept": "*/*",
       "Content-Type": "application/json"
     }
-    let bodyContent = JSON.stringify({
+    const bodyContent = JSON.stringify({
         perfil_name_id, 
         subject_id
       });
@@ -15,7 +15,7 @@ export default async function postSubjectToPerfil({ perfil_name_id, subject_id }
         ? "http://localhost:3000/profile/addSubject" 
         : "/profile/addSubject";
   
-    let response = await fetch(url, { 
+    const response = await fetch(url, { 
         method: "POST",
         body: bodyContent,
         headers: headersList

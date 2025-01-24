@@ -1,13 +1,115 @@
-import { Input, Button, InputNumber } from 'antd';
-import type { InputNumberProps } from 'antd';
-import "./registerTeacher.css"
+import { useState, useEffect } from 'react';
+import { Input, Button, InputNumber, Select, message } from 'antd';
+import type {  SelectProps } from 'antd';
 import femalePlaceHolder from "../../../assets/femalePlaceHolder.svg"
+import getProfileNames from '../../../fetch/getProfileNames';
+import getSimpleData from '../../../fetch/getSimpleData';
+import postTeacher from '../../../fetch/postTeacher';
+import "./registerTeacher.css"
 
-const onCIChange: InputNumberProps['onChange'] = (value) => {
-  console.log('changed', value);
-};
 
 export default function RegisterTeacher() {
+
+  const [name, setName] = useState<string>("");
+  const [lastName, setLastName] = useState<string>("");
+  const [ci, setCi] = useState<number | null>(null);
+  const [title, setTitle] = useState<string>("");
+  const [genderOprions, setGenderOprions] = useState<SelectProps["options"]>([]);
+  const [genderId, setGenderId] = useState<string>("");
+  const [contractOptions, setContractOptions] = useState<SelectProps["options"]>([]);
+  const [typeId, setTypeId] = useState<string>("");
+  const [profileOptions, setProfileOptions] = useState<SelectProps["options"]>([]);
+  const [perfilId, setPerfilId] = useState<string>("");
+
+
+
+  useEffect(() => {
+    async function getProfileList() {
+      const profileNames = await getProfileNames();
+      if (profileNames.error) {
+        message.error(profileNames.error);
+        return;
+      }
+
+      setProfileOptions(
+        profileNames.map((profile: { id: string; name: string }) => {
+          return { value: profile.id, label: profile.name };
+        })
+      );
+    }
+    getProfileList();
+
+    async function getTeacherData() {
+      const teacherData = await getSimpleData();
+      if (teacherData.error) {
+        message.error(teacherData.error);
+        return;
+      }
+      const genders = teacherData.gender;
+      const contractTypes = teacherData.contract;
+
+      if (!genders || !contractTypes) {
+        message.error("Error al cargar los datos");
+        return;
+      }
+
+      setGenderOprions(
+        genders.map((gender: { id: string; name: string }) => {
+          return { value: gender.id, label: gender.name };
+        })
+      );
+
+      setContractOptions(
+        contractTypes.map((contract: { id: string; contractType: string }) => {
+          return { value: contract.id, label: contract.contractType };
+        })
+      );
+    }
+    getTeacherData();
+  }, []);
+
+  const cleanForm = () => {
+    setName("");
+    setLastName("");
+    setCi(null);
+    setTitle("");
+    setGenderId("");
+    setTypeId("");
+    setPerfilId("");
+  }
+
+  const ableToRegister = (): boolean => {
+    return name !== "" && lastName !== "" && ci !== null && title !== "" && genderId !== "" && typeId !== "" && perfilId !== "";
+  }
+
+  const handleRegister = async () => {
+    if (!ableToRegister()) {
+      message.error("Por favor, complete todos los campos");
+      return;
+    }
+
+    const requestData = {
+      id: undefined,
+      name,
+      last_name: lastName,
+      ci: ci?.toString(),
+      gender_id: genderId,
+      contractTypes_id: typeId,
+      title,
+      perfil_name_id: perfilId,
+    };
+
+    const response = await postTeacher(requestData);
+    if (response.error) {
+      message.error(response.error);
+      return;
+    }
+
+    cleanForm();
+    message.success("Profesor registrado correctamente");
+
+  }
+
   return <div>
     <div className="title-bar-container" style={{ gridArea: "header", display: "flex", alignItems: "center", justifyContent: "start", columnGap: "3rem" }}>
       <h1 >Registro de profesor</h1>
@@ -21,11 +123,11 @@ export default function RegisterTeacher() {
         <div style={{ display: "flex", flexDirection: "column", rowGap: "1rem", width: "100%" }}>
           <div >
             <label>Nombre</label>
-            <Input placeholder="Nombre del profesor" />
+            <Input placeholder="Nombre del profesor" value={name} onChange={(e) => setName(e.target.value)}/>
           </div>
           <div >
             <label>Apellido</label>
-            <Input placeholder="Apellido del profesor" />
+            <Input placeholder="Apellido del profesor"  value={lastName} onChange={(e) => setLastName(e.target.value)}/>
           </div>
         </div>
       </div>
@@ -33,32 +135,63 @@ export default function RegisterTeacher() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "1rem" }}>
         <div className='register-teacher-form-input'>
           <label>Cédula</label>
-          <InputNumber min={1} defaultValue={3} onChange={onCIChange} style={{width:"100%"}}/>
+          <InputNumber min={1} max={9999999999} style={{ width: "100%" }} value={ci} onChange={(value) => setCi(value as number | null)}/>
         </div>
         <div className='register-teacher-form-input'>
           <label>Genero</label>
-          <Input placeholder="Genero del profesor" />
+          <Select
+            style={{ width: "100%" }}
+            showSearch
+            placeholder="Selecciona un Genero"
+            options={genderOprions}
+            value={genderId}
+            onChange={(value) => setGenderId(value)}
+          />
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", columnGap: "1rem" }}>
         <div className='register-teacher-form-input'>
           <label>Tipo de contrato</label>
-          <Input placeholder="Tipo de contrato del profesor" />
+          <Select
+            style={{ width: "100%" }}
+            showSearch
+            placeholder="Selecciona un tipo de contrato"
+            filterOption={(input, option) =>
+              String(option?.label ?? "")
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
+            options={contractOptions}
+            value={typeId}
+            onChange={(value) => setTypeId(value)}
+          />
         </div>
         <div className='register-teacher-form-input'>
           <label>Titulo</label>
-          <Input placeholder="Titulo del profesor" />
+          <Input placeholder="Titulo del profesor" value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
         <div className='register-teacher-form-input'>
           <label>Perfil</label>
-          <Input placeholder="Perfil del profesor" />
+          <Select
+            style={{ width: "100%" }}
+            showSearch
+            placeholder="Selecciona un perfil"
+            filterOption={(input, option) =>
+              String(option?.label ?? "")
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
+            options={profileOptions}
+            value={perfilId}
+            onChange={(value) => setPerfilId(value)}
+          />
         </div>
       </div>
 
       <div style={{ display: "flex", justifyContent: "end", columnGap: "1rem", marginTop: "3rem" }}>
-        <Button type="dashed" danger>Cancelar</Button>
-        <Button type="primary">Registrar</Button>
+        <Button type="dashed" onClick={cleanForm}>Limpiar</Button>
+        <Button type="primary" disabled={!ableToRegister()} onClick={handleRegister}>Registrar</Button>
       </div>
 
     </div>

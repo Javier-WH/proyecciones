@@ -6,6 +6,7 @@ import placeholder from "./../../../assets/malePlaceHolder.svg";
 //import { MainContextValues } from '../../../interfaces/contextInterfaces';
 import getProfileNames from "../../../fetch/getProfileNames";
 import getSimpleData from "../../../fetch/getSimpleData";
+import postTeacher from "../../../fetch/postTeacher";
 
 export default function EditTeacherModal({
   teacherData,
@@ -39,7 +40,7 @@ export default function EditTeacherModal({
       setIsModalOpen(true);
       setTypeId(teacherData.contractTypeId);
       setGenderId(teacherData.genderId);
-      console.log(teacherData);
+     // console.log(teacherData);
     } else {
       setName("");
       setLastName("");
@@ -105,17 +106,22 @@ export default function EditTeacherModal({
     const requestData = {
       id: teacherData?.id,
       name,
-      lastName,
+      last_name: lastName,
       ci,
-      perfil_name_id: perfilId,
-      genderId,
+      gender_id: genderId,
       contractTypes_id: typeId,
       title,
+      perfil_name_id: perfilId,
     };
 
-    console.log(requestData);
+    const response = await postTeacher(requestData);
+    if (response.error) {
+      message.error(response.error);
+      return;
+    }
 
     message.success("Profesor editado correctamente");
+    setTeacherData(null);
   };
 
   return (
@@ -189,11 +195,6 @@ export default function EditTeacherModal({
               style={{ width: "100%" }}
               showSearch
               placeholder="Selecciona un Genero"
-              filterOption={(input, option) =>
-                String(option?.label ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
               options={genderOprions}
               value={genderId}
               onChange={(value) => setGenderId(value)}
