@@ -19,8 +19,16 @@ export interface SimpleSubject {
 }
 
 export interface subjectType {
-  hours: number
-  id: string
-  subject: string
-  subject_id: string
+  hours: number;
+  id: string;
+  subject: string;
+  subject_id: string;
 }
+
+export interface TableSubject {
+  hours: string | null;
+  key: string | null;
+  quarter: string | null;
+  subject: string | null;
+}
+  

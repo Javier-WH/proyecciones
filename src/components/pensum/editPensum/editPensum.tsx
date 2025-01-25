@@ -1,4 +1,4 @@
-import { Select, SelectProps, Button } from "antd";
+import { Select, SelectProps, Button, message } from "antd";
 import { useEffect, useState } from "react";
 import getPnf from "../../../fetch/getPnf";
 import getTrayectos from "../../../fetch/getTrayectos";
@@ -7,6 +7,7 @@ import {PNF} from "../../../interfaces/pnf";
 import { Trayecto } from "../../../interfaces/trayecto";
 import { SimpleSubject } from "../../../interfaces/subject";
 import EditPensumTable from "./editPensumTable";
+import postPensum from "../../../fetch/postPensum";
 import "./editPensum.css"
 
 export default function EditPensum() {
@@ -46,6 +47,35 @@ export default function EditPensum() {
     fetchSubjects()
 
   }, [])
+
+  const handleAddSubject = async () => {
+    if(!subjectId || !pnfId || !trayectoId) return
+
+    const requestData = {
+      id: undefined,
+      pnf_id: pnfId,
+      subject_id: subjectId,
+      trayecto_id: trayectoId,
+      hours: "0",
+      quarter: "[1,2,3]"
+    }
+    const response = await postPensum(requestData)
+
+    if (response.error) {
+      message.error(response.error)
+      return
+    }
+
+    // esto fuerza la actualizacion de la tabla
+    const pnfStore = pnfId
+    setPnfId(undefined)
+    setTimeout(() => {
+      setPnfId(pnfStore)
+      setSubjectId(undefined)
+      message.success("Materia añadida correctamente")
+    }, 50);
+
+  }
 
 
 
@@ -108,7 +138,7 @@ export default function EditPensum() {
       </div>
 
       <div style={{ display: "flex", alignItems: "flex-end" }}>
-        <Button type="primary">Agregar</Button>
+        <Button type="primary" disabled={!pnfId || !trayectoId || !subjectId} onClick={handleAddSubject}>Agregar</Button>
       </div>
 
     </div>

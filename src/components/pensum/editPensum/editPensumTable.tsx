@@ -4,6 +4,9 @@ import type { TableProps } from 'antd';
 import { MdDeleteForever, MdEdit } from "react-icons/md";
 import getPensum from '../../../fetch/getPensum';
 import Spinner from '../../spinner/spinner';
+import deletePensum from '../../../fetch/deletePensum';
+import { TableSubject } from '../../../interfaces/subject';
+import EditPensumSubjectModal from './editPensumSubjectModal/editPensumSubjectModal';
 
 interface DataType {
   key: string;
@@ -22,24 +25,26 @@ export default function EditPensumTable({ programaId, trayectoId }: { programaId
 
   const [list, setList] = useState<DataType[]>([])
   const [loading, setLoading] = useState<boolean>(true)
+  const [selectedSubject, setSelectedSubject] = useState<TableSubject | null>(null)
 
-
+  async function fetchPensum() {
+    setLoading(true)
+    const response = await getPensum({ programaId, trayectoId })
+    setLoading(false)
+    if (response.error) {
+      message.error(response.error)
+      return
+    }
+    const data = response.data
+    const subjects = data.pensums
+    setList(subjects.map((subject: subjet) => ({ key: subject.id, subject: subject.subject, hours: subject.hours, quarter: subject.quarter })))
+  }
 
   useEffect(() => {
     if (!programaId || !trayectoId) return
-    async function fetchPensum() {
-      setLoading(true)
-      const response = await getPensum({ programaId, trayectoId })
-      setLoading(false)
-      if (response.error) {
-        message.error(response.error)
-        return
-      }
-      const data = response.data
-      const subjects = data.pensums
-      setList(subjects.map((subject: subjet) => ({ key: subject.id, subject: subject.subject, hours: subject.hours, quarter: subject.quarter })))
-    }
+ 
     fetchPensum()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programaId, trayectoId])
 
   const columns: TableProps<DataType>['columns'] = [
@@ -50,7 +55,7 @@ export default function EditPensumTable({ programaId, trayectoId }: { programaId
       render: (text) => <h5>{text}</h5>,
     },
     {
-      title: 'Holas Semanales',
+      title: 'Horas Semanales',
       dataIndex: 'hours',
       key: 'hours',
       render: (hours) =>{
@@ -77,18 +82,39 @@ export default function EditPensumTable({ programaId, trayectoId }: { programaId
       },
     },
     {
-      title: 'Accion',
+      title: 'Acción',
       key: 'action',
       render: (subject) => (
         <Space size="middle">
-          <Button type="primary" shape='circle' icon={<MdEdit />}  onClick={() => { console.log(subject) }} />
-          <Button type="primary" shape='circle' icon={<MdDeleteForever />} danger  onClick={() => {console.log(subject.key)}}/>
+          <Button type="primary" shape='circle' icon={<MdEdit />} onClick={() => { handleEdit(subject) }} />
+          <Button type="primary" shape='circle' icon={<MdDeleteForever />} danger onClick={() => { handleDelete(subject.key)}}/>
         </Space>
       ),
     },
   ];
 
+  const handleEdit = (subject: TableSubject)=>{
+    setSelectedSubject(subject)
+  }
+
+  const handleDelete = (id: string) => {
+    if(!id) return
+    async function deleteSubject() {
+      const response = await deletePensum({ id })
+      if (response.error) {
+        message.error(response.error)
+        return
+      }
+      await fetchPensum()
+      message.success("Materia eliminada correctamente del programa")
+    }
+    deleteSubject()
+  }
+
   if(!programaId || !trayectoId) return <p style={{ textAlign: "center", color: "gray"}}>Seleccione un programa y un trayecto</p>
   if(loading) return <Spinner/>
-  return <Table<DataType> columns={columns} dataSource={list} pagination={{ position: ["topLeft", "none"] }} style={{ width: "100%", height: "calc(100vh - 250px)", overflowY:"auto" }}/>
+  return <>
+    <EditPensumSubjectModal subject={selectedSubject} setSubject={setSelectedSubject} fetchPensum={fetchPensum} />
+    <Table<DataType> columns={columns} dataSource={list} pagination={{ position: ["topLeft", "none"] }} style={{ width: "100%", height: "calc(100vh - 250px)", overflowY:"auto" }}/>
+  </>
 }
