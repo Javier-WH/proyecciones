@@ -1,0 +1,26 @@
+.edit-pensum-selector-main-container {
+  display: flex;
+  width: 90%;
+  justify-content: stretch;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 40px;
+  border-bottom: 1px solid #e0e0e0;
+  margin: 20px;
+}
+
+.edit-pensum-selector-main-container label {
+  color: gray;
+}
+
+.edit-pensum-selector-container {
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100vw/4.5);
+  min-width: 150px;
+  width: 100%;
+
+}
+
+
+
