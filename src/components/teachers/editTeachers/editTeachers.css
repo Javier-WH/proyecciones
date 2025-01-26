@@ -1,5 +1,5 @@
 :root{
-  --grid-template-columns: 3fr 3fr 2fr 1fr;
+  --grid-template-columns: 3fr 3fr 2fr 2fr 1fr;
 }
 
 .edit-teacher-list-container {

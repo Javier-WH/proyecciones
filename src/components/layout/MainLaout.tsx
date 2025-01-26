@@ -1,7 +1,8 @@
 import { useState, useContext, useEffect} from 'react';
 import { Outlet, useNavigate } from "react-router-dom";
 import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit, FaProductHunt, FaThList } from "react-icons/fa";
-import { MdSubject, MdEditRoad, MdEditLocation, MdAddToPhotos } from "react-icons/md";
+import { MdSubject, MdEditRoad, MdEditLocation } from "react-icons/md";
+import { IoMdPlanet } from "react-icons/io";
 import { LiaSchoolSolid } from "react-icons/lia";
 import { GrSchedules, GrConfigure } from "react-icons/gr";
 import { IoPersonAddSharp } from "react-icons/io5";
@@ -47,6 +48,7 @@ const items: MenuItem[] = [
   ]),
   getItem('Trayectos', '/app/trayectos', <PiStepsDuotone />, [
     getItem('Editar Trayectos', '/app/editTrayectos', <MdEditRoad />),
+    getItem('Editar PNF', '/app/editPNF', <IoMdPlanet />),
   ]),
   getItem('Horarios', '/app/horarios', <GrSchedules />, [
     getItem('Crear Horario', '6'),

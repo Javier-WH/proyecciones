@@ -12,6 +12,7 @@ import EditTeachers from "../components/teachers/editTeachers/EditTeachers";
 import Profiles from "../components/teachers/profiles/Profiles";
 import EditSubjects from "../components/pensum/editSubjects";
 import EditPensum from "../components/pensum/editPensum/editPensum";
+import EditPNF from "../components/editTrayectos/editPNF/EditPNF";
 
 const router = createBrowserRouter([
   {
@@ -62,6 +63,10 @@ const router = createBrowserRouter([
       {
         path: "/app/editTrayectos",
         element: <EditTrayectos />,
+      },
+      {
+        path: "/app/editPNF",
+        element: <EditPNF />,
       },
       {
         path: "*",

@@ -32,7 +32,8 @@ export default function EditPensumTable({ programaId, trayectoId }: { programaId
     const response = await getPensum({ programaId, trayectoId })
     setLoading(false)
     if (response.error) {
-      message.error(response.error)
+      setList([])
+      message.error(response.message)
       return
     }
     const data = response.data
@@ -113,6 +114,7 @@ export default function EditPensumTable({ programaId, trayectoId }: { programaId
 
   if(!programaId || !trayectoId) return <p style={{ textAlign: "center", color: "gray"}}>Seleccione un programa y un trayecto</p>
   if(loading) return <Spinner/>
+  if(list.length === 0) return <p style={{ textAlign: "center", color: "gray"}}>No hay materias en este trayecto</p>
   return <>
     <EditPensumSubjectModal subject={selectedSubject} setSubject={setSelectedSubject} fetchPensum={fetchPensum} />
     <Table<DataType> columns={columns} dataSource={list} pagination={{ position: ["topLeft", "none"] }} style={{ width: "100%", height: "calc(100vh - 250px)", overflowY:"auto" }}/>

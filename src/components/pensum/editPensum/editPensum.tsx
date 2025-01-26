@@ -28,7 +28,8 @@ export default function EditPensum() {
     async function fetchPnf() {
       const response = await getPnf()
       if(!response) return
-      setPnfOpcions(response.map((pnf: PNF) => ({ value: pnf.id, label: pnf.name })))
+      const cleanPnfData = response.filter((pnf:{active: number}) => pnf.active === 1);
+      setPnfOpcions(cleanPnfData.map((pnf: PNF) => ({ value: pnf.id, label: pnf.name })))
     }
     fetchPnf()
 
@@ -42,7 +43,8 @@ export default function EditPensum() {
     async function fetchSubjects() {
       const response = await getSubjects()
       if(!response) return
-      setSubjectOpcions(response.map((subject: SimpleSubject) => ({ value: subject.id, label: subject.name })))
+      const cleanSubjectData = response.filter((subject: SimpleSubject) => subject.active === 1);
+      setSubjectOpcions(cleanSubjectData.map((subject: SimpleSubject) => ({ value: subject.id, label: subject.name })))
     }
     fetchSubjects()
 

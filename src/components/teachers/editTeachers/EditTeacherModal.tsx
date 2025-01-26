@@ -11,9 +11,11 @@ import postTeacher from "../../../fetch/postTeacher";
 export default function EditTeacherModal({
   teacherData,
   setTeacherData,
+  fetchTeachers
 }: {
   teacherData: Teacher | null;
   setTeacherData: (teacherData: Teacher | null) => void;
+  fetchTeachers: () => Promise<void>;
 }) {
   //const { setTrayectosList } = useContext(MainContext) as MainContextValues
 
@@ -120,6 +122,7 @@ export default function EditTeacherModal({
       return;
     }
 
+    fetchTeachers();
     message.success("Profesor editado correctamente");
     setTeacherData(null);
   };
