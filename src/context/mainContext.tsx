@@ -82,12 +82,13 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     };
 
     const subjects = teachers[selectedQuarter][id]?.load ?? [];
-    const asignedHpours = subjects.reduce((acc, subject) => acc + subject.hours, 0);
+    const asignedHpours = subjects.reduce((acc, subject) => Number(acc) + Number(subject.hours), 0);
+    const aviableHours = Number(teachers[selectedQuarter][id]?.partTime) - Number(asignedHpours)
 
     return {
       partTime: teachers[selectedQuarter][id]?.partTime,
       asignedHpours,
-      aviableHours: teachers[selectedQuarter][id]?.partTime - asignedHpours
+      aviableHours: aviableHours < 0 ? 0 : aviableHours
     }
   }
 

@@ -46,7 +46,7 @@ const items: MenuItem[] = [
     getItem('Editar Materias', '/app/editSubject', <MdEditLocation />),
     getItem('Editar Pensum', '/app/pensum/edit', <FaThList />),
   ]),
-  getItem('Trayectos', '/app/trayectos', <PiStepsDuotone />, [
+  getItem('Trayectos Y PNF', '/app/trayectos', <PiStepsDuotone />, [
     getItem('Editar Trayectos', '/app/editTrayectos', <MdEditRoad />),
     getItem('Editar PNF', '/app/editPNF', <IoMdPlanet />),
   ]),
