@@ -27,17 +27,30 @@ const AddSubjectToTeacherModal: React.FC<{
   const [teacherIndex, setTeacherIndex] = useState(0);
 
 
+  function removeDuplicateSubjects(subjectsData: { key: string, value: string; label: string, subjectId: string }[]) {
+   // esta funcion elimina las asignaturas duplicadas, corrige un bug y es una solucion temporal, de debe mejorar cuando se haga el refactor
+    const uniqueSubjects: { key: string, value: string; label: string, subjectId: string }[] = [];
+    const subjectIds = new Set();
+
+    subjectsData.forEach(subject => {
+      if (!subjectIds.has(subject.subjectId)) {
+        subjectIds.add(subject.subjectId);
+        uniqueSubjects.push(subject);
+      }
+    });
+    return uniqueSubjects;
+  }
 
 
   useEffect(() => {
     if (!subjects || !teachers || !selectedTeacerId) return
     //console.log(subjects)
     //obtengo la lista de asignaturas
-    let subjectsData = subjects.map((subject) => (
+    let subjectsData = subjects.map((subject, index) => (
       {  
         value: `${subject.id} ${subject.pensum_id} ${subject.seccion}`,
         label: `${subject.subject} (${subject.pnf} - Sección ${subject.seccion} - Trayecto ${subject.trayectoName})`, 
-        key: `${subject.id} ${subject.pensum_id} ${subject.seccion}`,
+        key: `${subject.id} ${subject.pensum_id} ${subject.seccion} ${index}`,
         subjectId: subject.id,
       }
     ));
@@ -50,24 +63,26 @@ const AddSubjectToTeacherModal: React.FC<{
     }
     //las horas que tiene usadas el profesor
     const tehacherLoad = teachers[selectedQuarter][t_index]?.load?.map(subject => subject.hours).reduce((acc, curr) => acc + curr, 0);
+
     //maximo de horas que puede tener el profesor
     const maxHours = teachers[selectedQuarter][t_index]?.partTime;
+
     ///// FILTRADO DE HORAS DISPONIBLES
     if(!overLoad){
       subjectsData = subjectsData.filter((subject) => {
         const index = subjects.findIndex((s) => s.id === subject.subjectId);
-        const subjectHourNumber = subjects[index]?.hours;
+        const subjectHourNumber = Number.parseInt(subjects[index]?.hours.toString());
         const teacherLoadNumber = Number.parseInt(tehacherLoad?.toString() ?? '0');
-        const maxHoursNumber = Number.parseInt(maxHours.toString());
+        const maxHoursNumber = Number.parseInt(maxHours?.toString());
 
         // Validar si los valores son NaN
         if (isNaN(teacherLoadNumber) || isNaN(subjectHourNumber) || isNaN(maxHoursNumber)) {
           return false;
         }
+   
         return teacherLoadNumber + subjectHourNumber <= maxHoursNumber;
       });
     }
-
 
     //filtrado por trimestre
     subjectsData = subjectsData.filter(subject =>{
@@ -78,9 +93,8 @@ const AddSubjectToTeacherModal: React.FC<{
   
     });
 
-    //console.log(subjectsData)
-
-    setOptions(subjectsData);
+    // elimino las asignaturas duplicadas, corrige un bug y es una solucion temporal
+    setOptions(removeDuplicateSubjects(subjectsData));
 
   }, [subjects, perfilOption, teachers, selectedTeacerId, overLoad, selectedQuarter]);
 
@@ -114,6 +128,7 @@ const AddSubjectToTeacherModal: React.FC<{
     if (subjects[index].quarter.includes(3)) {
       teachersCopy["q3"][teacherIndex]?.load?.push(subjects[index]);
     }
+    // console.log(teachersCopy.q1[teacherIndex])
     handleTeacherChange(teachersCopy);
 
     //elimino la asignatura de la lista de asignaturas

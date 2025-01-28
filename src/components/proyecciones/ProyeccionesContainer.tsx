@@ -19,7 +19,7 @@ export default function ProyeccionesContainer() {
   const { tankenSubjects, aviableSubjects } = useSubjectsInfo();
   const [teacherTab, setTeacherTab] = useState(true);
   const [error, setError] = useState(false);
-  const { setSelectedTeacerId, setSelectedTeacher, setSelectedQuarter, subjects } = useContext(MainContext) as MainContextValues
+  const { setSelectedTeacerId, setSelectedTeacher, setSelectedQuarter, subjects, proyectionsDone } = useContext(MainContext) as MainContextValues
 
   const navigate = useNavigate()
 
@@ -62,8 +62,9 @@ export default function ProyeccionesContainer() {
     </div>
   }
 
-  // si no hay proyecciones
-  if (subjects?.length === 0) {
+  // si no hay materias y no hay proyecciones hechas
+  if (subjects?.length === 0 && proyectionsDone.length === 0) {
+    console.log(proyectionsDone)
     return <div className="proyecciones-container" style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "20px" }}>
       <h1>No se ha encontrado ninguna proyección</h1>
       <Button

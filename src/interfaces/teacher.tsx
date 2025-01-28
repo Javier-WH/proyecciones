@@ -16,6 +16,7 @@ export interface Teacher {
   gender: string;
   genderId: string;
   contractTypeId: string;
+  active: boolean;
 }
 
 export interface Quarter{

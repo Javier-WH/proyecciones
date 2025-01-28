@@ -1,13 +1,13 @@
-import { createContext, ReactNode, useEffect, useState} from "react"
-import { MainContextValues } from "../interfaces/contextInterfaces"; 
-import { Teacher, Quarter} from "../interfaces/teacher";
+import { createContext, ReactNode, useEffect, useState } from "react"
+import { MainContextValues } from "../interfaces/contextInterfaces";
+import { Teacher, Quarter } from "../interfaces/teacher";
 import { PNF } from "../interfaces/pnf.tsx";
 import { Trayecto } from "../interfaces/trayecto.tsx";
 import { Subject, SimpleSubject } from "../interfaces/subject";
 import { Turno } from "../interfaces/turnos.tsx";
 import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/addSubjectToTeacherModal";
 import ChangeSubjectFromTeacherModal from "../components/changeSubjectFromTeacherModal/changeSubjectFromTeacherModal";
-import io, {Socket} from 'socket.io-client';
+import io, { Socket } from 'socket.io-client';
 import getPnf from "../fetch/getPnf.ts";
 import getSubjects from "../fetch/getSubjects.ts";
 import getTrayectos from "../fetch/getTrayectos.ts";
@@ -20,7 +20,7 @@ export const MainContext = createContext<MainContextValues | null>(null);
 export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [teachers, setTeachers] = useState< Quarter | null>(null);
+  const [teachers, setTeachers] = useState<Quarter | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [selectedQuarter, setSelectedQuarter] = useState<"q1" | "q2" | "q3">("q1");
   const [selectedTeacerId, setSelectedTeacerId] = useState<string | null>(null);
@@ -38,7 +38,8 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   useEffect(() => {
     getPnf()
       .then((data) => {
-        setPnfList(data);
+        const filteredData = data.filter((pnf: PNF) =>  Boolean(pnf.active) === true)
+        setPnfList(filteredData);
       })
       .catch((error) => {
         console.error(error);
@@ -46,7 +47,8 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
     getSubjects()
       .then((data) => {
-        setSubjectList(data);
+        const filteredData = data.filter((subject: SimpleSubject) => Boolean(subject.active) === true)
+        setSubjectList(filteredData);
       })
       .catch((error) => {
         console.error(error);
@@ -92,7 +94,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   }
 
-///websocket/////////////////////////////////////////////////////////////////////////////////
+  ///websocket/////////////////////////////////////////////////////////////////////////////////
   useEffect(() => {
     setSocket(import.meta.env.MODE === 'development' ? io('ws://localhost:3000') : io());
   }, []);
@@ -128,6 +130,10 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     if (!socket) return;
     socket.emit('updateTeachers', data);
   };
+  const handleSingleTeacherChange = (data: Teacher) => {
+    if (!socket) return;
+    socket.emit('updateTeacher', data);
+  };
   const handleSubjectChange = (data: Subject[]) => {
     if (!socket) return;
     socket.emit('updateSubjects', data);
@@ -161,40 +167,41 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     handleProyectionsDoneChange,
     pnfList,
     subjectList,
-    trayectosList, 
+    trayectosList,
     setTrayectosList,
-    turnosList, 
+    turnosList,
     setTurnosList,
-    proyectionsDone, 
-    setProyectionsDone
+    proyectionsDone,
+    setProyectionsDone,
+    handleSingleTeacherChange
   }
 
   return (
     <MainContext.Provider value={values}>
       {children}
-      <AddSubjectToTeacherModal 
-        open={openAddSubjectToTeacherModal} 
+      <AddSubjectToTeacherModal
+        open={openAddSubjectToTeacherModal}
         setOpen={setOpenAddSubjectToTeacherModal}
-        teachers = {teachers}
-        setTeachers = {setTeachers}
-        selectedTeacerId = {selectedTeacerId}
-        subjects = {subjects}
-        setSubjects = {setSubjects}
-        selectedQuarter = {selectedQuarter}
-        setSelectedQuarter = {setSelectedQuarter}
-        handleTeacherChange = {handleTeacherChange}
-        handleSubjectChange = {handleSubjectChange}
+        teachers={teachers}
+        setTeachers={setTeachers}
+        selectedTeacerId={selectedTeacerId}
+        subjects={subjects}
+        setSubjects={setSubjects}
+        selectedQuarter={selectedQuarter}
+        setSelectedQuarter={setSelectedQuarter}
+        handleTeacherChange={handleTeacherChange}
+        handleSubjectChange={handleSubjectChange}
 
       />
-      <ChangeSubjectFromTeacherModal 
-        open={openChangeSubjectFromTeacherModal} 
+      <ChangeSubjectFromTeacherModal
+        open={openChangeSubjectFromTeacherModal}
         setOpen={setOpenChangeSubjectFromTeacherModal}
-        teachers = {teachers}
-        setTeachers = {setTeachers}
-        selectedTeacerId = {selectedTeacerId}
-        subjects = {subjects}
-        setSubjects = {setSubjects}
-        selectedSubject = {selectedSubject}
+        teachers={teachers}
+        setTeachers={setTeachers}
+        selectedTeacerId={selectedTeacerId}
+        subjects={subjects}
+        setSubjects={setSubjects}
+        selectedSubject={selectedSubject}
         selectedQuarter={selectedQuarter}
       />
     </MainContext.Provider>

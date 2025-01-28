@@ -46,7 +46,7 @@ export default function NewProyectionPanel() {
     setTrayectoLabel(trayectoName?.toString() ?? null);
 
     //corrige el valor del trayecto seleccionado para que sea el trayecto anterior al seleccionado
-    const selectedTrayectoOrder = selectedTrayecto?.order
+    /*const selectedTrayectoOrder = selectedTrayecto?.order
     console.log({selectedTrayectoOrder})
     if (selectedTrayectoOrder) {
       const fixxedValue = selectedTrayectoOrder - 1
@@ -54,7 +54,7 @@ export default function NewProyectionPanel() {
       const trayectoId = trayectosList?.filter((trayecto) => trayecto.order === fixxedValue)[0].id
       setTrayectoDataValue(trayectoId?.toString() ?? null);
       return
-    }
+    }*/
     
     setTrayectoValue(value);
 

@@ -34,4 +34,5 @@ export interface MainContextValues {
   setTurnosList: React.Dispatch<React.SetStateAction<Turno[]>>;
   proyectionsDone: string[] | [], 
   setProyectionsDone: React.Dispatch<React.SetStateAction<string[] | []>>;
+  handleSingleTeacherChange: (data: Teacher) => void;
 }

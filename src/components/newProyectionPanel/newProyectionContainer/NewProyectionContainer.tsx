@@ -10,6 +10,7 @@ import ShowArrayModal from "../../SowArrayModal/showArrayModal";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import "./NewProyectionContainer.css"
+import { useNavigate } from "react-router-dom";
 
 export default function NewProyectionContainer({ programaId, trayectoId, trayectoDataValue }: 
   { 
@@ -38,6 +39,8 @@ export default function NewProyectionContainer({ programaId, trayectoId, trayect
   const [modalTitle, setModalTitle] = useState("")
   const [errorShown, setErrorShown] = useState(false)
   const [pensum, setPensum] = useState<Pensum[] | null>(null)
+
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (!programaId || !trayectoId) return
@@ -164,8 +167,8 @@ export default function NewProyectionContainer({ programaId, trayectoId, trayect
     const _proyectionsDone = [...proyectionsDone]
     _proyectionsDone.push(`${programaId}${trayectoId}`)
     handleProyectionsDoneChange(_proyectionsDone)
-    
     message.success('Proyección generada con exito')
+    navigate("/app/proyecciones")
   }
 
 

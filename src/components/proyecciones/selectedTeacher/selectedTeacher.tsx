@@ -63,13 +63,10 @@ export default function SelectedTeacher() {
         <span className="teacher-name" >{`${selectedTeacher?.name} ${selectedTeacher?.lastName}`}</span>
         <div style={{ display: "flex", alignItems: "center", gap: "30px" }}>
           <span >{`CI: ${selectedTeacher?.ci}`} </span>
-          <Button type="link" shape='round' className="teacher-search-button">
-            <FaSearch />
-          </Button>
         </div>
         <span >{`Titulo: ${selectedTeacher?.title}`}</span>
-        <span >{`Tipo de contrato: ${selectedTeacher?.type}`}</span>
-        <span >{`Carga Horaria: ${ teacherData && teacherData.partTime}`}</span>
+        <span >{`Tipo de contrato: ${selectedTeacher?.type ? selectedTeacher?.type : "Sin contrato" }`}</span>
+        <span >{`Carga Horaria: ${ teacherData && teacherData.partTime ? teacherData.partTime : "no disponible"}`}</span>
         <span style={hoursDataStyle()} >{`Horas asignadas: ${teacherData && teacherData.asignedHpours}`}</span>
         <span style={hoursDataStyle()} >{`Horas disponibles: ${teacherData && teacherData.aviableHours}`}</span>
       </div>
@@ -81,13 +78,23 @@ export default function SelectedTeacher() {
             : null
         }
         {
+          teachers?.[selectedQuarter]?.[teachers[selectedQuarter]?.findIndex(teacher => teacher.id === selectedTeacerId)]?.type &&
           teacherData && teacherData.asignedHpours === 0
             ? <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`Sin Horas Asignadas`}</Tag>
             : null
         }
+
+        {
+          !teachers?.[selectedQuarter]?.[teachers[selectedQuarter]?.findIndex(teacher => teacher.id === selectedTeacerId)]?.type &&
+          <Tag color="error" icon={<ExclamationCircleOutlined />} style={{marginTop: "-100%"}}>{`El profesor no tiene un contrato`}</Tag>
+        }
       </div>
 
-      <Subjects data={teachers?.[selectedQuarter]?.[teachers[selectedQuarter]?.findIndex(teacher => teacher.id === selectedTeacerId)]?.load ?? null} />
+        {
+          // solo se muestra la lista de materias y el boton de agregar materia si el profesor tiene un contrato
+        teachers?.[selectedQuarter]?.[teachers[selectedQuarter]?.findIndex(teacher => teacher.id === selectedTeacerId)]?.type &&
+        <Subjects data={teachers?.[selectedQuarter]?.[teachers[selectedQuarter]?.findIndex(teacher => teacher.id === selectedTeacerId)]?.load ?? null} />
+        }
 
     </div>
   );

@@ -1,4 +1,4 @@
-import React, {useContext} from 'react';
+import React, { useContext } from 'react';
 import { Subject } from '../../../../interfaces/subject';
 import { Button } from 'antd';
 import { FaTrashAlt } from "react-icons/fa";
@@ -17,11 +17,10 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
 
   const { setOpenAddSubjectToTeacherModal, teachers, selectedTeacerId, subjects, setOpenChangeSubjectFromTeacherModal, setSelectedSubject, selectedQuarter, handleSubjectChange, handleTeacherChange } = useContext(MainContext) as MainContextValues;
 
- 
   const handleRemoveSubject = (e: React.MouseEvent<HTMLButtonElement>) => {
     const subjectId = e.currentTarget.id
     if (!subjectId || !teachers || selectedTeacerId === null || subjects === null) return
-    
+
     const subData = subjectId.split(" ")
     const [_subjectId, _pensumId, _seccion] = subData;
     const targetKey = `${_subjectId}${_pensumId}${_seccion}`
@@ -30,36 +29,44 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
     const teachersCopy = JSON.parse(JSON.stringify(teachers));
     const teacherIndex = teachers[selectedQuarter].findIndex(teacher => teacher.id === selectedTeacerId)
 
+
     teachersCopy["q1"][teacherIndex].load = teachers["q1"][teacherIndex].load?.filter(subject => {
       const subjecKey = `${subject.id}${subject.pensum_id}${subject.seccion}`
       return subjecKey !== targetKey
     })
-
 
     teachersCopy["q2"][teacherIndex].load = teachers["q2"][teacherIndex].load?.filter(subject => {
       const subjecKey = `${subject.id}${subject.pensum_id}${subject.seccion}`
       return subjecKey !== targetKey
     })
 
-
     teachersCopy["q3"][teacherIndex].load = teachers["q3"][teacherIndex].load?.filter(subject => {
       const subjecKey = `${subject.id}${subject.pensum_id}${subject.seccion}`
       return subjecKey !== targetKey
     })
-    
 
     //guardado la materia para reintegrarla a la lista de materias
     const savedSubject = teachers[selectedQuarter][teacherIndex].load?.find(subject => subject.id === _subjectId && subject.pensum_id === _pensumId && subject.seccion === _seccion)
- 
-    handleSubjectChange([...subjects, savedSubject!])
+
+    /*subjects.map((subject: Subject) => {
+      if (subject.id === _subjectId){
+        console.log(subject)
+      }
+    })*/
+    
+    const filteredSubjects = subjects.filter(subject => subject.id !== _subjectId)
+
+    handleSubjectChange([...filteredSubjects, savedSubject!])
     handleTeacherChange(teachersCopy)
   }
 
   const handleSwapSubjects = () => {
-    if(!data) return
+    if (!data) return
     setSelectedSubject(data[0]);
     setOpenChangeSubjectFromTeacherModal(true)
   }
+
+
 
 
   return <div className='teacher-subjects-container'>
@@ -74,7 +81,7 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
           ? <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`No hay asignaturas asignadas`}</Tag>
           : data.map((subject, i) => (
             <div key={i} style={{ marginBottom: "5px" }}>
-              
+
               <h4>{subject.subject}
                 <div className="teacher-subjects-buttons">
                   <Button type="link" shape='round' style={{ color: "white", fontSize: "18px" }} onClick={handleSwapSubjects}>
