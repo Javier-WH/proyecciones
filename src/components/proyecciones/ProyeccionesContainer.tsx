@@ -64,7 +64,7 @@ export default function ProyeccionesContainer() {
 
   // si no hay materias y no hay proyecciones hechas
   if (subjects?.length === 0 && proyectionsDone.length === 0) {
-    console.log(proyectionsDone)
+
     return <div className="proyecciones-container" style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "20px" }}>
       <h1>No se ha encontrado ninguna proyección</h1>
       <Button
@@ -122,8 +122,10 @@ export default function ProyeccionesContainer() {
         </>
         :
         <>
-          <SubjectItem subjects={aviableSubjects} title="Asignaturas Disponibles" gridArea="table" />
-          <SubjectItem subjects={tankenSubjects} title="Asignaturas Asignadas" gridArea="selected" />
+          <div className="subjects-list-container-grid">
+            <SubjectItem subjects={aviableSubjects} title="Asignaturas Disponibles" gridArea="table" />
+            <SubjectItem subjects={tankenSubjects} title="Asignaturas Asignadas" gridArea="selected" />
+          </div>
         </>
     }
 

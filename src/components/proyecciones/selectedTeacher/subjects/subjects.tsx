@@ -29,7 +29,6 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
     if (!subjectId || !teachers || selectedTeacerId === null || subjects === null) return;
 
     const subData = subjectId.split(":");
-    console.log(subData);
 
     const [_subjectId, _pensumId, _seccion, _trayectoName, _turnoName] = subData;
     const targetKey = `${_subjectId}${_pensumId}${_seccion}${_trayectoName}${_turnoName}`;
@@ -54,7 +53,7 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
     });
 
     //guardado la materia para reintegrarla a la lista de materias
-    const savedSubject = teachers[selectedQuarter][teacherIndex].load?.find(
+    const savedSubject: Subject | undefined = teachers[selectedQuarter][teacherIndex].load?.find(
       (subject) =>
         subject.id === _subjectId &&
         subject.pensum_id === _pensumId &&
@@ -63,23 +62,8 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
         subject.turnoName === _turnoName
     );
 
-    /*subjects.map((subject: Subject) => {
-      if (subject.id === _subjectId){
-        console.log(subject)
-      }
-    })*/
-
-    const filteredSubjects = subjects.filter((subject) => {
-      return (
-        subject.id !== _subjectId &&
-        subject.pensum_id !== _pensumId &&
-        subject.seccion !== _seccion &&
-        subject.trayectoName !== _trayectoName &&
-        subject.turnoName !== _turnoName
-      );
-    });
-
-    handleSubjectChange([...filteredSubjects, savedSubject!]);
+    //actualizo la lista de materias
+    handleSubjectChange([...subjects, ...(savedSubject ? [savedSubject] : [])]);
     handleTeacherChange(teachersCopy);
   };
 
@@ -141,7 +125,7 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
                   flexWrap: "wrap",
                 }}>
                 <Tag color="default">{subject.pnf}</Tag>
-                <Tag color="default">{`Seccion: ${subject.seccion}`}</Tag>
+                <Tag color="default">{`Seccion: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
                 <Tag color="default">{subject.trayectoName}</Tag>
                 <Tag color="default">{`Horas: ${subject.hours}`}</Tag>
               </div>
