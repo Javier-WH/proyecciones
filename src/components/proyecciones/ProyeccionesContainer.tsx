@@ -23,9 +23,7 @@ export default function ProyeccionesContainer() {
 
   const iconStyle = { color: "white", fontSize: "2rem" }
 
-  const handleChangeSelector = (value: string) => {
-    console.log(`selected ${value}`);
-  };
+
   const handleChangeQuarterSelector = (value: string) => {
     setSelectedQuarter(value as "q1" | "q2" | "q3");
   };
