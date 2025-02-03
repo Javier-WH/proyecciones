@@ -2,9 +2,7 @@ import TeacherTable from "./teacherTable/TeacherTable";
 import SelectedTeacher from "./selectedTeacher/selectedTeacher";
 import "./proyeccionesContainer.css"
 import { Button, Select, Radio } from 'antd';
-import { GiSave } from "react-icons/gi";
 import { RiFileExcel2Line } from "react-icons/ri";
-import { MdOutlineRefresh } from "react-icons/md";
 import { GiAutoRepair } from "react-icons/gi";
 import { useContext, useEffect, useState } from "react";
 import SubjectItem from "./SubjectItem/SubjectItem";
@@ -19,7 +17,7 @@ export default function ProyeccionesContainer() {
   const { tankenSubjects, aviableSubjects } = useSubjectsInfo();
   const [teacherTab, setTeacherTab] = useState(true);
   const [error, setError] = useState(false);
-  const { setSelectedTeacerId, setSelectedTeacher, setSelectedQuarter, subjects, proyectionsDone } = useContext(MainContext) as MainContextValues
+  const { setSelectedTeacerId, setSelectedTeacher, setSelectedQuarter, subjects, proyectionsDone, selectedQuarter } = useContext(MainContext) as MainContextValues
 
   const navigate = useNavigate()
 
@@ -87,15 +85,16 @@ export default function ProyeccionesContainer() {
         <Radio.Button value="b">Materias</Radio.Button>
       </Radio.Group>
 
-      <Select
-        defaultValue="Inscripciones 2024"
-        style={{ width: 300 }}
-        options={[{ value: 'Inscripciones 2024', label: 'Inscripciones 2024' }]}
-        onChange={handleChangeSelector}
-      />
+      <Radio.Group defaultValue="a" size="small" >
+        <Radio.Button value="a">Mis profesores</Radio.Button>
+        <Radio.Button value="b">Todos los profesores</Radio.Button>
+      </Radio.Group>
+
+      <span>Inscripciones 2025</span>
 
       <Select
         defaultValue="Primer Trimestre"
+        value={selectedQuarter}
         style={{ width: 180 }}
         options={[
           { value: 'q1', label: 'Primer Trimestre' },
@@ -106,9 +105,7 @@ export default function ProyeccionesContainer() {
       />
 
       <div style={{ display: "flex", alignItems: "center", columnGap: "20px" }}>
-        <Button type="link" shape="circle" icon={<GiSave />} style={iconStyle} />
         <Button type="link" shape="circle" icon={<RiFileExcel2Line />} style={iconStyle} />
-        <Button type="link" shape="circle" icon={<MdOutlineRefresh />} style={iconStyle} />
       </div>
 
     </div>
