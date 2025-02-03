@@ -52,24 +52,30 @@ export default function NewProyectionContainer({
   const [modalTitle, setModalTitle] = useState("");
   const [errorShown, setErrorShown] = useState(false);
   const [pensum, setPensum] = useState<Pensum[] | null>(null);
+  const [pensumTrayectoName, setPensumTrayectoName] = useState("");
 
   const navigate = useNavigate();
 
   useEffect(() => {
+
     if (!programaId || !trayectoId) return;
     setLoading(true);
     getInscriptionData({
       programId: programaId,
       trayectoId: trayectoDataValue ? trayectoDataValue : trayectoId,
+      //trayectoId: trayectoId,
     })
       .then((data) => setInscriptionData(data))
       .catch((error) => console.log(error));
+
     getPensum({ programaId, trayectoId })
       .then((data) => {
+        setPensumTrayectoName(data?.data?.trayectoName);
         setPensumSlist(data?.data?.pensums.map((subject: subjectType) => subject.subject));
         setPensum(data?.data?.pensums);
       })
-      .catch((error) => console.log(error));
+      .catch((error) => console.log(error))
+      .finally(() => setLoading(false));
   }, [programaId, trayectoId, trayectoDataValue]);
 
   useEffect(() => {
@@ -80,7 +86,6 @@ export default function NewProyectionContainer({
 
   useEffect(() => {
     if (!passed) return;
-    //console.log(passed)
     const _turnos = Object.keys(passed).map((key) => {
       const turnoData = {
         turnoName: passed[key].turnoName,
@@ -115,8 +120,7 @@ export default function NewProyectionContainer({
     if (!pensumSlist || !inscriptionData) return;
     setModalArrayList(pensumSlist ?? []);
     const pnfName = inscriptionData.data.pnfName;
-    const trayectoName = inscriptionData.data.trayectoName;
-    setModalTitle(`Pensum de ${pnfName} - ${trayectoName}`);
+    setModalTitle(`Pensum de ${pnfName} - ${pensumTrayectoName}`);
     setOpenModal(true);
   };
 

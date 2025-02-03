@@ -28,7 +28,7 @@ export default function NewProyectionPanel() {
 
   useEffect(() => {
     if (!trayectosList) return
-    setTrayectoOptions(trayectosList.map(trayecto => ({ value: trayecto.id.toString(), label: trayecto.name.toString() })))
+    setTrayectoOptions(trayectosList.map(trayecto => ({ value: trayecto.id.toString(), label: trayecto.name.toString(), order: trayecto.order })))
     setTrayectoLabel(trayectosList[0]?.name?.toString())
     setTrayectoValue(trayectosList[0]?.id?.toString())
   }, [trayectosList])
@@ -44,19 +44,11 @@ export default function NewProyectionPanel() {
     const selectedTrayecto = trayectosList?.filter((trayecto) => trayecto.id === value)[0]
     const trayectoName = selectedTrayecto?.name
     setTrayectoLabel(trayectoName?.toString() ?? null);
-
-    //corrige el valor del trayecto seleccionado para que sea el trayecto anterior al seleccionado
-    /*const selectedTrayectoOrder = selectedTrayecto?.order
-    console.log({selectedTrayectoOrder})
-    if (selectedTrayectoOrder) {
-      const fixxedValue = selectedTrayectoOrder - 1
-      console.log({fixxedValue})
-      const trayectoId = trayectosList?.filter((trayecto) => trayecto.order === fixxedValue)[0].id
-      setTrayectoDataValue(trayectoId?.toString() ?? null);
-      return
-    }*/
     
     setTrayectoValue(value);
+    const order = selectedTrayecto ? selectedTrayecto.order - 1 : null;
+    const fixxedSelectedTrayecto = trayectosList?.filter((trayecto) => trayecto.order === order)[0]
+    setTrayectoDataValue(fixxedSelectedTrayecto?.id?.toString() ?? null);
 
   };
 
