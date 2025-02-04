@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import type { TableColumnsType } from "antd";
-import { Table, Tag, Input, Flex } from "antd";
+import { Table, Tag, Input } from "antd";
 import { MainContext } from "../../../context/mainContext";
 import { CloseCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { Teacher } from "../../../interfaces/teacher";
@@ -166,3 +166,4 @@ const TeacherTable: React.FC = () => {
 };
 
 export default TeacherTable;
+
