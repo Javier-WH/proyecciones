@@ -1,4 +1,4 @@
-import {  createBrowserRouter} from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
 import MainLayout from "../components/layout/MainLaout";
 import NotFound from "../components/notFound/NotFoundPage";
 import ElementNotFound from "../components/notFound/ElementNotFoud";
@@ -13,6 +13,7 @@ import Profiles from "../components/teachers/profiles/Profiles";
 import EditSubjects from "../components/pensum/editSubjects";
 import EditPensum from "../components/pensum/editPensum/editPensum";
 import EditPNF from "../components/editTrayectos/editPNF/EditPNF";
+import Config from "../components/config/config";
 
 const router = createBrowserRouter([
   {
@@ -30,7 +31,7 @@ const router = createBrowserRouter([
       },
       {
         path: "config",
-        element: <h1>config</h1>,
+        element: <Config />,
       },
       {
         path: "proyecciones/subjects",
@@ -81,4 +82,4 @@ const router = createBrowserRouter([
   },
 ]);
 
-export default router
+export default router;
