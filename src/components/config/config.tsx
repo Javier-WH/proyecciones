@@ -1,17 +1,86 @@
-import type { DatePickerProps } from "antd";
-import { DatePicker, Input, Button } from "antd";
-import { useState } from "react";
+import type { DatePickerProps, TableProps } from "antd";
+import { DatePicker, Input, Button, Table, message } from "antd";
+import { useEffect, useState, useContext} from "react";
+import getProyections from "../../fetch/getProyections";
+import getConfig from "../../fetch/getConfig";
+import SetActiveProyection from "../../fetch/setActiveProyection";
+import postProyection from "../../fetch/postProyection";
+import { MainContext } from "../../context/mainContext";
+import { MainContextValues } from "../../interfaces/contextInterfaces";
+
+interface ProyectionDataType {
+  id: string;
+  year: string;
+  name: string;
+}
 
 export default function Config() {
+
+  const { handleReload } = useContext(MainContext) as MainContextValues
   const [year, setYear] = useState<string | null>(null);
   const [name, setName] = useState<string>("");
+  const [proyectionList, setProyectionList] = useState<ProyectionDataType[]>([]);
+  const [activeProyection, setActiveProyection] = useState<string | null>(null);
+
+  const fetchProyections = async () => {
+    const proyections = await getProyections();
+    setProyectionList(proyections);
+    const config = await getConfig();
+    const activeProyectionId = config.active_proyection
+    const activeProyection = proyections.find((proyection: ProyectionDataType) => proyection.id === activeProyectionId);
+    setActiveProyection(activeProyection?.name);
+  };
+
+  useEffect(() => {
+    fetchProyections();
+  }, [])
 
   const onYearChange: DatePickerProps["onChange"] = (_, dateString) => {
     setYear(String(dateString));
   };
 
+  const handleClickActivate = async (id: string) => {
+    await SetActiveProyection({ active_proyection: id });
+    await fetchProyections();
+    handleReload()
+  }
+
+  const handleCreateProyection = async () => {
+    if (!year || name.length === 0) {
+      message.warning("Por favor, ingrese un año y un nombre para la proyección");
+      return;
+    }
+    const response = await postProyection({ year, name });
+    if (response.error) {
+      message.error(response.error);
+      return;
+    }
+    fetchProyections();
+  }
+
+  const columns: TableProps<ProyectionDataType>['columns'] = [
+    {
+      title: 'Año',
+      dataIndex: 'year',
+      key: 'year',
+    },
+    {
+      title: 'name',
+      dataIndex: 'name',
+      key: 'name',
+    },
+    {
+      title: 'Activar',
+      dataIndex: 'id',
+      key: 'id',
+      render: (_, record) => {
+        return <Button onClick={() => handleClickActivate(record.id)}>Activar</Button>;
+      },
+    }
+  ];
+
   return (
-    <>
+    <div>
       <div
         className="title-bar-container"
         style={{
@@ -54,12 +123,23 @@ export default function Config() {
             justifyContent: "end",
             flex: 1,
           }}>
-          <Button type="primary" disabled={!year || !name}>
+          <Button
+            onClick={handleCreateProyection}
+            type="primary"
+            disabled={!year || !name}
+          >
             Crear
           </Button>
         </div>
       </div>
-    </>
+
+      <div>
+        <h2 style={{ color: "gray" }}>Proyecciones</h2>
+        <h3 style={{ color: "gray" }}>{`Proyección activa -> ${activeProyection}`}</h3>
+        <Table<ProyectionDataType> columns={columns} dataSource={proyectionList} pagination={{ position: ["topLeft", "none"] }} />
+      </div>
+
+    </div>
   );
 }
 

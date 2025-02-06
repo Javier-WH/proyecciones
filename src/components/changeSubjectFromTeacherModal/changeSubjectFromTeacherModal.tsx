@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Button, Modal, Radio} from 'antd';
+import React, { useEffect, useState, useContext } from 'react';
+import { Button, Modal, Radio } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 import { Teacher, Quarter } from '../../interfaces/teacher';
 import { Subject } from '../../interfaces/subject';
+import { MainContext } from '../../context/mainContext';
+import { MainContextValues } from '../../interfaces/contextInterfaces';
 
 import './changeSubjectFromTeacherModal.css'
 const ChangeSubjectFromTeacherModal: React.FC<{
@@ -18,8 +20,10 @@ const ChangeSubjectFromTeacherModal: React.FC<{
 }> = ({ open, setOpen, teachers, selectedTeacerId, selectedSubject, selectedQuarter }) => {
 
 
+  const { handleTeacherChange } = useContext(MainContext) as MainContextValues
   const [viableTeachersList, setViableTeachersList] = useState<Array<Teacher>>([]);
   const [teacherID, setTeacherID] = useState<string | null>(null);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedSubject === null || teachers === null) return;
@@ -38,7 +42,69 @@ const ChangeSubjectFromTeacherModal: React.FC<{
   }, [selectedSubject, teachers, selectedTeacerId, selectedQuarter])
 
   const handleOk = () => {
-    console.log(teacherID)
+    if (selectedOption === null || selectedSubject === null || teachers === null) return;
+
+    const teachersCopy = JSON.parse(JSON.stringify(teachers));
+
+    // se agrega la materia al docente
+    if (selectedSubject.quarter.includes(1)) {
+      const index = teachersCopy["q1"].findIndex((teacher: Teacher) => teacher.id === selectedOption);
+      teachersCopy["q1"][index]?.load?.push(selectedSubject);
+    }
+    if (selectedSubject.quarter.includes(2)) {
+      const index = teachersCopy["q1"].findIndex((teacher: Teacher) => teacher.id === selectedOption);
+      teachersCopy["q2"][index]?.load?.push(selectedSubject);
+    }
+    if (selectedSubject.quarter.includes(3)) {
+      const index = teachersCopy["q1"].findIndex((teacher: Teacher) => teacher.id === selectedOption);
+      teachersCopy["q3"][index]?.load?.push(selectedSubject);
+    }
+    //const index = teachersCopy.q1.findIndex((teacher: Teacher) => teacher.id === selectedTeacerId)
+
+    // se elimina la materia del docente
+   if (selectedSubject.quarter.includes(1)) {
+     const index = teachersCopy.q1.findIndex((teacher: Teacher) => teacher.id === selectedTeacerId)
+    if (index !== -1) {
+      teachersCopy["q1"][index].load = teachersCopy["q1"][index].load.filter(
+        (subject: Subject ) =>
+          subject.pensum_id !== selectedSubject.pensum_id ||
+          subject.seccion !== selectedSubject.seccion ||
+          subject.trayectoName !== selectedSubject.trayectoName ||
+          subject.turnoName !== selectedSubject.turnoName
+      );
+    }
+  }
+  if (selectedSubject.quarter.includes(2)) {
+    const index = teachersCopy.q1.findIndex((teacher: Teacher) => teacher.id === selectedTeacerId)
+    if (index !== -1) {
+      teachersCopy["q2"][index].load = teachersCopy["q2"][index].load.filter(
+        (subject: Subject) =>
+          subject.pensum_id !== selectedSubject.pensum_id ||
+          subject.seccion !== selectedSubject.seccion ||
+          subject.trayectoName !== selectedSubject.trayectoName ||
+          subject.turnoName !== selectedSubject.turnoName
+      );
+    }
+  }
+  if (selectedSubject.quarter.includes(3)) {
+    const index = teachersCopy.q1.findIndex((teacher: Teacher) => teacher.id === selectedTeacerId)
+    if (index !== -1) {
+      teachersCopy["q3"][index].load = teachersCopy["q3"][index].load.filter(
+        (subject: Subject) =>
+          subject.pensum_id !== selectedSubject.pensum_id ||
+          subject.seccion !== selectedSubject.seccion ||
+          subject.trayectoName !== selectedSubject.trayectoName ||
+          subject.turnoName !== selectedSubject.turnoName
+      );
+    }
+  }
+
+
+
+    handleTeacherChange(teachersCopy)
+
+
+
   };
 
   const handleCancel = () => {
@@ -49,8 +115,9 @@ const ChangeSubjectFromTeacherModal: React.FC<{
   return (
     <>
       <Modal
+        width={800}
         open={open}
-        title={`${selectedSubject?.subject} (${selectedSubject?.pnf} T0-${selectedSubject?.seccion})`}
+        title={`${selectedSubject?.subject} (${selectedSubject?.pnf} ${selectedSubject?.trayectoName[0]}-${selectedSubject?.seccion})`}
         onOk={handleOk}
         onCancel={handleCancel}
         footer={[
@@ -66,13 +133,19 @@ const ChangeSubjectFromTeacherModal: React.FC<{
           <Radio.Group buttonStyle="solid" style={{ display: 'flex', flexDirection: 'column' }} onChange={(e: RadioChangeEvent) => setTeacherID(e.target.value)}>
             {
               viableTeachersList?.map((teacher, i) => {
-                return <Radio.Button value={teacher.id} key={i}>{`${teacher.title} ${teacher.name} ${teacher.lastName} C.I.${teacher.ci}`}</Radio.Button>
+                return <Radio.Button
+                  value={teacher.id}
+                  key={i}
+                  onChange={(e) => setSelectedOption(e.target.value)}
+                >
+                  {`${teacher.title} ${teacher.name} ${teacher.lastName} C.I.${teacher.ci}`}
+                </Radio.Button>
               })
             }
           </Radio.Group>
         </div>
 
-     
+
 
       </Modal>
     </>

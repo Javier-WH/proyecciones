@@ -41,4 +41,5 @@ export interface MainContextValues {
   handleSingleTeacherChange: (data: Teacher) => void;
   proyectionName: string | null;
   proyectionId: string | null;
+  handleReload: () => void;
 }

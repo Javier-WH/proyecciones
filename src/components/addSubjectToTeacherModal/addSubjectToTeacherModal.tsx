@@ -54,8 +54,8 @@ const AddSubjectToTeacherModal: React.FC<{
     }
     //las horas que tiene usadas el profesor
     const tehacherLoad = teachers[selectedQuarter][t_index]?.load
-      ?.map((subject) => subject.hours)
-      .reduce((acc, curr) => acc + curr, 0);
+      ?.map((subject) => Number(subject.hours))
+      .reduce((acc, curr) => Number(acc) + Number(curr), 0);
 
     //maximo de horas que puede tener el profesor
     const maxHours = teachers[selectedQuarter][t_index]?.partTime;
@@ -72,8 +72,7 @@ const AddSubjectToTeacherModal: React.FC<{
         if (isNaN(teacherLoadNumber) || isNaN(subjectHourNumber) || isNaN(maxHoursNumber)) {
           return false;
         }
-
-        return teacherLoadNumber + subjectHourNumber <= maxHoursNumber;
+        return teacherLoadNumber + subjectHourNumber <= maxHoursNumber ;
       });
     }
 

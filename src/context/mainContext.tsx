@@ -143,6 +143,11 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     socket.emit("proyectionsDone", proyections);
   };
 
+  const handleReload = () => {
+    if (!socket) return;
+    socket.emit("reload");
+  };
+
   const values: MainContextValues = {
     teachers,
     setTeachers,
@@ -176,6 +181,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     handleSingleTeacherChange,
     proyectionId,
     proyectionName,
+    handleReload
   };
 
   return (
