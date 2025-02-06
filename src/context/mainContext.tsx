@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useEffect, useState } from "react"
+import { createContext, ReactNode, useEffect, useState } from "react";
 import { MainContextValues } from "../interfaces/contextInterfaces";
 import { Teacher, Quarter } from "../interfaces/teacher";
 import { PNF } from "../interfaces/pnf.tsx";
@@ -7,18 +7,15 @@ import { Subject, SimpleSubject } from "../interfaces/subject";
 import { Turno } from "../interfaces/turnos.tsx";
 import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/addSubjectToTeacherModal";
 import ChangeSubjectFromTeacherModal from "../components/changeSubjectFromTeacherModal/changeSubjectFromTeacherModal";
-import io, { Socket } from 'socket.io-client';
+import io, { Socket } from "socket.io-client";
 import getPnf from "../fetch/getPnf.ts";
 import getSubjects from "../fetch/getSubjects.ts";
 import getTrayectos from "../fetch/getTrayectos.ts";
 import getTurnos from "../fetch/getTurnos.ts";
 
-
-
 export const MainContext = createContext<MainContextValues | null>(null);
 
 export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-
   const [socket, setSocket] = useState<Socket | null>(null);
   const [teachers, setTeachers] = useState<Quarter | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
@@ -33,12 +30,13 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [trayectosList, setTrayectosList] = useState<Trayecto[]>([]);
   const [turnosList, setTurnosList] = useState<Turno[]>([]);
   const [proyectionsDone, setProyectionsDone] = useState<string[] | []>([]);
-
+  const [proyectionName, setProyectionName] = useState<string | null>(null);
+  const [proyectionId, setProyectionId] = useState<string | null>(null);
 
   useEffect(() => {
     getPnf()
       .then((data) => {
-        const filteredData = data.filter((pnf: PNF) =>  Boolean(pnf.active) === true)
+        const filteredData = data.filter((pnf: PNF) => Boolean(pnf.active) === true);
         setPnfList(filteredData);
       })
       .catch((error) => {
@@ -47,12 +45,12 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
     getSubjects()
       .then((data) => {
-        const filteredData = data.filter((subject: SimpleSubject) => Boolean(subject.active) === true)
+        const filteredData = data.filter((subject: SimpleSubject) => Boolean(subject.active) === true);
         setSubjectList(filteredData);
       })
       .catch((error) => {
         console.error(error);
-      })
+      });
 
     getTrayectos()
       .then((data) => {
@@ -60,88 +58,90 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
       })
       .catch((error) => {
         console.error(error);
-      })
+      });
 
-    getTurnos()
-      .then((data) => {
-        setTurnosList(data);
-      })
-
+    getTurnos().then((data) => {
+      setTurnosList(data);
+    });
   }, []);
 
   const setSelectedTeacherById = (id: string) => {
     if (!teachers) return;
-    const teacher = teachers[selectedQuarter].find(teacher => teacher.id === id);
+    const teacher = teachers[selectedQuarter].find((teacher) => teacher.id === id);
     setSelectedTeacerId(id);
     setSelectedTeacher(teacher || null);
-  }
+  };
 
   const getTeachersHoursData = (id: number) => {
-    if (!teachers) return {
-      partTime: null,
-      asignedHpours: null,
-      aviableHours: null
-    };
+    if (!teachers)
+      return {
+        partTime: null,
+        asignedHpours: null,
+        aviableHours: null,
+      };
 
     const subjects = teachers[selectedQuarter][id]?.load ?? [];
     const asignedHpours = subjects.reduce((acc, subject) => Number(acc) + Number(subject.hours), 0);
-    const aviableHours = Number(teachers[selectedQuarter][id]?.partTime) - Number(asignedHpours)
+    const aviableHours = Number(teachers[selectedQuarter][id]?.partTime) - Number(asignedHpours);
 
     return {
       partTime: teachers[selectedQuarter][id]?.partTime,
       asignedHpours,
-      aviableHours: aviableHours < 0 ? 0 : aviableHours
-    }
-  }
+      aviableHours: aviableHours < 0 ? 0 : aviableHours,
+    };
+  };
 
   ///websocket/////////////////////////////////////////////////////////////////////////////////
   useEffect(() => {
-    setSocket(import.meta.env.MODE === 'development' ? io('ws://localhost:3000') : io());
+    setSocket(import.meta.env.MODE === "development" ? io("ws://localhost:3000") : io());
   }, []);
 
   useEffect(() => {
     if (!socket) return;
     // Escuchar eventos de actualización de los profesores
-    socket.on('updateTeachers', (newTeachers) => {
+    socket.on("updateTeachers", (newTeachers) => {
       setTeachers(newTeachers);
     });
-    socket.on('updateSubjects', (newSubjects) => {
+    socket.on("updateSubjects", (newSubjects) => {
       setSubjects(newSubjects);
     });
-    socket.on('proyectionsDone', (proyections) => {
+    socket.on("proyectionsDone", (proyections) => {
       setProyectionsDone(proyections);
     });
+    socket.on("proyectionData", (proyectionData) => {
+      setProyectionName(proyectionData.proyectionName);
+      setProyectionId(proyectionData.proyectionId);
+    });
 
-    socket.on('connect_error', (err) => {
-      console.error('WebSocket connection error:', err);
-    })
+    socket.on("connect_error", (err) => {
+      console.error("WebSocket connection error:", err);
+    });
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected from WebSocket');
+    socket.on("disconnect", () => {
+      console.log("Disconnected from WebSocket");
     });
 
     return () => {
       socket.disconnect();
     };
-
   }, [socket]);
 
   const handleTeacherChange = (data: Quarter) => {
     if (!socket) return;
-    socket.emit('updateTeachers', data);
+    socket.emit("updateTeachers", data);
   };
   const handleSingleTeacherChange = (data: Teacher) => {
     if (!socket) return;
-    socket.emit('updateTeacher', data);
+    socket.emit("updateTeacher", data);
   };
   const handleSubjectChange = (data: Subject[]) => {
     if (!socket) return;
-    socket.emit('updateSubjects', data);
+    socket.emit("updateSubjects", data);
   };
   const handleProyectionsDoneChange = (proyections: string[]) => {
     if (!socket) return;
-    socket.emit('proyectionsDone', proyections);
-  }
+    socket.emit("proyectionsDone", proyections);
+  };
 
   const values: MainContextValues = {
     teachers,
@@ -173,8 +173,10 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     setTurnosList,
     proyectionsDone,
     setProyectionsDone,
-    handleSingleTeacherChange
-  }
+    handleSingleTeacherChange,
+    proyectionId,
+    proyectionName,
+  };
 
   return (
     <MainContext.Provider value={values}>
@@ -191,7 +193,6 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         setSelectedQuarter={setSelectedQuarter}
         handleTeacherChange={handleTeacherChange}
         handleSubjectChange={handleSubjectChange}
-
       />
       <ChangeSubjectFromTeacherModal
         open={openChangeSubjectFromTeacherModal}
@@ -206,6 +207,5 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
       />
     </MainContext.Provider>
   );
-}
-
+};
 
