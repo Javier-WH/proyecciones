@@ -146,8 +146,8 @@ export default function ProyeccionesContainer() {
       ) : (
         <>
           <div className="subjects-list-container-grid">
-            <SubjectItem subjects={aviableSubjects} title="Asignaturas Disponibles" gridArea="table" />
-            <SubjectItem subjects={tankenSubjects} title="Asignaturas Asignadas" gridArea="selected" />
+            <SubjectItem subjects={aviableSubjects} title="Asignaturas Disponibles"/>
+            <SubjectItem subjects={tankenSubjects} title="Asignaturas Asignadas" />
           </div>
         </>
       )}

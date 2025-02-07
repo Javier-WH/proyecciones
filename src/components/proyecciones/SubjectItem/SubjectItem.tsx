@@ -7,19 +7,73 @@ import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import "./SubjectItem.css"
+import { Teacher } from "../../../interfaces/teacher";
 
 
-export default function SubjectItem({ subjects, title, gridArea }: { subjects: Array<Subject> | null, title: string, gridArea: string }) {
+export default function SubjectItem({ subjects, title }: { subjects: Array<Subject> | null, title: string }) {
 
-  const { setSelectedSubject, setOpenChangeSubjectFromTeacherModal } = useContext(MainContext) as MainContextValues
+  const { setSelectedSubject, setOpenChangeSubjectFromTeacherModal, teachers, setSelectedTeacerId } = useContext(MainContext) as MainContextValues
   const [data, setData] = useState<Subject[]>([]);
   const [filteredText, setFilteredText] = useState<string>("");
 
-  const handleClick = (id: string) => {
+  const handleClick = (subject: Subject) => {
     if (subjects === null) return
-    const selected = subjects.find(subject => subject.id === id);
-    setSelectedSubject(selected!);
+
+    const selected = subjects.filter((selected) => {
+      if (selected.pensum_id === subject.pensum_id &&
+        selected.seccion === subject.seccion &&
+        selected.trayectoName === subject.trayectoName &&
+        selected.turnoName === subject.turnoName) return selected
+
+    })[0]
+
+    let teacher: Teacher | undefined = undefined
+
+    if(selected.quarter.includes(1)){
+      teacher = teachers?.q1.filter((teacher: Teacher) => {
+        const load = teacher.load
+        if (load?.some((subject) => (
+          subject.pensum_id === selected.pensum_id &&
+          subject.seccion === selected.seccion &&
+          subject.trayectoName === selected.trayectoName &&    
+          subject.turnoName === selected.turnoName  
+        ))){
+          return teacher
+        } 
+      })[0] ;
+    }
+
+    if (selected.quarter.includes(2)) {
+      teacher = teachers?.q2.filter((teacher: Teacher) => {
+        const load = teacher.load
+        if (load?.some((subject) => (
+          subject.pensum_id === selected.pensum_id &&
+          subject.seccion === selected.seccion &&
+          subject.trayectoName === selected.trayectoName &&
+          subject.turnoName === selected.turnoName
+        ))) {
+          return teacher
+        }
+      })[0];
+    }
+
+    if (selected.quarter.includes(3)) {
+      teacher = teachers?.q3.filter((teacher: Teacher) => {
+        const load = teacher.load
+        if (load?.some((subject) => (
+          subject.pensum_id === selected.pensum_id &&
+          subject.seccion === selected.seccion &&
+          subject.trayectoName === selected.trayectoName &&
+          subject.turnoName === selected.turnoName
+        ))) {
+          return teacher
+        }
+      })[0];
+    }
+    setSelectedTeacerId(teacher?.id ?? null);
+    setSelectedSubject(selected);
     setOpenChangeSubjectFromTeacherModal(true);
+
   }
 
 
@@ -51,7 +105,7 @@ export default function SubjectItem({ subjects, title, gridArea }: { subjects: A
       title: 'Action',
       key: 'action',
       render: (_, record) => (
-        <IoMdSwap onClick={() => handleClick(record.id)} style={{ fontSize: "20px" }} />
+        <IoMdSwap onClick={() => handleClick(record)} style={{ fontSize: "20px" }} />
       ),
     },
   ];
@@ -66,8 +120,8 @@ export default function SubjectItem({ subjects, title, gridArea }: { subjects: A
     setData(subjects.filter(subject => {
       if (
         subject?.subject?.toLowerCase()?.includes(filteredText?.toLowerCase()) ||
-        subject?.pnf?.toLowerCase()?.includes(filteredText?.toLowerCase()) 
-      ){
+        subject?.pnf?.toLowerCase()?.includes(filteredText?.toLowerCase())
+      ) {
         return true
       }
     }))

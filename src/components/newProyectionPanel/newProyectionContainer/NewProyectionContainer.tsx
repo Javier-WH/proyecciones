@@ -60,6 +60,7 @@ export default function NewProyectionContainer({
 
     if (!programaId || !trayectoId) return;
     setLoading(true);
+    setTurnos(null);
     getInscriptionData({
       programId: programaId,
       trayectoId: trayectoDataValue ? trayectoDataValue : trayectoId,
@@ -70,17 +71,26 @@ export default function NewProyectionContainer({
 
     getPensum({ programaId, trayectoId })
       .then((data) => {
-        setPensumTrayectoName(data?.data?.trayectoName);
-        setPensumSlist(data?.data?.pensums.map((subject: subjectType) => subject.subject));
-        setPensum(data?.data?.pensums);
+        if (data.error){
+          setPensumTrayectoName("no hay pensum");
+          setPensumSlist([]);
+          setPensum(null);
+        
+        }else{
+          setPensumTrayectoName(data?.data?.trayectoName);
+          setPensumSlist(data?.data?.pensums.map((subject: subjectType) => subject.subject));
+          setPensum(data?.data?.pensums);
+        }
       })
       .catch((error) => console.log(error))
-      .finally(() => setLoading(false));
+      //.finally(() => setLoading(false));
   }, [programaId, trayectoId, trayectoDataValue]);
 
   useEffect(() => {
-    if (!inscriptionData) return;
-    setLoading(false);
+    if (!inscriptionData){
+      setPassed(null);
+      return
+    }
     setPassed(inscriptionData.data.passed);
   }, [inscriptionData]);
 
@@ -95,6 +105,7 @@ export default function NewProyectionContainer({
       return turnoData;
     });
     setTurnos(_turnos);
+    setLoading(false)
   }, [passed]);
 
   const onChangeSlider = (value: number, index: number, totalInscriptions: number) => {

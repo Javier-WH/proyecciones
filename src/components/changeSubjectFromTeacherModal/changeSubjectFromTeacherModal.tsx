@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { Button, Modal, Radio } from 'antd';
-import type { RadioChangeEvent } from 'antd';
 import { Teacher, Quarter } from '../../interfaces/teacher';
 import { Subject } from '../../interfaces/subject';
 import { MainContext } from '../../context/mainContext';
@@ -20,9 +19,8 @@ const ChangeSubjectFromTeacherModal: React.FC<{
 }> = ({ open, setOpen, teachers, selectedTeacerId, selectedSubject, selectedQuarter }) => {
 
 
-  const { handleTeacherChange } = useContext(MainContext) as MainContextValues
+  const { handleTeacherChange, subjects, handleSubjectChange} = useContext(MainContext) as MainContextValues
   const [viableTeachersList, setViableTeachersList] = useState<Array<Teacher>>([]);
-  const [teacherID, setTeacherID] = useState<string | null>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
   useEffect(() => {
@@ -99,10 +97,17 @@ const ChangeSubjectFromTeacherModal: React.FC<{
     }
   }
 
+    // se debe comrpobar que la materia no está en el array de materias
+    const subjectsCopy = JSON.parse(JSON.stringify(subjects))
+    const newSubjects = subjectsCopy?.filter((subject: Subject) => (subject.pensum_id !== selectedSubject.pensum_id ||
+      subject.seccion !== selectedSubject.seccion ||
+      subject.trayectoName !== selectedSubject.trayectoName ||
+      subject.turnoName !== selectedSubject.turnoName
+    ))
 
-
+    handleSubjectChange(newSubjects)
     handleTeacherChange(teachersCopy)
-
+    setOpen(false);
 
 
   };
@@ -130,7 +135,7 @@ const ChangeSubjectFromTeacherModal: React.FC<{
         ]}
       >
         <div className='change-subject-modal-container-teacher-select'>
-          <Radio.Group buttonStyle="solid" style={{ display: 'flex', flexDirection: 'column' }} onChange={(e: RadioChangeEvent) => setTeacherID(e.target.value)}>
+          <Radio.Group buttonStyle="solid" style={{ display: 'flex', flexDirection: 'column' }}>
             {
               viableTeachersList?.map((teacher, i) => {
                 return <Radio.Button

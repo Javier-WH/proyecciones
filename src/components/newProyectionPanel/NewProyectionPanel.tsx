@@ -28,7 +28,8 @@ export default function NewProyectionPanel() {
 
   useEffect(() => {
     if (!trayectosList) return
-    setTrayectoOptions(trayectosList.map(trayecto => ({ value: trayecto.id.toString(), label: trayecto.name.toString(), order: trayecto.order })))
+    const trayectoOpt = trayectosList.map(trayecto => ({ value: trayecto.id.toString(), label: trayecto.name.toString(), order: trayecto.order }))
+    setTrayectoOptions(trayectoOpt.sort((a, b) => a.order - b.order))
     setTrayectoLabel(trayectosList[0]?.name?.toString())
     setTrayectoValue(trayectosList[0]?.id?.toString())
   }, [trayectosList])
