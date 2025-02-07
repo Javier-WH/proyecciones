@@ -43,6 +43,7 @@ export default function Config() {
     await SetActiveProyection({ active_proyection: id });
     await fetchProyections();
     handleReload()
+    message.success("Proyeccion activada");
   }
 
   const handleCreateProyection = async () => {
@@ -63,18 +64,21 @@ export default function Config() {
       title: 'Año',
       dataIndex: 'year',
       key: 'year',
+      width: "40%"
     },
     {
       title: 'name',
       dataIndex: 'name',
       key: 'name',
+      width: "40%"
     },
     {
       title: 'Activar',
       dataIndex: 'id',
       key: 'id',
+      width: "20%",
       render: (_, record) => {
-        return <Button onClick={() => handleClickActivate(record.id)}>Activar</Button>;
+        return <Button type="primary" onClick={() => handleClickActivate(record.id)}>Activar</Button>;
       },
     }
   ];
@@ -103,12 +107,12 @@ export default function Config() {
           padding: "10px",
         }}>
         <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-          <label>Año donde inicia la proyección</label>
+          <label style={{ color: "gray" }}>Año donde inicia la proyección</label>
           <DatePicker onChange={onYearChange} picker="year" placeholder="Selecciona un año" />
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-          <label>Nombre de la proyección</label>
+          <label style={{ color: "gray" }}>Nombre de la proyección</label>
           <Input
             placeholder="Coloca un nombre a la proyección"
             value={name}
@@ -133,9 +137,13 @@ export default function Config() {
         </div>
       </div>
 
-      <div>
+      <div style={{ padding: "10px" }}>
         <h2 style={{ color: "gray" }}>Proyecciones</h2>
-        <h3 style={{ color: "gray" }}>{`Proyección activa -> ${activeProyection}`}</h3>
+        <h3>{
+          activeProyection 
+            ? <><span style={{ color: "gray" }}>{"Proyección activa ->"} </span> <span style={{ color: "green" }}>{activeProyection}</span></>
+            : <span style={{ color: "red" }}> "No hay una proyección activa"</span>
+        }</h3>
         <Table<ProyectionDataType> columns={columns} dataSource={proyectionList} pagination={{ position: ["topLeft", "none"] }} />
       </div>
 
