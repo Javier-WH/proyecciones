@@ -3,9 +3,8 @@ import { MainContext } from "../../../context/mainContext";
 import femalePlaceHolder from "../../../assets/femalePlaceHolder.svg";
 import malePlaceHolder from "../../../assets/malePlaceHolder.svg";
 import Subjects from "./subjects/subjects";
-import { Tag, Button } from 'antd';
+import { Tag } from 'antd';
 import { ExclamationCircleOutlined, } from '@ant-design/icons';
-import { FaSearch } from "react-icons/fa";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import "./selectedTeacher.css"
 

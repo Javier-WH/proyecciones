@@ -7,7 +7,7 @@ import { MainContextValues } from '../../../interfaces/contextInterfaces';
 import getProfileNames from "../../../fetch/getProfileNames";
 import getSimpleData from "../../../fetch/getSimpleData";
 import postTeacher from "../../../fetch/postTeacher";
-import { Quarter } from "../../../interfaces/teacher";
+
 
 export default function EditTeacherModal({
   teacherData,
@@ -18,7 +18,7 @@ export default function EditTeacherModal({
   setTeacherData: (teacherData: Teacher | null) => void;
   fetchTeachers: () => Promise<void>;
 }) {
-  const { proyectionsDone, teachers, handleSingleTeacherChange } = useContext(MainContext) as MainContextValues
+  const { handleSingleTeacherChange } = useContext(MainContext) as MainContextValues
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 

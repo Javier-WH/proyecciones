@@ -1,4 +1,4 @@
-import { Modal, Input, message, SelectProps } from "antd";
+import { Modal, Input, message } from "antd";
 import { useEffect, useState } from "react";
 import setProfile from "../../../../fetch/setProfile";
 
