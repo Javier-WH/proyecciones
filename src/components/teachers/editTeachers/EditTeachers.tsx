@@ -1,11 +1,11 @@
-//import { MainContext } from "../../../context/mainContext"
-//import { MainContextValues } from "../../../interfaces/contextInterfaces"
+
 import { Button, Input } from "antd";
 import { LiaUserEditSolid } from "react-icons/lia";
 import { Teacher } from "../../../interfaces/teacher";
 import { useEffect, useState } from "react";
 import EditTeacherModal from "./EditTeacherModal";
 import getTeachers from "../../../fetch/getTeachers";
+import Spinner from "../../spinner/spinner";
 import "./editTeachers.css";
 
 export default function EditTeachers() {
@@ -41,7 +41,7 @@ export default function EditTeachers() {
     return teachers;
   };
 
-  if (teachers === null) return <div>Loading...</div>;
+  if (teachers === null) return <Spinner />;
   return (
     <div>
       <EditTeacherModal
