@@ -10,6 +10,7 @@ import useSubjectsInfo from "../../hooks/useSubjectsInfo";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { useNavigate } from "react-router-dom";
+import Excel from "../reports/excel";
 
 export default function ProyeccionesContainer() {
   const { tankenSubjects, aviableSubjects } = useSubjectsInfo();
@@ -102,6 +103,7 @@ export default function ProyeccionesContainer() {
     setSearchByUserPerfil(value);
   }
 
+
   return (
     <div className="proyecciones-container">
       <div
@@ -141,9 +143,7 @@ export default function ProyeccionesContainer() {
           onChange={handleChangeQuarterSelector}
         />
 
-        <div style={{ display: "flex", alignItems: "center", columnGap: "20px" }}>
-          <Button type="link" shape="circle" icon={<RiFileExcel2Line />} style={iconStyle} />
-        </div>
+        <Excel />
       </div>
 
       {teacherTab ? (
