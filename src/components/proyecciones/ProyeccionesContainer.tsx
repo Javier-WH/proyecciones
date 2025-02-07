@@ -15,6 +15,7 @@ export default function ProyeccionesContainer() {
   const { tankenSubjects, aviableSubjects } = useSubjectsInfo();
   const [teacherTab, setTeacherTab] = useState(true);
   const [error, setError] = useState(false);
+  const [searchByUserPerfil, setSearchByUserPerfil] = useState<boolean>(true);
   const {
     setSelectedTeacerId,
     setSelectedTeacher,
@@ -46,7 +47,7 @@ export default function ProyeccionesContainer() {
     if (!subjects) return;
     setError(
       subjects.some((obj) => Object.values(obj).some((value) => value === null)) ||
-        subjects.some((subjec) => subjec.hours <= 0)
+      subjects.some((subjec) => subjec.hours <= 0)
     );
   }, [subjects]);
 
@@ -97,6 +98,10 @@ export default function ProyeccionesContainer() {
     );
   }
 
+  const onChageSearchByUserPerfil = (value: boolean) => {
+    setSearchByUserPerfil(value);
+  }
+
   return (
     <div className="proyecciones-container">
       <div
@@ -114,10 +119,13 @@ export default function ProyeccionesContainer() {
           <Radio.Button value="b">Materias</Radio.Button>
         </Radio.Group>
 
-        <Radio.Group defaultValue="a" size="small">
-          <Radio.Button value="a">Mis profesores</Radio.Button>
-          <Radio.Button value="b">Todos los profesores</Radio.Button>
-        </Radio.Group>
+        {
+          teacherTab &&
+          <Radio.Group defaultValue={true} size="small" onChange={(e) => onChageSearchByUserPerfil(e.target.value)}>
+            <Radio.Button value={true}>Mis profesores</Radio.Button>
+            <Radio.Button value={false}>Todos los profesores</Radio.Button>
+          </Radio.Group>
+        }
 
         <span>{proyectionName}</span>
 
@@ -140,13 +148,13 @@ export default function ProyeccionesContainer() {
 
       {teacherTab ? (
         <>
-          <TeacherTable />
+          <TeacherTable searchByUserPerfil={searchByUserPerfil} />
           <SelectedTeacher />
         </>
       ) : (
         <>
           <div className="subjects-list-container-grid">
-            <SubjectItem subjects={aviableSubjects} title="Asignaturas Disponibles"/>
+            <SubjectItem subjects={aviableSubjects} title="Asignaturas Disponibles" />
             <SubjectItem subjects={tankenSubjects} title="Asignaturas Asignadas" />
           </div>
         </>

@@ -42,4 +42,8 @@ export interface MainContextValues {
   proyectionName: string | null;
   proyectionId: string | null;
   handleReload: () => void;
+  isAuthenticated: boolean;
+  setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
+  userPerfil: string[] | null;
+  setUserPerfil: React.Dispatch<React.SetStateAction<string[] | null>>;
 }

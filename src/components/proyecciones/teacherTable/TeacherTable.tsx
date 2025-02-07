@@ -6,9 +6,12 @@ import { CloseCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icon
 import { Teacher } from "../../../interfaces/teacher";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 
-const TeacherTable: React.FC = () => {
+interface TeacherTableProps {
+  searchByUserPerfil: boolean;
+}
+const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
   const context = useContext(MainContext) as MainContextValues;
-  const { teachers, setSelectedTeacherById, selectedQuarter } = context;
+  const { teachers, setSelectedTeacherById, selectedQuarter, userPerfil } = context;
   const [data, setData] = useState<Teacher[] | null>([]);
   const [searchText, setSearchText] = useState("");
 
@@ -17,25 +20,51 @@ const TeacherTable: React.FC = () => {
     setData(teachers[selectedQuarter] || null);
   }, [selectedQuarter, teachers]);
 
+  // filtro de busqueda
   useEffect(() => {
     if (!teachers) return;
+    let filteredTeachers = []
 
-    if (searchText.length === 0 && teachers) {
-      setData(teachers[selectedQuarter] || null);
-      return;
+    function canTeach(array1: string[], array2: string[]) {
+      for (let i = 0; i < array1.length; i++) {
+        for (let j = 0; j < array2.length; j++) {
+          if (array1[i] === array2[j]) {
+            return true;
+          }
+        }
+      }
+      return false;
     }
 
-    const filteredTeachers = teachers[selectedQuarter]?.filter((teacher) => {
-      return (
-        teacher.name.toLowerCase().includes(searchText.toLowerCase()) ||
-        teacher?.lastName?.toLowerCase().includes(searchText.toLowerCase()) ||
-        teacher?.ci?.toLowerCase().includes(searchText.toLowerCase()) ||
-        teacher.perfilName?.toLowerCase()?.includes(searchText.toLowerCase()) ||
-        teacher.type?.toLowerCase()?.includes(searchText.toLowerCase())
-      );
-    });
+    if (searchByUserPerfil) {
+      filteredTeachers = teachers[selectedQuarter]?.filter((teacher) => {
+        if (canTeach(teacher.perfil || [], userPerfil || [])) {
+          return true;
+        }
+        return false;
+      });
+    }else{
+      filteredTeachers = teachers[selectedQuarter]
+    }
+
+
+    if (searchText.length > 0 && filteredTeachers?.length > 0) {
+      filteredTeachers = filteredTeachers?.filter((teacher) => {
+        return (
+          teacher.name.toLowerCase().includes(searchText.toLowerCase()) ||
+          teacher?.lastName?.toLowerCase().includes(searchText.toLowerCase()) ||
+          teacher?.ci?.toLowerCase().includes(searchText.toLowerCase()) ||
+          teacher.perfilName?.toLowerCase()?.includes(searchText.toLowerCase()) ||
+          teacher.type?.toLowerCase()?.includes(searchText.toLowerCase())
+        );
+      });
+    }
+
     setData(filteredTeachers);
-  }, [searchText, selectedQuarter, teachers]);
+  }, [searchText, selectedQuarter, teachers, searchByUserPerfil, userPerfil]);
+
+ 
+
 
   const tagStyle: React.CSSProperties = {
     width: "100%",

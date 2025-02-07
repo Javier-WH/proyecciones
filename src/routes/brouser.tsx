@@ -14,6 +14,7 @@ import EditSubjects from "../components/pensum/editSubjects";
 import EditPensum from "../components/pensum/editPensum/editPensum";
 import EditPNF from "../components/editTrayectos/editPNF/EditPNF";
 import Config from "../components/config/config";
+import ProtectedRoute from "../components/login/protectedRute";
 
 const router = createBrowserRouter([
   {
@@ -23,7 +24,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/app",
-    element: <MainLayout />,
+    element: <ProtectedRoute> <MainLayout /> </ProtectedRoute>,
     children: [
       {
         path: "proyecciones",

@@ -32,6 +32,8 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [proyectionsDone, setProyectionsDone] = useState<string[] | []>([]);
   const [proyectionName, setProyectionName] = useState<string | null>(null);
   const [proyectionId, setProyectionId] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [userPerfil, setUserPerfil] = useState<string[] | null>(null);
 
   useEffect(() => {
     getPnf()
@@ -181,7 +183,11 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     handleSingleTeacherChange,
     proyectionId,
     proyectionName,
-    handleReload
+    handleReload,
+    isAuthenticated,
+    setIsAuthenticated,
+    userPerfil,
+    setUserPerfil
   };
 
   return (

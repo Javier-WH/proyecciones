@@ -1,14 +1,35 @@
+import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom"
-import { Input, Button } from 'antd';
+import { Input, Button, message} from 'antd';
 import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
+import login from "../../fetch/login";
 import logo from "./proyeccionesLogo.png"
+import { MainContext } from "../../context/mainContext";
+import { MainContextValues } from "../../interfaces/contextInterfaces";
 
 export default function Login() {
 
+  const { setIsAuthenticated, setUserPerfil } = useContext(MainContext) as MainContextValues
   const navigate = useNavigate();
+  const [user, setUser] = useState("")
+  const [password, setPassword] = useState("")
 
-  const handleLogin = () => {
-    navigate("/app")
+  const handleLogin = async () => {
+    if(user.length === 0 || password.length === 0) {
+      message.warning("Por favor, ingrese un usuario y una contraseña")
+      setIsAuthenticated(false)
+      return
+    }
+    const data = await login({ user, password })
+    if(data.error) {
+      message.error(data.error)
+      setIsAuthenticated(false)
+      return
+    }
+ 
+    setUserPerfil(data?.perfil);
+    setIsAuthenticated(true)
+    navigate("/app/proyecciones")
   }
   return (
     <div style={
@@ -25,13 +46,23 @@ export default function Login() {
       <img src={logo} alt="logo" style={{ width: "280px" }} />
 
       <div style={{ width: "300px", display: "flex", flexDirection: "column", rowGap: "5px" }}>
-        <Input placeholder="Usuario" />
+        <Input placeholder="Usuario" value={user} onChange={(e) => setUser(e.target.value)} />
         <Input.Password
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           placeholder="Contraseña"
           iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
           style={{ textAlign: "center" }}
         />
         <Button onClick={handleLogin} style={{ width: "100%" }}>Ingresar</Button>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "10px" }}>
+          <a style={{ fontSize: "13px", color: "gray", cursor: "pointer" }}>Crear cuenta</a>
+          <a style={{ fontSize: "13px", color: "gray", cursor: "pointer" }}>Cambiar contraseña</a>
+        </div>
+      </div>
+      <div style={{display: "flex", gap: "10px", justifyContent: "center", width: "100%"}}>
+        <span style={{ fontSize: "10px", color: "gray" }}> version 0.0.1</span>
+        <span style={{ fontSize: "10px", color: "gray" }}> © 2025 Proyecciones. Todos los derechos reservados</span>
       </div>
     </div>
   )
