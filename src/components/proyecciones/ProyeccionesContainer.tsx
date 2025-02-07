@@ -2,7 +2,6 @@ import TeacherTable from "./teacherTable/TeacherTable";
 import SelectedTeacher from "./selectedTeacher/selectedTeacher";
 import "./proyeccionesContainer.css";
 import { Button, Select, Radio } from "antd";
-import { RiFileExcel2Line } from "react-icons/ri";
 import { GiAutoRepair } from "react-icons/gi";
 import { useContext, useEffect, useState } from "react";
 import SubjectItem from "./SubjectItem/SubjectItem";

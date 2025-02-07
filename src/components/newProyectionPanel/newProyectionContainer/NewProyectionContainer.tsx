@@ -175,7 +175,7 @@ export default function NewProyectionContainer({
             pensum_id: subject.id,
             turnoName: turno?.turnoName ?? "no asignado",
             trayectoId: trayectoId,
-            trayectoName: inscriptionData.data.trayectoName,
+            trayectoName: pensumTrayectoName,
             trayecto_saga_id: subject.trayecto_saga_id.toString(),
           };
         });

@@ -64,7 +64,7 @@ export default function Excel() {
       if (profesor.load && profesor.load.length > 0) {
         profesor.load.forEach(carga => {
           data.push([
-            profesor.name,
+            `${profesor.lastName} ${profesor.name}`,
             carga.subject,
             carga.trayectoName,
             carga.seccion,
@@ -116,6 +116,7 @@ export default function Excel() {
             horizontal: "center"
         } } // Add vertical centering
       });
+      
       merges.push({
         s: { r: startRow, c: 14 },
         e: { r: endRow, c: 14 },
@@ -141,10 +142,25 @@ export default function Excel() {
  const handleExport = (data: any[], merges: any[]) => {
     const worksheet = XLSX.utils.aoa_to_sheet(data);
 
+  
     worksheet['!cols'] = [
-      { wch: 20 },
-      { wch: 30 },
-      // ... other column widths
+      { wch: 60,}, // profesor
+      { wch: 50 }, // Unidad Curricular
+      { wch: 25 }, // Trayecto
+      { wch: 10 }, // Seccion
+      { wch: 10 }, // Turno
+      { wch: 5 }, // U/C
+      { wch: 7 }, // Total de Horas
+      { wch: 5 }, // TRIM I
+      { wch: 5 }, // Horas por U/C
+      { wch: 5 }, // TRIM II
+      { wch: 5 }, // Total de Horas
+      { wch: 5 }, // Horas por U/C
+      { wch: 5 }, // TRIM III
+      { wch: 5 }, // Total de Horas
+      { wch: 25 }, // Dedicación
+      { wch: 25 }, // Observación
+  
     ];
 
     worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 15 } }, ...merges]; // Add professor merges
