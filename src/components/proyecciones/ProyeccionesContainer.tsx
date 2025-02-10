@@ -10,6 +10,7 @@ import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { useNavigate } from "react-router-dom";
 import Excel from "../reports/excel";
+import ReportProyection from "../reports/report/reportProyection";
 
 export default function ProyeccionesContainer() {
   const { tankenSubjects, aviableSubjects } = useSubjectsInfo();
@@ -47,7 +48,7 @@ export default function ProyeccionesContainer() {
     if (!subjects) return;
     setError(
       subjects.some((obj) => Object.values(obj).some((value) => value === null)) ||
-      subjects.some((subjec) => subjec.hours <= 0)
+        subjects.some((subjec) => subjec.hours <= 0)
     );
   }, [subjects]);
 
@@ -100,8 +101,7 @@ export default function ProyeccionesContainer() {
 
   const onChageSearchByUserPerfil = (value: boolean) => {
     setSearchByUserPerfil(value);
-  }
-
+  };
 
   return (
     <div className="proyecciones-container">
@@ -120,13 +120,15 @@ export default function ProyeccionesContainer() {
           <Radio.Button value="b">Materias</Radio.Button>
         </Radio.Group>
 
-        {
-          teacherTab &&
-          <Radio.Group defaultValue={true} size="small" onChange={(e) => onChageSearchByUserPerfil(e.target.value)}>
+        {teacherTab && (
+          <Radio.Group
+            defaultValue={true}
+            size="small"
+            onChange={(e) => onChageSearchByUserPerfil(e.target.value)}>
             <Radio.Button value={true}>Mis profesores</Radio.Button>
             <Radio.Button value={false}>Todos los profesores</Radio.Button>
           </Radio.Group>
-        }
+        )}
 
         <span>{proyectionName}</span>
 
@@ -141,8 +143,10 @@ export default function ProyeccionesContainer() {
           ]}
           onChange={handleChangeQuarterSelector}
         />
-
-        <Excel />
+        <div style={{ display: "flex", gap: "10px" }}>
+          <Excel />
+          <ReportProyection />
+        </div>
       </div>
 
       {teacherTab ? (
@@ -161,3 +165,4 @@ export default function ProyeccionesContainer() {
     </div>
   );
 }
+
