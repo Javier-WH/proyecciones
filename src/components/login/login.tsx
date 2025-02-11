@@ -31,6 +31,12 @@ export default function Login() {
     setIsAuthenticated(true)
     navigate("/app/proyecciones")
   }
+
+  const onPressEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleLogin()
+    }
+  }
   return (
     <div style={
       {
@@ -46,13 +52,14 @@ export default function Login() {
       <img src={logo} alt="logo" style={{ width: "280px" }} />
 
       <div style={{ width: "300px", display: "flex", flexDirection: "column", rowGap: "5px" }}>
-        <Input placeholder="Usuario" value={user} onChange={(e) => setUser(e.target.value)} />
+        <Input placeholder="Usuario" value={user} onChange={(e) => setUser(e.target.value)} onKeyDown={onPressEnter}/>
         <Input.Password
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Contraseña"
           iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
           style={{ textAlign: "center" }}
+          onKeyDown={onPressEnter}
         />
         <Button onClick={handleLogin} style={{ width: "100%" }}>Ingresar</Button>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: "10px" }}>

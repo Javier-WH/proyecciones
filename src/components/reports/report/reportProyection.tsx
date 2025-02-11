@@ -32,7 +32,7 @@ const ReportProyection: React.FC = () => {
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
     documentTitle: "Reporte de proyecciones",
-    
+
   });
 
   useEffect(() => {
@@ -89,21 +89,24 @@ const ReportProyection: React.FC = () => {
   }, [selectedQuarter, selectedPnf]);
 
   const iconStyle = { color: "white", fontSize: "2rem" };
+  const border = "1px solid black";
+  const page = 1;
   return (
     <>
       <Button type="link" shape="circle" icon={<FaWpforms />} onClick={showModal} style={iconStyle} />
-     
+
 
       <Modal
         footer={null}
         getContainer={false}
         width="100vw"
         height="100vh"
+        style={{ top: 0, left: 0, right: 0, bottom: 0 }}
         title="Proyeciones"
         open={isModalOpen}
         onOk={handleOk}
         onCancel={handleCancel}>
-        
+
         <div>
           <div
             style={{
@@ -129,76 +132,131 @@ const ReportProyection: React.FC = () => {
                 options={trayectoOptions}
               />
             </div>
-            
-            <Button disabled={!reportData || reportData.length === 0} type="link" shape="circle" icon={<FaPrint />} style={iconStyle} onClick={()=>handlePrint()} />
-            
+
+            <Button disabled={!reportData || reportData.length === 0} type="link" shape="circle" icon={<FaPrint />} style={iconStyle} onClick={() => handlePrint()} />
+
 
           </div>
         </div>
- {/* tabla*/}
-          
+        {/* tabla*/}
 
-        <div className="report" ref={componentRef} style={{ marginTop: "20px", padding: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: "20px", flexDirection: "column" }}>
-            <h3>PERSONAL DOCENTE</h3>
-            <h3>U.P.T. DE LOS LLANOS JUANA RAMIRÉZ, EXTENCIÓN ALTAGRACIA DE ORITUCO</h3>
-            <h3>{pnfOptions?.find((pnf) => pnf.value === selectedPnf)?.label.toUpperCase()} TRIMESTRE {selectedTrayecto}</h3>
-          </div>
+        <style>
+          {`
+              @media print {
+                @page {
+                  size: Letter;
+                  margin: 1cm;
+                  size: landscape; 
+                }
+                .header {
+                  position: fixed;
+                  top: 0;
+                  left: 0;
+                  right: 0;
+                  text-align: center;
+                  background: white;
+                  z-index: 1000;
+                  padding-bottom: 20px;
+                  background-color: white !important;
+                  width: 110%;
+                  height: 90px;
+           
+                }
+                .content {
+                 
+                }
+                .page-break {
+                  page-break-before: always;
+                  margin-bottom: 100px !important;
+                  background-color: red;
+                  width: 100%;
+                  height: 100px;
+                }
+                .teacher-row {
+                  page-break-inside: avoid;
+                }
+              }
+            `}
+        </style>
 
-          <div style={{ border: "1px solid black", borderBottom: "none" }}>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 3fr",
-            }}>
-              <span style={{ borderRight: "1px solid black", borderBottom: "1px solid black", textAlign: "center", fontWeight: "bold" }}>Docente</span>
+        <div style={{ 
+            width: "100%",
+            height: "calc(100vh - 200px)",
+            overflow: "auto" 
+          }}>
+          <div className="report" ref={componentRef} >
+            <div className="header" style={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
+              <h3>PERSONAL DOCENTE</h3>
+              <h3>U.P.T. DE LOS LLANOS JUANA RAMIRÉZ, EXTENCIÓN ALTAGRACIA DE ORITUCO</h3>
+              <h3>{pnfOptions?.find((pnf) => pnf.value === selectedPnf)?.label.toUpperCase()} TRIMESTRE {selectedTrayecto}</h3>
+            </div>
+
+            <div className="content" style={{ marginTop: "100px" }}>
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "3fr 3fr 1fr 1fr", 
-                borderBottom: "1px solid black",
+                gridTemplateColumns: "1fr 3fr",
               }}>
-                <span style={{ borderRight: "1px solid black", textAlign: "center", fontWeight: "bold" }}>Unidad Curricular</span>
-                <span style={{ borderRight: "1px solid black", textAlign: "center", fontWeight: "bold" }}>Trayecto</span>
-                <span style={{ borderRight: "1px solid black", textAlign: "center", fontWeight: "bold" }}>Seccion</span>
-                <span style={{ textAlign: "center", fontWeight: "bold" }}>Horas</span>
-              </div>
-            </div>
-            {
-              !reportData || reportData.length === 0
-              ? <Tag color="warning" >{`No hay docentes con carga academica`}</Tag>
-              :reportData.map((teacher: Teacher) => {
-                
-                return <div key={teacher.id} style={{ display: "grid", gridTemplateColumns: "1fr 3fr"}}>
-                  <div
-                  style={{
-                    borderRight: "1px solid black",
-                    display: "flex",
-                    alignItems: "center",
-                    borderBottom: "1px solid black",
-                    height: (teacher.load?.length || 0) * 40,
-                    paddingLeft: "10px",
-                  }}
-                  >
-                    {`${teacher.lastName} ${teacher.name}`}
-                  </div>
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "3fr 3fr 1fr 1fr", 
-                  }}>
-                    {
-                      teacher.load?.map((subject) => {
-                        return <>
-                          <div style={{paddingLeft: "10px", borderRight: "1px solid black", borderBottom: "1px solid black", height: "100%", display: "flex", alignItems: "center" }}>{subject.subject}</div>
-                          <div style={{paddingLeft: "10px", borderRight: "1px solid black", borderBottom: "1px solid black", height: "100%", display: "flex", alignItems: "center" }}>{subject.trayectoName}</div>
-                          <div style={{paddingLeft: "10px", borderRight: "1px solid black", borderBottom: "1px solid black", height: "100%", display: "flex", alignItems: "center" }}>{`${subject.trayectoName[0]}-${subject.seccion}`}</div>
-                          <div style={{ paddingLeft: "10px", borderBottom: "1px solid black", height: "100%", display: "flex", alignItems: "center" }}>{subject.hours}</div>
-                        </>
-                      })
-                    }
-                  </div>
+                <span style={{ border: border, textAlign: "center", fontWeight: "bold" }}>Docente</span>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "3fr 3fr 1fr 1fr",
+                  borderBottom: border,
+                  borderTop: border,
+                  borderRight: border
+                }}>
+                  <span style={{  textAlign: "center", fontWeight: "bold" }}>Unidad Curricular</span>
+                  <span style={{ borderLeft: "1px solid black", textAlign: "center", fontWeight: "bold" }}>Trayecto</span>
+                  <span style={{ borderLeft: "1px solid black", textAlign: "center", fontWeight: "bold" }}>Seccion</span>
+                  <span style={{ borderLeft: "1px solid black", textAlign: "center", fontWeight: "bold" }}>Horas</span>
                 </div>
-                
-              })
-            }
+              </div>
+              {
+                !reportData || reportData.length === 0
+                  ? <Tag color="warning" >{`No hay docentes con carga academica`}</Tag>
+                  : reportData.map((teacher: Teacher) => {
+                    const rowHeight = 1.2; // en cm
+                    // Altura total de las filas de load.map para este docente
+                    const totalLoadHeight = (teacher.load?.length || 0) * rowHeight;
+                    // Verificar si la altura acumulada supera el límite de la hoja (21.5cm para carta)
+                    const pageHeight = 21.5;
+                    const shouldBreak = totalLoadHeight > (pageHeight - rowHeight);
+
+                    return <div className="teacher-row" key={teacher.id} style={{ display: "grid", gridTemplateColumns: "1fr 3fr" }}>
+                      <div
+                        style={{
+                          borderRight: border,
+                          borderBottom: border,
+                          borderLeft: border,
+                          display: "flex",
+                          alignItems: "center",
+                          height: `${totalLoadHeight}cm`,
+                          paddingLeft: "10px",
+                        }}
+                      >
+                        {`${teacher.lastName} ${teacher.name}`}
+                      </div>
+                      <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "3fr 3fr 1fr 1fr",
+                      }}>
+                        {
+                          teacher.load?.map((subject) => {
+                            return <>
+                              <div style={{ height: `${rowHeight}cm`, paddingLeft: "10px", borderRight: border, borderBottom: border, display: "flex", alignItems: "center" }}>{subject.subject}</div>
+                              <div style={{ height: `${rowHeight}cm`, paddingLeft: "10px", borderRight: border, borderBottom: border, display: "flex", alignItems: "center" }}>{subject.trayectoName}</div>
+                              <div style={{ height: `${rowHeight}cm`, paddingLeft: "10px", borderRight: border, borderBottom: border, display: "flex", alignItems: "center" }}>{`${subject.trayectoName[0]}-${subject.seccion}`}</div>
+                              <div style={{ height: `${rowHeight}cm`, paddingLeft: "10px", borderRight: border, borderBottom: border, display: "flex", alignItems: "center" }}>{subject.hours}</div>
+                            </>
+                          })
+                        }
+                      </div>
+
+                      {/* Forzar salto de página después de cada docente si es necesario */}
+                      {shouldBreak && <div className="page-break" />}</div>
+                  })
+
+              }
+            </div>
           </div>
         </div>
       </Modal>

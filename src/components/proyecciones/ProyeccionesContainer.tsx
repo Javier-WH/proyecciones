@@ -9,11 +9,12 @@ import useSubjectsInfo from "../../hooks/useSubjectsInfo";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { useNavigate } from "react-router-dom";
-import Excel from "../reports/excel";
+//import Excel from "../reports/excel";
 import ReportProyection from "../reports/report/reportProyection";
+import { LogoutOutlined } from "@ant-design/icons";
 
 export default function ProyeccionesContainer() {
-  const { tankenSubjects, aviableSubjects } = useSubjectsInfo();
+  const { tankenSubjects, aviableSubjects} = useSubjectsInfo();
   const [teacherTab, setTeacherTab] = useState(true);
   const [error, setError] = useState(false);
   const [searchByUserPerfil, setSearchByUserPerfil] = useState<boolean>(true);
@@ -25,6 +26,7 @@ export default function ProyeccionesContainer() {
     proyectionsDone,
     selectedQuarter,
     proyectionName,
+    setIsAuthenticated
   } = useContext(MainContext) as MainContextValues;
 
   const navigate = useNavigate();
@@ -143,9 +145,11 @@ export default function ProyeccionesContainer() {
           ]}
           onChange={handleChangeQuarterSelector}
         />
-        <div style={{ display: "flex", gap: "10px" }}>
-          <Excel />
+        <div style={{ display: "flex", gap: "5px" }}>
+          {/*<Excel /> */}
           <ReportProyection />
+          
+          <Button style={{marginLeft: "30px"}} type="link" icon={<LogoutOutlined />} onClick={() => setIsAuthenticated(false)}/>
         </div>
       </div>
 
