@@ -21,9 +21,10 @@ const ReportProyection: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pnfOptions, setPnfOptions] = useState<SelectOption[]>();
   const [trayectoOptions, _] = useState<SelectOption[]>(trayectoOpt);
-  const [selectedTrayecto, setSelectedTrayecto] = useState<string>("");
+  const [selectedTrayecto, setSelectedTrayecto] = useState<string>();
   const [selectedPnf, setSelectedPnf] = useState<string>("");
-  const [selectedQuarter, setSelectedQuarter] = useState<Teacher | null>(null);
+  const [selectedQuarter, setSelectedQuarter] = useState<Teacher[] | null>(null);
+
   useEffect(() => {
     if (!pnfList) return;
     setPnfOptions(pnfList.map((pnf) => ({ label: pnf.name, value: pnf.id.toString() })));
@@ -46,11 +47,26 @@ const ReportProyection: React.FC = () => {
   };
   const onChangePnf = (value: string) => {
     setSelectedPnf(value);
+    setSelectedTrayecto(trayectoOpt[0].value);
   };
 
+  // se filtra por trayecto
   useEffect(() => {
-    if (!selectedPnf) return;
-  }, [selectedTrayecto, selectedPnf]);
+    if (selectedTrayecto === "2") {
+      setSelectedQuarter(teachers?.q2 || null);
+      return;
+    }
+    if (selectedTrayecto === "3") {
+      setSelectedQuarter(teachers?.q3 || null);
+      return;
+    }
+    setSelectedQuarter(teachers?.q1 || null);
+  }, [selectedTrayecto]);
+
+  // se filtra por pnf
+  useEffect(() => {
+    console.log(teachers);
+  }, [selectedQuarter]);
 
   const iconStyle = { color: "white", fontSize: "2rem" };
   return (
@@ -82,7 +98,12 @@ const ReportProyection: React.FC = () => {
 
             <div style={{ width: "100%", maxWidth: "400px" }}>
               <span style={{ color: "white" }}>Trayecto</span>
-              <Select style={{ width: "100%" }} onChange={onChageTrayecto} options={trayectoOptions} />
+              <Select
+                style={{ width: "100%" }}
+                onChange={onChageTrayecto}
+                value={selectedTrayecto}
+                options={trayectoOptions}
+              />
             </div>
 
             <Button type="link" shape="circle" icon={<FaPrint />} style={iconStyle} />
