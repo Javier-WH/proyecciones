@@ -90,7 +90,6 @@ const ReportProyection: React.FC = () => {
 
   const iconStyle = { color: "white", fontSize: "2rem" };
   const border = "1px solid black";
-  const page = 1;
   return (
     <>
       <Button type="link" shape="circle" icon={<FaWpforms />} onClick={showModal} style={iconStyle} />
