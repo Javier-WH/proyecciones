@@ -3,6 +3,7 @@ export interface Subject {
   subject: string;
   hours: number;
   pnf: string;
+  pnfId: string;
   seccion: string;
   quarter: Array<number>;
   pensum_id: string;

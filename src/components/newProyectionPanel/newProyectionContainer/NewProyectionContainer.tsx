@@ -170,6 +170,7 @@ export default function NewProyectionContainer({
             subject: subject.subject,
             hours: subject.hours ?? 0,
             pnf: inscriptionData.data.pnfName,
+            pnfId: inscriptionData.data.pnfId,
             seccion: `${i}`,
             quarter: JSON.parse(subject.quarter.toString()),
             pensum_id: subject.id,
