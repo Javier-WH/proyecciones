@@ -12,6 +12,7 @@ import getPnf from "../fetch/getPnf.ts";
 import getSubjects from "../fetch/getSubjects.ts";
 import getTrayectos from "../fetch/getTrayectos.ts";
 import getTurnos from "../fetch/getTurnos.ts";
+import DisconectedMessage from "./disconectedMessage.tsx";
 
 export const MainContext = createContext<MainContextValues | null>(null);
 
@@ -34,6 +35,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [proyectionId, setProyectionId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [userPerfil, setUserPerfil] = useState<string[] | null>(null);
+  const [conected, setConnected] = useState<boolean>(true);
 
   useEffect(() => {
     getPnf()
@@ -103,16 +105,20 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     // Escuchar eventos de actualización de los profesores
     socket.on("updateTeachers", (newTeachers) => {
       setTeachers(newTeachers);
+      setConnected(true);
     });
     socket.on("updateSubjects", (newSubjects) => {
       setSubjects(newSubjects);
+      setConnected(true);
     });
     socket.on("proyectionsDone", (proyections) => {
       setProyectionsDone(proyections);
+      setConnected(true);
     });
     socket.on("proyectionData", (proyectionData) => {
       setProyectionName(proyectionData.proyectionName);
       setProyectionId(proyectionData.proyectionId);
+      setConnected(true);
     });
 
     socket.on("connect_error", (err) => {
@@ -120,6 +126,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     });
 
     socket.on("disconnect", () => {
+      setConnected(false);
       console.log("Disconnected from WebSocket");
     });
 
@@ -193,6 +200,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   return (
     <MainContext.Provider value={values}>
       {children}
+      {!conected && <DisconectedMessage />}
       <AddSubjectToTeacherModal
         open={openAddSubjectToTeacherModal}
         setOpen={setOpenAddSubjectToTeacherModal}
