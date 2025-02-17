@@ -13,7 +13,7 @@ export interface Subject {
   turnoName: string;
   teacherName?: string;
   teacherCi?: string;
-  key?: number;
+  key?: string;
 }
 
 export interface SimpleSubject {

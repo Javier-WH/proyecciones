@@ -1,5 +1,5 @@
 import { Subject } from "../../../interfaces/subject";
-import { Table, Tag, Input } from 'antd';
+import { Table, Tag, Input, Checkbox } from 'antd';
 import type { TableProps } from 'antd';
 import { ExclamationCircleOutlined, } from '@ant-design/icons';
 import { IoMdSwap } from "react-icons/io";
@@ -15,6 +15,8 @@ export default function SubjectItemAsigned({ subjects, title }: { subjects: Arra
   const { setSelectedSubject, setOpenChangeSubjectFromTeacherModal, teachers, setSelectedTeacerId } = useContext(MainContext) as MainContextValues
   const [data, setData] = useState<Subject[]>([]);
   const [filteredText, setFilteredText] = useState<string>("");
+  const [openIndex, setOpenIndex] = useState<string[]>([]);
+  const [expandAll, setExpandAll] = useState<boolean>(true);
 
 
 
@@ -110,10 +112,10 @@ export default function SubjectItemAsigned({ subjects, title }: { subjects: Arra
 
   useEffect(() => {
     if (subjects === null) return
-    const subjectsWithKey: Subject[] = subjects.map((subject: Subject, i) => {
-      subject.key = i
-      return subject
-    })
+    const subjectsWithKey: Subject[] = subjects.map((subject: Subject, i) => ({
+      ...subject,
+      key: i.toString(),
+    }));
 
     if (filteredText.length === 0) {
       setData(subjectsWithKey)
@@ -134,6 +136,14 @@ export default function SubjectItemAsigned({ subjects, title }: { subjects: Arra
     }))
   }, [subjects, filteredText])
 
+
+  useEffect(() => {
+    if(!data) return
+    const openIdexs = data.map((subject) => subject.key).filter((key): key is string => key !== undefined);
+    setOpenIndex(openIdexs);
+  },[data])
+
+
   if (!subjects || subjects.length === 0) {
     return <>
       <div className="footer-subject-item-container" >
@@ -145,11 +155,14 @@ export default function SubjectItemAsigned({ subjects, title }: { subjects: Arra
     </>
   }
 
+
+
   return (
     <div className="footer-subject-item-container" >
       <h1>{`${title} (${subjects?.length || 0})`}</h1>
       <Input value={filteredText} onChange={(e) => setFilteredText(e.target.value)} placeholder="Filtrar por materia" allowClear />
       <div className="footer-subject-item-body">
+        <Checkbox className="footer-subject-item-checkbox" checked={expandAll} onChange={() => setExpandAll(!expandAll)} >Expandir todo</Checkbox>
         <Table<Subject> 
           columns={columns} 
           dataSource={data} 
@@ -162,6 +175,7 @@ export default function SubjectItemAsigned({ subjects, title }: { subjects: Arra
               <Tag color="green">{`Trayecto: ${record?.trayectoName}`}</Tag>
               </div>
             ,
+            ...(expandAll ? { expandedRowKeys: openIndex } : {})
           }} 
           />
       </div>

@@ -13,7 +13,13 @@
   height: 95%;
   display: flex;
   flex-direction: column;
-  row-gap: 1px
+  row-gap: 1px;
+  position: relative;
+}
+.footer-subject-item-checkbox{
+  position: absolute;
+  right: 10px;
+  top: 0;
 }
 
 .footer-subject-item{
