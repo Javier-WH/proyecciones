@@ -5,6 +5,7 @@ import { Button, Select, Radio } from "antd";
 import { GiAutoRepair } from "react-icons/gi";
 import { useContext, useEffect, useState } from "react";
 import SubjectItem from "./SubjectItem/SubjectItem";
+import SubjectItemAsigned from "./SubjectItem/SubjectItemAsigned";
 import useSubjectsInfo from "../../hooks/useSubjectsInfo";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
@@ -162,7 +163,7 @@ export default function ProyeccionesContainer() {
         <>
           <div className="subjects-list-container-grid">
             <SubjectItem subjects={aviableSubjects} title="Asignaturas Disponibles" />
-            <SubjectItem subjects={tankenSubjects} title="Asignaturas Asignadas" />
+            <SubjectItemAsigned subjects={tankenSubjects} title="Asignaturas Asignadas" />
           </div>
         </>
       )}

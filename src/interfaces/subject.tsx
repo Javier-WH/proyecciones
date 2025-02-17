@@ -11,6 +11,9 @@ export interface Subject {
   trayectoName: string;
   trayecto_saga_id: string;
   turnoName: string;
+  teacherName?: string;
+  teacherCi?: string;
+  key?: number;
 }
 
 export interface SimpleSubject {

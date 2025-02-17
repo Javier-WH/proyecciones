@@ -10,7 +10,7 @@ import "./SubjectItem.css"
 import { Teacher } from "../../../interfaces/teacher";
 
 
-export default function SubjectItem({ subjects, title }: { subjects: Array<Subject> | null, title: string }) {
+export default function SubjectItemAsigned({ subjects, title }: { subjects: Array<Subject> | null, title: string }) {
 
   const { setSelectedSubject, setOpenChangeSubjectFromTeacherModal, teachers, setSelectedTeacerId } = useContext(MainContext) as MainContextValues
   const [data, setData] = useState<Subject[]>([]);
@@ -88,20 +88,14 @@ export default function SubjectItem({ subjects, title }: { subjects: Array<Subje
       render: (text) => <a>{text}</a>,
     },
     {
-      title: 'PNF',
-      dataIndex: 'pnf',
-      key: 'pnf',
+      title: 'Profesor',
+      dataIndex: 'teacherName',
+      key: 'teacherName',
     },
     {
-      title: 'Horas',
-      dataIndex: 'hours',
-      key: 'hours',
-    },
-    {
-      title: 'Sección',
-      key: 'seccion',
-      dataIndex: 'seccion',
-      render: (text, record) => `${record.turnoName[0]} - ${text}`,
+      title: 'C.I.',
+      dataIndex: 'teacherCi',
+      key: 'teacherCi',
     },
     {
       title: 'Action',
@@ -116,17 +110,24 @@ export default function SubjectItem({ subjects, title }: { subjects: Array<Subje
 
   useEffect(() => {
     if (subjects === null) return
+    const subjectsWithKey: Subject[] = subjects.map((subject: Subject, i) => {
+      subject.key = i
+      return subject
+    })
 
     if (filteredText.length === 0) {
-      setData(subjects)
+      setData(subjectsWithKey)
       return
     }
  
+ 
   
-    setData(subjects.filter(subject => {
+    setData(subjectsWithKey.filter(subject => {
       if (
         subject?.subject?.toLowerCase()?.includes(filteredText?.toLowerCase()) ||
-        subject?.pnf?.toLowerCase()?.includes(filteredText?.toLowerCase())
+        subject?.pnf?.toLowerCase()?.includes(filteredText?.toLowerCase()) ||
+        subject?.teacherName?.toLowerCase()?.includes(filteredText?.toLowerCase()) ||
+        subject?.teacherCi?.toLowerCase()?.includes(filteredText?.toLowerCase())
       ) {
         return true
       }
@@ -153,7 +154,15 @@ export default function SubjectItem({ subjects, title }: { subjects: Array<Subje
           columns={columns} 
           dataSource={data} 
           pagination={{ position: ["topLeft", "none"] }} 
-
+          expandable={{
+            expandedRowRender: (record) => 
+            <div style={{ margin: 0, display: "flex", alignItems: "center", justifyContent: "space-evenly", gap: "5px" }}>
+              <Tag color="blue">{`${record?.pnf}`}</Tag>
+              <Tag color="orange">{`Sección: ${record?.turnoName[0]}-0${record?.seccion}`}</Tag>
+              <Tag color="green">{`Trayecto: ${record?.trayectoName}`}</Tag>
+              </div>
+            ,
+          }} 
           />
       </div>
     </div>
