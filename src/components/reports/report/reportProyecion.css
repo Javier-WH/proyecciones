@@ -1,0 +1,28 @@
+     @media print {
+       @page {
+         size: Letter landscape;
+         margin: 1cm;
+       }
+
+       .page-break {
+         page-break-before: always;
+         padding-top: 20px;
+       }
+
+       .report table {
+       font-size: 11px;
+       }
+     }
+
+     .report table {
+       border-collapse: collapse;
+       width: 100%;
+       margin-top: 20px;
+     }
+
+     .report th,
+     .report td {
+       border: 1px solid black;
+       padding: 8px;
+       text-align: left;
+     }
