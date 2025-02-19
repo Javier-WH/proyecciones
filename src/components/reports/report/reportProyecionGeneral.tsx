@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect, useRef, useMemo } from "react";
 import { Button, Modal, Select } from "antd";
-import { FaWpforms, FaPrint } from "react-icons/fa";
+import { FaTable, FaPrint } from "react-icons/fa";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { Teacher } from "../../../interfaces/teacher";
@@ -30,7 +30,7 @@ const trayectoOpt: SelectOption[] = [
   { label: "Trimestre 3", value: "3" },
 ];
 
-const ReportProyection: React.FC = () => {
+const ReportProyectionGeneral: React.FC = () => {
   const rowHeight = 1.3; // Altura de la fila en centímetros
   const { pnfList, teachers } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,6 +63,7 @@ const ReportProyection: React.FC = () => {
           trayectoName: subject.trayectoName,
           seccion: subject.seccion,
           hours: subject.hours.toString(),
+          quarter: subject.quarter,
           turnoName: subject.turnoName,
         };
 
@@ -148,7 +149,7 @@ const ReportProyection: React.FC = () => {
         turnoName: string;
       }
     >();
-
+    console.log(teacherMap);
     chunk.forEach((subject) => {
       if (teacherMap.has(subject.teacherName)) {
         teacherMap.get(subject.teacherName)?.subjects.push(subject);
@@ -221,8 +222,8 @@ const ReportProyection: React.FC = () => {
 
   return (
     <>
-      <Button type="link" shape="circle" icon={<FaWpforms />} onClick={showModal} style={iconStyle}>
-        <span style={{ fontSize: "12px" }}>Por trimestre</span>
+      <Button type="link" shape="circle" icon={<FaTable />} onClick={showModal} style={iconStyle}>
+        <span style={{ fontSize: "12px" }}>General</span>
       </Button>
 
       <Modal
@@ -347,7 +348,7 @@ const ReportProyection: React.FC = () => {
   );
 };
 
-export default ReportProyection;
+export default ReportProyectionGeneral;
 
 interface HeaderProps {
   selectedPnf?: string;
