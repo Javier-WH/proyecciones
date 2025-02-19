@@ -45,7 +45,7 @@ const ReportProyection: React.FC = () => {
 
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
-    documentTitle: "Reporte de proyecciones",
+    documentTitle: "Reporte de proyecciones por trimestre",
   });
 
   const groupedData = useMemo(() => {
@@ -223,7 +223,7 @@ const ReportProyection: React.FC = () => {
   return (
     <>
       <Button type="link" shape="circle" icon={<FaWpforms />} onClick={showModal} style={iconStyle}>
-        <span style={{ fontSize: "12px" }}>Por trimestre</span>
+        <span style={{ fontSize: "12px" }}>Reporte de proyecciones por trimestre</span>
       </Button>
 
       <Modal
@@ -232,7 +232,7 @@ const ReportProyection: React.FC = () => {
         width="100vw"
         height="100vh"
         style={{ top: 0, left: 0, right: 0, bottom: 0 }}
-        title="Proyecciones"
+        title="Reporte de proyecciones por trimestre"
         open={isModalOpen}
         onOk={handleOk}
         onCancel={handleCancel}>

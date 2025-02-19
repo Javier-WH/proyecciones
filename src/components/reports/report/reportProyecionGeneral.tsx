@@ -98,7 +98,7 @@ const ReportProyectionGeneral: React.FC = () => {
 
   const chunks = useMemo(() => {
     const sheetWidth = 21.59;
-    const rowHeight = 1.6;
+    const rowHeight = 0.8;
     const rowCount = Math.floor(sheetWidth / rowHeight);
 
     const result: SubjectData[][] = [];
@@ -157,7 +157,7 @@ const ReportProyectionGeneral: React.FC = () => {
   return (
     <>
       <Button type="link" shape="circle" icon={<FaTable />} onClick={() => setIsModalOpen(true)} style={iconStyle}>
-        <span style={{ fontSize: "12px" }}>General</span>
+        <span style={{ fontSize: "12px" }}>Reporte proyecciones por programa</span>
       </Button>
 
       <Modal
@@ -166,7 +166,7 @@ const ReportProyectionGeneral: React.FC = () => {
         width="100vw"
         height="100vh"
         style={{ top: 0, left: 0, right: 0, bottom: 0 }}
-        title="Proyecciones General"
+        title="Reporte proyecciones por programa"
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
       >
@@ -325,17 +325,25 @@ function groupChunkByTeacher(chunk: SubjectData[]) {
     subjects: SubjectData[];
   }>();
 
+  const uniqueSubjects = new Set<string>();
+
   chunk.forEach((subject) => {
-    if (teacherMap.has(subject.teacherName)) {
-      teacherMap.get(subject.teacherName)?.subjects.push(subject);
-    } else {
-      teacherMap.set(subject.teacherName, {
-        name: subject.teacherName,
-        lastName: subject.teacherLastName,
-        ci: subject.teacherCi,
-        contractType: subject.teacherContractType,
-        subjects: [subject],
-      });
+    const subjectKey = `${subject.teacherCi}-${subject.subject}-${subject.quarter.join(',')}`;
+
+    if (!uniqueSubjects.has(subjectKey)) {
+      uniqueSubjects.add(subjectKey);
+
+      if (teacherMap.has(subject.teacherName)) {
+        teacherMap.get(subject.teacherName)?.subjects.push(subject);
+      } else {
+        teacherMap.set(subject.teacherName, {
+          name: subject.teacherName,
+          lastName: subject.teacherLastName,
+          ci: subject.teacherCi,
+          contractType: subject.teacherContractType,
+          subjects: [subject],
+        });
+      }
     }
   });
 

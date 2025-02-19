@@ -20,7 +20,7 @@ export default function ReportMenu() {
           overflow: "hidden",
           display:"flex",
           position: "absolute",
-          width: menuVisible ? "200px" : "0px",
+          width: menuVisible ? "280px" : "0px",
           height: menuVisible ? "130px" : "0px",
           backgroundColor: "#001529",
           border: menuVisible ? "1px solid gray" : "none",
