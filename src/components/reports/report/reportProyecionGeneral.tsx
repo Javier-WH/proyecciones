@@ -44,10 +44,13 @@ const ReportProyectionGeneral: React.FC = () => {
       ...(teachers.q2 || []),
       ...(teachers.q3 || [])
     ].filter(teacher => teacher.load && teacher.load.length > 0) : [];
+    
     const cleanData = cleanTeachers.filter((teacher) => {
       const load = teacher.load || [];
       return load.some((subject) => subject.pnfId === selectedPnf);
-    });
+    })
+  
+
 
 
     setReportData(cleanData);
@@ -81,14 +84,17 @@ const ReportProyectionGeneral: React.FC = () => {
       });
     });
 
-    return Array.from(teacherMap, ([name, subjects]) => ({
-      name,
-      lastName: subjects[0]?.teacherLastName,
-      ci: subjects[0]?.teacherCi,
-      contractType: subjects[0]?.teacherContractType,
-      subjects,
-    }));
-  }, [reportData]); 
+    // Convertir el Map a array y ordenar por cantidad de materias
+    return Array.from(teacherMap)
+      .sort((a, b) => a[1].length - b[1].length) // Orden ascendente por cantidad de materias
+      .map(([name, subjects]) => ({
+        name,
+        lastName: subjects[0]?.teacherLastName,
+        ci: subjects[0]?.teacherCi,
+        contractType: subjects[0]?.teacherContractType,
+        subjects,
+      }));
+  }, [reportData]);
 
   const chunks = useMemo(() => {
     const sheetWidth = 21.59;
