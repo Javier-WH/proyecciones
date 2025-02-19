@@ -8,22 +8,27 @@ import Excel from "../../reports/excel";
 export default function ReportMenu() {
   const [menuVisible, setMenuVisible] = useState(false);
 
+
+
   return (
     <div style={{ position: "relative" }}>
       <Button onClick={() => setMenuVisible(!menuVisible)} type="link" icon={<FaWpforms />}></Button>
       <div
+        onClick={() => setMenuVisible(false)}
         style={{
-          display: menuVisible ? "flex" : "none",
+          overflow: "hidden",
+          display:"flex",
           position: "absolute",
-          width: "200px",
-          height: "130px",
+          width: menuVisible ? "200px" : "0px",
+          height: menuVisible ? "130px" : "0px",
           backgroundColor: "#001529",
-          border: "1px solid gray",
-          right: "0px",
-          padding: "10px",
+          border: menuVisible ? "1px solid gray" : "none",
+          right:"0px",
+          padding: menuVisible ? "10px" : "0px",
           flexDirection: "column",
           alignItems: "start",
           justifyContent: "space-between",
+          transition: "all 0.3s ease-in-out"
         }}>
         <ReportProyection />
         <ReportProyectionGeneral />

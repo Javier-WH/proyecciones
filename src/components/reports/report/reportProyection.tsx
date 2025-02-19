@@ -173,6 +173,7 @@ const ReportProyection: React.FC = () => {
   }, [pnfList]);
 
   const showModal = () => {
+
     setIsModalOpen(true);
   };
 
