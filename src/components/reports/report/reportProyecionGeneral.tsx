@@ -238,18 +238,22 @@ const ReportProyectionGeneral: React.FC = () => {
                             <td style={{ textAlign: "center" }}>
                               {subject.quarter.includes(1) ? subject.hours : 0}
                             </td>
-                            <td style={{ textAlign: "center" }}>{totals.q1}</td>
+                            {subjectIndex === 0 && (
+                              <td rowSpan={teacherGroup.subjects.length} style={{ textAlign: "center" }}>{totals.q1}</td>
+                            )}
 
                             <td style={{ textAlign: "center" }}>
                               {subject.quarter.includes (2) ? subject.hours : 0}
                             </td>
-                            <td style={{ textAlign: "center" }}>{totals.q2}</td>
-
+                            {subjectIndex === 0 && (
+                              <td rowSpan={teacherGroup.subjects.length} style={{ textAlign: "center" }}>{totals.q2}</td>
+                            )}
                             <td style={{ textAlign: "center" }}>
                               {subject.quarter.includes(3) ? subject.hours : 0}
                             </td>
-                            <td style={{ textAlign: "center" }}>{totals.q3}</td>
-
+                            {subjectIndex === 0 && (
+                              <td rowSpan={teacherGroup.subjects.length} style={{ textAlign: "center" }}>{totals.q3}</td>
+                            )}
                             {subjectIndex === 0 && (
                               <>
                                 <td rowSpan={teacherGroup.subjects.length} style={{ textAlign: "center" }}>
