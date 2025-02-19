@@ -4,7 +4,7 @@ import { FaWpforms, FaPrint } from "react-icons/fa";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { Teacher } from "../../../interfaces/teacher";
-import { useReactToPrint } from 'react-to-print';
+import { useReactToPrint } from "react-to-print";
 import "./reportProyecion.css";
 
 interface SelectOption {
@@ -21,7 +21,7 @@ interface SubjectData {
   trayectoName: string;
   seccion: string;
   hours: string;
-  turnoName: string
+  turnoName: string;
 }
 
 const trayectoOpt: SelectOption[] = [
@@ -31,7 +31,7 @@ const trayectoOpt: SelectOption[] = [
 ];
 
 const ReportProyection: React.FC = () => {
-  const rowCount = 17;
+  const rowHeight = 1.3; // Altura de la fila en centímetros
   const { pnfList, teachers } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pnfOptions, setPnfOptions] = useState<SelectOption[]>();
@@ -52,8 +52,8 @@ const ReportProyection: React.FC = () => {
     if (!reportData) return [];
     const teacherMap = new Map<string, SubjectData[]>();
 
-    reportData.forEach(teacher => {
-      teacher.load?.forEach(subject => {
+    reportData.forEach((teacher) => {
+      teacher.load?.forEach((subject) => {
         const entry = {
           teacherName: teacher.name,
           teacherLastName: teacher.lastName,
@@ -63,7 +63,7 @@ const ReportProyection: React.FC = () => {
           trayectoName: subject.trayectoName,
           seccion: subject.seccion,
           hours: subject.hours.toString(),
-          turnoName: subject.turnoName
+          turnoName: subject.turnoName,
         };
 
         if (teacherMap.has(teacher.name)) {
@@ -79,22 +79,24 @@ const ReportProyection: React.FC = () => {
       lastName: subjects[0]?.teacherLastName,
       ci: subjects[0]?.teacherCi,
       contractType: subjects[0]?.teacherContractType,
-      subjects
+      subjects,
     }));
   }, [reportData]);
 
-
   const chunks = useMemo(() => {
-    const result = [];
+    const sheetWidth = 21.59; // Ancho de la hoja en centímetros (horizontal)
+    //const rowHeight = 1.3; // Altura de la fila en centímetros
+    const rowCount = Math.floor(sheetWidth / rowHeight); // Calcula filas por página
+
+    const result: SubjectData[][] = [];
     let currentChunk: SubjectData[] = [];
     let currentCount = 0;
-
     let teacherSubjects: SubjectData[] = [];
 
     const addTeacherToChunk = () => {
       if (teacherSubjects.length === 0) return;
 
-      // Verificar si el profesor cabe en el chunk actual
+      // Verificar espacio disponible en chunk actual
       if (currentCount + teacherSubjects.length > rowCount) {
         result.push(currentChunk);
         currentChunk = [];
@@ -106,11 +108,10 @@ const ReportProyection: React.FC = () => {
       teacherSubjects = [];
     };
 
-    groupedData.forEach(teacherGroup => {
+    groupedData.forEach((teacherGroup) => {
       teacherSubjects = teacherGroup.subjects;
 
-
-      // Manejar caso donde un solo profesor excede el límite
+      // Manejar profesores que exceden el tamaño de una página
       if (teacherSubjects.length > rowCount) {
         if (currentCount > 0) {
           result.push(currentChunk);
@@ -118,7 +119,7 @@ const ReportProyection: React.FC = () => {
           currentCount = 0;
         }
 
-        // Dividir en chunks de rowCount
+        // Dividir en chunks del tamaño máximo
         for (let i = 0; i < teacherSubjects.length; i += rowCount) {
           result.push(teacherSubjects.slice(i, i + rowCount));
         }
@@ -128,7 +129,7 @@ const ReportProyection: React.FC = () => {
       }
     });
 
-    // Agregar los últimos elementos
+    // Agregar elementos restantes
     if (currentChunk.length > 0) result.push(currentChunk);
     if (teacherSubjects.length > 0) result.push(teacherSubjects);
 
@@ -136,16 +137,19 @@ const ReportProyection: React.FC = () => {
   }, [groupedData]);
 
   const groupChunkByTeacher = (chunk: SubjectData[]) => {
-    const teacherMap = new Map<string, {
-      name: string;
-      lastName: string;
-      ci: string;
-      contractType: string;
-      subjects: SubjectData[];
-      turnoName: string
-    }>();
+    const teacherMap = new Map<
+      string,
+      {
+        name: string;
+        lastName: string;
+        ci: string;
+        contractType: string;
+        subjects: SubjectData[];
+        turnoName: string;
+      }
+    >();
 
-    chunk.forEach(subject => {
+    chunk.forEach((subject) => {
       if (teacherMap.has(subject.teacherName)) {
         teacherMap.get(subject.teacherName)?.subjects.push(subject);
       } else {
@@ -155,14 +159,13 @@ const ReportProyection: React.FC = () => {
           ci: subject.teacherCi,
           contractType: subject.teacherContractType,
           subjects: [subject],
-          turnoName: subject.turnoName
+          turnoName: subject.turnoName,
         });
       }
     });
 
     return Array.from(teacherMap.values());
   };
-
 
   useEffect(() => {
     if (!pnfList) return;
@@ -216,7 +219,6 @@ const ReportProyection: React.FC = () => {
 
   const iconStyle = { color: "white", fontSize: "2rem" };
 
-
   return (
     <>
       <Button type="link" shape="circle" icon={<FaWpforms />} onClick={showModal} style={iconStyle} />
@@ -230,8 +232,7 @@ const ReportProyection: React.FC = () => {
         title="Proyecciones"
         open={isModalOpen}
         onOk={handleOk}
-        onCancel={handleCancel}
-      >
+        onCancel={handleCancel}>
         <div>
           <div
             style={{
@@ -242,8 +243,7 @@ const ReportProyection: React.FC = () => {
               alignItems: "center",
               padding: "10px",
               borderRadius: "10px",
-            }}
-          >
+            }}>
             <div style={{ width: "100%", maxWidth: "400px" }}>
               <span style={{ color: "white" }}>Programa</span>
               <Select style={{ width: "100%" }} onChange={onChangePnf} options={pnfOptions} />
@@ -251,7 +251,12 @@ const ReportProyection: React.FC = () => {
 
             <div style={{ width: "100%", maxWidth: "400px" }}>
               <span style={{ color: "white" }}>Trayecto</span>
-              <Select style={{ width: "100%" }} onChange={onChageTrayecto} value={selectedTrayecto} options={trayectoOptions} />
+              <Select
+                style={{ width: "100%" }}
+                onChange={onChageTrayecto}
+                value={selectedTrayecto}
+                options={trayectoOptions}
+              />
             </div>
 
             <Button
@@ -266,15 +271,13 @@ const ReportProyection: React.FC = () => {
         </div>
 
         {/* Tabla */}
-     
 
         <div
           style={{
             width: "100%",
             height: "calc(100vh - 200px)",
             overflow: "auto",
-          }}
-        >
+          }}>
           <div className="report" ref={componentRef}>
             {chunks.map((chunk, chunkIndex) => {
               const teachersInChunk = groupChunkByTeacher(chunk);
@@ -282,39 +285,44 @@ const ReportProyection: React.FC = () => {
               return (
                 <div key={chunkIndex} className={chunkIndex > 0 ? "page-break" : ""}>
                   <Header
-                    selectedPnf={pnfOptions?.find(p => p.value === selectedPnf)?.label}
-                    selectedTrayecto={trayectoOptions.find(t => t.value === selectedTrayecto)?.label}
+                    selectedPnf={pnfOptions?.find((p) => p.value === selectedPnf)?.label}
+                    selectedTrayecto={trayectoOptions.find((t) => t.value === selectedTrayecto)?.label}
                     page={chunkIndex}
                   />
 
-                  <table style={{ width: '100%', marginBottom: '20px' }}>
+                  <table style={{ width: "100%", marginBottom: "20px" }}>
                     <HeadRow />
                     <tbody>
-                      {teachersInChunk.map((teacherGroup, groupIndex) => (
+                      {teachersInChunk.map((teacherGroup, groupIndex) =>
                         teacherGroup.subjects.map((subject, subjectIndex) => (
                           <tr key={`${groupIndex}-${subjectIndex}`}>
-                            {subjectIndex === 0 && 
-                            <>
-                              <td rowSpan={teacherGroup.subjects.length}>
-                                {`${teacherGroup.lastName} ${teacherGroup.name}`}
-                              </td>
-                              <td rowSpan={teacherGroup.subjects.length}>
-                                {subject.teacherCi}
-                              </td>
-                            </>
-                            }
-                            <td>{subject.subject}</td>
-                            <td>{subject.trayectoName}</td>
-                            <td>{`${subject.turnoName[0]}-0${subject.seccion}`}</td>
-                            <td>{subject.hours}</td>
                             {subjectIndex === 0 && (
                               <>
                                 <td rowSpan={teacherGroup.subjects.length}>
-                                  {teacherGroup.subjects.reduce((total, subject) =>
-                                    Number(total) + Number(subject.hours), 0
+                                  {`${teacherGroup.lastName} ${teacherGroup.name}`}
+                                </td>
+                                <td rowSpan={teacherGroup.subjects.length}>{subject.teacherCi}</td>
+                              </>
+                            )}
+                            <td style={{ maxHeight: `${rowHeight}cm` }}>{subject.subject}</td>
+                            <td style={{ maxHeight: `${rowHeight}cm`, textAlign: "center" }}>
+                              {subject.trayectoName}
+                            </td>
+                            <td style={{ maxHeight: `${rowHeight}cm`, textAlign: "center" }}>
+                              {`${subject.turnoName[0]}-0${subject.seccion}`}
+                            </td>
+                            <td style={{ maxHeight: `${rowHeight}cm`, textAlign: "center" }}>
+                              {subject.hours}
+                            </td>
+                            {subjectIndex === 0 && (
+                              <>
+                                <td rowSpan={teacherGroup.subjects.length} style={{ textAlign: "center" }}>
+                                  {teacherGroup.subjects.reduce(
+                                    (total, subject) => Number(total) + Number(subject.hours),
+                                    0
                                   )}
                                 </td>
-                                <td rowSpan={teacherGroup.subjects.length}>
+                                <td rowSpan={teacherGroup.subjects.length} style={{ textAlign: "center" }}>
                                   {teacherGroup.contractType}
                                 </td>
                                 <td rowSpan={teacherGroup.subjects.length}>
@@ -324,13 +332,13 @@ const ReportProyection: React.FC = () => {
                             )}
                           </tr>
                         ))
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
               );
             })}
-          </div>        
+          </div>
         </div>
       </Modal>
     </>
@@ -342,15 +350,19 @@ export default ReportProyection;
 interface HeaderProps {
   selectedPnf?: string;
   selectedTrayecto?: string;
-  page: number
+  page: number;
 }
 
 function Header({ selectedPnf, selectedTrayecto, page }: HeaderProps) {
   return (
-    <div className="header" style={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
+    <div
+      className="header"
+      style={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
       <h3>PERSONAL DOCENTE</h3>
       <h3>U.P.T. DE LOS LLANOS JUANA RAMÍREZ, EXTENCIÓN ALTAGRACIA DE ORITUCO</h3>
-      <h3>{selectedPnf?.toUpperCase()} -  {selectedTrayecto}</h3>
+      <h3>
+        {selectedPnf?.toUpperCase()} - {selectedTrayecto}
+      </h3>
       <h5>Pagina: {page + 1}</h5>
     </div>
   );
@@ -371,3 +383,4 @@ function HeadRow() {
     </tr>
   );
 }
+

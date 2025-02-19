@@ -194,7 +194,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     isAuthenticated,
     setIsAuthenticated,
     userPerfil,
-    setUserPerfil
+    setUserPerfil,
   };
 
   return (
