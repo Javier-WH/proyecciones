@@ -16,6 +16,7 @@ export default function ReportMenu() {
       <div
         onClick={() => setMenuVisible(false)}
         style={{
+          zIndex: 1000,
           overflow: "hidden",
           display:"flex",
           position: "absolute",

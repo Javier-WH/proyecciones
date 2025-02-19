@@ -21,32 +21,38 @@ interface SubjectData {
   trayectoName: string;
   seccion: string;
   hours: string;
+  quarter: number[];
   turnoName: string;
 }
 
-const trayectoOpt: SelectOption[] = [
-  { label: "Trimestre 1", value: "1" },
-  { label: "Trimestre 2", value: "2" },
-  { label: "Trimestre 3", value: "3" },
-];
-
 const ReportProyectionGeneral: React.FC = () => {
-  const rowHeight = 1.3; // Altura de la fila en centímetros
   const { pnfList, teachers } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pnfOptions, setPnfOptions] = useState<SelectOption[]>();
-  const [trayectoOptions] = useState<SelectOption[]>(trayectoOpt);
-  const [selectedTrayecto, setSelectedTrayecto] = useState<string>();
   const [selectedPnf, setSelectedPnf] = useState<string>("");
-  const [selectedQuarter, setSelectedQuarter] = useState<Teacher[] | null>(null);
   const [reportData, setReportData] = useState<Teacher[] | null>(null);
 
   const componentRef = useRef<HTMLDivElement>(null);
-
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
     documentTitle: "Reporte de proyecciones",
   });
+
+  useEffect(() => {
+    const cleanTeachers = teachers ? [
+      ...(teachers.q1 || []),
+      ...(teachers.q2 || []),
+      ...(teachers.q3 || [])
+    ].filter(teacher => teacher.load && teacher.load.length > 0) : [];
+    const cleanData = cleanTeachers.filter((teacher) => {
+      const load = teacher.load || [];
+      return load.some((subject) => subject.pnfId === selectedPnf);
+    });
+
+
+    setReportData(cleanData);
+  }, [teachers, selectedPnf]);
+
 
   const groupedData = useMemo(() => {
     if (!reportData) return [];
@@ -82,12 +88,12 @@ const ReportProyectionGeneral: React.FC = () => {
       contractType: subjects[0]?.teacherContractType,
       subjects,
     }));
-  }, [reportData]);
+  }, [reportData]); 
 
   const chunks = useMemo(() => {
-    const sheetWidth = 21.59; // Ancho de la hoja en centímetros (horizontal)
-    //const rowHeight = 1.3; // Altura de la fila en centímetros
-    const rowCount = Math.floor(sheetWidth / rowHeight); // Calcula filas por página
+    const sheetWidth = 21.59;
+    const rowHeight = 1.6;
+    const rowCount = Math.floor(sheetWidth / rowHeight);
 
     const result: SubjectData[][] = [];
     let currentChunk: SubjectData[] = [];
@@ -97,7 +103,6 @@ const ReportProyectionGeneral: React.FC = () => {
     const addTeacherToChunk = () => {
       if (teacherSubjects.length === 0) return;
 
-      // Verificar espacio disponible en chunk actual
       if (currentCount + teacherSubjects.length > rowCount) {
         result.push(currentChunk);
         currentChunk = [];
@@ -112,7 +117,6 @@ const ReportProyectionGeneral: React.FC = () => {
     groupedData.forEach((teacherGroup) => {
       teacherSubjects = teacherGroup.subjects;
 
-      // Manejar profesores que exceden el tamaño de una página
       if (teacherSubjects.length > rowCount) {
         if (currentCount > 0) {
           result.push(currentChunk);
@@ -120,7 +124,6 @@ const ReportProyectionGeneral: React.FC = () => {
           currentCount = 0;
         }
 
-        // Dividir en chunks del tamaño máximo
         for (let i = 0; i < teacherSubjects.length; i += rowCount) {
           result.push(teacherSubjects.slice(i, i + rowCount));
         }
@@ -130,99 +133,24 @@ const ReportProyectionGeneral: React.FC = () => {
       }
     });
 
-    // Agregar elementos restantes
     if (currentChunk.length > 0) result.push(currentChunk);
     if (teacherSubjects.length > 0) result.push(teacherSubjects);
 
     return result;
   }, [groupedData]);
 
-  const groupChunkByTeacher = (chunk: SubjectData[]) => {
-    const teacherMap = new Map<
-      string,
-      {
-        name: string;
-        lastName: string;
-        ci: string;
-        contractType: string;
-        subjects: SubjectData[];
-        turnoName: string;
-      }
-    >();
-    console.log(teacherMap);
-    chunk.forEach((subject) => {
-      if (teacherMap.has(subject.teacherName)) {
-        teacherMap.get(subject.teacherName)?.subjects.push(subject);
-      } else {
-        teacherMap.set(subject.teacherName, {
-          name: subject.teacherName,
-          lastName: subject.teacherLastName,
-          ci: subject.teacherCi,
-          contractType: subject.teacherContractType,
-          subjects: [subject],
-          turnoName: subject.turnoName,
-        });
-      }
-    });
-
-    return Array.from(teacherMap.values());
-  };
-
   useEffect(() => {
     if (!pnfList) return;
     setPnfOptions(pnfList.map((pnf) => ({ label: pnf.name, value: pnf.id.toString() })));
   }, [pnfList]);
 
-  const showModal = () => {
-    setIsModalOpen(true);
-  };
 
-  const handleOk = () => {
-    setIsModalOpen(false);
-  };
-
-  const handleCancel = () => {
-    setIsModalOpen(false);
-  };
-
-  const onChageTrayecto = (value: string) => {
-    setSelectedTrayecto(value);
-  };
-  const onChangePnf = (value: string) => {
-    setSelectedPnf(value);
-    setSelectedTrayecto(trayectoOpt[0].value);
-  };
-
-  // Filtrar por trayecto
-  useEffect(() => {
-    if (selectedTrayecto === "2") {
-      setSelectedQuarter(teachers?.q2 || null);
-      return;
-    }
-    if (selectedTrayecto === "3") {
-      setSelectedQuarter(teachers?.q3 || null);
-      return;
-    }
-    setSelectedQuarter(teachers?.q1 || null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTrayecto]);
-
-  // Filtrar por pnf
-  useEffect(() => {
-    const cleanTeachers = selectedQuarter?.filter((teacher) => teacher.load && teacher.load.length > 0);
-    const cleanData = cleanTeachers?.filter((teacher) => {
-      const load = teacher.load || [];
-      return load.some((subject) => subject.pnfId === selectedPnf);
-    });
-    setReportData(cleanData || []);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedQuarter, selectedPnf]);
 
   const iconStyle = { color: "white", fontSize: "2rem" };
 
   return (
     <>
-      <Button type="link" shape="circle" icon={<FaTable />} onClick={showModal} style={iconStyle}>
+      <Button type="link" shape="circle" icon={<FaTable />} onClick={() => setIsModalOpen(true)} style={iconStyle}>
         <span style={{ fontSize: "12px" }}>General</span>
       </Button>
 
@@ -232,38 +160,27 @@ const ReportProyectionGeneral: React.FC = () => {
         width="100vw"
         height="100vh"
         style={{ top: 0, left: 0, right: 0, bottom: 0 }}
-        title="Proyecciones"
+        title="Proyecciones General"
         open={isModalOpen}
-        onOk={handleOk}
-        onCancel={handleCancel}>
+        onCancel={() => setIsModalOpen(false)}
+      >
         <div>
-          <div
-            style={{
-              backgroundColor: "#001529",
-              height: "70px",
-              display: "flex",
-              justifyContent: "space-evenly",
-              alignItems: "center",
-              padding: "10px",
-              borderRadius: "10px",
-            }}>
+          <div style={{
+            backgroundColor: "#001529",
+            height: "70px",
+            display: "flex",
+            justifyContent: "space-evenly",
+            alignItems: "center",
+            padding: "10px",
+            borderRadius: "10px",
+          }}>
             <div style={{ width: "100%", maxWidth: "400px" }}>
               <span style={{ color: "white" }}>Programa</span>
-              <Select style={{ width: "100%" }} onChange={onChangePnf} options={pnfOptions} />
-            </div>
-
-            <div style={{ width: "100%", maxWidth: "400px" }}>
-              <span style={{ color: "white" }}>Trayecto</span>
-              <Select
-                style={{ width: "100%" }}
-                onChange={onChageTrayecto}
-                value={selectedTrayecto}
-                options={trayectoOptions}
-              />
+              <Select style={{ width: "100%" }} onChange={(value) => setSelectedPnf(value)} options={pnfOptions} />
             </div>
 
             <Button
-              disabled={!reportData || reportData.length === 0}
+              
               type="link"
               shape="circle"
               icon={<FaPrint />}
@@ -273,14 +190,7 @@ const ReportProyectionGeneral: React.FC = () => {
           </div>
         </div>
 
-        {/* Tabla */}
-
-        <div
-          style={{
-            width: "100%",
-            height: "calc(100vh - 200px)",
-            overflow: "auto",
-          }}>
+        <div style={{ width: "100%", height: "calc(100vh - 200px)", overflow: "auto" }}>
           <div className="report" ref={componentRef}>
             {chunks.map((chunk, chunkIndex) => {
               const teachersInChunk = groupChunkByTeacher(chunk);
@@ -289,15 +199,23 @@ const ReportProyectionGeneral: React.FC = () => {
                 <div key={chunkIndex} className={chunkIndex > 0 ? "page-break" : ""}>
                   <Header
                     selectedPnf={pnfOptions?.find((p) => p.value === selectedPnf)?.label}
-                    selectedTrayecto={trayectoOptions.find((t) => t.value === selectedTrayecto)?.label}
                     page={chunkIndex}
                   />
 
                   <table style={{ width: "100%", marginBottom: "20px" }}>
                     <HeadRow />
                     <tbody>
-                      {teachersInChunk.map((teacherGroup, groupIndex) =>
-                        teacherGroup.subjects.map((subject, subjectIndex) => (
+                      {teachersInChunk.map((teacherGroup, groupIndex) => {
+                        const totals = {
+                          q1: teacherGroup.subjects.reduce((acc, subject) =>
+                            subject.quarter.includes(1) ? acc + Number(subject.hours) : acc, 0),
+                          q2: teacherGroup.subjects.reduce((acc, subject) =>
+                            subject.quarter.includes(2) ? acc + Number(subject.hours) : acc, 0),
+                          q3: teacherGroup.subjects.reduce((acc, subject) =>
+                            subject.quarter.includes(3) ? acc + Number(subject.hours) : acc, 0),
+                        };
+
+                        return teacherGroup.subjects.map((subject, subjectIndex) => (
                           <tr key={`${groupIndex}-${subjectIndex}`}>
                             {subjectIndex === 0 && (
                               <>
@@ -307,35 +225,36 @@ const ReportProyectionGeneral: React.FC = () => {
                                 <td rowSpan={teacherGroup.subjects.length}>{subject.teacherCi}</td>
                               </>
                             )}
-                            <td style={{ maxHeight: `${rowHeight}cm` }}>{subject.subject}</td>
-                            <td style={{ maxHeight: `${rowHeight}cm`, textAlign: "center" }}>
-                              {subject.trayectoName}
+                            <td>{subject.subject}</td>
+                            <td style={{ textAlign: "center" }}>{subject.trayectoName}</td>
+                            <td style={{ textAlign: "center" }}>{`${subject.turnoName[0]}-0${subject.seccion}`}</td>
+
+                            <td style={{ textAlign: "center" }}>
+                              {subject.quarter.includes(1) ? subject.hours : 0}
                             </td>
-                            <td style={{ maxHeight: `${rowHeight}cm`, textAlign: "center" }}>
-                              {`${subject.turnoName[0]}-0${subject.seccion}`}
+                            <td style={{ textAlign: "center" }}>{totals.q1}</td>
+
+                            <td style={{ textAlign: "center" }}>
+                              {subject.quarter.includes (2) ? subject.hours : 0}
                             </td>
-                            <td style={{ maxHeight: `${rowHeight}cm`, textAlign: "center" }}>
-                              {subject.hours}
+                            <td style={{ textAlign: "center" }}>{totals.q2}</td>
+
+                            <td style={{ textAlign: "center" }}>
+                              {subject.quarter.includes(3) ? subject.hours : 0}
                             </td>
+                            <td style={{ textAlign: "center" }}>{totals.q3}</td>
+
                             {subjectIndex === 0 && (
                               <>
                                 <td rowSpan={teacherGroup.subjects.length} style={{ textAlign: "center" }}>
-                                  {teacherGroup.subjects.reduce(
-                                    (total, subject) => Number(total) + Number(subject.hours),
-                                    0
-                                  )}
-                                </td>
-                                <td rowSpan={teacherGroup.subjects.length} style={{ textAlign: "center" }}>
                                   {teacherGroup.contractType}
                                 </td>
-                                <td rowSpan={teacherGroup.subjects.length}>
-                                  {/* Espacio para observaciones */}
-                                </td>
+                                <td rowSpan={teacherGroup.subjects.length}>{/* Observaciones */}</td>
                               </>
                             )}
                           </tr>
-                        ))
-                      )}
+                        ));
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -348,42 +267,69 @@ const ReportProyectionGeneral: React.FC = () => {
   );
 };
 
-export default ReportProyectionGeneral;
-
-interface HeaderProps {
-  selectedPnf?: string;
-  selectedTrayecto?: string;
-  page: number;
-}
-
-function Header({ selectedPnf, selectedTrayecto, page }: HeaderProps) {
+function Header({ selectedPnf, page }: { selectedPnf?: string; page: number }) {
   return (
-    <div
-      className="header"
-      style={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
       <h3>PERSONAL DOCENTE</h3>
+      <h3>{selectedPnf?.toUpperCase()}</h3>
       <h3>U.P.T. DE LOS LLANOS JUANA RAMÍREZ, EXTENCIÓN ALTAGRACIA DE ORITUCO</h3>
-      <h3>
-        {selectedPnf?.toUpperCase()} - {selectedTrayecto}
-      </h3>
+      <h3>CARGA ACADÉMICA TRIMESTRE I-II-III</h3>
       <h5>Pagina: {page + 1}</h5>
     </div>
   );
 }
 
 function HeadRow() {
-  return (
+  return (<>
     <tr>
-      <th>Nombre</th>
-      <th>C.I.</th>
-      <th>Unidad Curricular</th>
-      <th>Trayecto</th>
-      <th>Sección</th>
-      <th>Horas</th>
-      <th>Total Horas</th>
-      <th>Tipo de Contrato</th>
-      <th>Observación</th>
+      <th rowSpan={2} style={{ textAlign: "center" }}>Nombre</th>
+      <th rowSpan={2} style={{ textAlign: "center" }}>C.I.</th>
+      <th rowSpan={2} style={{ textAlign: "center" }}>Unidad Curricular</th>
+      <th rowSpan={2} style={{ textAlign: "center" }}>Trayecto</th>
+      <th rowSpan={2} style={{ textAlign: "center" }}>Sección</th>
+      <th colSpan={2} style ={{ textAlign: "center", fontSize: "12px" }}>Trimestre I</th>
+      <th colSpan={2} style={{ textAlign: "center", fontSize: "12px" }}>Trimestre II</th>
+      <th colSpan={2} style={{ textAlign: "center", fontSize: "12px" }}>Trimestre III</th>
+      <th rowSpan={2} style={{ textAlign: "center" }}>Tipo de Contrato</th>
+      <th rowSpan={2} style={{ textAlign: "center" }}>Observación</th>
     </tr>
+    
+    <tr>
+      <th>Horas</th>
+      <th>Total</th>
+      <th>Horas</th>
+      <th>Total</th>
+      <th>Horas</th>
+      <th>Total</th>
+    </tr>
+  </>
   );
 }
 
+function groupChunkByTeacher(chunk: SubjectData[]) {
+  const teacherMap = new Map<string, {
+    name: string;
+    lastName: string;
+    ci: string;
+    contractType: string;
+    subjects: SubjectData[];
+  }>();
+
+  chunk.forEach((subject) => {
+    if (teacherMap.has(subject.teacherName)) {
+      teacherMap.get(subject.teacherName)?.subjects.push(subject);
+    } else {
+      teacherMap.set(subject.teacherName, {
+        name: subject.teacherName,
+        lastName: subject.teacherLastName,
+        ci: subject.teacherCi,
+        contractType: subject.teacherContractType,
+        subjects: [subject],
+      });
+    }
+  });
+
+  return Array.from(teacherMap.values());
+}
+
+export default ReportProyectionGeneral;
