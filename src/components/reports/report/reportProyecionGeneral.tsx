@@ -98,7 +98,7 @@ const ReportProyectionGeneral: React.FC = () => {
 
   const chunks = useMemo(() => {
     const sheetWidth = 21.59;
-    const rowHeight = 0.8;
+    const rowHeight = 1.1;
     const rowCount = Math.floor(sheetWidth / rowHeight);
 
     const result: SubjectData[][] = [];
@@ -328,15 +328,26 @@ function groupChunkByTeacher(chunk: SubjectData[]) {
   const uniqueSubjects = new Set<string>();
 
   chunk.forEach((subject) => {
-    const subjectKey = `${subject.teacherCi}-${subject.subject}-${subject.quarter.join(',')}`;
+    // Generar una clave única que incluya todos los campos relevantes de la materia
+    const subjectKey = [
+      subject.teacherCi,
+      subject.subject,
+      subject.quarter.join(','),
+      subject.seccion,
+      subject.hours,
+      subject.trayectoName,
+      subject.turnoName
+    ].join('-');
 
     if (!uniqueSubjects.has(subjectKey)) {
       uniqueSubjects.add(subjectKey);
 
-      if (teacherMap.has(subject.teacherName)) {
-        teacherMap.get(subject.teacherName)?.subjects.push(subject);
+      const teacherKey = subject.teacherCi; // Usar teacherCi como clave única del profesor
+
+      if (teacherMap.has(teacherKey)) {
+        teacherMap.get(teacherKey)?.subjects.push(subject);
       } else {
-        teacherMap.set(subject.teacherName, {
+        teacherMap.set(teacherKey, {
           name: subject.teacherName,
           lastName: subject.teacherLastName,
           ci: subject.teacherCi,
