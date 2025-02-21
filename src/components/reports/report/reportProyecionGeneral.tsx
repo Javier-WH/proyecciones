@@ -98,7 +98,7 @@ const ReportProyectionGeneral: React.FC = () => {
 
   const chunks = useMemo(() => {
     const sheetWidth = 21.59;
-    const rowHeight = 1.1;
+    const rowHeight = 1;
     const rowCount = Math.floor(sheetWidth / rowHeight);
 
     const result: SubjectData[][] = [];
@@ -358,7 +358,9 @@ function groupChunkByTeacher(chunk: SubjectData[]) {
     }
   });
 
-  return Array.from(teacherMap.values());
+  return Array.from(teacherMap.values()).sort(
+    (a, b) => a.subjects.length - b.subjects.length
+  );
 }
 
 export default ReportProyectionGeneral;
