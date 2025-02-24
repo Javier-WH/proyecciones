@@ -16,6 +16,7 @@ import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import "./NewProyectionContainer.css";
 import { useNavigate } from "react-router-dom";
+import { v4 as uuidv4 } from "uuid";
 
 export default function NewProyectionContainer({
   programaId,
@@ -57,7 +58,6 @@ export default function NewProyectionContainer({
   const navigate = useNavigate();
 
   useEffect(() => {
-
     if (!programaId || !trayectoId) return;
     setLoading(true);
     setTurnos(null);
@@ -71,25 +71,24 @@ export default function NewProyectionContainer({
 
     getPensum({ programaId, trayectoId })
       .then((data) => {
-        if (data.error){
+        if (data.error) {
           setPensumTrayectoName("no hay pensum");
           setPensumSlist([]);
           setPensum(null);
-        
-        }else{
+        } else {
           setPensumTrayectoName(data?.data?.trayectoName);
           setPensumSlist(data?.data?.pensums.map((subject: subjectType) => subject.subject));
           setPensum(data?.data?.pensums);
         }
       })
-      .catch((error) => console.log(error))
-      //.finally(() => setLoading(false));
+      .catch((error) => console.log(error));
+    //.finally(() => setLoading(false));
   }, [programaId, trayectoId, trayectoDataValue]);
 
   useEffect(() => {
-    if (!inscriptionData){
+    if (!inscriptionData) {
       setPassed(null);
-      return
+      return;
     }
     setPassed(inscriptionData.data.passed);
   }, [inscriptionData]);
@@ -105,7 +104,7 @@ export default function NewProyectionContainer({
       return turnoData;
     });
     setTurnos(_turnos);
-    setLoading(false)
+    setLoading(false);
   }, [passed]);
 
   const onChangeSlider = (value: number, index: number, totalInscriptions: number) => {
@@ -166,6 +165,7 @@ export default function NewProyectionContainer({
       for (let i = 1; i <= totalSections; i++) {
         const subList = pensum.map((subject) => {
           return {
+            innerId: uuidv4(),
             id: subject.subject_id,
             subject: subject.subject,
             hours: subject.hours ?? 0,
@@ -324,3 +324,4 @@ export default function NewProyectionContainer({
     </div>
   );
 }
+

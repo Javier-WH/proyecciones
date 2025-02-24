@@ -70,12 +70,14 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
   const handleSwapSubjects = (subject: Subject) => {
     if (!data) return;
     const selected = data.filter((selected) => {
-      if (selected.pensum_id === subject.pensum_id &&
+      if (
+        selected.pensum_id === subject.pensum_id &&
         selected.seccion === subject.seccion &&
         selected.trayectoName === subject.trayectoName &&
-        selected.turnoName === subject.turnoName) return selected
-
-    })
+        selected.turnoName === subject.turnoName
+      )
+        return selected;
+    });
 
     setSelectedSubject(selected[0]);
     setOpenChangeSubjectFromTeacherModal(true);
@@ -110,7 +112,7 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
                     type="link"
                     shape="round"
                     style={{ color: "white", fontSize: "18px" }}
-                    onClick={()=>handleSwapSubjects(subject)}>
+                    onClick={() => handleSwapSubjects(subject)}>
                     <IoMdSwap />
                   </Button>
                   <Button
