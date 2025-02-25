@@ -4,6 +4,8 @@ import type { RadioChangeEvent } from "antd";
 import { Quarter } from "../../interfaces/teacher";
 import { Subject } from "../../interfaces/subject";
 import { CloseCircleOutlined } from "@ant-design/icons";
+import useSetSubject from "../../hooks/useSetSubject";
+
 const AddSubjectToTeacherModal: React.FC<{
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -34,6 +36,10 @@ const AddSubjectToTeacherModal: React.FC<{
   const [erroMessage, setErrorMessage] = useState<string | null>(null);
   const [overLoad, setOverLoad] = useState(false);
   const [teacherIndex, setTeacherIndex] = useState(0);
+  const { addSubjectToTeacher } = useSetSubject({
+    subjectArray: subjects ?? [],
+    teacherArray: teachers ?? {},
+  });
 
   useEffect(() => {
     if (!subjects || !teachers || !selectedTeacerId) return;
@@ -72,7 +78,7 @@ const AddSubjectToTeacherModal: React.FC<{
         if (isNaN(teacherLoadNumber) || isNaN(subjectHourNumber) || isNaN(maxHoursNumber)) {
           return false;
         }
-        return teacherLoadNumber + subjectHourNumber <= maxHoursNumber ;
+        return teacherLoadNumber + subjectHourNumber <= maxHoursNumber;
       });
     }
 
@@ -109,8 +115,8 @@ const AddSubjectToTeacherModal: React.FC<{
       selectedQuarter === null
     )
       return;
+
     //obtengo el index de la asignatura
-    // `${subject.id} ${subject.pensum_id} ${subject.seccion} ${subject.trayectoName} ${subject.turnoName} ${index}`,
     const optionData = selectedOption.split(":");
     const [subjectId, pensumId, seccion, trayectoName, turnoName] = optionData;
 
