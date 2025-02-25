@@ -38,7 +38,7 @@ const AddSubjectToTeacherModal: React.FC<{
   const [teacherIndex, setTeacherIndex] = useState(0);
   const { addSubjectToTeacher } = useSetSubject({
     subjectArray: subjects ?? [],
-    teacherArray: teachers ?? {},
+    teacherArray: teachers ?? { q1: [], q2: [], q3: [] },
   });
 
   useEffect(() => {
@@ -46,7 +46,7 @@ const AddSubjectToTeacherModal: React.FC<{
 
     //obtengo la lista de asignaturas
     let subjectsData = subjects.map((subject, index) => ({
-      value: `${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}:${index}`,
+      value: subject.innerId,
       label: `${subject.subject} (${subject.pnf} - Sección ${subject.turnoName[0]}-0${subject.seccion} - Trayecto ${subject.trayectoName})`,
       key: `${subject.id} ${subject.pensum_id} ${subject.seccion} ${index}`,
       subjectId: subject.id,
@@ -106,46 +106,19 @@ const AddSubjectToTeacherModal: React.FC<{
 
   const handleOk = () => {
     setLoading(true);
-    //valido para no tener errores mas adelante
-    if (
-      !teachers ||
-      subjects === null ||
-      selectedOption === null ||
-      teacherIndex === null ||
-      selectedQuarter === null
-    )
+    if (selectedOption === null || selectedTeacerId === null) {
       return;
-
-    //obtengo el index de la asignatura
-    const optionData = selectedOption.split(":");
-    const [subjectId, pensumId, seccion, trayectoName, turnoName] = optionData;
-
-    const index = subjects.findIndex(
-      (subject) =>
-        subject.id === subjectId &&
-        subject.pensum_id === pensumId &&
-        subject.seccion === seccion &&
-        subject.trayectoName === trayectoName &&
-        subject.turnoName === turnoName
-    );
-
-    //agrego la asignatura al load del profesor
-    const teachersCopy = JSON.parse(JSON.stringify(teachers));
-    if (subjects[index].quarter.includes(1)) {
-      teachersCopy["q1"][teacherIndex]?.load?.push(subjects[index]);
     }
-    if (subjects[index].quarter.includes(2)) {
-      teachersCopy["q2"][teacherIndex]?.load?.push(subjects[index]);
-    }
-    if (subjects[index].quarter.includes(3)) {
-      teachersCopy["q3"][teacherIndex]?.load?.push(subjects[index]);
-    }
-    // console.log(teachersCopy.q1[teacherIndex])
-    handleTeacherChange(teachersCopy);
+    const { teacherArray, subjectArray } = addSubjectToTeacher({
+      subjectId: selectedOption,
+      teacherId: selectedTeacerId ?? "",
+    });
+    handleTeacherChange(teacherArray);
+    handleSubjectChange(subjectArray);
+    closeModal();
+  };
 
-    //elimino la asignatura de la lista de asignaturas
-    handleSubjectChange(subjects.filter((_, i) => i !== index));
-
+  const closeModal = () => {
     //limpio el select
     setSelectedOption(null);
     //cierro el modal

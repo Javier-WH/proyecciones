@@ -1,4 +1,5 @@
 export interface Subject {
+  innerId: string;
   id: string;
   subject: string;
   hours: number;
@@ -35,4 +36,4 @@ export interface TableSubject {
   quarter: string | null;
   subject: string | null;
 }
-  
+
