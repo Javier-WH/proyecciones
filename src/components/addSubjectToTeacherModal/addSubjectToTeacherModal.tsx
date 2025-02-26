@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Modal, Select, Radio, Tag, Switch } from "antd";
+import { Button, Modal, Select, Radio, Tag, Switch, message } from "antd";
 import type { RadioChangeEvent } from "antd";
 import { Quarter } from "../../interfaces/teacher";
 import { Subject } from "../../interfaces/subject";
@@ -117,23 +117,19 @@ const AddSubjectToTeacherModal: React.FC<{
     )
       return;
 
-    console.log(selectedOption);
     //obtengo el index de la asignatura
-    const optionData = selectedOption.split(":");
-    const [subjectId, pensumId, seccion, trayectoName, turnoName] = optionData;
 
-    const index = subjects.findIndex(
-      (subject) =>
-        subject.id === subjectId &&
-        subject.pensum_id === pensumId &&
-        subject.seccion === seccion &&
-        subject.trayectoName === trayectoName &&
-        subject.turnoName === turnoName
-    );
+    const index = subjects.findIndex((subject) => subject.innerId === selectedOption);
+    if (index === -1) {
+      message.error("No se pudo agregar la asignatura al profesor");
+    }
 
     //agrego la asignatura al load del profesor
     const teachersCopy = JSON.parse(JSON.stringify(teachers));
+    const subjectsCopy = [...subjects];
+
     if (subjects[index].quarter.includes(1)) {
+      subjectsCopy[index].asignations.q1 = selectedTeacerId;
       teachersCopy["q1"][teacherIndex]?.load?.push(subjects[index]);
     }
     if (subjects[index].quarter.includes(2)) {
@@ -162,7 +158,6 @@ const AddSubjectToTeacherModal: React.FC<{
   };
 
   const handleChange = (value: string) => {
-    console.log(`selected: ${value}`);
     setSelectedOption(value);
   };
 
@@ -202,7 +197,7 @@ const AddSubjectToTeacherModal: React.FC<{
           <Button
             key="submit"
             type="primary"
-            loading={loading}
+            //loading={loading}
             onClick={handleOk}
             disabled={selectedOption === null}>
             Agregar
