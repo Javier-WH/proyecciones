@@ -46,7 +46,8 @@ const AddSubjectToTeacherModal: React.FC<{
 
     //obtengo la lista de asignaturas
     let subjectsData = subjects.map((subject, index) => ({
-      value: `${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}:${index}`,
+      //value: `${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}:${index}`,
+      value: subject.innerId,
       label: `${subject.subject} (${subject.pnf} - Sección ${subject.turnoName[0]}-0${subject.seccion} - Trayecto ${subject.trayectoName})`,
       key: `${subject.id} ${subject.pensum_id} ${subject.seccion} ${index}`,
       subjectId: subject.id,
@@ -116,6 +117,7 @@ const AddSubjectToTeacherModal: React.FC<{
     )
       return;
 
+    console.log(selectedOption);
     //obtengo el index de la asignatura
     const optionData = selectedOption.split(":");
     const [subjectId, pensumId, seccion, trayectoName, turnoName] = optionData;
@@ -160,6 +162,7 @@ const AddSubjectToTeacherModal: React.FC<{
   };
 
   const handleChange = (value: string) => {
+    console.log(`selected: ${value}`);
     setSelectedOption(value);
   };
 

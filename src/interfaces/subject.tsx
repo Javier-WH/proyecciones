@@ -1,4 +1,5 @@
 export interface Subject {
+  innerId: string;
   id: string;
   subject: string;
   hours: number;
@@ -14,6 +15,11 @@ export interface Subject {
   teacherName?: string;
   teacherCi?: string;
   key?: string;
+  asignations?: {
+    q1?: string | null;
+    q2?: string | null;
+    q3?: string | null;
+  };
 }
 
 export interface SimpleSubject {
@@ -35,4 +41,4 @@ export interface TableSubject {
   quarter: string | null;
   subject: string | null;
 }
-  
+

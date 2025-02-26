@@ -178,6 +178,7 @@ export default function NewProyectionContainer({
             trayectoId: trayectoId,
             trayectoName: pensumTrayectoName,
             trayecto_saga_id: subject.trayecto_saga_id.toString(),
+            asignations: { q1: null, q2: null, q3: null },
           };
         });
 
