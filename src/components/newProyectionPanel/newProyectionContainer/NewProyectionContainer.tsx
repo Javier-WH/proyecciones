@@ -2,21 +2,21 @@ import getInscriptionData from "../../../fetch/getInscriptionData";
 import { useEffect, useState, useContext } from "react";
 import { InscriptionData, InscripionTurno } from "../../../interfaces/inscriptionData";
 import { Tag, Slider, message, Card, Button, Popconfirm } from "antd";
-import {
-  CloseCircleOutlined,
-  AppstoreAddOutlined,
-  OrderedListOutlined,
-  UnorderedListOutlined,
-} from "@ant-design/icons";
 import getPensum from "../../../fetch/getPensum";
 import Spinner from "../../spinner/spinner";
 import { subjectType, Subject } from "../../../interfaces/subject";
 import ShowArrayModal from "../../SowArrayModal/showArrayModal";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
-import "./NewProyectionContainer.css";
 import { useNavigate } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
+import "./NewProyectionContainer.css";
+import {
+  CloseCircleOutlined,
+  AppstoreAddOutlined,
+  OrderedListOutlined,
+  UnorderedListOutlined,
+} from "@ant-design/icons";
 
 export default function NewProyectionContainer({
   programaId,
