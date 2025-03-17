@@ -6,7 +6,7 @@ export interface Subject {
   pnf: string;
   pnfId: string;
   seccion: string;
-  quarter: Array<number>;
+  quarter: Array<number> | InlineQuarter;
   pensum_id: string;
   trayectoId: string;
   trayectoName: string;
@@ -40,5 +40,11 @@ export interface TableSubject {
   key: string | null;
   quarter: string | null;
   subject: string | null;
+}
+
+export interface InlineQuarter {
+  q1?: string | null;
+  q2?: string | null;
+  q3?: string | null;
 }
 

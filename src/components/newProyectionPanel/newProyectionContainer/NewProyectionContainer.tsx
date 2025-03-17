@@ -4,7 +4,7 @@ import { InscriptionData, InscripionTurno } from "../../../interfaces/inscriptio
 import { Tag, Slider, message, Card, Button, Popconfirm } from "antd";
 import getPensum from "../../../fetch/getPensum";
 import Spinner from "../../spinner/spinner";
-import { subjectType, Subject } from "../../../interfaces/subject";
+import { subjectType, Subject, InlineQuarter } from "../../../interfaces/subject";
 import ShowArrayModal from "../../SowArrayModal/showArrayModal";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
@@ -164,6 +164,23 @@ export default function NewProyectionContainer({
       const totalSections = turno?.seccions ?? 0;
       for (let i = 1; i <= totalSections; i++) {
         const subList = pensum.map((subject) => {
+          // se inicia un objeto donde se almacenaran los id de los profesores
+          let quarter: InlineQuarter = {};
+          // se verifica en que trimestres se ve la materia
+          const subjectedQuarter = JSON.parse(subject.quarter.toString());
+          // si la materia se ve el el primer trimestre se asigna q1 a la inscripción de la materia
+          if (subjectedQuarter.includes(1)) {
+            quarter.q1 = null;
+          }
+          // si la materia se ve en el segundo trimestre se asigna q2 a la inscripción de la materia
+          if (subjectedQuarter.includes(2)) {
+            quarter.q2 = null;
+          }
+          // si la materia se ve en el tercer trimestre se asigna q3 a la inscripción de la materia
+          if (subjectedQuarter.includes(3)) {
+            quarter.q3 = null;
+          }
+
           return {
             innerId: uuidv4(),
             id: subject.subject_id,
@@ -172,19 +189,22 @@ export default function NewProyectionContainer({
             pnf: inscriptionData.data.pnfName,
             pnfId: inscriptionData.data.pnfId,
             seccion: `${i}`,
-            quarter: JSON.parse(subject.quarter.toString()),
+            //quarter: JSON.parse(subject.quarter.toString()),
+            quarter: quarter,
             pensum_id: subject.id,
             turnoName: turno?.turnoName ?? "no asignado",
             trayectoId: trayectoId,
             trayectoName: pensumTrayectoName,
             trayecto_saga_id: subject.trayecto_saga_id.toString(),
-            asignations: { q1: null, q2: null, q3: null },
           };
         });
 
         list = [...list, ...subList];
       }
     });
+
+    console.log(list);
+    return; ///////////////////////////////// solo se pausa por pruebas
 
     handleSubjectChange([...(subjects ?? []), ...(list ?? [])]);
 
