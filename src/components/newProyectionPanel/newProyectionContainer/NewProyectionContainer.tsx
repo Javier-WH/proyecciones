@@ -189,8 +189,8 @@ export default function NewProyectionContainer({
             pnf: inscriptionData.data.pnfName,
             pnfId: inscriptionData.data.pnfId,
             seccion: `${i}`,
-            //quarter: JSON.parse(subject.quarter.toString()),
-            quarter: quarter,
+            quarter: JSON.parse(subject.quarter.toString()),
+            //quarter: quarter,
             pensum_id: subject.id,
             turnoName: turno?.turnoName ?? "no asignado",
             trayectoId: trayectoId,
@@ -202,9 +202,6 @@ export default function NewProyectionContainer({
         list = [...list, ...subList];
       }
     });
-
-    console.log(list);
-    return; ///////////////////////////////// solo se pausa por pruebas
 
     handleSubjectChange([...(subjects ?? []), ...(list ?? [])]);
 
