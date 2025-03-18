@@ -37,6 +37,7 @@ const AddSubjectToTeacherModal: React.FC<{
   const [overLoad, setOverLoad] = useState(false);
   const [teacherIndex, setTeacherIndex] = useState(0);
   const { addSubjectToTeacher } = useSetSubject(subjects || []);
+  const [filterByQuarter, setFilterByQuarter] = useState(false);
 
   useEffect(() => {
     if (!subjects || !teachers || !selectedTeacerId) return;
@@ -48,6 +49,7 @@ const AddSubjectToTeacherModal: React.FC<{
       label: `${subject.subject} (${subject.pnf} - Sección ${subject.turnoName[0]}-0${subject.seccion} - Trayecto ${subject.trayectoName})`,
       key: `${subject.id} ${subject.pensum_id} ${subject.seccion} ${index}`,
       subjectId: subject.id,
+      quarters: Object.keys(subject.quarter),
     }));
     const t_index = teachers[selectedQuarter].findIndex((teacher) => teacher.id === selectedTeacerId);
     setTeacherIndex(t_index);
@@ -81,16 +83,13 @@ const AddSubjectToTeacherModal: React.FC<{
     }
 
     //filtrado por trimestre
-    /*subjectsData = subjectsData.filter((subject) => {
-      const index = subjects.findIndex((s) => s.id === subject.subjectId);
-      const subjectQuarter = subjects[index]?.quarter;
-      const quarter = selectedQuarter === "q1" ? 1 : selectedQuarter === "q2" ? 2 : 3;
-      return subjectQuarter && subjectQuarter.includes(quarter);
-    });*/
+    if (filterByQuarter) {
+      subjectsData = subjectsData.filter((subject) => subject.quarters.includes(selectedQuarter));
+    }
 
     // console.log(subjectsData);
     setOptions(subjectsData);
-  }, [subjects, perfilOption, teachers, selectedTeacerId, overLoad, selectedQuarter]);
+  }, [subjects, perfilOption, teachers, selectedTeacerId, overLoad, selectedQuarter, filterByQuarter]);
 
   //aqui vigilo si existen asignaturas
   useEffect(() => {
@@ -187,16 +186,28 @@ const AddSubjectToTeacherModal: React.FC<{
             Agregar
           </Button>,
         ]}>
-        <Select
-          value={selectedQuarter}
-          style={{ width: 300 }}
-          options={[
-            { value: "q1", label: "Primer Trimestre" },
-            { value: "q2", label: "Segundo Trimestre" },
-            { value: "q3", label: "Tercer Trimestre" },
-          ]}
-          onChange={handleChangeQuarterSelector}
-        />
+        <div style={{ display: "flex", columnGap: "5px" }}>
+          <Button
+            style={{ width: "150px" }}
+            type={filterByQuarter ? "primary" : "default"}
+            onClick={() => {
+              setFilterByQuarter(!filterByQuarter);
+            }}>
+            {filterByQuarter ? "Mostrar todas" : "Filtrar por trimestre"}
+          </Button>
+          {filterByQuarter && (
+            <Select
+              value={selectedQuarter}
+              style={{ width: 300 }}
+              options={[
+                { value: "q1", label: "Primer Trimestre" },
+                { value: "q2", label: "Segundo Trimestre" },
+                { value: "q3", label: "Tercer Trimestre" },
+              ]}
+              onChange={handleChangeQuarterSelector}
+            />
+          )}
+        </div>
         <div
           style={{
             display: "flex",
