@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Subject } from "../interfaces/subject";
+import { Teacher } from "../interfaces/teacher";
 
 export interface useSubjectDataType {
   subjectId: string | null;
@@ -10,6 +11,17 @@ export interface useSubjectResponse {
   error: boolean;
   message: string;
   data: Subject[] | null;
+}
+
+interface TeacherHourData {
+  totalHours: string;
+  aviableHours: string;
+  usedHours: string;
+}
+export interface useSubjectResponseTeacherHours {
+  error: boolean;
+  message: string;
+  data: TeacherHourData | null;
 }
 
 export default function useSetSubject(SubjectArray: Subject[]) {
@@ -86,6 +98,35 @@ export default function useSetSubject(SubjectArray: Subject[]) {
     };
   };
 
-  return { addSubjectToTeacher, removeSubjectFromTeacher };
+  const getTeacherHoursData = (
+    teacher: Teacher,
+    quarter: "q1" | "q2" | "q3"
+  ): useSubjectResponseTeacherHours => {
+    if (!teacher || quarter) {
+      return {
+        error: true,
+        message: "No ha suministrado un profesor",
+        data: null,
+      };
+    }
+
+    const totalHours = teacher.partTime;
+    const asignedSubjects = subjectList.filter((subject) => subject.quarter[quarter] === teacher.id);
+    const usedHours = asignedSubjects.reduce((acc, subject) => {
+      return acc + subject.hours;
+    }, 0);
+
+    return {
+      error: false,
+      message: "Se ha calculado correctamente la carga horaria del profesor",
+      data: {
+        totalHours: totalHours.toString(),
+        usedHours: usedHours.toString(),
+        aviableHours: (totalHours - usedHours).toString(),
+      },
+    };
+  };
+
+  return { addSubjectToTeacher, removeSubjectFromTeacher, getTeacherHoursData };
 }
 
