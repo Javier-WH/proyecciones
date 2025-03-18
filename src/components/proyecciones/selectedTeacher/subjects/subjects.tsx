@@ -8,6 +8,7 @@ import { Tag } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { MainContext } from "../../../../context/mainContext";
 import { MainContextValues } from "../../../../interfaces/contextInterfaces";
+import useSetSubject from "../../../../hooks/useSetSubject";
 
 import "./subjects.css";
 
@@ -24,47 +25,22 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
     handleTeacherChange,
   } = useContext(MainContext) as MainContextValues;
 
-  const handleRemoveSubject = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const subjectId = e.currentTarget.id;
-    if (!subjectId || !teachers || selectedTeacerId === null || subjects === null) return;
-
-    const subData = subjectId.split(":");
-
-    const [_subjectId, _pensumId, _seccion, _trayectoName, _turnoName] = subData;
-    const targetKey = `${_subjectId}${_pensumId}${_seccion}${_trayectoName}${_turnoName}`;
-
-    //copio el array para no modificar el original y hago el filtro para eliminar la materia
-    const teachersCopy = JSON.parse(JSON.stringify(teachers));
-    const teacherIndex = teachers[selectedQuarter].findIndex((teacher) => teacher.id === selectedTeacerId);
-
-    teachersCopy["q1"][teacherIndex].load = teachers["q1"][teacherIndex].load?.filter((subject) => {
-      const subjecKey = `${subject.id}${subject.pensum_id}${subject.seccion}${subject.trayectoName}${subject.turnoName}`;
-      return subjecKey !== targetKey;
+  const { removeSubjectFromTeacher } = useSetSubject(subjects || []);
+  const handleRemoveSubject = (subject: Subject) => {
+    const responseRemoveSubject = removeSubjectFromTeacher({
+      subjectId: subject.innerId,
+      teacherId: selectedTeacerId,
     });
 
-    teachersCopy["q2"][teacherIndex].load = teachers["q2"][teacherIndex].load?.filter((subject) => {
-      const subjecKey = `${subject.id}${subject.pensum_id}${subject.seccion}${subject.trayectoName}${subject.turnoName}`;
-      return subjecKey !== targetKey;
-    });
+    if (responseRemoveSubject.error) {
+      console.log(responseRemoveSubject.message);
+      return;
+    }
 
-    teachersCopy["q3"][teacherIndex].load = teachers["q3"][teacherIndex].load?.filter((subject) => {
-      const subjecKey = `${subject.id}${subject.pensum_id}${subject.seccion}${subject.trayectoName}${subject.turnoName}`;
-      return subjecKey !== targetKey;
-    });
-
-    //guardado la materia para reintegrarla a la lista de materias
-    const savedSubject: Subject | undefined = teachers[selectedQuarter][teacherIndex].load?.find(
-      (subject) =>
-        subject.id === _subjectId &&
-        subject.pensum_id === _pensumId &&
-        subject.seccion === _seccion &&
-        subject.trayectoName === _trayectoName &&
-        subject.turnoName === _turnoName
-    );
-
-    //actualizo la lista de materias
-    handleSubjectChange([...subjects, ...(savedSubject ? [savedSubject] : [])]);
-    handleTeacherChange(teachersCopy);
+    if (responseRemoveSubject.data) {
+      //actualizo la lista de materias
+      handleSubjectChange(responseRemoveSubject.data);
+    }
   };
 
   const handleSwapSubjects = (subject: Subject) => {
@@ -120,7 +96,7 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
                     type="link"
                     shape="round"
                     danger
-                    onClick={handleRemoveSubject}>
+                    onClick={() => handleRemoveSubject(subject)}>
                     <FaTrashAlt />
                   </Button>
                 </div>

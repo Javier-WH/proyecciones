@@ -1,38 +1,91 @@
-import { Quarter, Teacher } from "../interfaces/teacher";
+import { useEffect, useState } from "react";
 import { Subject } from "../interfaces/subject";
 
-export interface setSubjectDataType {
-  teacherArray: Quarter | {};
-  subjectArray: Subject[];
+export interface useSubjectDataType {
+  subjectId: string | null;
+  teacherId: string | null;
 }
 
-export default function useSetSubject(info: setSubjectDataType) {
-  const addSubjectToTeacher = ({
-    subject,
-    teacherId,
-  }: {
-    subject: Subject;
-    teacherId: string;
-  }): setSubjectDataType => {
-    const subjectArray = [...info.subjectArray];
-    const teacherArray = { ...info.teacherArray };
+export interface useSubjectResponse {
+  error: boolean;
+  message: string;
+  data: Subject[] | null;
+}
 
-    //se agrega la materia al profesor
-    subject.quarter.forEach((quarter) => {
-      (teacherArray as { [key: string]: Teacher[] })[`q${quarter}`].forEach((teacher: Teacher) => {
-        if (teacher.id === teacherId) {
-          if (subject.quarter.includes(quarter)) {
-            teacher?.load?.push(subject);
-          }
-        }
-      });
-    });
+export default function useSetSubject(SubjectArray: Subject[]) {
+  const [subjectList, setSubjectList] = useState<Subject[]>([]);
 
-    // se elimina la materia de la lista de materias
+  useEffect(() => {
+    const subjectArrayCopy = [...SubjectArray];
+    setSubjectList(subjectArrayCopy);
+  }, [SubjectArray]);
 
-    return { subjectArray, teacherArray };
+  /**
+   * Asigna una materia a un profesor
+   * @param {string|null} subjectId - Id de la materia a asignar
+   * @param {string|null} teacherId - Id del profesor al que se asigna la materia
+   * @returns {useSubjectResponse} - Un objeto que indica si hubo error, un mensaje asociado y la lista de materias actualizada
+   */
+  const addSubjectToTeacher = ({ subjectId, teacherId }: useSubjectDataType): useSubjectResponse => {
+    if (teacherId === null || subjectId === null) {
+      return {
+        error: true,
+        message: "No ha suministrado los datos necesarios",
+        data: null,
+      };
+    }
+
+    const subjectIndex = subjectList.findIndex((subject) => subject.innerId === subjectId);
+    // se obtienen los trimestres donde se da la materia
+    const subjectQuarter = Object.keys(subjectList[subjectIndex].quarter) as Array<
+      keyof (typeof subjectList)[number]["quarter"]
+    >;
+    // a cada trimestre que se de la materia se agrega el profesor
+    for (let quarter of subjectQuarter) {
+      subjectList[subjectIndex].quarter[quarter] = teacherId;
+    }
+
+    return {
+      error: false,
+      message: "Se ha asignado la materia al profesor correctamente",
+      data: subjectList,
+    };
   };
 
-  return { addSubjectToTeacher };
+  /**
+   * Elimina una materia de un profesor
+   * @param {string|null} subjectId - Id de la materia a eliminar
+   * @param {string|null} teacherId - Id del profesor al que se elimina la materia
+   * @returns {useSubjectResponse} - Un objeto que indica si hubo error, un mensaje asociado y la lista de materias actualizada
+   */
+  const removeSubjectFromTeacher = ({ subjectId, teacherId }: useSubjectDataType): useSubjectResponse => {
+    if (teacherId === null || subjectId === null) {
+      return {
+        error: true,
+        message: "No ha suministrado los datos necesarios",
+        data: null,
+      };
+    }
+
+    const subjectIndex = subjectList.findIndex((subject) => subject.innerId === subjectId);
+    // se obtienen los trimestres donde se da la materia
+    const subjectQuarter = Object.keys(subjectList[subjectIndex].quarter) as Array<
+      keyof (typeof subjectList)[number]["quarter"]
+    >;
+    // a cada trimestre que se de la materia se  elimina el profesor si es que da la materia
+    for (let quarter of subjectQuarter) {
+      if (subjectList[subjectIndex].quarter[quarter] === teacherId) {
+        subjectList[subjectIndex].quarter[quarter] = null;
+      }
+    }
+
+    return {
+      error: false,
+      message: "Se ha removido la materia al profesor correctamente",
+      data: subjectList,
+    };
+  };
+
+  return { addSubjectToTeacher, removeSubjectFromTeacher };
 }
 

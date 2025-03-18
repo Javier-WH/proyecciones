@@ -6,7 +6,7 @@ export interface Subject {
   pnf: string;
   pnfId: string;
   seccion: string;
-  quarter: Array<number> | InlineQuarter;
+  quarter: InlineQuarter;
   pensum_id: string;
   trayectoId: string;
   trayectoName: string;

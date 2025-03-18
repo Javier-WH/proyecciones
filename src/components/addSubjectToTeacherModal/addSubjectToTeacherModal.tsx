@@ -36,10 +36,7 @@ const AddSubjectToTeacherModal: React.FC<{
   const [erroMessage, setErrorMessage] = useState<string | null>(null);
   const [overLoad, setOverLoad] = useState(false);
   const [teacherIndex, setTeacherIndex] = useState(0);
-  const { addSubjectToTeacher } = useSetSubject({
-    subjectArray: subjects ?? [],
-    teacherArray: teachers ?? {},
-  });
+  const { addSubjectToTeacher } = useSetSubject(subjects || []);
 
   useEffect(() => {
     if (!subjects || !teachers || !selectedTeacerId) return;
@@ -84,12 +81,12 @@ const AddSubjectToTeacherModal: React.FC<{
     }
 
     //filtrado por trimestre
-    subjectsData = subjectsData.filter((subject) => {
+    /*subjectsData = subjectsData.filter((subject) => {
       const index = subjects.findIndex((s) => s.id === subject.subjectId);
       const subjectQuarter = subjects[index]?.quarter;
       const quarter = selectedQuarter === "q1" ? 1 : selectedQuarter === "q2" ? 2 : 3;
       return subjectQuarter && subjectQuarter.includes(quarter);
-    });
+    });*/
 
     // console.log(subjectsData);
     setOptions(subjectsData);
@@ -117,32 +114,19 @@ const AddSubjectToTeacherModal: React.FC<{
     )
       return;
 
-    //obtengo el index de la asignatura
+    const addSubjectResponse = addSubjectToTeacher({
+      subjectId: selectedOption,
+      teacherId: selectedTeacerId,
+    });
 
-    const index = subjects.findIndex((subject) => subject.innerId === selectedOption);
-    if (index === -1) {
-      message.error("No se pudo agregar la asignatura al profesor");
+    if (addSubjectResponse.error) {
+      console.log(addSubjectResponse.message);
+      return;
     }
 
-    //agrego la asignatura al load del profesor
-    const teachersCopy = JSON.parse(JSON.stringify(teachers));
-    const subjectsCopy = [...subjects];
-
-    if (subjects[index].quarter.includes(1)) {
-      subjectsCopy[index].asignations.q1 = selectedTeacerId;
-      teachersCopy["q1"][teacherIndex]?.load?.push(subjects[index]);
+    if (addSubjectResponse.data) {
+      handleSubjectChange(addSubjectResponse.data);
     }
-    if (subjects[index].quarter.includes(2)) {
-      teachersCopy["q2"][teacherIndex]?.load?.push(subjects[index]);
-    }
-    if (subjects[index].quarter.includes(3)) {
-      teachersCopy["q3"][teacherIndex]?.load?.push(subjects[index]);
-    }
-    // console.log(teachersCopy.q1[teacherIndex])
-    handleTeacherChange(teachersCopy);
-
-    //elimino la asignatura de la lista de asignaturas
-    handleSubjectChange(subjects.filter((_, i) => i !== index));
 
     //limpio el select
     setSelectedOption(null);
