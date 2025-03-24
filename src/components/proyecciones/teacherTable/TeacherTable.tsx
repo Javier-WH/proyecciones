@@ -123,6 +123,14 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       title: "Horas Asignadas",
       dataIndex: "partTime",
       render: (_value, record) => {
+        if (!record.contractTypeId) {
+          return (
+            <Tag color="red" style={tagStyle} icon={<ExclamationCircleOutlined />}>
+              Sin contrato
+            </Tag>
+          );
+        }
+
         const teacherHourData = getTeacherHoursData(record, selectedQuarter);
         if (teacherHourData.error || !teacherHourData.data) {
           return <Tag color="error">Error</Tag>;

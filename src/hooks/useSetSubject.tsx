@@ -111,7 +111,7 @@ export default function useSetSubject(SubjectArray: Subject[]) {
       };
     }
 
-    const totalHours = teacher.partTime;
+    const totalHours = teacher.partTime ?? 0;
     const asignedSubjects = subjectList.filter((subject) => subject.quarter[quarter] === teacher.id);
     const usedHours = asignedSubjects.reduce((acc, subject) => {
       return Number(acc) + Number(subject.hours);
@@ -123,9 +123,9 @@ export default function useSetSubject(SubjectArray: Subject[]) {
       error: false,
       message: "Se ha calculado correctamente la carga horaria del profesor",
       data: {
-        totalHours: totalHours.toString(),
-        usedHours: usedHours.toString(),
-        aviableHours: aviableHours.toString(),
+        totalHours: totalHours?.toString(),
+        usedHours: usedHours?.toString(),
+        aviableHours: aviableHours?.toString(),
         overloaded: overloaded,
       },
     };

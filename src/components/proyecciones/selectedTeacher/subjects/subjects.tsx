@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import { Subject } from "../../../../interfaces/subject";
-import { Button } from "antd";
+import { Button, message } from "antd";
 import { FaTrashAlt } from "react-icons/fa";
 import { MdAssignmentAdd } from "react-icons/md";
 import { IoMdSwap } from "react-icons/io";
@@ -45,16 +45,11 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
 
   const handleSwapSubjects = (subject: Subject) => {
     if (!data) return;
-    const selected = data.filter((selected) => {
-      if (
-        selected.pensum_id === subject.pensum_id &&
-        selected.seccion === subject.seccion &&
-        selected.trayectoName === subject.trayectoName &&
-        selected.turnoName === subject.turnoName
-      )
-        return selected;
-    });
-
+    const selected = data.filter((selected) => selected.innerId === subject.innerId);
+    if (selected.length === 0) {
+      message.error("No se encontro la materia seleccionada");
+      return;
+    }
     setSelectedSubject(selected[0]);
     setOpenChangeSubjectFromTeacherModal(true);
   };
