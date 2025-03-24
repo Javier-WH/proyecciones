@@ -17,6 +17,7 @@ interface TeacherHourData {
   totalHours: string;
   aviableHours: string;
   usedHours: string;
+  overloaded: boolean;
 }
 export interface useSubjectResponseTeacherHours {
   error: boolean;
@@ -102,10 +103,10 @@ export default function useSetSubject(SubjectArray: Subject[]) {
     teacher: Teacher,
     quarter: "q1" | "q2" | "q3"
   ): useSubjectResponseTeacherHours => {
-    if (!teacher || quarter) {
+    if (!teacher || !quarter) {
       return {
         error: true,
-        message: "No ha suministrado un profesor",
+        message: "No ha suministrado un profesor o un trimestre",
         data: null,
       };
     }
@@ -113,8 +114,10 @@ export default function useSetSubject(SubjectArray: Subject[]) {
     const totalHours = teacher.partTime;
     const asignedSubjects = subjectList.filter((subject) => subject.quarter[quarter] === teacher.id);
     const usedHours = asignedSubjects.reduce((acc, subject) => {
-      return acc + subject.hours;
+      return Number(acc) + Number(subject.hours);
     }, 0);
+    const aviableHours = totalHours - usedHours < 0 ? 0 : totalHours - usedHours;
+    const overloaded = usedHours > totalHours;
 
     return {
       error: false,
@@ -122,7 +125,8 @@ export default function useSetSubject(SubjectArray: Subject[]) {
       data: {
         totalHours: totalHours.toString(),
         usedHours: usedHours.toString(),
-        aviableHours: (totalHours - usedHours).toString(),
+        aviableHours: aviableHours.toString(),
+        overloaded: overloaded,
       },
     };
   };

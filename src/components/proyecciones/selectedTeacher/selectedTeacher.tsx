@@ -7,6 +7,7 @@ import { Tag } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { Subject } from "../../../interfaces/subject";
+import useSetSubject from "../../../hooks/useSetSubject";
 import "./selectedTeacher.css";
 
 export default function SelectedTeacher() {
@@ -15,6 +16,28 @@ export default function SelectedTeacher() {
   const [teacherData, setTeacherData] = useState(getTeachersHoursData(0));
   const [teacherPhoto, setTeacherPhoto] = useState(malePlaceHolder);
   const [subjecData, setSubjectData] = useState<Subject[]>([]);
+  const { getTeacherHoursData } = useSetSubject(subjects || []);
+  const [totalHours, setTotalHours] = useState("0");
+  const [aviableHours, setAviableHours] = useState("0");
+  const [usedHours, setUsedHours] = useState("0");
+  const [overloaded, setOverloaded] = useState(false);
+
+  useEffect(() => {
+    if (!selectedTeacher || !selectedQuarter) return;
+    const teacherHourData = getTeacherHoursData(selectedTeacher, selectedQuarter);
+    if (teacherHourData.error) {
+      console.log(teacherHourData.message);
+      return;
+    }
+
+    if (teacherHourData.data) {
+      const { totalHours, usedHours, aviableHours, overloaded } = teacherHourData.data;
+      setTotalHours(totalHours);
+      setUsedHours(usedHours);
+      setAviableHours(aviableHours);
+      setOverloaded(overloaded);
+    }
+  }, [selectedTeacerId, selectedQuarter, subjects]);
 
   useEffect(() => {
     const teacherSubjects = subjects?.filter(
@@ -48,12 +71,9 @@ export default function SelectedTeacher() {
 
   const hoursDataStyle = () => {
     let color = "black";
-
-    if (!teacherData || !teacherData.asignedHpours || !teacherData.partTime) return { color };
-
-    if (teacherData.asignedHpours > teacherData.partTime) {
+    if (overloaded) {
       color = "red";
-    } else if (teacherData && teacherData.asignedHpours == 0) {
+    } else if (usedHours === "0") {
       color = "grey";
     }
 
@@ -70,29 +90,18 @@ export default function SelectedTeacher() {
         </div>
         <span>{`Titulo: ${selectedTeacher?.title}`}</span>
         <span>{`Tipo de contrato: ${selectedTeacher?.type ? selectedTeacher?.type : "Sin contrato"}`}</span>
-        <span>{`Carga Horaria: ${
-          teacherData && teacherData.partTime ? teacherData.partTime : "no disponible"
-        }`}</span>
-        <span style={hoursDataStyle()}>{`Horas asignadas: ${teacherData && teacherData.asignedHpours}`}</span>
-        <span style={hoursDataStyle()}>{`Horas disponibles: ${
-          teacherData && teacherData.aviableHours
-        }`}</span>
+        <span>{`Carga Horaria: ${totalHours}`}</span>
+        <span style={hoursDataStyle()}>{`Horas asignadas: ${usedHours}`}</span>
+        <span style={hoursDataStyle()}>{`Horas disponibles: ${aviableHours}`}</span>
       </div>
 
       <div
         style={{ width: "100%", height: "30px", marginLeft: "30px", display: "flex", alignItems: "center" }}>
-        {teacherData.asignedHpours &&
-        teacherData.partTime &&
-        teacherData.asignedHpours > teacherData.partTime ? (
-          <Tag color="error" icon={<ExclamationCircleOutlined />}>{`Sobrecarga de Horas`}</Tag>
-        ) : null}
-        {teachers?.[selectedQuarter]?.[
-          teachers[selectedQuarter]?.findIndex((teacher) => teacher.id === selectedTeacerId)
-        ]?.type &&
-        teacherData &&
-        teacherData.asignedHpours === 0 ? (
+        {overloaded && <Tag color="error" icon={<ExclamationCircleOutlined />}>{`Sobrecarga de Horas`}</Tag>}
+
+        {usedHours === "0" && (
           <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`Sin Horas Asignadas`}</Tag>
-        ) : null}
+        )}
 
         {!teachers?.[selectedQuarter]?.[
           teachers[selectedQuarter]?.findIndex((teacher) => teacher.id === selectedTeacerId)

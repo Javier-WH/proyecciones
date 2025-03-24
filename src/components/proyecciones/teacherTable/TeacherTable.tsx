@@ -5,12 +5,14 @@ import { MainContext } from "../../../context/mainContext";
 import { CloseCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { Teacher } from "../../../interfaces/teacher";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
+import useSetSubject from "../../../hooks/useSetSubject";
 
 interface TeacherTableProps {
   searchByUserPerfil: boolean;
 }
 const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
   const context = useContext(MainContext) as MainContextValues;
+  const { getTeacherHoursData } = useSetSubject(context.subjects || []);
   const { teachers, setSelectedTeacherById, selectedQuarter, userPerfil } = context;
   const [data, setData] = useState<Teacher[] | null>([]);
   const [searchText, setSearchText] = useState("");
@@ -23,7 +25,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
   // filtro de busqueda
   useEffect(() => {
     if (!teachers) return;
-    let filteredTeachers = []
+    let filteredTeachers = [];
 
     function canTeach(array1: string[], array2: string[]) {
       for (let i = 0; i < array1.length; i++) {
@@ -43,10 +45,9 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
         }
         return false;
       });
-    }else{
-      filteredTeachers = teachers[selectedQuarter]
+    } else {
+      filteredTeachers = teachers[selectedQuarter];
     }
-
 
     if (searchText.length > 0 && filteredTeachers?.length > 0) {
       filteredTeachers = filteredTeachers?.filter((teacher) => {
@@ -62,9 +63,6 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
 
     setData(filteredTeachers);
   }, [searchText, selectedQuarter, teachers, searchByUserPerfil, userPerfil]);
-
- 
-
 
   const tagStyle: React.CSSProperties = {
     width: "100%",
@@ -124,30 +122,21 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
     {
       title: "Horas Asignadas",
       dataIndex: "partTime",
-      render: (value, record) => {
-        //no se puede usar el metodo desde el context, porque no funcionan los filtros
-        const subjects = record.load ?? [];
-        const totalHours: number = subjects.reduce((acc, subject) => Number(acc) + Number(subject.hours), 0);
-        let color = "black";
-
-        if (totalHours > Number(value)) {
-          color = "red";
-        } else if (totalHours == 0) {
-          color = "grey";
+      render: (_value, record) => {
+        const teacherHourData = getTeacherHoursData(record, selectedQuarter);
+        if (teacherHourData.error || !teacherHourData.data) {
+          return <Tag color="error">Error</Tag>;
         }
+        const { totalHours, usedHours, overloaded } = teacherHourData.data;
 
-        if (!value)
-          return (
-            <Tag color="warning" icon={<ExclamationCircleOutlined />} style={tagStyle}>{`Sin contrato`}</Tag>
-          );
-
+        let color = overloaded ? "red" : usedHours === "0" ? "gray" : "black";
         return (
           <div
             style={{
               textAlign: "center",
               color,
             }}>
-            {`${totalHours} / ${value}`}
+            {`${usedHours} / ${totalHours}`}
           </div>
         );
       },
