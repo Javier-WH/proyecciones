@@ -120,7 +120,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       },
     },
     {
-      title: "Horas Asignadas",
+      title: "Horas asignadas",
       dataIndex: "partTime",
       render: (_value, record) => {
         if (!record.contractTypeId) {
@@ -131,20 +131,35 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
           );
         }
 
-        const teacherHourData = getTeacherHoursData(record, selectedQuarter);
-        if (teacherHourData.error || !teacherHourData.data) {
+        const teacherHourDataQ1 = getTeacherHoursData(record, "q1");
+        const teacherHourDataQ2 = getTeacherHoursData(record, "q2");
+        const teacherHourDataQ3 = getTeacherHoursData(record, "q3");
+        if (
+          teacherHourDataQ1.error ||
+          !teacherHourDataQ1.data ||
+          teacherHourDataQ2.error ||
+          !teacherHourDataQ2.data ||
+          teacherHourDataQ3.error ||
+          !teacherHourDataQ3.data
+        ) {
           return <Tag color="error">Error</Tag>;
         }
-        const { totalHours, usedHours, overloaded } = teacherHourData.data;
+        const { usedHours: usedHoursQ1, overloaded: overloadedQ1 } = teacherHourDataQ1.data;
+        const { usedHours: usedHoursQ2, overloaded: overloadedQ2 } = teacherHourDataQ2.data;
+        const { usedHours: usedHoursQ3, overloaded: overloadedQ3 } = teacherHourDataQ3.data;
 
-        let color = overloaded ? "red" : usedHours === "0" ? "gray" : "black";
+        let colorQ1 = overloadedQ1 ? "red" : usedHoursQ1 === "0" ? "gray" : "black";
+        let colorQ2 = overloadedQ2 ? "red" : usedHoursQ2 === "0" ? "gray" : "black";
+        let colorQ3 = overloadedQ3 ? "red" : usedHoursQ3 === "0" ? "gray" : "black";
         return (
           <div
             style={{
               textAlign: "center",
-              color,
+              color: "darkgray",
             }}>
-            {`${usedHours} / ${totalHours}`}
+            <span style={{ color: colorQ1 }}>{usedHoursQ1}</span>/
+            <span style={{ color: colorQ2 }}>{usedHoursQ2}</span>/
+            <span style={{ color: colorQ3 }}>{usedHoursQ3}</span>
           </div>
         );
       },

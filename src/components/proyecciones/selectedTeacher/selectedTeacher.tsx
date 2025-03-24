@@ -3,7 +3,7 @@ import { MainContext } from "../../../context/mainContext";
 import femalePlaceHolder from "../../../assets/femalePlaceHolder.svg";
 import malePlaceHolder from "../../../assets/malePlaceHolder.svg";
 import Subjects from "./subjects/subjects";
-import { Tag } from "antd";
+import { Tag, Radio } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { Subject } from "../../../interfaces/subject";
@@ -11,9 +11,16 @@ import useSetSubject from "../../../hooks/useSetSubject";
 import "./selectedTeacher.css";
 
 export default function SelectedTeacher() {
-  const { selectedTeacher, getTeachersHoursData, selectedTeacerId, teachers, selectedQuarter, subjects } =
-    useContext(MainContext) as MainContextValues;
-  const [teacherData, setTeacherData] = useState(getTeachersHoursData(0));
+  const {
+    selectedTeacher,
+    getTeachersHoursData,
+    selectedTeacerId,
+    teachers,
+    selectedQuarter,
+    subjects,
+    setSelectedQuarter,
+  } = useContext(MainContext) as MainContextValues;
+  const [_teacherData, setTeacherData] = useState(getTeachersHoursData(0));
   const [teacherPhoto, setTeacherPhoto] = useState(malePlaceHolder);
   const [subjecData, setSubjectData] = useState<Subject[]>([]);
   const { getTeacherHoursData } = useSetSubject(subjects || []);
@@ -22,6 +29,7 @@ export default function SelectedTeacher() {
   const [usedHours, setUsedHours] = useState("0");
   const [overloaded, setOverloaded] = useState(false);
   const [haveConract, setHaveContract] = useState(false);
+  const [showAllSubjects, setShowAllSubjects] = useState(true);
 
   useEffect(() => {
     if (!selectedTeacher) return;
@@ -52,11 +60,23 @@ export default function SelectedTeacher() {
   }, [selectedTeacerId, selectedQuarter, subjects]);
 
   useEffect(() => {
+    if (showAllSubjects) {
+      const teacherSubjectsQ1 = subjects?.filter((subject) => subject.quarter["q1"] === selectedTeacerId);
+      const teacherSubjectsQ2 = subjects?.filter((subject) => subject.quarter["q1"] === selectedTeacerId);
+      const teacherSubjectsQ3 = subjects?.filter((subject) => subject.quarter["q1"] === selectedTeacerId);
+      setSubjectData([
+        ...(teacherSubjectsQ1 || []),
+        ...(teacherSubjectsQ2 || []),
+        ...(teacherSubjectsQ3 || []),
+      ]);
+
+      return;
+    }
     const teacherSubjects = subjects?.filter(
       (subject) => subject.quarter[selectedQuarter] === selectedTeacerId
     );
     setSubjectData(teacherSubjects || []);
-  }, [subjects, selectedQuarter, selectedTeacerId]);
+  }, [subjects, selectedQuarter, selectedTeacerId, showAllSubjects]);
 
   useEffect(() => {
     if (!teachers || !selectedTeacerId) return;
@@ -92,6 +112,17 @@ export default function SelectedTeacher() {
     return { color };
   };
 
+  const onChangeQuarter = (e: any) => {
+    const value = e.target.value;
+    if (value === "0") {
+      setShowAllSubjects(true);
+      return;
+    }
+    setShowAllSubjects(false);
+    if (value === "1" || value === "2" || value === "3") {
+      setSelectedQuarter(`q${value}` as "q1" | "q2" | "q3");
+    }
+  };
   return (
     <div className="selected-teacher-container" style={{ gridArea: "selected" }}>
       <img src={teacherPhoto} alt="" />
@@ -130,7 +161,21 @@ export default function SelectedTeacher() {
 
       {
         // solo se muestra la lista de materias y el boton de agregar materia si el profesor tiene un contrato
-        haveConract && <Subjects data={subjecData} />
+        haveConract && (
+          <>
+            <Radio.Group
+              onChange={onChangeQuarter}
+              style={{ gridColumnStart: 1, gridColumn: "span 2" }}
+              defaultValue="0"
+              size="small">
+              <Radio.Button value="0">Todas</Radio.Button>
+              <Radio.Button value="1">Trimestre 1</Radio.Button>
+              <Radio.Button value="2">Trimestre 2</Radio.Button>
+              <Radio.Button value="3">Trimestre 3</Radio.Button>
+            </Radio.Group>
+            <Subjects data={subjecData} />
+          </>
+        )
       }
     </div>
   );
