@@ -13,7 +13,7 @@ export interface useSubjectResponse {
   data: Subject[] | null;
 }
 
-interface TeacherHourData {
+export interface TeacherHourData {
   totalHours: string;
   aviableHours: string;
   usedHours: string;
@@ -22,7 +22,7 @@ interface TeacherHourData {
 export interface useSubjectResponseTeacherHours {
   error: boolean;
   message: string;
-  data: TeacherHourData | null;
+  data: { q1: TeacherHourData | null; q2: TeacherHourData | null; q3: TeacherHourData | null } | null;
 }
 
 export default function useSetSubject(SubjectArray: Subject[]) {
@@ -99,34 +99,49 @@ export default function useSetSubject(SubjectArray: Subject[]) {
     };
   };
 
-  const getTeacherHoursData = (
-    teacher: Teacher,
-    quarter: "q1" | "q2" | "q3"
-  ): useSubjectResponseTeacherHours => {
-    if (!teacher || !quarter) {
+  /**
+   * Calculates the hourly load data for a given teacher across specified quarters.
+   *
+   * @param {Teacher} teacher - The teacher for whom the hourly data is being calculated.
+   * @returns {useSubjectResponseTeacherHours} - An object containing error status, message,
+   * and the calculated hourly data for quarters q1, q2, and q3. If the teacher is not provided,
+   * it returns an error with a message indicating the missing teacher data.
+   */
+
+  const getTeacherHoursData = (teacher: Teacher): useSubjectResponseTeacherHours => {
+    if (!teacher) {
       return {
         error: true,
-        message: "No ha suministrado un profesor o un trimestre",
+        message: "No ha suministrado un profesor",
         data: null,
       };
     }
 
     const totalHours = teacher.partTime ?? 0;
-    const asignedSubjects = subjectList.filter((subject) => subject.quarter[quarter] === teacher.id);
-    const usedHours = asignedSubjects.reduce((acc, subject) => {
-      return Number(acc) + Number(subject.hours);
-    }, 0);
-    const aviableHours = totalHours - usedHours < 0 ? 0 : totalHours - usedHours;
-    const overloaded = usedHours > totalHours;
+
+    const getHourData = (quarter: "q1" | "q2" | "q3"): TeacherHourData => {
+      const asignedSubjects = subjectList.filter((subject) => subject.quarter[quarter] === teacher.id);
+      const usedHours = asignedSubjects.reduce((acc, subject) => {
+        return Number(acc) + Number(subject.hours);
+      }, 0);
+      const aviableHours = totalHours - usedHours < 0 ? 0 : totalHours - usedHours;
+      const overloaded = usedHours > totalHours;
+
+      return {
+        totalHours: totalHours.toString(),
+        aviableHours: aviableHours.toString(),
+        usedHours: usedHours.toString(),
+        overloaded,
+      };
+    };
 
     return {
       error: false,
       message: "Se ha calculado correctamente la carga horaria del profesor",
       data: {
-        totalHours: totalHours?.toString(),
-        usedHours: usedHours?.toString(),
-        aviableHours: aviableHours?.toString(),
-        overloaded: overloaded,
+        q1: getHourData("q1"),
+        q2: getHourData("q2"),
+        q3: getHourData("q3"),
       },
     };
   };

@@ -136,7 +136,7 @@ export default function ProyeccionesContainer() {
 
         <span>{proyectionName}</span>
 
-        <Select
+        {/*<Select
           defaultValue="Primer Trimestre"
           value={selectedQuarter}
           style={{ width: 180 }}
@@ -146,7 +146,7 @@ export default function ProyeccionesContainer() {
             { value: "q3", label: "Tercer Trimestre" },
           ]}
           onChange={handleChangeQuarterSelector}
-        />
+        />*/}
         <div style={{ display: "flex", gap: "5px" }}>
           {/*<Excel /> */}
           {/*<ReportProyection />*/}

@@ -25,9 +25,16 @@ export default function SelectedTeacher() {
   const [subjecData, setSubjectData] = useState<Subject[]>([]);
   const { getTeacherHoursData } = useSetSubject(subjects || []);
   const [totalHours, setTotalHours] = useState("0");
-  const [aviableHours, setAviableHours] = useState("0");
-  const [usedHours, setUsedHours] = useState("0");
-  const [overloaded, setOverloaded] = useState(false);
+  const [aviableHoursQ1, setAviableHoursQ1] = useState("0");
+  const [usedHoursQ1, setUsedHoursQ1] = useState("0");
+  const [overloadedQ1, setOverloadedQ1] = useState(false);
+  const [aviableHoursQ2, setAviableHoursQ2] = useState("0");
+  const [usedHoursQ2, setUsedHoursQ2] = useState("0");
+  const [overloadedQ2, setOverloadedQ2] = useState(false);
+  const [aviableHoursQ3, setAviableHoursQ3] = useState("0");
+  const [usedHoursQ3, setUsedHoursQ3] = useState("0");
+  const [overloadedQ3, setOverloadedQ3] = useState(false);
+
   const [haveConract, setHaveContract] = useState(false);
   const [showAllSubjects, setShowAllSubjects] = useState(true);
 
@@ -44,26 +51,32 @@ export default function SelectedTeacher() {
 
   useEffect(() => {
     if (!selectedTeacher || !selectedQuarter) return;
-    const teacherHourData = getTeacherHoursData(selectedTeacher, selectedQuarter);
+    const teacherHourData = getTeacherHoursData(selectedTeacher);
     if (teacherHourData.error) {
       console.log(teacherHourData.message);
       return;
     }
 
     if (teacherHourData.data) {
-      const { totalHours, usedHours, aviableHours, overloaded } = teacherHourData.data;
-      setTotalHours(totalHours);
-      setUsedHours(usedHours);
-      setAviableHours(aviableHours);
-      setOverloaded(overloaded);
+      const { q1, q2, q3 } = teacherHourData.data;
+      setTotalHours(q1?.totalHours || "0");
+      setUsedHoursQ1(q1?.usedHours || "0");
+      setAviableHoursQ1(q1?.aviableHours || "0");
+      setOverloadedQ1(q1?.overloaded || false);
+      setUsedHoursQ2(q2?.usedHours || "0");
+      setAviableHoursQ2(q2?.aviableHours || "0");
+      setOverloadedQ2(q2?.overloaded || false);
+      setUsedHoursQ3(q3?.usedHours || "0");
+      setAviableHoursQ3(q3?.aviableHours || "0");
+      setOverloadedQ3(q3?.overloaded || false);
     }
   }, [selectedTeacerId, selectedQuarter, subjects]);
 
   useEffect(() => {
     if (showAllSubjects) {
       const teacherSubjectsQ1 = subjects?.filter((subject) => subject.quarter["q1"] === selectedTeacerId);
-      const teacherSubjectsQ2 = subjects?.filter((subject) => subject.quarter["q1"] === selectedTeacerId);
-      const teacherSubjectsQ3 = subjects?.filter((subject) => subject.quarter["q1"] === selectedTeacerId);
+      const teacherSubjectsQ2 = subjects?.filter((subject) => subject.quarter["q2"] === selectedTeacerId);
+      const teacherSubjectsQ3 = subjects?.filter((subject) => subject.quarter["q3"] === selectedTeacerId);
       setSubjectData([
         ...(teacherSubjectsQ1 || []),
         ...(teacherSubjectsQ2 || []),
@@ -101,17 +114,6 @@ export default function SelectedTeacher() {
     );
   }
 
-  const hoursDataStyle = () => {
-    let color = "black";
-    if (overloaded) {
-      color = "red";
-    } else if (usedHours === "0") {
-      color = "grey";
-    }
-
-    return { color };
-  };
-
   const onChangeQuarter = (e: any) => {
     const value = e.target.value;
     if (value === "0") {
@@ -122,6 +124,24 @@ export default function SelectedTeacher() {
     if (value === "1" || value === "2" || value === "3") {
       setSelectedQuarter(`q${value}` as "q1" | "q2" | "q3");
     }
+  };
+
+  const hourStyle = (quarter: "q1" | "q2" | "q3") => {
+    let color = "black";
+
+    if (quarter === "q1") {
+      overloadedQ1 ? (color = "red") : usedHoursQ1 === "0" ? (color = "gray") : "black";
+    }
+    if (quarter === "q2") {
+      overloadedQ2 ? (color = "red") : usedHoursQ2 === "0" ? (color = "gray") : "black";
+    }
+    if (quarter === "q3") {
+      overloadedQ3 ? (color = "red") : usedHoursQ3 === "0" ? (color = "gray") : "black";
+    }
+
+    return {
+      color,
+    };
   };
   return (
     <div className="selected-teacher-container" style={{ gridArea: "selected" }}>
@@ -136,20 +156,36 @@ export default function SelectedTeacher() {
         {haveConract && (
           <>
             <span>{`Tipo de contrato: ${selectedTeacher?.type}`}</span>
-            <span style={hoursDataStyle()}>{`Carga Horaria: ${totalHours}`}</span>
-            <span style={hoursDataStyle()}>{`Horas asignadas: ${usedHours}`}</span>
-            <span style={hoursDataStyle()}>{`Horas disponibles: ${aviableHours}`}</span>
+            <span>{`Carga Horaria: ${totalHours}`}</span>
+            <span>
+              <span>{`Horas asignadas: `}</span>
+              <span style={hourStyle("q1")}>{usedHoursQ1}</span>/
+              <span style={hourStyle("q2")}>{usedHoursQ2}</span>/
+              <span style={hourStyle("q3")}>{usedHoursQ3}</span>
+            </span>
+            <span>
+              <span>{`Horas disponibles: `}</span>
+              <span>{aviableHoursQ1}/</span>
+              <span>{aviableHoursQ2}/</span>
+              <span>{aviableHoursQ3}</span>
+            </span>
           </>
         )}
       </div>
 
       <div
         style={{ width: "100%", height: "30px", marginLeft: "30px", display: "flex", alignItems: "center" }}>
-        {overloaded && <Tag color="error" icon={<ExclamationCircleOutlined />}>{`Sobrecarga de Horas`}</Tag>}
-
-        {usedHours === "0" && haveConract && (
-          <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`Sin Horas Asignadas`}</Tag>
+        {(overloadedQ1 || overloadedQ2 || overloadedQ3) && (
+          <Tag color="error" icon={<ExclamationCircleOutlined />}>{`Sobrecarga de Horas`}</Tag>
         )}
+
+        {((usedHoursQ1 === "0" && selectedQuarter === "q1") ||
+          (usedHoursQ2 === "0" && selectedQuarter === "q2") ||
+          (usedHoursQ3 === "0" && selectedQuarter === "q3") ||
+          (usedHoursQ1 === "0" && usedHoursQ2 === "0" && usedHoursQ3 === "0")) &&
+          haveConract && (
+            <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`Sin Horas Asignadas`}</Tag>
+          )}
 
         {!haveConract && (
           <Tag
@@ -163,16 +199,21 @@ export default function SelectedTeacher() {
         // solo se muestra la lista de materias y el boton de agregar materia si el profesor tiene un contrato
         haveConract && (
           <>
-            <Radio.Group
-              onChange={onChangeQuarter}
-              style={{ gridColumnStart: 1, gridColumn: "span 2" }}
-              defaultValue="0"
-              size="small">
-              <Radio.Button value="0">Todas</Radio.Button>
-              <Radio.Button value="1">Trimestre 1</Radio.Button>
-              <Radio.Button value="2">Trimestre 2</Radio.Button>
-              <Radio.Button value="3">Trimestre 3</Radio.Button>
-            </Radio.Group>
+            <div
+              style={{
+                gridColumnStart: 1,
+                gridColumn: "span 2",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}>
+              <Radio.Group onChange={onChangeQuarter} defaultValue="0" size="small">
+                <Radio.Button value="0">Todas</Radio.Button>
+                <Radio.Button value="1">Trimestre 1</Radio.Button>
+                <Radio.Button value="2">Trimestre 2</Radio.Button>
+                <Radio.Button value="3">Trimestre 3</Radio.Button>
+              </Radio.Group>
+            </div>
             <Subjects data={subjecData} />
           </>
         )

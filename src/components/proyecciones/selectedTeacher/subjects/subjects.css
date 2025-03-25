@@ -1,6 +1,7 @@
 .teacher-subjects-container {
   position: relative;
   grid-column-end: span 2;
+  margin-right: 5px;
 }
 
 .teacher-subjects-header {

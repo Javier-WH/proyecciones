@@ -5,7 +5,7 @@ import { MainContext } from "../../../context/mainContext";
 import { CloseCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { Teacher } from "../../../interfaces/teacher";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
-import useSetSubject from "../../../hooks/useSetSubject";
+import useSetSubject, { useSubjectResponseTeacherHours } from "../../../hooks/useSetSubject";
 
 interface TeacherTableProps {
   searchByUserPerfil: boolean;
@@ -131,35 +131,31 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
           );
         }
 
-        const teacherHourDataQ1 = getTeacherHoursData(record, "q1");
-        const teacherHourDataQ2 = getTeacherHoursData(record, "q2");
-        const teacherHourDataQ3 = getTeacherHoursData(record, "q3");
-        if (
-          teacherHourDataQ1.error ||
-          !teacherHourDataQ1.data ||
-          teacherHourDataQ2.error ||
-          !teacherHourDataQ2.data ||
-          teacherHourDataQ3.error ||
-          !teacherHourDataQ3.data
-        ) {
+        const teacherHourData: useSubjectResponseTeacherHours = getTeacherHoursData(record);
+
+        if (teacherHourData.error) {
           return <Tag color="error">Error</Tag>;
         }
-        const { usedHours: usedHoursQ1, overloaded: overloadedQ1 } = teacherHourDataQ1.data;
-        const { usedHours: usedHoursQ2, overloaded: overloadedQ2 } = teacherHourDataQ2.data;
-        const { usedHours: usedHoursQ3, overloaded: overloadedQ3 } = teacherHourDataQ3.data;
 
-        let colorQ1 = overloadedQ1 ? "red" : usedHoursQ1 === "0" ? "gray" : "black";
-        let colorQ2 = overloadedQ2 ? "red" : usedHoursQ2 === "0" ? "gray" : "black";
-        let colorQ3 = overloadedQ3 ? "red" : usedHoursQ3 === "0" ? "gray" : "black";
+        if (!teacherHourData.data) {
+          return <Tag color="error">Error</Tag>;
+        }
+
+        const { q1, q2, q3 } = teacherHourData.data;
+
+        let colorQ1 = q1?.overloaded ? "red" : q1?.usedHours === "0" ? "gray" : "black";
+        let colorQ2 = q2?.overloaded ? "red" : q2?.usedHours === "0" ? "gray" : "black";
+        let colorQ3 = q3?.overloaded ? "red" : q3?.usedHours === "0" ? "gray" : "black";
+
         return (
           <div
             style={{
               textAlign: "center",
               color: "darkgray",
             }}>
-            <span style={{ color: colorQ1 }}>{usedHoursQ1}</span>/
-            <span style={{ color: colorQ2 }}>{usedHoursQ2}</span>/
-            <span style={{ color: colorQ3 }}>{usedHoursQ3}</span>
+            <span style={{ color: colorQ1 }}>{q1?.usedHours}</span>/
+            <span style={{ color: colorQ2 }}>{q2?.usedHours}</span>/
+            <span style={{ color: colorQ3 }}>{q3?.usedHours}</span>
           </div>
         );
       },
@@ -180,7 +176,15 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
   };
 
   return (
-    <div style={{ width: "calc(100% - 40px)", height: "100%", cursor: "pointer", gridArea: "table" }}>
+    <div
+      style={{
+        width: "calc(100% - 40px)",
+        height: "100%",
+        cursor: "pointer",
+        gridArea: "table",
+        marginTop: "-40px",
+        marginLeft: "5px",
+      }}>
       <Input
         style={{ width: "100%" }}
         placeholder="Buscar profesor"
