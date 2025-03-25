@@ -5,6 +5,8 @@ import { Quarter } from "../../interfaces/teacher";
 import { Subject } from "../../interfaces/subject";
 import { CloseCircleOutlined } from "@ant-design/icons";
 import useSetSubject from "../../hooks/useSetSubject";
+import { Teacher } from "../../interfaces/teacher";
+import SelectedTeacher from "../proyecciones/selectedTeacher/selectedTeacher";
 
 const AddSubjectToTeacherModal: React.FC<{
   open: boolean;
@@ -18,6 +20,7 @@ const AddSubjectToTeacherModal: React.FC<{
   setSelectedQuarter: React.Dispatch<React.SetStateAction<"q1" | "q2" | "q3">>;
   handleTeacherChange: (data: Quarter) => void;
   handleSubjectChange: (data: Subject[]) => void;
+  selectedTeacher: Teacher | null;
 }> = ({
   open,
   setOpen,
@@ -26,8 +29,8 @@ const AddSubjectToTeacherModal: React.FC<{
   subjects,
   selectedQuarter,
   setSelectedQuarter,
-  handleTeacherChange,
   handleSubjectChange,
+  selectedTeacher,
 }) => {
   const [loading, setLoading] = useState(false);
   const [options, setOptions] = useState<{ value: string; label: string; key: string }[]>([]);
@@ -36,8 +39,39 @@ const AddSubjectToTeacherModal: React.FC<{
   const [erroMessage, setErrorMessage] = useState<string | null>(null);
   const [overLoad, setOverLoad] = useState(false);
   const [teacherIndex, setTeacherIndex] = useState(0);
-  const { addSubjectToTeacher } = useSetSubject(subjects || []);
+  const { addSubjectToTeacher, getTeacherHoursData } = useSetSubject(subjects || []);
   const [filterByQuarter, setFilterByQuarter] = useState(false);
+  const [usedHoursQ1, setUsedHoursQ1] = useState("");
+  const [usedHoursQ2, setUsedHoursQ2] = useState("");
+  const [usedHoursQ3, setUsedHoursQ3] = useState("");
+  const [aviableHoursQ1, setAviableHoursQ1] = useState("");
+  const [aviableHoursQ2, setAviableHoursQ2] = useState("");
+  const [aviableHoursQ3, setAviableHoursQ3] = useState("");
+  const [overloadedQ1, setOverloadedQ1] = useState(false);
+  const [overloadedQ2, setOverloadedQ2] = useState(false);
+  const [overloadedQ3, setOverloadedQ3] = useState(false);
+
+  useEffect(() => {
+    if (!selectedTeacher) return;
+
+    const response = getTeacherHoursData(selectedTeacher);
+    if (response.error) {
+      console.log(response.message);
+      return;
+    }
+    if (response.data) {
+      const { q1, q2, q3 } = response.data;
+      setUsedHoursQ1(q1?.usedHours || "");
+      setUsedHoursQ2(q2?.usedHours || "");
+      setUsedHoursQ3(q3?.usedHours || "");
+      setAviableHoursQ1(q1?.aviableHours || "");
+      setAviableHoursQ2(q2?.aviableHours || "");
+      setAviableHoursQ3(q3?.aviableHours || "");
+      setOverloadedQ1(q1?.overloaded || false);
+      setOverloadedQ2(q2?.overloaded || false);
+      setOverloadedQ3(q3?.overloaded || false);
+    }
+  }, [selectedTeacerId]);
 
   useEffect(() => {
     if (!subjects || !teachers || !selectedTeacerId) return;
@@ -168,9 +202,7 @@ const AddSubjectToTeacherModal: React.FC<{
           width: "80vw",
         }}
         open={open}
-        title={`Materias disponibles para el docente ${
-          teachers?.[selectedQuarter][teacherIndex ?? 0]?.name ?? ""
-        } ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.lastName ?? ""}`}
+        title="Materias disponibles para el docente"
         onOk={handleOk}
         onCancel={handleCancel}
         footer={[
@@ -208,6 +240,28 @@ const AddSubjectToTeacherModal: React.FC<{
             />
           )}
         </div>
+
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <span>
+            {`${teachers?.[selectedQuarter][teacherIndex ?? 0]?.name ?? ""} 
+            ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.lastName ?? ""}`}
+          </span>
+          <span>{`C.I.: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.ci ?? ""}`}</span>
+          <span>{`carga horaria: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.partTime ?? ""}`}</span>
+          <span>
+            <span>{`horas asignadas: `}</span>
+            <>
+              <span>{usedHoursQ1}</span>/<span>{usedHoursQ2}</span>/<span>{usedHoursQ3}</span>
+            </>
+          </span>
+          <span>
+            <span>{`hora disponibles: `}</span>
+            <>
+              <span>{aviableHoursQ1}</span>/<span>{aviableHoursQ2}</span>/<span>{aviableHoursQ3}</span>
+            </>
+          </span>
+        </div>
+
         <div
           style={{
             display: "flex",

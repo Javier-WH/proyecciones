@@ -213,6 +213,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         setSelectedQuarter={setSelectedQuarter}
         handleTeacherChange={handleTeacherChange}
         handleSubjectChange={handleSubjectChange}
+        selectedTeacher={selectedTeacher}
       />
       <ChangeSubjectFromTeacherModal
         open={openChangeSubjectFromTeacherModal}
