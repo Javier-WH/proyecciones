@@ -74,9 +74,20 @@ export default function SelectedTeacher() {
 
   useEffect(() => {
     if (showAllSubjects) {
-      const teacherSubjectsQ1 = subjects?.filter((subject) => subject.quarter["q1"] === selectedTeacerId);
-      const teacherSubjectsQ2 = subjects?.filter((subject) => subject.quarter["q2"] === selectedTeacerId);
-      const teacherSubjectsQ3 = subjects?.filter((subject) => subject.quarter["q3"] === selectedTeacerId);
+      const teacherSubjectsQ1 = subjects
+        ?.filter((subject) => subject.quarter.q1 === selectedTeacerId)
+        .map((subject) => ({ ...subject, currentQuarter: "q1" as "q1" | "q2" | "q3" }));
+
+      const teacherSubjectsQ2 = subjects
+        ?.filter((subject) => subject.quarter.q2 === selectedTeacerId)
+        .map((subject) => ({ ...subject, currentQuarter: "q2" as "q1" | "q2" | "q3" }));
+
+      const teacherSubjectsQ3 = subjects
+        ?.filter((subject) => subject.quarter.q3 === selectedTeacerId)
+        .map((subject) => ({ ...subject, currentQuarter: "q3" as "q1" | "q2" | "q3" }));
+
+      console.log(teacherSubjectsQ2);
+
       setSubjectData([
         ...(teacherSubjectsQ1 || []),
         ...(teacherSubjectsQ2 || []),

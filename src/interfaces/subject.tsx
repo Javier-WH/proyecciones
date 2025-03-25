@@ -15,11 +15,7 @@ export interface Subject {
   teacherName?: string;
   teacherCi?: string;
   key?: string;
-  asignations?: {
-    q1?: string | null;
-    q2?: string | null;
-    q3?: string | null;
-  };
+  currentQuarter?: "q1" | "q2" | "q3";
 }
 
 export interface SimpleSubject {

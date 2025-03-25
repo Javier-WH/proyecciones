@@ -54,6 +54,20 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
     setOpenChangeSubjectFromTeacherModal(true);
   };
 
+  const getQuarterValue = (quarter: "q1" | "q2" | "q3") => {
+    switch (quarter) {
+      case "q1":
+        return "1";
+      case "q2":
+        return "2";
+      case "q3":
+        return "3";
+
+      default:
+        return "unknown";
+    }
+  };
+
   return (
     <div className="teacher-subjects-container">
       <div className="teacher-subjects-header">
@@ -77,7 +91,11 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
           data.map((subject, i) => (
             <div key={i} style={{ marginBottom: "5px" }}>
               <h4>
-                {subject.subject}
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", width: "100%" }}>
+                  <span>{subject.subject}</span>
+                  <span>{subject.trayectoName}</span>
+                </div>
+
                 <div className="teacher-subjects-buttons">
                   <Button
                     type="link"
@@ -101,14 +119,17 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
                   marginLeft: "20px",
                   marginTop: "3px",
                   display: "flex",
-                  gap: "1px",
+                  columnGap: "1px",
+                  rowGap: "5px",
                   justifyContent: "start",
                   flexWrap: "wrap",
                 }}>
                 <Tag color="default">{subject.pnf}</Tag>
                 <Tag color="default">{`Seccion: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
-                <Tag color="default">{subject.trayectoName}</Tag>
                 <Tag color="default">{`Horas: ${subject.hours}`}</Tag>
+                {subject.currentQuarter && (
+                  <Tag color="default">{`Trimestre: ${getQuarterValue(subject.currentQuarter)}`}</Tag>
+                )}
               </div>
             </div>
           ))
