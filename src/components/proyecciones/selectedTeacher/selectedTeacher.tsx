@@ -86,7 +86,7 @@ export default function SelectedTeacher() {
         ?.filter((subject) => subject.quarter.q3 === selectedTeacerId)
         .map((subject) => ({ ...subject, currentQuarter: "q3" as "q1" | "q2" | "q3" }));
 
-      console.log(teacherSubjectsQ2);
+      //console.log(teacherSubjectsQ2);
 
       setSubjectData([
         ...(teacherSubjectsQ1 || []),

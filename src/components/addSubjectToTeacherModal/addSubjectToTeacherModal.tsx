@@ -6,7 +6,6 @@ import { Subject } from "../../interfaces/subject";
 import { CloseCircleOutlined } from "@ant-design/icons";
 import useSetSubject from "../../hooks/useSetSubject";
 import { Teacher } from "../../interfaces/teacher";
-import SelectedTeacher from "../proyecciones/selectedTeacher/selectedTeacher";
 
 const AddSubjectToTeacherModal: React.FC<{
   open: boolean;
@@ -38,6 +37,7 @@ const AddSubjectToTeacherModal: React.FC<{
   const [perfilOption, setPerfilOption] = useState("perfil");
   const [erroMessage, setErrorMessage] = useState<string | null>(null);
   const [overLoad, setOverLoad] = useState(false);
+  const [showUnasigned, setShowUnasigned] = useState(false);
   const [teacherIndex, setTeacherIndex] = useState(0);
   const { addSubjectToTeacher, getTeacherHoursData } = useSetSubject(subjects || []);
   const [filterByQuarter, setFilterByQuarter] = useState(false);
@@ -71,7 +71,7 @@ const AddSubjectToTeacherModal: React.FC<{
       setOverloadedQ2(q2?.overloaded || false);
       setOverloadedQ3(q3?.overloaded || false);
     }
-  }, [selectedTeacerId]);
+  }, [selectedTeacerId, subjects]);
 
   useEffect(() => {
     if (!subjects || !teachers || !selectedTeacerId) return;
@@ -84,6 +84,7 @@ const AddSubjectToTeacherModal: React.FC<{
       key: `${subject.id} ${subject.pensum_id} ${subject.seccion} ${index}`,
       subjectId: subject.id,
       quarters: Object.keys(subject.quarter),
+      asigned: subject.quarter,
     }));
     const t_index = teachers[selectedQuarter].findIndex((teacher) => teacher.id === selectedTeacerId);
     setTeacherIndex(t_index);
@@ -115,6 +116,14 @@ const AddSubjectToTeacherModal: React.FC<{
         return teacherLoadNumber + subjectHourNumber <= maxHoursNumber;
       });
     }
+    if (showUnasigned) {
+      subjectsData = subjectsData.filter((subject) => {
+        const q1Value = subject.asigned.q1;
+        const q2Value = subject.asigned.q2;
+        const q3Value = subject.asigned.q2;
+        return q1Value === null || q2Value === null || q3Value === null;
+      });
+    }
 
     //filtrado por trimestre
     if (filterByQuarter) {
@@ -123,7 +132,16 @@ const AddSubjectToTeacherModal: React.FC<{
 
     // console.log(subjectsData);
     setOptions(subjectsData);
-  }, [subjects, perfilOption, teachers, selectedTeacerId, overLoad, selectedQuarter, filterByQuarter]);
+  }, [
+    subjects,
+    perfilOption,
+    teachers,
+    selectedTeacerId,
+    overLoad,
+    selectedQuarter,
+    filterByQuarter,
+    showUnasigned,
+  ]);
 
   //aqui vigilo si existen asignaturas
   useEffect(() => {
@@ -192,6 +210,12 @@ const AddSubjectToTeacherModal: React.FC<{
     setSelectedQuarter(value as "q1" | "q2" | "q3");
   };
 
+  const overloadStyle = (overloaded: boolean): React.CSSProperties => {
+    return {
+      color: overloaded ? "red" : "black",
+    };
+  };
+
   return (
     <>
       <Modal
@@ -218,6 +242,30 @@ const AddSubjectToTeacherModal: React.FC<{
             Agregar
           </Button>,
         ]}>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <span style={{ fontWeight: "bold" }}>
+            {`${teachers?.[selectedQuarter][teacherIndex ?? 0]?.name ?? ""} 
+            ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.lastName ?? ""}`}
+          </span>
+          <span>{`C.I.: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.ci ?? ""}`}</span>
+          <span>{`carga horaria: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.partTime ?? ""}`}</span>
+          <span>
+            <span>{`horas asignadas: `}</span>
+            <>
+              <span style={overloadStyle(overloadedQ1)}>{usedHoursQ1}</span>/
+              <span style={overloadStyle(overloadedQ2)}>{usedHoursQ2}</span>/
+              <span style={overloadStyle(overloadedQ3)}>{usedHoursQ3}</span>
+            </>
+          </span>
+          <span>
+            <span>{`hora disponibles: `}</span>
+            <>
+              <span>{aviableHoursQ1}</span>/<span>{aviableHoursQ2}</span>/<span>{aviableHoursQ3}</span>
+            </>
+          </span>
+        </div>
+
+        <br />
         <div style={{ display: "flex", columnGap: "5px" }}>
           <Button
             style={{ width: "150px" }}
@@ -241,27 +289,6 @@ const AddSubjectToTeacherModal: React.FC<{
           )}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <span>
-            {`${teachers?.[selectedQuarter][teacherIndex ?? 0]?.name ?? ""} 
-            ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.lastName ?? ""}`}
-          </span>
-          <span>{`C.I.: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.ci ?? ""}`}</span>
-          <span>{`carga horaria: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.partTime ?? ""}`}</span>
-          <span>
-            <span>{`horas asignadas: `}</span>
-            <>
-              <span>{usedHoursQ1}</span>/<span>{usedHoursQ2}</span>/<span>{usedHoursQ3}</span>
-            </>
-          </span>
-          <span>
-            <span>{`hora disponibles: `}</span>
-            <>
-              <span>{aviableHoursQ1}</span>/<span>{aviableHoursQ2}</span>/<span>{aviableHoursQ3}</span>
-            </>
-          </span>
-        </div>
-
         <div
           style={{
             display: "flex",
@@ -276,6 +303,10 @@ const AddSubjectToTeacherModal: React.FC<{
             <div>
               <Switch onChange={() => setOverLoad(!overLoad)} value={overLoad} />
               <span style={{ marginLeft: "10px" }}>Sobrecarga de horas</span>
+            </div>
+            <div>
+              <Switch onChange={() => setShowUnasigned(!showUnasigned)} value={showUnasigned} />
+              <span style={{ marginLeft: "10px" }}>Mostrar solo materias no asignadas</span>
             </div>
             <Radio.Group
               options={optionsWithDisabled}
