@@ -7,6 +7,29 @@ import { CloseCircleOutlined } from "@ant-design/icons";
 import useSetSubject from "../../hooks/useSetSubject";
 import { Teacher } from "../../interfaces/teacher";
 
+interface optionsInterface {
+  value: string;
+  label: string;
+  key: string;
+  pnf?: string;
+  turno?: string;
+  seccion?: string;
+  trayecto?: string;
+  hours?: number;
+  teacher?: {
+    q1?: Teacher | null;
+    q2?: Teacher | null;
+    q3?: Teacher | null;
+  };
+  subjectId?: string;
+  quarters?: string[];
+  asigned?: {
+    q1?: string | null;
+    q2?: string | null;
+    q3?: string | null;
+  };
+}
+
 const AddSubjectToTeacherModal: React.FC<{
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -32,7 +55,7 @@ const AddSubjectToTeacherModal: React.FC<{
   selectedTeacher,
 }) => {
   const [loading, setLoading] = useState(false);
-  const [options, setOptions] = useState<{ value: string; label: string; key: string }[]>([]);
+  const [options, setOptions] = useState<optionsInterface[]>([]);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [perfilOption, setPerfilOption] = useState("perfil");
   const [erroMessage, setErrorMessage] = useState<string | null>(null);
@@ -50,6 +73,11 @@ const AddSubjectToTeacherModal: React.FC<{
   const [overloadedQ1, setOverloadedQ1] = useState(false);
   const [overloadedQ2, setOverloadedQ2] = useState(false);
   const [overloadedQ3, setOverloadedQ3] = useState(false);
+
+  const getTeacherData = (teacherId: string | null | undefined): Teacher | null => {
+    if (!teachers) return null;
+    return teachers.q1.find((teacher) => teacher.id === teacherId) || null;
+  };
 
   useEffect(() => {
     if (!selectedTeacher) return;
@@ -77,15 +105,31 @@ const AddSubjectToTeacherModal: React.FC<{
     if (!subjects || !teachers || !selectedTeacerId) return;
 
     //obtengo la lista de asignaturas
-    let subjectsData = subjects.map((subject, index) => ({
-      //value: `${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}:${index}`,
-      value: subject.innerId,
-      label: `${subject.subject} (${subject.pnf} - Sección ${subject.turnoName[0]}-0${subject.seccion} - Trayecto ${subject.trayectoName})`,
-      key: `${subject.id} ${subject.pensum_id} ${subject.seccion} ${index}`,
-      subjectId: subject.id,
-      quarters: Object.keys(subject.quarter),
-      asigned: subject.quarter,
-    }));
+    let subjectsData = subjects.map((subject) => {
+      const asigned: { q1?: string | null; q2?: string | null; q3?: string | null } = {};
+      if (subject.quarter.q1 !== undefined) asigned.q1 = subject.quarter.q1;
+      if (subject.quarter.q2 !== undefined) asigned.q2 = subject.quarter.q2;
+      if (subject.quarter.q3 !== undefined) asigned.q3 = subject.quarter.q3;
+      return {
+        value: subject.innerId,
+        label: subject.subject,
+        key: `${subject.id} ${subject.pensum_id} ${subject.seccion} ${subject.innerId}`,
+        pnf: subject.pnf,
+        turno: subject.turnoName,
+        seccion: subject.seccion,
+        trayecto: subject.trayectoName,
+        subjectId: subject.id,
+        quarter: subject.currentQuarter,
+        quarters: Object.keys(subject.quarter),
+        asigned: asigned,
+        hours: subject.hours,
+        teacher: {
+          q1: getTeacherData(subject.quarter.q1),
+          q2: getTeacherData(subject.quarter.q2),
+          q3: getTeacherData(subject.quarter.q3),
+        },
+      };
+    });
     const t_index = teachers[selectedQuarter].findIndex((teacher) => teacher.id === selectedTeacerId);
     setTeacherIndex(t_index);
 
@@ -120,7 +164,7 @@ const AddSubjectToTeacherModal: React.FC<{
       subjectsData = subjectsData.filter((subject) => {
         const q1Value = subject.asigned.q1;
         const q2Value = subject.asigned.q2;
-        const q3Value = subject.asigned.q2;
+        const q3Value = subject.asigned.q3;
         return q1Value === null || q2Value === null || q3Value === null;
       });
     }
@@ -130,7 +174,7 @@ const AddSubjectToTeacherModal: React.FC<{
       subjectsData = subjectsData.filter((subject) => subject.quarters.includes(selectedQuarter));
     }
 
-    // console.log(subjectsData);
+    //console.log(subjectsData);
     setOptions(subjectsData);
   }, [
     subjects,
@@ -216,14 +260,42 @@ const AddSubjectToTeacherModal: React.FC<{
     };
   };
 
+  const getAsignedTeacherInfo = ({ teacher, title }: { teacher: Teacher | null; title: string }) => {
+    const style: React.CSSProperties = {
+      display: "flex",
+      flexDirection: "column",
+      width: "300px",
+      height: "70px",
+      alignContent: "center",
+      justifyContent: "center",
+    };
+
+    if (!teacher) {
+      return (
+        <div style={style}>
+          <span>{title}</span>
+          <span>No hay docente asignado</span>
+        </div>
+      );
+    }
+
+    return (
+      <div style={style}>
+        <span>{title}</span>
+        <span>{`${teacher.name} ${teacher.lastName}`}</span>
+        <span>{`C.I. ${teacher.ci}`}</span>
+      </div>
+    );
+  };
+
   return (
     <>
       <Modal
-        //width={800}
+        width={1000}
         style={{
           maxWidth: "1200px",
           minWidth: "800px",
-          width: "80vw",
+          width: "100vw",
         }}
         open={open}
         title="Materias disponibles para el docente"
@@ -332,6 +404,43 @@ const AddSubjectToTeacherModal: React.FC<{
               (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
             }
             disabled={options.length === 0 || selectedTeacerId === null}
+            optionRender={(option) => {
+              const data = option.data;
+              return (
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <h4 style={{ margin: 0 }}>{data.label}</h4>
+                  <div>
+                    <Tag>{data.pnf}</Tag>
+                    <Tag>{`sección: ${data.turno ? data.turno[0] : ""}-0${data.seccion}`}</Tag>
+                    <Tag>{`horas: ${data.hours}`}</Tag>
+                  </div>
+
+                  <div
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      gap: "10px",
+                      justifyContent: "space-between",
+                    }}>
+                    {data.quarters?.includes("q1") && (
+                      <>
+                        {getAsignedTeacherInfo({ teacher: data.teacher?.q1 ?? null, title: "Trayecto 1" })}
+                        <div style={{ border: "1px solid gray" }}></div>
+                      </>
+                    )}
+                    {data.quarters?.includes("q2") && (
+                      <>
+                        {getAsignedTeacherInfo({ teacher: data.teacher?.q2 ?? null, title: "Trayecto 2" })}
+                        <div style={{ border: "1px solid gray" }}></div>
+                      </>
+                    )}
+                    {data.quarters?.includes("q3") && (
+                      <>{getAsignedTeacherInfo({ teacher: data.teacher?.q3 ?? null, title: "Trayecto 3" })}</>
+                    )}
+                  </div>
+                </div>
+              );
+            }}
           />
 
           <div style={{ width: "100%", paddingLeft: "20px", visibility: erroMessage ? "visible" : "hidden" }}>
