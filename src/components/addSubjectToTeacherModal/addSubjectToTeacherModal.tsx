@@ -6,6 +6,7 @@ import { Subject } from "../../interfaces/subject";
 import { CloseCircleOutlined } from "@ant-design/icons";
 import useSetSubject from "../../hooks/useSetSubject";
 import { Teacher } from "../../interfaces/teacher";
+import SubjectTeacherInfo from "./subjectTeacherInfo";
 
 interface optionsInterface {
   value: string;
@@ -411,29 +412,7 @@ const AddSubjectToTeacherModal: React.FC<{
                     <Tag>{`horas: ${data.hours?.q1} / ${data.hours?.q2} / ${data.hours?.q3}`}</Tag>
                   </div>
 
-                  <div
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      gap: "10px",
-                      justifyContent: "space-between",
-                    }}>
-                    {data.quarters?.includes("q1") && (
-                      <>
-                        {getAsignedTeacherInfo({ teacher: data.teacher?.q1 ?? null, title: "Trayecto 1" })}
-                        <div style={{ border: "1px solid gray" }}></div>
-                      </>
-                    )}
-                    {data.quarters?.includes("q2") && (
-                      <>
-                        {getAsignedTeacherInfo({ teacher: data.teacher?.q2 ?? null, title: "Trayecto 2" })}
-                        <div style={{ border: "1px solid gray" }}></div>
-                      </>
-                    )}
-                    {data.quarters?.includes("q3") && (
-                      <>{getAsignedTeacherInfo({ teacher: data.teacher?.q3 ?? null, title: "Trayecto 3" })}</>
-                    )}
-                  </div>
+                  <SubjectTeacherInfo teacher={data.teacher || {}} />
                 </div>
               );
             }}
