@@ -122,7 +122,7 @@ export default function useSetSubject(SubjectArray: Subject[]) {
     const getHourData = (quarter: "q1" | "q2" | "q3"): TeacherHourData => {
       const asignedSubjects = subjectList.filter((subject) => subject.quarter[quarter] === teacher.id);
       const usedHours = asignedSubjects.reduce((acc, subject) => {
-        return Number(acc) + Number(subject.hours);
+        return Number(acc) + Number(subject.hours[quarter] ?? 0);
       }, 0);
       const aviableHours = totalHours - usedHours < 0 ? 0 : totalHours - usedHours;
       const overloaded = usedHours > totalHours;

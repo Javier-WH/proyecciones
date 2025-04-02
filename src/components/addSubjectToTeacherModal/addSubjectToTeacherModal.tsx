@@ -15,7 +15,11 @@ interface optionsInterface {
   turno?: string;
   seccion?: string;
   trayecto?: string;
-  hours?: number;
+  hours?: {
+    q1?: number | null;
+    q2?: number | null;
+    q3?: number | null;
+  };
   teacher?: {
     q1?: Teacher | null;
     q2?: Teacher | null;
@@ -137,29 +141,18 @@ const AddSubjectToTeacherModal: React.FC<{
     if (perfilOption === "perfil") {
       subjectsData = subjectsData.filter((subject) => teacherPerfil.has(subject.subjectId));
     }
-    //las horas que tiene usadas el profesor
-    const tehacherLoad = teachers[selectedQuarter][t_index]?.load
-      ?.map((subject) => Number(subject.hours))
-      .reduce((acc, curr) => Number(acc) + Number(curr), 0);
-
-    //maximo de horas que puede tener el profesor
-    const maxHours = teachers[selectedQuarter][t_index]?.partTime;
 
     ///// FILTRADO DE HORAS DISPONIBLES
-    if (!overLoad) {
-      subjectsData = subjectsData.filter((subject) => {
-        const index = subjects.findIndex((s) => s.id === subject.subjectId);
-        const subjectHourNumber = Number.parseInt(subjects[index]?.hours.toString());
-        const teacherLoadNumber = Number.parseInt(tehacherLoad?.toString() ?? "0");
-        const maxHoursNumber = Number.parseInt(maxHours?.toString());
-
-        // Validar si los valores son NaN
-        if (isNaN(teacherLoadNumber) || isNaN(subjectHourNumber) || isNaN(maxHoursNumber)) {
-          return false;
-        }
-        return teacherLoadNumber + subjectHourNumber <= maxHoursNumber;
-      });
+    if (!overLoad && filterByQuarter) {
+      if (
+        (selectedQuarter === "q1" && overloadedQ1) ||
+        (selectedQuarter === "q2" && overloadedQ2) ||
+        (selectedQuarter === "q3" && overloadedQ3)
+      ) {
+        subjectsData = [];
+      }
     }
+
     if (showUnasigned) {
       subjectsData = subjectsData.filter((subject) => {
         const q1Value = subject.asigned.q1;
@@ -344,20 +337,27 @@ const AddSubjectToTeacherModal: React.FC<{
             type={filterByQuarter ? "primary" : "default"}
             onClick={() => {
               setFilterByQuarter(!filterByQuarter);
+              setOverLoad(false);
             }}>
             {filterByQuarter ? "Mostrar todas" : "Filtrar por trimestre"}
           </Button>
           {filterByQuarter && (
-            <Select
-              value={selectedQuarter}
-              style={{ width: 300 }}
-              options={[
-                { value: "q1", label: "Primer Trimestre" },
-                { value: "q2", label: "Segundo Trimestre" },
-                { value: "q3", label: "Tercer Trimestre" },
-              ]}
-              onChange={handleChangeQuarterSelector}
-            />
+            <div style={{ display: "flex", columnGap: "5px" }}>
+              <Select
+                value={selectedQuarter}
+                style={{ width: 300 }}
+                options={[
+                  { value: "q1", label: "Primer Trimestre" },
+                  { value: "q2", label: "Segundo Trimestre" },
+                  { value: "q3", label: "Tercer Trimestre" },
+                ]}
+                onChange={handleChangeQuarterSelector}
+              />
+              <div>
+                <Switch onChange={() => setOverLoad(!overLoad)} value={overLoad} />
+                <span style={{ marginLeft: "10px" }}>Sobrecarga de horas</span>
+              </div>
+            </div>
           )}
         </div>
 
@@ -372,10 +372,6 @@ const AddSubjectToTeacherModal: React.FC<{
           }}>
           <div
             style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <Switch onChange={() => setOverLoad(!overLoad)} value={overLoad} />
-              <span style={{ marginLeft: "10px" }}>Sobrecarga de horas</span>
-            </div>
             <div>
               <Switch onChange={() => setShowUnasigned(!showUnasigned)} value={showUnasigned} />
               <span style={{ marginLeft: "10px" }}>Mostrar solo materias no asignadas</span>
@@ -412,7 +408,7 @@ const AddSubjectToTeacherModal: React.FC<{
                   <div>
                     <Tag>{data.pnf}</Tag>
                     <Tag>{`sección: ${data.turno ? data.turno[0] : ""}-0${data.seccion}`}</Tag>
-                    <Tag>{`horas: ${data.hours}`}</Tag>
+                    <Tag>{`horas: ${data.hours?.q1} / ${data.hours?.q2} / ${data.hours?.q3}`}</Tag>
                   </div>
 
                   <div

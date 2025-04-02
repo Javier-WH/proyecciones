@@ -126,7 +126,11 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
                 }}>
                 <Tag color="default">{subject.pnf}</Tag>
                 <Tag color="default">{`Seccion: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
-                <Tag color="default">{`Horas: ${subject.hours}`}</Tag>
+                {subject.currentQuarter ? (
+                  <Tag color="default">{`Horas: ${subject.hours[subject.currentQuarter]}`}</Tag>
+                ) : (
+                  <Tag color="default">{`Horas: ${subject.hours[selectedQuarter]}`}</Tag>
+                )}
                 {subject.currentQuarter && (
                   <Tag color="default">{`Trimestre: ${getQuarterValue(subject.currentQuarter)}`}</Tag>
                 )}

@@ -2,7 +2,7 @@ export interface Subject {
   innerId: string;
   id: string;
   subject: string;
-  hours: number;
+  hours: InlineHours;
   pnf: string;
   pnfId: string;
   seccion: string;
@@ -42,5 +42,11 @@ export interface InlineQuarter {
   q1?: string | null;
   q2?: string | null;
   q3?: string | null;
+}
+
+export interface InlineHours {
+  q1?: number | null;
+  q2?: number | null;
+  q3?: number | null;
 }
 
