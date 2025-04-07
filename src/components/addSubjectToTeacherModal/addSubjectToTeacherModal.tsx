@@ -7,6 +7,7 @@ import { CloseCircleOutlined } from "@ant-design/icons";
 import useSetSubject from "../../hooks/useSetSubject";
 import { Teacher } from "../../interfaces/teacher";
 import SubjectTeacherInfo from "./subjectTeacherInfo";
+import malePlaceHolder from "../../assets/malePlaceHolder.svg";
 
 interface optionsInterface {
   value: string;
@@ -308,27 +309,30 @@ const AddSubjectToTeacherModal: React.FC<{
             Agregar
           </Button>,
         ]}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <span style={{ fontWeight: "bold" }}>
-            {`${teachers?.[selectedQuarter][teacherIndex ?? 0]?.name ?? ""} 
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <img src={malePlaceHolder} width={120} alt="" />
+          <div style={{ display: "flex", flexDirection: "column", marginLeft: "20px" }}>
+            <span style={{ fontWeight: "bold" }}>
+              {`${teachers?.[selectedQuarter][teacherIndex ?? 0]?.name ?? ""} 
             ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.lastName ?? ""}`}
-          </span>
-          <span>{`C.I.: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.ci ?? ""}`}</span>
-          <span>{`carga horaria: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.partTime ?? ""}`}</span>
-          <span>
-            <span>{`horas asignadas: `}</span>
-            <>
-              <span style={overloadStyle(overloadedQ1)}>{usedHoursQ1}</span>/
-              <span style={overloadStyle(overloadedQ2)}>{usedHoursQ2}</span>/
-              <span style={overloadStyle(overloadedQ3)}>{usedHoursQ3}</span>
-            </>
-          </span>
-          <span>
-            <span>{`hora disponibles: `}</span>
-            <>
-              <span>{aviableHoursQ1}</span>/<span>{aviableHoursQ2}</span>/<span>{aviableHoursQ3}</span>
-            </>
-          </span>
+            </span>
+            <span>{`C.I.: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.ci ?? ""}`}</span>
+            <span>{`Carga horaria: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.partTime ?? ""}`}</span>
+            <span>
+              <span>{`Horas asignadas: `}</span>
+              <>
+                <span style={overloadStyle(overloadedQ1)}>{usedHoursQ1}</span>/
+                <span style={overloadStyle(overloadedQ2)}>{usedHoursQ2}</span>/
+                <span style={overloadStyle(overloadedQ3)}>{usedHoursQ3}</span>
+              </>
+            </span>
+            <span>
+              <span>{`Hora disponibles: `}</span>
+              <>
+                <span>{aviableHoursQ1}</span>/<span>{aviableHoursQ2}</span>/<span>{aviableHoursQ3}</span>
+              </>
+            </span>
+          </div>
         </div>
 
         <br />
@@ -404,7 +408,13 @@ const AddSubjectToTeacherModal: React.FC<{
             optionRender={(option) => {
               const data = option.data;
               return (
-                <div style={{ display: "flex", flexDirection: "column" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    borderBottom: "1px solid rgba(189, 223, 230, 0.47)",
+                    paddingBottom: "10px",
+                  }}>
                   <h4 style={{ margin: 0 }}>{data.label}</h4>
                   <div>
                     <Tag>{data.pnf}</Tag>
