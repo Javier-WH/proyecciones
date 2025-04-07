@@ -1,3 +1,4 @@
+import React from "react";
 import { Teacher } from "../../interfaces/teacher";
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export default function SubjectTeacherInfo({ teacher }: Props) {
-  const teacherCluster = (_teacher: Teacher, quarter: string) => {
+  const teacherCluster = (_teacher: Teacher, quarter: string | null) => {
     return (
       <div
         style={{
@@ -26,7 +27,7 @@ export default function SubjectTeacherInfo({ teacher }: Props) {
             alignItems: "center",
             justifyContent: "center",
             fontSize: "1.5rem",
-            backgroundColor: _teacher.ci ? "rgb(26, 70, 110)" : "rgb(162, 190, 201)",
+            backgroundColor: quarter ? "rgb(26, 70, 110)" : "rgb(162, 190, 201)",
             color: "white",
           }}>
           {quarter}
@@ -34,11 +35,16 @@ export default function SubjectTeacherInfo({ teacher }: Props) {
         <div style={{ display: "flex", flexDirection: "column" }}>
           <span
             style={{
-              color: _teacher.ci ? "black" : "gray",
+              color: quarter ? "black" : "gray",
             }}>
             {_teacher.name} {_teacher.lastName}
           </span>
-          <span>{_teacher.ci ? `C.I. ${_teacher.ci}` : "-"}</span>
+          <span
+            style={{
+              minHeight: "20px",
+            }}>
+            {quarter ? `C.I. ${_teacher.ci}` : " "}
+          </span>
         </div>
       </div>
     );
@@ -47,7 +53,7 @@ export default function SubjectTeacherInfo({ teacher }: Props) {
   if (!teacher.q1 && !teacher.q2 && !teacher.q3) {
     const emptyTeacher: Teacher = {
       id: "",
-      ci: "",
+      ci: ` `,
       name: "No hay docente asignado",
       lastName: "",
       partTime: 0,
@@ -63,7 +69,7 @@ export default function SubjectTeacherInfo({ teacher }: Props) {
       contractTypeId: "",
       active: false,
     };
-    return <div>{teacherCluster(emptyTeacher, " ")}</div>;
+    return <div>{teacherCluster(emptyTeacher, null)}</div>;
   }
 
   // si el profesor es el mismo en todos los trimestres
