@@ -1,11 +1,9 @@
 import TeacherTable from "./teacherTable/TeacherTable";
 import SelectedTeacher from "./selectedTeacher/selectedTeacher";
 import "./proyeccionesContainer.css";
-import { Button, Select, Radio } from "antd";
+import { Button, Radio } from "antd";
 import { GiAutoRepair } from "react-icons/gi";
-import { useContext, useEffect, useState } from "react";
-import SubjectItem from "./SubjectItem/SubjectItem";
-import SubjectItemAsigned from "./SubjectItem/SubjectItemAsigned";
+import React, { useContext, useEffect, useState } from "react";
 import useSubjectsInfo from "../../hooks/useSubjectsInfo";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
@@ -14,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 //import ReportProyection from "../reports/report/reportProyection";
 import { LogoutOutlined } from "@ant-design/icons";
 import ReportMenu from "./reportMenu/reportMenu";
+import SubjectTab from "./subjectTab/subjectTab";
 
 export default function ProyeccionesContainer() {
   const { tankenSubjects, aviableSubjects } = useSubjectsInfo();
@@ -23,21 +22,16 @@ export default function ProyeccionesContainer() {
   const {
     setSelectedTeacerId,
     setSelectedTeacher,
-    setSelectedQuarter,
     subjects,
     proyectionsDone,
-    selectedQuarter,
     proyectionName,
     setIsAuthenticated,
+    userPerfil,
   } = useContext(MainContext) as MainContextValues;
 
   const navigate = useNavigate();
 
   const iconStyle = { color: "white", fontSize: "2rem" };
-
-  const handleChangeQuarterSelector = (value: string) => {
-    setSelectedQuarter(value as "q1" | "q2" | "q3");
-  };
 
   const handleChangeRadio = (value: string) => {
     //profesores = a, materias = b
@@ -52,9 +46,14 @@ export default function ProyeccionesContainer() {
     if (!subjects) return;
     setError(
       subjects.some((obj) => Object.values(obj).some((value) => value === null)) ||
-        subjects.some((subjec) => subjec.hours <= 0)
+        subjects.some((subjec) => Number(subjec.hours) <= 0)
     );
   }, [subjects]);
+
+  const tabButtonStyles: React.CSSProperties = {
+    width: "150px",
+    textAlign: "center",
+  };
 
   if (error) {
     return (
@@ -124,15 +123,17 @@ export default function ProyeccionesContainer() {
           <Radio.Button value="b">Materias</Radio.Button>
         </Radio.Group>
 
-        {teacherTab && (
-          <Radio.Group
-            defaultValue={true}
-            size="small"
-            onChange={(e) => onChageSearchByUserPerfil(e.target.value)}>
-            <Radio.Button value={true}>Mis profesores</Radio.Button>
-            <Radio.Button value={false}>Todos los profesores</Radio.Button>
-          </Radio.Group>
-        )}
+        <Radio.Group
+          defaultValue={true}
+          size="small"
+          onChange={(e) => onChageSearchByUserPerfil(e.target.value)}>
+          <Radio.Button style={tabButtonStyles} value={true}>
+            {teacherTab ? "Mis profesores" : "Mis materias"}
+          </Radio.Button>
+          <Radio.Button style={tabButtonStyles} value={false}>
+            {teacherTab ? "Todos los profesores" : "Todas las materias"}
+          </Radio.Button>
+        </Radio.Group>
 
         <span>{proyectionName}</span>
 
@@ -167,10 +168,7 @@ export default function ProyeccionesContainer() {
         </>
       ) : (
         <>
-          <div className="subjects-list-container-grid">
-            <SubjectItem subjects={aviableSubjects} title="Asignaturas Disponibles" />
-            <SubjectItemAsigned subjects={tankenSubjects} title="Asignaturas Asignadas" />
-          </div>
+          <SubjectTab searchByUserPerfil={searchByUserPerfil} />
         </>
       )}
     </div>

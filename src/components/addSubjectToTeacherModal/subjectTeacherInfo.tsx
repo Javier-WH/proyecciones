@@ -53,7 +53,7 @@ export default function SubjectTeacherInfo({ teacher }: Props) {
   if (!teacher.q1 && !teacher.q2 && !teacher.q3) {
     const emptyTeacher: Teacher = {
       id: "",
-      ci: ` `,
+      ci: ``,
       name: "No hay docente asignado",
       lastName: "",
       partTime: 0,

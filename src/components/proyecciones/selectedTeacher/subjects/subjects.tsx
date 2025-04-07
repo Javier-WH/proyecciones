@@ -3,7 +3,7 @@ import { Subject } from "../../../../interfaces/subject";
 import { Button, message } from "antd";
 import { FaTrashAlt } from "react-icons/fa";
 import { MdAssignmentAdd } from "react-icons/md";
-import { IoMdSwap } from "react-icons/io";
+//import { IoMdSwap } from "react-icons/io";
 import { Tag } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { MainContext } from "../../../../context/mainContext";
@@ -97,13 +97,13 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
                 </div>
 
                 <div className="teacher-subjects-buttons">
-                  <Button
+                  {/*<Button
                     type="link"
                     shape="round"
                     style={{ color: "white", fontSize: "18px" }}
                     onClick={() => handleSwapSubjects(subject)}>
                     <IoMdSwap />
-                  </Button>
+                  </Button>*/}
                   <Button
                     id={`${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}`}
                     type="link"
@@ -127,13 +127,13 @@ const Subjects: React.FC<{ data: Subject[] | null }> = ({ data }) => {
                 <Tag color="default">{subject.pnf}</Tag>
                 <Tag color="default">{`Seccion: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
                 {subject.currentQuarter ? (
-                  <Tag color="default">{`Horas: ${subject.hours[subject.currentQuarter]}`}</Tag>
+                  <Tag color="default">{`Horas: ${subject.hours.q1}/${subject.hours.q2}/${subject.hours.q3}`}</Tag>
                 ) : (
                   <Tag color="default">{`Horas: ${subject.hours[selectedQuarter]}`}</Tag>
                 )}
-                {subject.currentQuarter && (
+                {/*subject.currentQuarter && (
                   <Tag color="default">{`Trimestre: ${getQuarterValue(subject.currentQuarter)}`}</Tag>
-                )}
+                )*/}
               </div>
             </div>
           ))
