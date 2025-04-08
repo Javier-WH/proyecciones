@@ -46,4 +46,6 @@ export interface MainContextValues {
   setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
   userPerfil: string[] | null;
   setUserPerfil: React.Dispatch<React.SetStateAction<string[] | null>>;
+  subjectColors: Record<string, string> | null;
 }
+

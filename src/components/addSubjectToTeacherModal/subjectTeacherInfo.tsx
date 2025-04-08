@@ -1,4 +1,3 @@
-import React from "react";
 import { Teacher } from "../../interfaces/teacher";
 
 interface Props {
@@ -10,7 +9,9 @@ interface Props {
 }
 
 export default function SubjectTeacherInfo({ teacher }: Props) {
-  const teacherCluster = (_teacher: Teacher, quarter: string | null) => {
+  const teacherCluster = (_teacher: Teacher | null) => {
+    if (!_teacher) return null;
+
     return (
       <div
         style={{
@@ -20,36 +21,17 @@ export default function SubjectTeacherInfo({ teacher }: Props) {
           maxWidth: "300px",
           gap: "10px",
         }}>
-        <span
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "1.5rem",
-            backgroundColor: quarter ? "rgb(26, 70, 110)" : "rgb(162, 190, 201)",
-            color: "white",
-          }}>
-          {quarter}
-        </span>
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <span
-            style={{
-              color: quarter ? "black" : "gray",
-            }}>
+          <span style={{ color: "black" }}>
             {_teacher.name} {_teacher.lastName}
           </span>
-          <span
-            style={{
-              minHeight: "20px",
-            }}>
-            {quarter ? `C.I. ${_teacher.ci}` : " "}
-          </span>
+          <span style={{ height: "20px" }}>{_teacher.ci.length > 0 && `C.I. ${_teacher.ci}`}</span>
         </div>
       </div>
     );
   };
 
+  // Verificar si no hay profesores asignados en ningún trimestre
   if (!teacher.q1 && !teacher.q2 && !teacher.q3) {
     const emptyTeacher: Teacher = {
       id: "",
@@ -69,30 +51,40 @@ export default function SubjectTeacherInfo({ teacher }: Props) {
       contractTypeId: "",
       active: false,
     };
-    return <div>{teacherCluster(emptyTeacher, null)}</div>;
+    return <div>{teacherCluster(emptyTeacher)}</div>;
   }
 
-  // si el profesor es el mismo en todos los trimestres
-  if (teacher.q1?.ci === teacher.q2?.ci && teacher.q1?.ci === teacher.q3?.ci) {
-    return <div>{teacher.q1 && teacherCluster(teacher.q1, " ")}</div>;
+  // Verificar si todos los trimestres tienen el mismo profesor
+  const allSame =
+    teacher.q1 &&
+    teacher.q2 &&
+    teacher.q3 &&
+    teacher.q1.ci === teacher.q2.ci &&
+    teacher.q2.ci === teacher.q3.ci;
+
+  // Renderizar el profesor una vez si todos son iguales
+  if (allSame) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          columnGap: "10px",
+        }}>
+        {teacherCluster(teacher.q1 ?? null)}
+      </div>
+    );
   }
 
-  if (teacher.q1?.ci === teacher.q2?.ci && teacher.q3?.ci === undefined) {
-    return <div>{teacher.q1 && teacherCluster(teacher.q1, " ")}</div>;
-  }
-
-  if (teacher.q2?.ci === teacher.q3?.ci && teacher.q1?.ci === undefined) {
-    return <div>{teacher.q2 && teacherCluster(teacher.q2, " ")}</div>;
-  }
+  // Renderizar cada trimestre en orden si no son iguales
   return (
     <div
       style={{
         display: "flex",
         columnGap: "10px",
       }}>
-      {teacher.q1 && teacherCluster(teacher.q1, "1")}
-      {teacher.q2 && teacherCluster(teacher.q2, "2")}
-      {teacher.q3 && teacherCluster(teacher.q3, "3")}
+      {teacherCluster(teacher.q1 ?? null)}
+      {teacherCluster(teacher.q2 ?? null)}
+      {teacherCluster(teacher.q3 ?? null)}
     </div>
   );
 }

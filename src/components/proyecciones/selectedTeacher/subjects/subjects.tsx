@@ -21,6 +21,7 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
     subjects,
     selectedQuarter,
     handleSubjectChange,
+    subjectColors,
   } = useContext(MainContext) as MainContextValues;
 
   const { removeSubjectFromTeacher } = useSetSubject(subjects || []);
@@ -61,45 +62,51 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
         {!data || data.length === 0 ? (
           <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`No hay asignaturas asignadas`}</Tag>
         ) : (
-          data.map((subject, i) => (
-            <div key={i} style={{ marginBottom: "5px" }}>
-              <h4>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", width: "100%" }}>
-                  <span>{subject.subject}</span>
-                  <span>{subject.trayectoName}</span>
-                </div>
+          data.map((subject, i) => {
+            const backgroundColor = subjectColors?.[subject.pnfId] || "pink";
+            return (
+              <div key={i}>
+                <div style={{ height: "10px", backgroundColor: backgroundColor }}></div>
+                <div>
+                  <h4>
+                    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", width: "100%" }}>
+                      <span>{subject.subject}</span>
+                      <span>{subject.trayectoName}</span>
+                    </div>
 
-                <div className="teacher-subjects-buttons">
-                  <Button
-                    id={`${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}`}
-                    type="link"
-                    shape="round"
-                    danger
-                    onClick={() => handleRemoveSubject(subject)}>
-                    <FaTrashAlt />
-                  </Button>
+                    <div className="teacher-subjects-buttons">
+                      <Button
+                        id={`${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}`}
+                        type="link"
+                        shape="round"
+                        danger
+                        onClick={() => handleRemoveSubject(subject)}>
+                        <FaTrashAlt />
+                      </Button>
+                    </div>
+                  </h4>
+                  <div
+                    style={{
+                      marginLeft: "20px",
+                      marginTop: "3px",
+                      display: "flex",
+                      columnGap: "1px",
+                      rowGap: "5px",
+                      justifyContent: "start",
+                      flexWrap: "wrap",
+                    }}>
+                    <Tag color="default">{subject.pnf}</Tag>
+                    <Tag color="default">{`Seccion: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
+                    {showAllSubjects ? (
+                      <Tag color="default">{`Horas: ${subject.hours.q1} / ${subject.hours.q2} / ${subject.hours.q3}`}</Tag>
+                    ) : (
+                      <Tag color="default">{`Horas: ${subject.hours[selectedQuarter]}`}</Tag>
+                    )}
+                  </div>
                 </div>
-              </h4>
-              <div
-                style={{
-                  marginLeft: "20px",
-                  marginTop: "3px",
-                  display: "flex",
-                  columnGap: "1px",
-                  rowGap: "5px",
-                  justifyContent: "start",
-                  flexWrap: "wrap",
-                }}>
-                <Tag color="default">{subject.pnf}</Tag>
-                <Tag color="default">{`Seccion: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
-                {showAllSubjects ? (
-                  <Tag color="default">{`Horas: ${subject.hours.q1} / ${subject.hours.q2} / ${subject.hours.q3}`}</Tag>
-                ) : (
-                  <Tag color="default">{`Horas: ${subject.hours[selectedQuarter]}`}</Tag>
-                )}
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

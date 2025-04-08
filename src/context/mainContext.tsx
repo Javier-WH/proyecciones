@@ -37,6 +37,17 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [userPerfil, setUserPerfil] = useState<string[] | null>(null);
   const [conected, setConnected] = useState<boolean>(true);
 
+  const [subjectColors, setSubjectColors] = useState<Record<string, string> | null>(null);
+
+  useEffect(() => {
+    setSubjectColors({
+      "4f54e504-70e7-44a4-943d-fe8093fef787": "yellow", //agro
+      "97608df7-6880-42fa-9880-957f710e71cd": "blue", //informatica
+      "d2a59458-7e4e-4dc8-ab9d-709ed622edf4": "red", //administracion
+      "e4dfab7d-5570-4c0e-8c48-c6e679a7e289": "green", //veterinaria
+    });
+  }, []);
+
   useEffect(() => {
     getPnf()
       .then((data) => {
@@ -195,6 +206,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     setIsAuthenticated,
     userPerfil,
     setUserPerfil,
+    subjectColors,
   };
 
   return (

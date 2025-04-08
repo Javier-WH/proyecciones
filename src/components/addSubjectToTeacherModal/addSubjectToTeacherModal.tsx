@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Button, Modal, Select, Radio, Tag, Switch, message } from "antd";
+import React, { useEffect, useState, useContext } from "react";
+import { Button, Modal, Select, Radio, Tag, Switch } from "antd";
 import type { RadioChangeEvent } from "antd";
 import { Quarter } from "../../interfaces/teacher";
 import { Subject } from "../../interfaces/subject";
@@ -8,12 +8,15 @@ import useSetSubject from "../../hooks/useSetSubject";
 import { Teacher } from "../../interfaces/teacher";
 import SubjectTeacherInfo from "./subjectTeacherInfo";
 import malePlaceHolder from "../../assets/malePlaceHolder.svg";
+import { MainContext } from "../../context/mainContext";
+import { MainContextValues } from "../../interfaces/contextInterfaces";
 
 interface optionsInterface {
   value: string;
   label: string;
   key: string;
   pnf?: string;
+  pnfId?: string;
   turno?: string;
   seccion?: string;
   trayecto?: string;
@@ -60,7 +63,8 @@ const AddSubjectToTeacherModal: React.FC<{
   handleSubjectChange,
   selectedTeacher,
 }) => {
-  const [loading, setLoading] = useState(false);
+  const { subjectColors } = useContext(MainContext) as MainContextValues;
+  const [_loading, setLoading] = useState(false);
   const [options, setOptions] = useState<optionsInterface[]>([]);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [perfilOption, setPerfilOption] = useState("perfil");
@@ -121,11 +125,11 @@ const AddSubjectToTeacherModal: React.FC<{
         label: subject.subject,
         key: `${subject.id} ${subject.pensum_id} ${subject.seccion} ${subject.innerId}`,
         pnf: subject.pnf,
+        pnfId: subject.pnfId,
         turno: subject.turnoName,
         seccion: subject.seccion,
         trayecto: subject.trayectoName,
         subjectId: subject.id,
-        quarter: subject.currentQuarter,
         quarters: Object.keys(subject.quarter),
         asigned: asigned,
         hours: subject.hours,
@@ -407,22 +411,33 @@ const AddSubjectToTeacherModal: React.FC<{
             disabled={options.length === 0 || selectedTeacerId === null}
             optionRender={(option) => {
               const data = option.data;
+              const pnfid = option.data.pnfId;
+              const color = pnfid ? subjectColors?.[pnfid] ?? "#001529" : "#001529";
               return (
                 <div
                   style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    borderBottom: "1px solid rgba(189, 223, 230, 0.47)",
-                    paddingBottom: "10px",
+                    display: "grid",
+                    gridTemplateColumns: "10px auto",
+                    width: "100%",
+                    columnGap: "10px",
                   }}>
-                  <h4 style={{ margin: 0 }}>{data.label}</h4>
-                  <div>
-                    <Tag>{data.pnf}</Tag>
-                    <Tag>{`sección: ${data.turno ? data.turno[0] : ""}-0${data.seccion}`}</Tag>
-                    <Tag>{`horas: ${data.hours?.q1} / ${data.hours?.q2} / ${data.hours?.q3}`}</Tag>
-                  </div>
+                  <div style={{ backgroundColor: color }}></div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      borderBottom: "1px solid rgba(189, 223, 230, 0.47)",
+                      paddingBottom: "10px",
+                    }}>
+                    <h4 style={{ margin: 0 }}>{data.label}</h4>
+                    <div>
+                      <Tag>{data.pnf}</Tag>
+                      <Tag>{`sección: ${data.turno ? data.turno[0] : ""}-0${data.seccion}`}</Tag>
+                      <Tag>{`horas: ${data.hours?.q1} / ${data.hours?.q2} / ${data.hours?.q3}`}</Tag>
+                    </div>
 
-                  <SubjectTeacherInfo teacher={data.teacher || {}} />
+                    <SubjectTeacherInfo teacher={data.teacher || {}} />
+                  </div>
                 </div>
               );
             }}

@@ -32,10 +32,14 @@
   background-color: #001529;
   color: white;
   padding-bottom: 10px;
+  margin-bottom: 5px ;
 }
 
 .teacher-subjects-buttons {
   display: flex;
+}
+.teacher-subjects-buttons svg {
+  filter: drop-shadow(0 0 1px black) drop-shadow(0 0 1px black);
 }
 .teacher-subjects-buttons svg:hover {
   scale: 1.3;
