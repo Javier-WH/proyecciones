@@ -69,7 +69,7 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
                 <div style={{ height: "10px", backgroundColor: backgroundColor }}></div>
                 <div>
                   <h4>
-                    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", width: "100%" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr", width: "100%" }}>
                       <span>{subject.subject}</span>
                       <span>{subject.trayectoName}</span>
                     </div>
