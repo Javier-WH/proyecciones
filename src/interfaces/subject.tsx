@@ -15,7 +15,6 @@ export interface Subject {
   teacherName?: string;
   teacherCi?: string;
   key?: string;
-  currentQuarter?: "q1" | "q2" | "q3";
 }
 
 export interface SimpleSubject {

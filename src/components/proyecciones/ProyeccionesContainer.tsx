@@ -4,7 +4,6 @@ import "./proyeccionesContainer.css";
 import { Button, Radio } from "antd";
 import { GiAutoRepair } from "react-icons/gi";
 import React, { useContext, useEffect, useState } from "react";
-import useSubjectsInfo from "../../hooks/useSubjectsInfo";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { useNavigate } from "react-router-dom";
@@ -15,7 +14,6 @@ import ReportMenu from "./reportMenu/reportMenu";
 import SubjectTab from "./subjectTab/subjectTab";
 
 export default function ProyeccionesContainer() {
-  const { tankenSubjects, aviableSubjects } = useSubjectsInfo();
   const [teacherTab, setTeacherTab] = useState(true);
   const [error, setError] = useState(false);
   const [searchByUserPerfil, setSearchByUserPerfil] = useState<boolean>(true);
@@ -137,17 +135,6 @@ export default function ProyeccionesContainer() {
 
         <span>{proyectionName}</span>
 
-        {/*<Select
-          defaultValue="Primer Trimestre"
-          value={selectedQuarter}
-          style={{ width: 180 }}
-          options={[
-            { value: "q1", label: "Primer Trimestre" },
-            { value: "q2", label: "Segundo Trimestre" },
-            { value: "q3", label: "Tercer Trimestre" },
-          ]}
-          onChange={handleChangeQuarterSelector}
-        />*/}
         <div style={{ display: "flex", gap: "5px" }}>
           {/*<Excel /> */}
           {/*<ReportProyection />*/}

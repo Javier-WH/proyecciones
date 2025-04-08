@@ -73,32 +73,18 @@ export default function SelectedTeacher() {
   }, [selectedTeacerId, selectedQuarter, subjects]);
 
   useEffect(() => {
+    if (!subjects || subjects?.length === 0) return;
+    let teacherSubjects: Subject[] = [];
     if (showAllSubjects) {
-      const teacherSubjectsQ1 = subjects
-        ?.filter((subject) => subject.quarter.q1 === selectedTeacerId)
-        .map((subject) => ({ ...subject, currentQuarter: "q1" as "q1" | "q2" | "q3" }));
-
-      const teacherSubjectsQ2 = subjects
-        ?.filter((subject) => subject.quarter.q2 === selectedTeacerId)
-        .map((subject) => ({ ...subject, currentQuarter: "q2" as "q1" | "q2" | "q3" }));
-
-      const teacherSubjectsQ3 = subjects
-        ?.filter((subject) => subject.quarter.q3 === selectedTeacerId)
-        .map((subject) => ({ ...subject, currentQuarter: "q3" as "q1" | "q2" | "q3" }));
-
-      //console.log(teacherSubjectsQ2);
-
-      setSubjectData([
-        ...(teacherSubjectsQ1 || []),
-        ...(teacherSubjectsQ2 || []),
-        ...(teacherSubjectsQ3 || []),
-      ]);
-
-      return;
+      teacherSubjects = subjects.filter(
+        (subject) =>
+          subject.quarter.q1 === selectedTeacerId ||
+          subject.quarter.q2 === selectedTeacerId ||
+          subject.quarter.q3 === selectedTeacerId
+      );
+    } else {
+      teacherSubjects = subjects?.filter((subject) => subject.quarter[selectedQuarter] === selectedTeacerId);
     }
-    const teacherSubjects = subjects?.filter(
-      (subject) => subject.quarter[selectedQuarter] === selectedTeacerId
-    );
     setSubjectData(teacherSubjects || []);
   }, [subjects, selectedQuarter, selectedTeacerId, showAllSubjects]);
 
@@ -225,7 +211,7 @@ export default function SelectedTeacher() {
                 <Radio.Button value="3">Trimestre 3</Radio.Button>
               </Radio.Group>
             </div>
-            <Subjects data={subjecData} />
+            <Subjects data={subjecData} showAllSubjects={showAllSubjects} />
           </>
         )
       }
