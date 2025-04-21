@@ -3,5 +3,6 @@ export interface PNF {
   name: string;
   saga_id: number;
   active: boolean;
+  color?: string | null;
 }
 

@@ -39,18 +39,27 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   const [subjectColors, setSubjectColors] = useState<Record<string, string> | null>(null);
 
-  useEffect(() => {
+  /*useEffect(() => {
     setSubjectColors({
-      "4f54e504-70e7-44a4-943d-fe8093fef787": "yellow", //agro
-      "97608df7-6880-42fa-9880-957f710e71cd": "blue", //informatica
-      "d2a59458-7e4e-4dc8-ab9d-709ed622edf4": "red", //administracion
-      "e4dfab7d-5570-4c0e-8c48-c6e679a7e289": "green", //veterinaria
+      "10d05b09-b40a-4c3c-91c1-a66dec9cd7ac": "yellow", //agro
+      "095f780f-b6d3-4095-94ab-9aa39b04f02c": "blue", //informatica
+      "0b070aa3-07e1-4f57-ab19-5d8fd1406056": "red", //administracion
+      "ae8ff1f2-d566-4b86-a86b-23d93e406add": "green", //veterinaria
     });
-  }, []);
+  }, []);*/
 
   useEffect(() => {
     getPnf()
       .then((data) => {
+        let pnfColors: Record<string, string> = {};
+
+        data.forEach((pnf: PNF) => {
+          if (pnf.id && pnf.color) {
+            pnfColors[pnf.id] = pnf.color;
+          }
+        });
+        setSubjectColors(pnfColors);
+
         const filteredData = data.filter((pnf: PNF) => Boolean(pnf.active) === true);
         setPnfList(filteredData);
       })

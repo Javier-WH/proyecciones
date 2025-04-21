@@ -22,7 +22,7 @@ export default function SubjectTeacherInfo({ teacher }: Props) {
           gap: "10px",
         }}>
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <span style={{ color: "black" }}>
+          <span style={{ color: "black", width: "1000px" }}>
             {_teacher.name} {_teacher.lastName}
           </span>
           <span style={{ height: "20px" }}>{_teacher.ci.length > 0 && `C.I. ${_teacher.ci}`}</span>
