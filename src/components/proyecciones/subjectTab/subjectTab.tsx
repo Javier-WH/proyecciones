@@ -2,9 +2,9 @@ import { Subject } from "../../../interfaces/subject";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { useContext, useEffect, useState } from "react";
-import { Input, Tag } from "antd";
+import { Button, Input, Tag } from "antd";
 import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInfo";
-import { Teacher } from "../../../interfaces/teacher";
+import { FaUserPen } from "react-icons/fa6";
 
 interface props {
   searchByUserPerfil: boolean;
@@ -35,6 +35,10 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     setSubjectList(filteredSubjects);
   }, [searchByUserPerfil, filter]);
 
+  const handleChangeTeacher = (subject: Subject) => {
+    console.log(subject);
+  };
+
   return (
     <div
       style={{
@@ -55,7 +59,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
           display: "flex",
           flexDirection: "column",
           rowGap: "5px",
-          height: "calc(100vh - 50px)",
+          height: "calc(100vh - 120px)",
           overflowY: "auto",
         }}>
         {subjectList?.map((subject) => {
@@ -69,6 +73,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
 
           return (
             <div
+              key={subject.innerId}
+              className="subject-tab"
               style={{
                 height: "80px",
                 minHeight: "80px",
@@ -77,6 +83,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                 display: "flex",
                 columnGap: "10px",
                 position: "relative",
+                backgroundColor: "rgba(255, 255, 255, 0.5)",
               }}>
               <div style={{ height: "100%", width: "15px", backgroundColor: color }}></div>
               <div>
@@ -94,6 +101,21 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                   }}>
                   <SubjectTeacherInfo teacher={teacher} />
                 </div>
+                <Button
+                  onClick={() => handleChangeTeacher(subject)}
+                  className="subject-tab-button"
+                  type="primary"
+                  shape="circle"
+                  style={{
+                    position: "absolute",
+                    right: "10px",
+                    top: "0",
+                    bottom: "0",
+                    marginTop: "auto",
+                    marginBottom: "auto",
+                  }}>
+                  <FaUserPen />
+                </Button>
               </div>
             </div>
           );

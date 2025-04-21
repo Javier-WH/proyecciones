@@ -36,6 +36,13 @@
   height: calc(100vh - 100px);
 }
 
+.subject-tab:hover {
+  filter: brightness(0.9);
+}
+.subject-tab-button:hover{
+  cursor: pointer;
+  scale: 1.2;
+}
 
 
 /* #001529;*/
