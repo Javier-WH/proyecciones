@@ -182,7 +182,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
         height: "100%",
         cursor: "pointer",
         gridArea: "table",
-        marginTop: "-40px",
+        marginTop: "-30px",
         marginLeft: "5px",
       }}>
       <Input

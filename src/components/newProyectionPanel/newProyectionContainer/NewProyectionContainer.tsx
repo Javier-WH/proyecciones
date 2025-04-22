@@ -90,7 +90,7 @@ export default function NewProyectionContainer({
       setPassed(null);
       return;
     }
-    setPassed(inscriptionData.data.passed);
+    setPassed(inscriptionData?.data?.passed);
   }, [inscriptionData]);
 
   useEffect(() => {
