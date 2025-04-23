@@ -94,6 +94,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                   <div style={{ fontWeight: 600 }}>{subject.subject}</div>
                   <div>
                     <Tag>{subject.pnf}</Tag>
+                    <Tag>{`${subject?.trayectoName}`}</Tag>
                     <Tag>{`Sección: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
                     <Tag>{`Horas: ${subject.hours.q1} / ${subject.hours.q2} / ${subject.hours.q3}`}</Tag>
                   </div>

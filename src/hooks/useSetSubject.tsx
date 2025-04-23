@@ -35,7 +35,7 @@ export default function useSetSubject(SubjectArray: Subject[]) {
 
   /**
    * Asigna una materia a un profesor
-   * @param {string|null} subjectId - Id de la materia a asignar
+   * @param {string|null} subjectId - Id de la materia a asignar (innerID)
    * @param {string|null} teacherId - Id del profesor al que se asigna la materia
    * @returns {useSubjectResponse} - Un objeto que indica si hubo error, un mensaje asociado y la lista de materias actualizada
    */

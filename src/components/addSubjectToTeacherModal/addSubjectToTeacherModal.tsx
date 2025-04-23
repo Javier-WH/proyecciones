@@ -259,34 +259,6 @@ const AddSubjectToTeacherModal: React.FC<{
     };
   };
 
-  const getAsignedTeacherInfo = ({ teacher, title }: { teacher: Teacher | null; title: string }) => {
-    const style: React.CSSProperties = {
-      display: "flex",
-      flexDirection: "column",
-      width: "300px",
-      height: "70px",
-      alignContent: "center",
-      justifyContent: "center",
-    };
-
-    if (!teacher) {
-      return (
-        <div style={style}>
-          <span>{title}</span>
-          <span>No hay docente asignado</span>
-        </div>
-      );
-    }
-
-    return (
-      <div style={style}>
-        <span>{title}</span>
-        <span>{`${teacher.name} ${teacher.lastName}`}</span>
-        <span>{`C.I. ${teacher.ci}`}</span>
-      </div>
-    );
-  };
-
   return (
     <>
       <Modal
