@@ -24,7 +24,6 @@ export default function ProyeccionesContainer() {
     proyectionsDone,
     proyectionName,
     setIsAuthenticated,
-    userPerfil,
   } = useContext(MainContext) as MainContextValues;
 
   const navigate = useNavigate();
@@ -38,6 +37,10 @@ export default function ProyeccionesContainer() {
     setSelectedTeacerId(null);
     setSelectedTeacher(null);
   };
+
+  useEffect(() => {
+    setSelectedTeacher(null);
+  }, []);
 
   //aqui se revisa si existe algun valor null en la tabla subjects
   useEffect(() => {
@@ -143,7 +146,10 @@ export default function ProyeccionesContainer() {
             style={{ marginLeft: "30px" }}
             type="link"
             icon={<LogoutOutlined />}
-            onClick={() => setIsAuthenticated(false)}
+            onClick={() => {
+              setIsAuthenticated(false);
+              sessionStorage.removeItem("userSesion");
+            }}
           />
         </div>
       </div>

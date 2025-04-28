@@ -1,5 +1,5 @@
-export default async function postPNF({ id, name, active, saga_id }
-  : { id: string | undefined, name: string | undefined, active: number | undefined, saga_id: number | undefined }) {
+export default async function postPNF({ id, name, active, saga_id, color }
+  : { id: string | undefined, name: string | undefined, active: number | undefined, saga_id: number | undefined, color: string | undefined }) {
 
   const headersList = {
     "Accept": "*/*",
@@ -10,7 +10,8 @@ export default async function postPNF({ id, name, active, saga_id }
     id,
     name,
     active,
-    saga_id
+    saga_id, 
+    color
   });
 
   const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/pnf" : "/pnf";

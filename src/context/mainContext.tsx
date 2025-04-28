@@ -34,21 +34,32 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [proyectionName, setProyectionName] = useState<string | null>(null);
   const [proyectionId, setProyectionId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [userPerfil, setUserPerfil] = useState<string[] | null>(null);
+  const [userPerfil, setUserPerfil] = useState<string[] | null>(() => {
+    const savedState = sessionStorage.getItem("userSesion");
+    if (savedState) {
+      const parsedState = JSON.parse(savedState);
+      setIsAuthenticated(true);
+      return parsedState;
+    }
+    // Si no hay estado guardado, devuelve null
+    return null;
+  });
   const [conected, setConnected] = useState<boolean>(true);
 
   const [subjectColors, setSubjectColors] = useState<Record<string, string> | null>(null);
 
-  /*useEffect(() => {
-    setSubjectColors({
-      "10d05b09-b40a-4c3c-91c1-a66dec9cd7ac": "yellow", //agro
-      "095f780f-b6d3-4095-94ab-9aa39b04f02c": "blue", //informatica
-      "0b070aa3-07e1-4f57-ab19-5d8fd1406056": "red", //administracion
-      "ae8ff1f2-d566-4b86-a86b-23d93e406add": "green", //veterinaria
-    });
-  }, []);*/
+  //guarda la sesión del usuario en el local storage
+  useEffect(() => {
+    if (!userPerfil) return;
+    sessionStorage.setItem("userSesion", JSON.stringify(userPerfil));
+  }, [userPerfil]);
 
   useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  // cargar datos iniciales
+  const loadInitialData = () => {
     getPnf()
       .then((data) => {
         let pnfColors: Record<string, string> = {};
@@ -87,7 +98,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     getTurnos().then((data) => {
       setTurnosList(data);
     });
-  }, []);
+  };
 
   const setSelectedTeacherById = (id: string) => {
     if (!teachers) return;
@@ -216,6 +227,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     userPerfil,
     setUserPerfil,
     subjectColors,
+    loadInitialData,
   };
 
   return (
