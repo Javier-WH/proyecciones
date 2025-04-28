@@ -1,6 +1,6 @@
 import type { DatePickerProps, TableProps } from "antd";
 import { DatePicker, Input, Button, Table, message } from "antd";
-import { useEffect, useState, useContext} from "react";
+import { useEffect, useState, useContext } from "react";
 import getProyections from "../../fetch/getProyections";
 import getConfig from "../../fetch/getConfig";
 import SetActiveProyection from "../../fetch/setActiveProyection";
@@ -15,8 +15,7 @@ interface ProyectionDataType {
 }
 
 export default function Config() {
-
-  const { handleReload } = useContext(MainContext) as MainContextValues
+  const { handleReload } = useContext(MainContext) as MainContextValues;
   const [year, setYear] = useState<string | null>(null);
   const [name, setName] = useState<string>("");
   const [proyectionList, setProyectionList] = useState<ProyectionDataType[]>([]);
@@ -26,14 +25,16 @@ export default function Config() {
     const proyections = await getProyections();
     setProyectionList(proyections);
     const config = await getConfig();
-    const activeProyectionId = config.active_proyection
-    const activeProyection = proyections.find((proyection: ProyectionDataType) => proyection.id === activeProyectionId);
+    const activeProyectionId = config.active_proyection;
+    const activeProyection = proyections.find(
+      (proyection: ProyectionDataType) => proyection.id === activeProyectionId
+    );
     setActiveProyection(activeProyection?.name);
   };
 
   useEffect(() => {
     fetchProyections();
-  }, [])
+  }, []);
 
   const onYearChange: DatePickerProps["onChange"] = (_, dateString) => {
     setYear(String(dateString));
@@ -42,9 +43,9 @@ export default function Config() {
   const handleClickActivate = async (id: string) => {
     await SetActiveProyection({ active_proyection: id });
     await fetchProyections();
-    handleReload()
+    handleReload();
     message.success("Proyeccion activada");
-  }
+  };
 
   const handleCreateProyection = async () => {
     if (!year || name.length === 0) {
@@ -57,30 +58,34 @@ export default function Config() {
       return;
     }
     fetchProyections();
-  }
+  };
 
-  const columns: TableProps<ProyectionDataType>['columns'] = [
+  const columns: TableProps<ProyectionDataType>["columns"] = [
     {
-      title: 'Año',
-      dataIndex: 'year',
-      key: 'year',
-      width: "40%"
+      title: "Año",
+      dataIndex: "year",
+      key: "year",
+      width: "40%",
     },
     {
-      title: 'name',
-      dataIndex: 'name',
-      key: 'name',
-      width: "40%"
+      title: "name",
+      dataIndex: "name",
+      key: "name",
+      width: "40%",
     },
     {
-      title: 'Activar',
-      dataIndex: 'id',
-      key: 'id',
+      title: "Activar",
+      dataIndex: "id",
+      key: "id",
       width: "20%",
       render: (_, record) => {
-        return <Button type="primary" onClick={() => handleClickActivate(record.id)}>Activar</Button>;
+        return (
+          <Button type="primary" onClick={() => handleClickActivate(record.id)}>
+            Activar
+          </Button>
+        );
       },
-    }
+    },
   ];
 
   return (
@@ -94,7 +99,7 @@ export default function Config() {
           justifyContent: "start",
           columnGap: "3rem",
         }}>
-        <h1>Configuración</h1>
+        <h1>Proyecciones</h1>
       </div>
 
       <div
@@ -127,11 +132,7 @@ export default function Config() {
             justifyContent: "end",
             flex: 1,
           }}>
-          <Button
-            onClick={handleCreateProyection}
-            type="primary"
-            disabled={!year || !name}
-          >
+          <Button onClick={handleCreateProyection} type="primary" disabled={!year || !name}>
             Crear
           </Button>
         </div>
@@ -139,14 +140,22 @@ export default function Config() {
 
       <div style={{ padding: "10px" }}>
         <h2 style={{ color: "gray" }}>Proyecciones</h2>
-        <h3>{
-          activeProyection 
-            ? <><span style={{ color: "gray" }}>{"Proyección activa ->"} </span> <span style={{ color: "green" }}>{activeProyection}</span></>
-            : <span style={{ color: "red" }}> "No hay una proyección activa"</span>
-        }</h3>
-        <Table<ProyectionDataType> columns={columns} dataSource={proyectionList} pagination={{ position: ["topLeft", "none"] }} />
+        <h3>
+          {activeProyection ? (
+            <>
+              <span style={{ color: "gray" }}>{"Proyección activa ->"} </span>{" "}
+              <span style={{ color: "green" }}>{activeProyection}</span>
+            </>
+          ) : (
+            <span style={{ color: "red" }}> "No hay una proyección activa"</span>
+          )}
+        </h3>
+        <Table<ProyectionDataType>
+          columns={columns}
+          dataSource={proyectionList}
+          pagination={{ position: ["topLeft", "none"] }}
+        />
       </div>
-
     </div>
   );
 }

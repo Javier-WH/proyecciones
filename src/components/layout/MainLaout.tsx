@@ -1,16 +1,16 @@
-import { useState, useContext, useEffect } from "react";
+import { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit, FaProductHunt, FaThList } from "react-icons/fa";
 import { MdSubject, MdEditRoad, MdEditLocation } from "react-icons/md";
-import { IoMdPlanet } from "react-icons/io";
+import { IoMdPlanet, IoIosCreate } from "react-icons/io";
 import { LiaSchoolSolid } from "react-icons/lia";
-import { GrSchedules, GrConfigure } from "react-icons/gr";
+import { GrSchedules } from "react-icons/gr";
+import { FaPersonMilitaryPointing } from "react-icons/fa6";
 import { IoPersonAddSharp } from "react-icons/io5";
 import { PiStepsDuotone } from "react-icons/pi";
 import { FaUsers } from "react-icons/fa6";
 import type { MenuProps } from "antd";
 import { Layout, Menu } from "antd";
-import { MainContext } from "../../context/mainContext";
 
 const { Sider } = Layout;
 
@@ -32,7 +32,8 @@ function getItem(
 
 const items: MenuItem[] = [
   getItem("Proyecciones", "/app/_proyecciones", <FaCalendarAlt />, [
-    getItem("Crear", "/app/proyecciones/create", <FaProductHunt />),
+    getItem("Proyección Activa", "/app/active", <FaPersonMilitaryPointing />),
+    getItem("Crear", "/app/proyecciones/create", <IoIosCreate />),
     getItem("Materias", "/app/proyecciones/subjects", <MdSubject />),
     getItem("Proyeccion", "/app/proyecciones", <FaCalendarAlt />),
   ]),
@@ -53,13 +54,9 @@ const items: MenuItem[] = [
     getItem("Crear Horario", "6"),
     getItem("Editar Horario", "8"),
   ]),
-  getItem("Configuración", "/app/config", <GrConfigure />),
 ];
 
 const MainLayout: React.FC = () => {
-  const context = useContext(MainContext);
-  const subjects = context?.subjects;
-
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
 

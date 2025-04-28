@@ -24,14 +24,19 @@ const router = createBrowserRouter([
   },
   {
     path: "/app",
-    element: <ProtectedRoute> <MainLayout /> </ProtectedRoute>,
+    element: (
+      <ProtectedRoute>
+        {" "}
+        <MainLayout />{" "}
+      </ProtectedRoute>
+    ),
     children: [
       {
         path: "proyecciones",
         element: <ProyeccionesContainer />,
       },
       {
-        path: "config",
+        path: "active",
         element: <Config />,
       },
       {
@@ -84,3 +89,4 @@ const router = createBrowserRouter([
 ]);
 
 export default router;
+
