@@ -126,29 +126,6 @@ export default function EditTeacherModal({
       return;
     }
 
-    // Se debe corregir el array de la proyección creada
-    if (teacherData) {
-      const teacherChanged: Teacher = {
-        id: teacherData?.id,
-        name,
-        lastName,
-        ci,
-        type: contractOptions?.find((contract) => contract.value === typeId)?.label?.toString() || "",
-        photo: teacherData.photo,
-        title,
-        partTime: 10,
-        load: teacherData.load,
-        perfilName: teacherData.perfilName,
-        perfil_name_id: perfilId,
-        perfil: teacherData.perfil,
-        gender: teacherData.gender,
-        genderId,
-        contractTypeId: typeId,
-        active: active === "1",
-      };
-      handleSingleTeacherChange(teacherChanged);
-    }
-
     fetchTeachers();
     message.success("Profesor editado correctamente");
     setTeacherData(null);
