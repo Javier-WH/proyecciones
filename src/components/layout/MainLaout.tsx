@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit, FaProductHunt, FaThList } from "react-icons/fa";
+import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit, FaThList } from "react-icons/fa";
+import { LiaFileContractSolid } from "react-icons/lia";
 import { MdSubject, MdEditRoad, MdEditLocation } from "react-icons/md";
 import { IoMdPlanet, IoIosCreate } from "react-icons/io";
 import { LiaSchoolSolid } from "react-icons/lia";
@@ -41,6 +42,7 @@ const items: MenuItem[] = [
     getItem("Registrar", "/app/registerTeacher", <IoPersonAddSharp />),
     getItem("Editar", "/app/editTeacher", <FaUserEdit />),
     getItem("Perfiles", "/app/teacherProfiles", <FaUsers />),
+    getItem("Contracts", "/app/contracts", <LiaFileContractSolid />),
   ]),
   getItem("Pensum", "/app/pensum", <LiaSchoolSolid />, [
     getItem("Editar Materias", "/app/editSubject", <MdEditLocation />),

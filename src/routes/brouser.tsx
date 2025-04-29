@@ -15,6 +15,7 @@ import EditPensum from "../components/pensum/editPensum/editPensum";
 import EditPNF from "../components/editTrayectos/editPNF/EditPNF";
 import Config from "../components/config/config";
 import ProtectedRoute from "../components/login/protectedRute";
+import EditContracts from "../components/editContracts/EditContracts";
 
 const router = createBrowserRouter([
   {
@@ -74,6 +75,10 @@ const router = createBrowserRouter([
       {
         path: "/app/editPNF",
         element: <EditPNF />,
+      },
+      {
+        path: "/app/contracts",
+        element: <EditContracts />,
       },
       {
         path: "*",
