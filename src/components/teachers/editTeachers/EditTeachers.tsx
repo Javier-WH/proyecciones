@@ -1,4 +1,3 @@
-
 import { Button, Input } from "antd";
 import { LiaUserEditSolid } from "react-icons/lia";
 import { Teacher } from "../../../interfaces/teacher";
@@ -80,3 +79,4 @@ export default function EditTeachers() {
     </div>
   );
 }
+

@@ -24,7 +24,7 @@ export default function EditTeacherModal({
   const [name, setName] = useState<string>("");
   const [lastName, setLastName] = useState<string>("");
   const [ci, setCi] = useState<string>("");
-  const [perfilId, setPerfilId] = useState<string>("");
+  const [perfilId, setPerfilId] = useState<string[]>([]);
   const [title, setTitle] = useState<string>("");
   const [genderId, setGenderId] = useState<string>("");
   const [typeId, setTypeId] = useState<string>("");
@@ -38,18 +38,17 @@ export default function EditTeacherModal({
       setName(teacherData.name);
       setLastName(teacherData.lastName);
       setCi(teacherData.ci);
-      setPerfilId(teacherData.perfil_name_id);
       setTitle(teacherData.title);
       setIsModalOpen(true);
       setTypeId(teacherData.contractTypeId);
       setGenderId(teacherData.genderId);
       setActive(teacherData.active ? "1" : "0");
-      // console.log(teacherData);
+      setPerfilId(teacherData?.perfil_name_id?.split(",") || []);
     } else {
       setName("");
       setLastName("");
       setCi("");
-      setPerfilId("");
+      setPerfilId([]);
       setTitle("");
       setTypeId("");
       setGenderId("");
@@ -116,7 +115,7 @@ export default function EditTeacherModal({
       gender_id: genderId,
       contractTypes_id: typeId,
       title,
-      perfil_name_id: perfilId,
+      perfil_name_id: perfilId.join(","),
       active,
     };
 
@@ -132,7 +131,12 @@ export default function EditTeacherModal({
   };
 
   return (
-    <Modal title="Editar Profesor" open={isModalOpen} onOk={handleOk} onCancel={handleCancel}>
+    <Modal
+      style={{ minWidth: "800px" }}
+      title="Editar Profesor"
+      open={isModalOpen}
+      onOk={handleOk}
+      onCancel={handleCancel}>
       <div className="edit-teacher-modal-container">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 5fr", gap: "5px" }}>
           <img src={placeholder} alt="" style={{ width: "165px" }} />
@@ -173,6 +177,8 @@ export default function EditTeacherModal({
             <label style={{ display: "block" }}>Perfil</label>
             <Select
               style={{ width: "100%" }}
+              mode="multiple"
+              allowClear
               showSearch
               placeholder="Selecciona un perfil"
               filterOption={(input, option) =>
