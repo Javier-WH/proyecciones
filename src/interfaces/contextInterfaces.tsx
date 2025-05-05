@@ -48,5 +48,7 @@ export interface MainContextValues {
   setUserPerfil: React.Dispatch<React.SetStateAction<string[] | null>>;
   subjectColors: Record<string, string> | null;
   loadInitialData: () => void;
+  editSubjectQuarter: Subject | null;
+  setEditSubjectQuarter: React.Dispatch<React.SetStateAction<Subject | null>>;
 }
 

@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import { Subject } from "../../../../interfaces/subject";
 import { Button } from "antd";
 import { FaTrashAlt } from "react-icons/fa";
+import { TbTopologyStar3 } from "react-icons/tb";
 import { MdAssignmentAdd } from "react-icons/md";
 import { Tag } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
@@ -22,6 +23,7 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
     selectedQuarter,
     handleSubjectChange,
     subjectColors,
+    setEditSubjectQuarter,
   } = useContext(MainContext) as MainContextValues;
 
   const { removeSubjectFromTeacher } = useSetSubject(subjects || []);
@@ -40,6 +42,10 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
       //actualizo la lista de materias
       handleSubjectChange(responseRemoveSubject.data);
     }
+  };
+
+  const handleEditSubjectQuarter = (subject: Subject) => {
+    setEditSubjectQuarter(subject);
   };
 
   return (
@@ -65,30 +71,43 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
           data.map((subject, i) => {
             const backgroundColor = subjectColors?.[subject.pnfId] || "pink";
             return (
-              <div key={i}>
+              <div key={i} style={{ height: "80px", position: "relative" }}>
+                <div className="teacher-subjects-buttons">
+                  <Button
+                    id={`${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}`}
+                    type="link"
+                    shape="round"
+                    danger
+                    onClick={() => handleRemoveSubject(subject)}>
+                    <FaTrashAlt />
+                  </Button>
+
+                  <Button
+                    id={`u-${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}`}
+                    type="link"
+                    style={{ color: "wheat" }}
+                    shape="round"
+                    onClick={() => handleEditSubjectQuarter(subject)}>
+                    <TbTopologyStar3 />
+                  </Button>
+                </div>
                 <div style={{ height: "10px", backgroundColor: backgroundColor }}></div>
                 <div>
                   <h4>
-                    <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr", width: "100%" }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "5fr 2fr 1fr",
+                        width: "100%",
+                      }}>
                       <span>{subject.subject}</span>
                       <span>{subject.trayectoName}</span>
-                    </div>
-
-                    <div className="teacher-subjects-buttons">
-                      <Button
-                        id={`${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}`}
-                        type="link"
-                        shape="round"
-                        danger
-                        onClick={() => handleRemoveSubject(subject)}>
-                        <FaTrashAlt />
-                      </Button>
                     </div>
                   </h4>
                   <div
                     style={{
                       marginLeft: "20px",
-                      marginTop: "3px",
+                      marginTop: "10px",
                       display: "flex",
                       columnGap: "1px",
                       rowGap: "5px",

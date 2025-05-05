@@ -13,6 +13,7 @@ import getSubjects from "../fetch/getSubjects.ts";
 import getTrayectos from "../fetch/getTrayectos.ts";
 import getTurnos from "../fetch/getTurnos.ts";
 import DisconectedMessage from "./disconectedMessage.tsx";
+import EditSubjectQuarterModal from "../components/editSibjectQuarter/EditSubjectQuarter.tsx";
 
 export const MainContext = createContext<MainContextValues | null>(null);
 
@@ -34,6 +35,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [proyectionName, setProyectionName] = useState<string | null>(null);
   const [proyectionId, setProyectionId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [editSubjectQuarter, setEditSubjectQuarter] = useState<Subject | null>(null);
   const [userPerfil, setUserPerfil] = useState<string[] | null>(() => {
     const savedState = sessionStorage.getItem("userSesion");
     if (savedState) {
@@ -228,6 +230,8 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     setUserPerfil,
     subjectColors,
     loadInitialData,
+    editSubjectQuarter,
+    setEditSubjectQuarter,
   };
 
   return (
@@ -258,6 +262,13 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         setSubjects={setSubjects}
         selectedSubject={selectedSubject}
         selectedQuarter={selectedQuarter}
+      />
+
+      <EditSubjectQuarterModal
+        subject={editSubjectQuarter}
+        setSubject={setEditSubjectQuarter}
+        teachers={teachers?.q1 || []}
+        subjectColors={subjectColors}
       />
     </MainContext.Provider>
   );
