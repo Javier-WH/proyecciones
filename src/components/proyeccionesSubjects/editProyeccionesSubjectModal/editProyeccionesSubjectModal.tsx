@@ -47,6 +47,32 @@ const EditProyeccionesSubjectModal: React.FC<{
     //edita el array de materias
     const _subjects = JSON.parse(JSON.stringify(subjects));
     const updatedSubjects = _subjects.map((sub: Subject) => {
+      if (sub.innerId === subject.innerId) {
+        sub.hours = hourValue;
+        sub.pnf = pnfValue;
+        sub.subject = subjectValue;
+        sub.quarter = trimestreValue;
+        sub.seccion = seccionValue;
+      }
+      return sub;
+    });
+    handleSubjectChange(updatedSubjects);
+    setOpen(false);
+  };
+
+  const handleUpdateSimilar = () => {
+    if (
+      subject === null ||
+      hourValue === null ||
+      pnfValue === null ||
+      subjectValue === null ||
+      !trimestreValue
+    )
+      return;
+
+    //edita el array de materias
+    const _subjects = JSON.parse(JSON.stringify(subjects));
+    const updatedSubjects = _subjects.map((sub: Subject) => {
       if (sub.pensum_id === subject.pensum_id) {
         sub.hours = hourValue;
         sub.pnf = pnfValue;
@@ -100,8 +126,11 @@ const EditProyeccionesSubjectModal: React.FC<{
           <Button key="back" onClick={handleCancel} type="dashed">
             Cancelar
           </Button>,
+          <Button key="update" onClick={handleUpdateSimilar} disabled={false}>
+            Actualizar Similares
+          </Button>,
           <Button key="submit" type="primary" onClick={handleOk} disabled={false}>
-            Aceptar
+            Actualizar
           </Button>,
         ]}>
         <div
