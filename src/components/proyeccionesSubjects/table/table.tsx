@@ -1,118 +1,13 @@
-import React, { useRef, useState, useContext } from "react";
-import {
-  SearchOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  CloseCircleOutlined,
-  QuestionCircleOutlined,
-} from "@ant-design/icons";
-import type { InputRef, TableColumnsType, TableColumnType } from "antd";
-import { Button, Input, Space, Table, Tag, message, Popconfirm } from "antd";
-import type { FilterDropdownProps } from "antd/es/table/interface";
-import Highlighter from "react-highlight-words";
+import React, { useState } from "react";
+import { DeleteOutlined, EditOutlined, CloseCircleOutlined, QuestionCircleOutlined } from "@ant-design/icons";
+import type { TableColumnsType } from "antd";
+import { Button, Table, Tag, message, Popconfirm } from "antd";
 import { Subject } from "../../../interfaces/subject";
-//import { Teacher } from "../../../interfaces/teacher";
 import EditProyeccionesSubjectModal from "../editProyeccionesSubjectModal/editProyeccionesSubjectModal";
-//import { MainContext } from "../../../context/mainContext";
-//import { MainContextValues } from "../../../interfaces/contextInterfaces";
-
-type DataIndex = keyof Subject;
 
 const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ subjects }) => {
-  const [searchText, setSearchText] = useState("");
-  const [searchedColumn, setSearchedColumn] = useState("");
-  const searchInput = useRef<InputRef>(null);
-
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
-
-  const handleSearch = (
-    selectedKeys: string[],
-    confirm: FilterDropdownProps["confirm"],
-    dataIndex: DataIndex
-  ) => {
-    confirm();
-    setSearchText(selectedKeys[0]);
-    setSearchedColumn(dataIndex);
-  };
-
-  const handleReset = (clearFilters: () => void) => {
-    clearFilters();
-    setSearchText("");
-  };
-
-  const getColumnSearchProps = (dataIndex: DataIndex): TableColumnType<Subject> => ({
-    filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
-      <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
-        <Input
-          ref={searchInput}
-          placeholder={`Buscar en ${dataIndex}`}
-          value={selectedKeys[0]}
-          onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-          onPressEnter={() => handleSearch(selectedKeys as string[], confirm, dataIndex)}
-          style={{ marginBottom: 8, display: "block" }}
-        />
-        <Space>
-          <Button
-            type="primary"
-            onClick={() => handleSearch(selectedKeys as string[], confirm, dataIndex)}
-            icon={<SearchOutlined />}
-            size="small"
-            style={{ width: 90 }}>
-            Buscar
-          </Button>
-          <Button
-            onClick={() => clearFilters && handleReset(clearFilters)}
-            size="small"
-            style={{ width: 90 }}>
-            Reiniciar
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => {
-              confirm({ closeDropdown: false });
-              setSearchText((selectedKeys as string[])[0]);
-              setSearchedColumn(dataIndex);
-            }}>
-            Filtrar
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => {
-              close();
-            }}>
-            Cerrar
-          </Button>
-        </Space>
-      </div>
-    ),
-    filterIcon: (filtered: boolean) => <SearchOutlined style={{ color: filtered ? "#1677ff" : undefined }} />,
-    onFilter: (value, record) => {
-      const recordValue = record[dataIndex] ?? "";
-      return recordValue
-        .toString()
-        .toLowerCase()
-        .includes((value as string).toLowerCase());
-    },
-    onFilterDropdownOpenChange: (visible) => {
-      if (visible) {
-        setTimeout(() => searchInput.current?.select(), 100);
-      }
-    },
-    render: (text) =>
-      searchedColumn === dataIndex ? (
-        <Highlighter
-          highlightStyle={{ backgroundColor: "#ffc069", padding: 0 }}
-          searchWords={[searchText]}
-          autoEscape
-          textToHighlight={text ? text.toString() : ""}
-        />
-      ) : (
-        text
-      ),
-  });
 
   const getRowStyle = (value: string | null | undefined): React.CSSProperties => {
     const error = value === null || value === undefined;
@@ -130,7 +25,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
     );
   };
 
-  const onDelete = (record: Subject) => {
+  const onDelete = (_record: Subject) => {
     message.success("La asignatura fue eliminada de la proyección");
   };
   const onEdit = (record: Subject) => {
@@ -196,13 +91,6 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       key: "turnoName",
       width: "10%",
       align: "center",
-      ...getColumnSearchProps("turnoName"),
-      onFilter: (value, record) => {
-        const turnoValue = typeof record.turnoName === "string" ? record.turnoName : "";
-        return turnoValue.toLowerCase().includes((String(value) || "").toLowerCase());
-      },
-      sorter: (a, b) => a?.turnoName?.localeCompare(b?.turnoName),
-      sortDirections: ["descend", "ascend"],
       render: (value) => {
         return <div style={getRowStyle(value)}>{getRowContent(value)}</div>;
       },
@@ -244,13 +132,6 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       width: "3%",
       key: "seccion",
       align: "center",
-      ...getColumnSearchProps("seccion"),
-      onFilter: (value, record) => {
-        const hoursValue = typeof record.hours === "number" ? record.hours : "";
-        return hoursValue.toString().includes(String(value) || "");
-      },
-      //sorter: (a, b) => a.hours - b.hours,
-      sortDirections: ["descend", "ascend"],
       render: (value) => {
         return <div>{getRowContent(value)}</div>;
       },
