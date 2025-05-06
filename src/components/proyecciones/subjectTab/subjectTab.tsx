@@ -40,7 +40,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     }
 
     setSubjectList(filteredSubjects);
-  }, [searchByUserPerfil, filter]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchByUserPerfil, filter, subjects ]);
 
   const handleChangeTeacher = (subject: Subject) => {
     setSelectedSubject(subject);

@@ -64,7 +64,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const loadInitialData = () => {
     getPnf()
       .then((data) => {
-        let pnfColors: Record<string, string> = {};
+        const pnfColors: Record<string, string> = {};
 
         data.forEach((pnf: PNF) => {
           if (pnf.id && pnf.color) {

@@ -52,6 +52,7 @@ const EditSubjectQuarterModal: React.FC<{
     }
 
     setOpen(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject]);
 
   useEffect(() => {
