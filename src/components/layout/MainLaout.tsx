@@ -42,7 +42,7 @@ const items: MenuItem[] = [
     getItem("Registrar", "/app/registerTeacher", <IoPersonAddSharp />),
     getItem("Editar", "/app/editTeacher", <FaUserEdit />),
     getItem("Perfiles", "/app/teacherProfiles", <FaUsers />),
-    getItem("Contracts", "/app/contracts", <LiaFileContractSolid />),
+    getItem("Contratos", "/app/contracts", <LiaFileContractSolid />),
   ]),
   getItem("Pensum", "/app/pensum", <LiaSchoolSolid />, [
     getItem("Editar Materias", "/app/editSubject", <MdEditLocation />),
