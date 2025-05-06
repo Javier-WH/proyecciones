@@ -269,6 +269,8 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         setSubject={setEditSubjectQuarter}
         teachers={teachers?.q1 || []}
         subjectColors={subjectColors}
+        handleSubjectChange={handleSubjectChange}
+        subjects={subjects}
       />
     </MainContext.Provider>
   );

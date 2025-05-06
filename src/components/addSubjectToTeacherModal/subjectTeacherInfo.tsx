@@ -20,6 +20,7 @@ export default function SubjectTeacherInfo({ teacher }: Props) {
           width: "100%",
           maxWidth: "300px",
           gap: "10px",
+          overflow: "hidden",
         }}>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <span style={{ color: "black", width: "1000px" }}>
@@ -80,7 +81,7 @@ export default function SubjectTeacherInfo({ teacher }: Props) {
     <div
       style={{
         display: "flex",
-        columnGap: "10px",
+        columnGap: "15px",
       }}>
       {teacherCluster(teacher.q1 ?? null)}
       {teacherCluster(teacher.q2 ?? null)}
