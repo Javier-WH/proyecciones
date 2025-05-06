@@ -82,14 +82,16 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
                     <FaTrashAlt />
                   </Button>
 
-                  <Button
-                    id={`u-${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}`}
-                    type="link"
-                    style={{ color: "wheat" }}
-                    shape="round"
-                    onClick={() => handleEditSubjectQuarter(subject)}>
-                    <TbTopologyStar3 />
-                  </Button>
+                  {showAllSubjects && (
+                    <Button
+                      id={`u-${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}`}
+                      type="link"
+                      style={{ color: "wheat" }}
+                      shape="round"
+                      onClick={() => handleEditSubjectQuarter(subject)}>
+                      <TbTopologyStar3 />
+                    </Button>
+                  )}
                 </div>
                 <div style={{ height: "10px", backgroundColor: backgroundColor }}></div>
                 <div>

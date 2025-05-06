@@ -126,21 +126,22 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                     }}>
                     <FaUserPen />
                   </Button>
-
-                  <Button
-                    onClick={() => setEditSubjectQuarter(subject)}
-                    className="subject-tab-button"
-                    shape="circle"
-                    style={{
-                      position: "absolute",
-                      right: "50px",
-                      top: "0",
-                      bottom: "0",
-                      marginTop: "auto",
-                      marginBottom: "auto",
-                    }}>
-                    <TbTopologyStar3 />
-                  </Button>
+                  {subject?.quarter?.q1 && subject?.quarter?.q2 && subject?.quarter?.q3 && (
+                    <Button
+                      onClick={() => setEditSubjectQuarter(subject)}
+                      className="subject-tab-button"
+                      shape="circle"
+                      style={{
+                        position: "absolute",
+                        right: "50px",
+                        top: "0",
+                        bottom: "0",
+                        marginTop: "auto",
+                        marginBottom: "auto",
+                      }}>
+                      <TbTopologyStar3 />
+                    </Button>
+                  )}
                 </div>
               </div>
             );
