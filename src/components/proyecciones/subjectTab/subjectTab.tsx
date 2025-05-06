@@ -5,6 +5,7 @@ import { useContext, useEffect, useState } from "react";
 import { Button, Input, Tag } from "antd";
 import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInfo";
 import { FaUserPen } from "react-icons/fa6";
+import { TbTopologyStar3 } from "react-icons/tb";
 import AddSubjectToTeacherModal from "./addTeacherSubject";
 import { normalizeText } from "../../../utils/textFilter";
 
@@ -13,7 +14,9 @@ interface props {
 }
 
 export default function SubjectTab({ searchByUserPerfil }: props) {
-  const { subjects, userPerfil, subjectColors, teachers } = useContext(MainContext) as MainContextValues;
+  const { subjects, userPerfil, subjectColors, teachers, setEditSubjectQuarter } = useContext(
+    MainContext
+  ) as MainContextValues;
   const [subjectList, setSubjectList] = useState<Subject[]>();
   const [filter, setFilter] = useState<string>("");
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -122,6 +125,21 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                       marginBottom: "auto",
                     }}>
                     <FaUserPen />
+                  </Button>
+
+                  <Button
+                    onClick={() => setEditSubjectQuarter(subject)}
+                    className="subject-tab-button"
+                    shape="circle"
+                    style={{
+                      position: "absolute",
+                      right: "50px",
+                      top: "0",
+                      bottom: "0",
+                      marginTop: "auto",
+                      marginBottom: "auto",
+                    }}>
+                    <TbTopologyStar3 />
                   </Button>
                 </div>
               </div>
