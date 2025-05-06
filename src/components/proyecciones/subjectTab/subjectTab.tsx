@@ -127,7 +127,9 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                     }}>
                     <FaUserPen />
                   </Button>
-                  {subject?.quarter?.q1 && subject?.quarter?.q2 && subject?.quarter?.q3 && (
+                  {(subject?.quarter?.q1 != null ||
+                    subject?.quarter?.q2 != null ||
+                    subject?.quarter?.q3 != null) && (
                     <Button
                       onClick={() => setEditSubjectQuarter(subject)}
                       className="subject-tab-button"

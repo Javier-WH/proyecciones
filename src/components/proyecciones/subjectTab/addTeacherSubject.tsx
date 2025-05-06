@@ -142,8 +142,12 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
   const handleCleanAsignation = () => {
     if (!subject || (!asignedTeacher.q1 && !asignedTeacher.q2 && !asignedTeacher.q3)) return;
     const subjectId = subject?.innerId;
-    const teacherId = asignedTeacher.q1?.id || null;
-    removeSubjectFromTeacher({ subjectId, teacherId });
+    const teacherIdQ1 = asignedTeacher.q1?.id || null;
+    removeSubjectFromTeacher({ subjectId, teacherId: teacherIdQ1 });
+    const teacherIdQ2 = asignedTeacher.q2?.id || null;
+    removeSubjectFromTeacher({ subjectId, teacherId: teacherIdQ2 });
+    const teacherIdQ3 = asignedTeacher.q3?.id || null;
+    removeSubjectFromTeacher({ subjectId, teacherId: teacherIdQ3 });
 
     setSelectedSubject(null);
   };
