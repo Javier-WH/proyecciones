@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useContext, Dispatch, SetStateAction } from "react";
-import { Button, Modal, Select, Radio, Tag, Switch, RadioChangeEvent } from "antd";
-//import type { RadioChangeEvent } from "antd";
+import { Button, Modal, Select, Radio, Tag, RadioChangeEvent } from "antd";
 import { Subject } from "../../../interfaces/subject";
 import useSetSubject, { useSubjectResponseTeacherHours } from "../../../hooks/useSetSubject";
 
@@ -9,6 +8,7 @@ import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInf
 import malePlaceHolder from "../../../assets/malePlaceHolder.svg";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
+import { normalizeText } from "../../../utils/textFilter";
 
 interface AddSubjectToTeacherModalParams {
   subject: Subject | null;
@@ -218,7 +218,8 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
             value={selectedOption?.id}
             showSearch
             filterOption={(input, option) =>
-              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+              //(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+              normalizeText(option?.label ?? "").includes(normalizeText(input))
             }
             disabled={options.length === 0}
             optionRender={(option) => {

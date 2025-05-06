@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Button, Modal, Tag, Select } from "antd";
 import { Subject } from "../../interfaces/subject";
 import { Teacher } from "../../interfaces/teacher";
+import { normalizeText } from "../../utils/textFilter";
 
 interface TeacherOption {
   value: string;
@@ -160,7 +161,8 @@ const EditSubjectQuarterModal: React.FC<{
                 placeholder="Seleccione un profesor para el trimestre I"
                 optionFilterProp="label"
                 filterSort={(optionA, optionB) =>
-                  (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+                  //(optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+                  normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
                 }
                 options={teacherOptions}
                 value={selectedTeacherQ1?.ci}
@@ -187,7 +189,8 @@ const EditSubjectQuarterModal: React.FC<{
                 placeholder="Seleccione un profesor para el trimestre II"
                 optionFilterProp="label"
                 filterSort={(optionA, optionB) =>
-                  (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+                  //(optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+                  normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
                 }
                 options={teacherOptions}
                 value={selectedTeacherQ2?.ci}
@@ -214,7 +217,8 @@ const EditSubjectQuarterModal: React.FC<{
                 placeholder="Seleccione un profesor para el trimestre III"
                 optionFilterProp="label"
                 filterSort={(optionA, optionB) =>
-                  (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+                  //(optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+                  normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
                 }
                 options={teacherOptions}
                 value={selectedTeacherQ3?.ci}

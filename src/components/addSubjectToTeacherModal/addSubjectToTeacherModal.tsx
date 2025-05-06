@@ -10,6 +10,7 @@ import SubjectTeacherInfo from "./subjectTeacherInfo";
 import malePlaceHolder from "../../assets/malePlaceHolder.svg";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
+import { normalizeText } from "../../utils/textFilter";
 
 interface optionsInterface {
   value: string;
@@ -378,7 +379,8 @@ const AddSubjectToTeacherModal: React.FC<{
             value={selectedOption}
             showSearch
             filterOption={(input, option) =>
-              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+              //(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+              normalizeText(option?.label ?? "").includes(normalizeText(input))
             }
             disabled={options.length === 0 || selectedTeacerId === null}
             optionRender={(option) => {

@@ -6,6 +6,7 @@ import { Button, Input, Tag } from "antd";
 import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInfo";
 import { FaUserPen } from "react-icons/fa6";
 import AddSubjectToTeacherModal from "./addTeacherSubject";
+import { normalizeText } from "../../../utils/textFilter";
 
 interface props {
   searchByUserPerfil: boolean;
@@ -30,7 +31,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
 
     if (filter.length > 0) {
       filteredSubjects = filteredSubjects.filter((subject) => {
-        return subject.subject.toLowerCase().includes(filter.toLocaleLowerCase());
+        //return subject.subject.toLowerCase().includes(filter.toLocaleLowerCase());
+        return normalizeText(subject.subject).includes(normalizeText(filter));
       });
     }
 

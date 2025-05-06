@@ -6,6 +6,7 @@ import { CloseCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icon
 import { Teacher } from "../../../interfaces/teacher";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import useSetSubject, { useSubjectResponseTeacherHours } from "../../../hooks/useSetSubject";
+import { normalizeText } from "../../../utils/textFilter";
 
 interface TeacherTableProps {
   searchByUserPerfil: boolean;
@@ -51,12 +52,19 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
 
     if (searchText.length > 0 && filteredTeachers?.length > 0) {
       filteredTeachers = filteredTeachers?.filter((teacher) => {
-        return (
+        /*return (
           teacher.name.toLowerCase().includes(searchText.toLowerCase()) ||
           teacher?.lastName?.toLowerCase().includes(searchText.toLowerCase()) ||
           teacher?.ci?.toLowerCase().includes(searchText.toLowerCase()) ||
           teacher.perfilName?.toLowerCase()?.includes(searchText.toLowerCase()) ||
           teacher.type?.toLowerCase()?.includes(searchText.toLowerCase())
+        );*/
+        return (
+          normalizeText(teacher.name).includes(normalizeText(searchText)) ||
+          normalizeText(teacher?.lastName).includes(normalizeText(searchText)) ||
+          normalizeText(teacher?.ci).includes(normalizeText(searchText)) ||
+          normalizeText(teacher.perfilName).includes(normalizeText(searchText)) ||
+          normalizeText(teacher.type).includes(normalizeText(searchText))
         );
       });
     }
