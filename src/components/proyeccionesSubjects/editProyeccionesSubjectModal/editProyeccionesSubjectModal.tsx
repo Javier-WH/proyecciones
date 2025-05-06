@@ -1,5 +1,4 @@
 import { Button, Modal, Tag, InputNumber, Input } from "antd";
-import type { InputNumberProps } from "antd";
 import { CloseCircleOutlined } from "@ant-design/icons";
 import { Subject } from "../../../interfaces/subject";
 

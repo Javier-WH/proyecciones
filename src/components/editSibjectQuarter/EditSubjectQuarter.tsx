@@ -71,7 +71,7 @@ const EditSubjectQuarterModal: React.FC<{
     if (!subject || !subjects) return;
 
     const subjectCopy = [...subjects];
-    const subjectIndex = subjectCopy.findIndex((subj) => subj.id === subject.id);
+    const subjectIndex = subjectCopy.findIndex((subj) => subj.innerId === subject.innerId);
     if (subjectIndex === -1) return;
     if (selectedTeacherQ1 !== undefined) {
       subjectCopy[subjectIndex].quarter.q1 = selectedTeacherQ1?.id;
