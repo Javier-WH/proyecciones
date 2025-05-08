@@ -40,7 +40,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     }
 
     setSubjectList(filteredSubjects);
-  }, [searchByUserPerfil, filter]);
+  }, [searchByUserPerfil, filter, subjects]);
 
   const handleChangeTeacher = (subject: Subject) => {
     setSelectedSubject(subject);
