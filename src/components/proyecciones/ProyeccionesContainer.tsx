@@ -7,11 +7,10 @@ import React, { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { useNavigate } from "react-router-dom";
-//import Excel from "../reports/excel";
-//import ReportProyection from "../reports/report/reportProyection";
 import { LogoutOutlined } from "@ant-design/icons";
-import ReportMenu from "./reportMenu/reportMenu";
 import SubjectTab from "./subjectTab/subjectTab";
+import ReportMenu from "../report/reoportMenu";
+
 
 export default function ProyeccionesContainer() {
   const [teacherTab, setTeacherTab] = useState(true);
@@ -40,6 +39,7 @@ export default function ProyeccionesContainer() {
 
   useEffect(() => {
     setSelectedTeacher(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   //aqui se revisa si existe algun valor null en la tabla subjects
@@ -139,8 +139,7 @@ export default function ProyeccionesContainer() {
         <span>{proyectionName}</span>
 
         <div style={{ display: "flex", gap: "5px" }}>
-          {/*<Excel /> */}
-          {/*<ReportProyection />*/}
+ 
           <ReportMenu />
           <Button
             style={{ marginLeft: "30px" }}

@@ -36,6 +36,16 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [proyectionId, setProyectionId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [editSubjectQuarter, setEditSubjectQuarter] = useState<Subject | null>(null);
+  const [userPNF, setUserPNF] = useState<string | null>(() => {
+    const savedState = sessionStorage.getItem("userPNF");
+    if (savedState) {
+      const parsedState = JSON.parse(savedState);
+      setIsAuthenticated(true);
+      return parsedState;
+    }
+    // Si no hay estado guardado, devuelve null
+    return null;
+  });
   const [userPerfil, setUserPerfil] = useState<string[] | null>(() => {
     const savedState = sessionStorage.getItem("userSesion");
     if (savedState) {
@@ -55,6 +65,11 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     if (!userPerfil) return;
     sessionStorage.setItem("userSesion", JSON.stringify(userPerfil));
   }, [userPerfil]);
+
+  useEffect(() => {
+    if (!userPNF) return;
+    sessionStorage.setItem("userPNF", JSON.stringify(userPNF));
+  }, [userPNF]);
 
   useEffect(() => {
     loadInitialData();
@@ -232,6 +247,8 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     loadInitialData,
     editSubjectQuarter,
     setEditSubjectQuarter,
+    userPNF,
+    setUserPNF
   };
 
   return (

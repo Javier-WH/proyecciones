@@ -50,5 +50,7 @@ export interface MainContextValues {
   loadInitialData: () => void;
   editSubjectQuarter: Subject | null;
   setEditSubjectQuarter: React.Dispatch<React.SetStateAction<Subject | null>>;
+  userPNF: string | null;
+  setUserPNF: React.Dispatch<React.SetStateAction<string | null>>;
 }
 

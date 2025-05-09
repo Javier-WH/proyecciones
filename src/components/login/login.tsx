@@ -9,7 +9,7 @@ import { MainContextValues } from "../../interfaces/contextInterfaces";
 
 export default function Login() {
 
-  const { setIsAuthenticated, setUserPerfil } = useContext(MainContext) as MainContextValues
+  const { setIsAuthenticated, setUserPerfil, setUserPNF } = useContext(MainContext) as MainContextValues
   const navigate = useNavigate();
   const [user, setUser] = useState("")
   const [password, setPassword] = useState("")
@@ -26,7 +26,7 @@ export default function Login() {
       setIsAuthenticated(false)
       return
     }
- 
+    setUserPNF(data?.pnf_id || "")
     setUserPerfil(data?.perfil);
     setIsAuthenticated(true)
     navigate("/app/proyecciones")
