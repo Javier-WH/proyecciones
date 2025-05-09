@@ -1,5 +1,5 @@
 import "../editTrayectos/EditTrayectos.css";
-import { getContracts, putContract, ContractTypeType } from "../../fetch/contracts";
+import { getContracts } from "../../fetch/contracts";
 import { useEffect, useState } from "react";
 import { TeacherContract } from "../../interfaces/teacher";
 import { MdEditSquare } from "react-icons/md";

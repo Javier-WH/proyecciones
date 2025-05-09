@@ -1,9 +1,7 @@
 import { Modal, Input, message, Select, SelectProps, Radio } from "antd";
 import { Teacher } from "../../../interfaces/teacher";
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState } from "react";
 import placeholder from "./../../../assets/malePlaceHolder.svg";
-import { MainContext } from "../../../context/mainContext";
-import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import getProfileNames from "../../../fetch/getProfileNames";
 import getSimpleData from "../../../fetch/getSimpleData";
 import postTeacher from "../../../fetch/postTeacher";
@@ -17,7 +15,7 @@ export default function EditTeacherModal({
   setTeacherData: (teacherData: Teacher | null) => void;
   fetchTeachers: () => Promise<void>;
 }) {
-  const { handleSingleTeacherChange, teachers } = useContext(MainContext) as MainContextValues;
+ 
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
