@@ -119,9 +119,9 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
                     <Tag color="default">{subject.pnf}</Tag>
                     <Tag color="default">{`Seccion: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
                     {showAllSubjects ? (
-                      <Tag color="default">{`Horas: ${subject.hours.q1} / ${subject.hours.q2} / ${subject.hours.q3}`}</Tag>
+                      <Tag color="default">{`Horas: ${subject?.hours?.q1 || 0} / ${subject?.hours?.q2 || 0} / ${subject?.hours?.q3 || 0}`}</Tag>
                     ) : (
-                      <Tag color="default">{`Horas: ${subject.hours[selectedQuarter]}`}</Tag>
+                      <Tag color="default">{`Horas: ${subject?.hours?.[selectedQuarter] || 0}`}</Tag>
                     )}
                   </div>
                 </div>

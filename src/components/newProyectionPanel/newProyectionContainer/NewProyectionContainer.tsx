@@ -165,8 +165,8 @@ export default function NewProyectionContainer({
       for (let i = 1; i <= totalSections; i++) {
         const subList = pensum.map((subject) => {
           // se inicia un objeto donde se almacenaran los id de los profesores
-          let quarter: InlineQuarter = {};
-          let hours: InlineHours = {
+          const quarter: InlineQuarter = {};
+          const hours: InlineHours = {
             q1: 0,
             q2: 0,
             q3: 0,

@@ -27,9 +27,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     let filteredSubjects = [...subjects];
 
     if (searchByUserPerfil) {
-      filteredSubjects = filteredSubjects.filter((subject) => {
-        return userPerfil?.includes(subject.id);
-      });
+      const pnfId = sessionStorage.getItem("userPNF")?.replace(/"/g, '');
+      filteredSubjects = filteredSubjects.filter((subject) => subject.pnfId === pnfId);
     }
 
     if (filter.length > 0) {
@@ -102,7 +101,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                     <Tag>{subject.pnf}</Tag>
                     <Tag>{`${subject?.trayectoName}`}</Tag>
                     <Tag>{`Sección: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
-                    <Tag>{`Horas: ${subject.hours.q1} / ${subject.hours.q2} / ${subject.hours.q3}`}</Tag>
+                    <Tag>{`Horas: ${subject?.hours?.q1 || 0} / ${subject?.hours?.q2 || 0} / ${subject?.hours?.q3 || 0}`}</Tag>
                   </div>
                   <div
                     style={{
