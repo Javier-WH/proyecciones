@@ -1,9 +1,10 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../../context/mainContext";
 import femalePlaceHolder from "../../../assets/femalePlaceHolder.svg";
 import malePlaceHolder from "../../../assets/malePlaceHolder.svg";
 import Subjects from "./subjects/subjects";
-import { Tag, Radio } from "antd";
+import { Tag, Radio, RadioChangeEvent } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { Subject } from "../../../interfaces/subject";
@@ -20,6 +21,7 @@ export default function SelectedTeacher() {
     subjects,
     setSelectedQuarter,
   } = useContext(MainContext) as MainContextValues;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_teacherData, setTeacherData] = useState(getTeachersHoursData(0));
   const [teacherPhoto, setTeacherPhoto] = useState(malePlaceHolder);
   const [subjecData, setSubjectData] = useState<Subject[]>([]);
@@ -37,6 +39,7 @@ export default function SelectedTeacher() {
 
   const [haveConract, setHaveContract] = useState(false);
   const [showAllSubjects, setShowAllSubjects] = useState(true);
+
 
   useEffect(() => {
     if (!selectedTeacher) return;
@@ -70,6 +73,7 @@ export default function SelectedTeacher() {
       setAviableHoursQ3(q3?.aviableHours || "0");
       setOverloadedQ3(q3?.overloaded || false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTeacerId, selectedQuarter, subjects]);
 
   useEffect(() => {
@@ -111,7 +115,7 @@ export default function SelectedTeacher() {
     );
   }
 
-  const onChangeQuarter = (e: any) => {
+  const onChangeQuarter = (e: RadioChangeEvent) => {
     const value = e.target.value;
     if (value === "0") {
       setShowAllSubjects(true);
@@ -140,6 +144,7 @@ export default function SelectedTeacher() {
       color,
     };
   };
+
   return (
     <div className="selected-teacher-container" style={{ gridArea: "selected" }}>
       <img src={teacherPhoto} alt="" />
@@ -175,11 +180,12 @@ export default function SelectedTeacher() {
         {(overloadedQ1 || overloadedQ2 || overloadedQ3) && (
           <Tag color="error" icon={<ExclamationCircleOutlined />}>{`Sobrecarga de Horas`}</Tag>
         )}
-
-        {((usedHoursQ1 === "0" && selectedQuarter === "q1") ||
+        
+          
+        {(((usedHoursQ1 === "0" && selectedQuarter === "q1") ||
           (usedHoursQ2 === "0" && selectedQuarter === "q2") ||
           (usedHoursQ3 === "0" && selectedQuarter === "q3") ||
-          (usedHoursQ1 === "0" && usedHoursQ2 === "0" && usedHoursQ3 === "0")) &&
+          (usedHoursQ1 === "0" && usedHoursQ2 === "0" && usedHoursQ3 === "0")) && !showAllSubjects ) &&
           haveConract && (
             <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`Sin Horas Asignadas`}</Tag>
           )}
