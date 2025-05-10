@@ -14,7 +14,7 @@ interface props {
 }
 
 export default function SubjectTab({ searchByUserPerfil }: props) {
-  const { subjects, userPerfil, subjectColors, teachers, setEditSubjectQuarter } = useContext(
+  const { subjects, subjectColors, teachers, setEditSubjectQuarter } = useContext(
     MainContext
   ) as MainContextValues;
   const [subjectList, setSubjectList] = useState<Subject[]>();

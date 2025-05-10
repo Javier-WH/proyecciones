@@ -110,6 +110,7 @@ const AddSubjectToTeacherModal: React.FC<{
       setOverloadedQ2(q2?.overloaded || false);
       setOverloadedQ3(q3?.overloaded || false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTeacerId, subjects]);
 
   useEffect(() => {
@@ -146,7 +147,9 @@ const AddSubjectToTeacherModal: React.FC<{
 
     const teacherPerfil = new Set(teachers[selectedQuarter][t_index]?.perfil ?? []);
     if (perfilOption === "perfil") {
-      subjectsData = subjectsData.filter((subject) => teacherPerfil.has(subject.subjectId));
+      const pnfId = sessionStorage.getItem("userPNF")?.replace(/"/g, '');
+
+      subjectsData = subjectsData.filter((subject) => (teacherPerfil.has(subject.subjectId) && subject.pnfId === pnfId));
     }
 
     ///// FILTRADO DE HORAS DISPONIBLES
@@ -176,6 +179,7 @@ const AddSubjectToTeacherModal: React.FC<{
 
     //console.log(subjectsData);
     setOptions(subjectsData);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     subjects,
     perfilOption,
