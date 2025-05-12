@@ -1,34 +1,30 @@
-export default async function getReport({ pnfId, type }: { pnfId: string, type: number }) {
+export default async function getReport({ pnfId, type }: { pnfId: string; type: number }) {
   const headersList = {
-    "Accept": "*/*",
-    "Content-Type": "application/json" 
+    Accept: "*/*",
+    "Content-Type": "application/json",
   };
 
   const bodyContent = JSON.stringify({
     pnfId,
-    type
+    type,
   });
 
-  const url = import.meta.env.MODE === 'development'
-    ? `http://localhost:3000/excelreport`
-    : `/excelreport`;
+  const url = import.meta.env.MODE === "development" ? `http://localhost:3000/excelreport` : `/excelreport`;
 
   try {
     const response = await fetch(url, {
       method: "POST",
       body: bodyContent,
-      headers: headersList
+      headers: headersList,
     });
 
-  
     if (!response.ok) {
       return await response.json();
     }
 
-
     const blob = await response.blob();
-    const contentDisposition = response.headers.get('Content-Disposition');
-    let filename = 'reporte.xlsx';
+    const contentDisposition = response.headers.get("Content-Disposition");
+    let filename = "reporte.xlsx";
 
     if (contentDisposition) {
       const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
@@ -43,12 +39,11 @@ export default async function getReport({ pnfId, type }: { pnfId: string, type: 
       }
     }
 
-
     // Crear una URL temporal para el Blob
     const downloadUrl = window.URL.createObjectURL(blob);
 
     // Crear un enlace (<a>) oculto para simular la descarga
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = downloadUrl;
     link.download = filename; // Usa el nombre de archivo extraído o el por defecto
 
@@ -60,9 +55,7 @@ export default async function getReport({ pnfId, type }: { pnfId: string, type: 
     document.body.removeChild(link);
     window.URL.revokeObjectURL(downloadUrl);
 
-    // Puedes retornar algo para indicar éxito si lo necesitas
     return { success: true, filename };
-
   } catch (error) {
     return { error: error };
   }
