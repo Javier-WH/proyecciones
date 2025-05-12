@@ -322,7 +322,7 @@ export default function NewProyectionContainer({
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  {new Array(turno?.seccions || 0).fill(0).map((_, j) => {
+                  {new Array(turno?.seccions || 0).fill(0).map((_turno, j) => {
                     const totalEstudiantes = turno?.total || 0;
                     const secciones = turno?.seccions || 1; // Evitar división por cero
 

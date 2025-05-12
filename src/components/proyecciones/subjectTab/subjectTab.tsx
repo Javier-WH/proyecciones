@@ -7,7 +7,6 @@ import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInf
 import { FaUserPen } from "react-icons/fa6";
 import { TbTopologyStar3 } from "react-icons/tb";
 import AddSubjectToTeacherModal from "./addTeacherSubject";
-import { normalizeText } from "../../../utils/textFilter";
 
 interface props {
   searchByUserPerfil: boolean;
@@ -32,11 +31,16 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
   const [subjectsOptions, setSubjectsOptions] = useState<SelectOption[]>([]);
   const [selectedSubjectOption, setSelectedSubjectOption] = useState<string | undefined>(undefined);
   const [showUnasignedSubject, setShowUnasignedSubject] = useState<boolean>(false);
+  const [trayectoOptions, setTrayectoOptions] = useState<SelectOption[]>([]);
+  const [selectedTrayectoOption, setSelectedTrayectoOption] = useState<string | undefined>(undefined);
+  const [turnoOptions, setTurnoOptions] = useState<SelectOption[]>([]);
+  const [selectedTurnoOption, setSelectedTurnoOption] = useState<string | undefined>(undefined);
 
   // limpia los selectores
   useEffect(() => {
     setSelectedPnf(undefined);
   }, [searchByUserPerfil]);
+
   // filtros
   useEffect(() => {
     if (!subjects) return;
@@ -56,6 +60,14 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       filteredSubjects = filteredSubjects.filter((subject) => subject.subject === selectedSubjectOption);
     }
 
+    if (selectedTrayectoOption) {
+      filteredSubjects = filteredSubjects.filter((subject) => subject.trayectoId === selectedTrayectoOption);
+    }
+
+    if (selectedTurnoOption) {
+      filteredSubjects = filteredSubjects.filter((subject) => subject.turnoName === selectedTurnoOption);
+    }
+
     if (showUnasignedSubject) {
       filteredSubjects = filteredSubjects.filter((subject) => {
         const quarter = subject.quarter;
@@ -67,11 +79,21 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
 
     setSubjectList(filteredSubjects);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchByUserPerfil, subjects, selectedPnf, selectedSubjectOption, showUnasignedSubject, subjectList]);
+  }, [
+    searchByUserPerfil,
+    subjects,
+    selectedPnf,
+    selectedSubjectOption,
+    showUnasignedSubject,
+    subjectList,
+    selectedTrayectoOption,
+  ]);
 
   // llena nos selectores de busqueda
   useEffect(() => {
     if (!subjects) return;
+
+    console.log(subjects);
     // llena los pnf
     const uniquePnf = subjects?.filter(
       (subject, index, self) => index === self.findIndex((s) => s.pnfId === subject.pnfId)
@@ -85,6 +107,19 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     });
     setPnfOptions(pnfList as SelectOption[]);
 
+    // llena los trayectos
+    const uniqueTrayectos = subjects?.filter(
+      (subject, index, self) => index === self.findIndex((s) => s.trayectoId === subject.trayectoId)
+    );
+
+    const trayectoList = uniqueTrayectos?.map((subject) => {
+      return {
+        value: subject.trayectoId,
+        label: subject.trayectoName,
+      };
+    });
+    setTrayectoOptions(trayectoList as SelectOption[]);
+
     // llena las materias
     const subjectList = Array.from(new Set(subjects?.map((subject) => subject.subject) || [])).map(
       (subject) => ({
@@ -93,6 +128,16 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       })
     );
     setSubjectsOptions(subjectList as SelectOption[]);
+
+    // llena los turnos
+
+    const turnoList = Array.from(new Set(subjects?.map((subject) => subject.turnoName) || [])).map(
+      (subject) => ({
+        value: subject,
+        label: subject,
+      })
+    );
+    setTurnoOptions(turnoList as SelectOption[]);
   }, [subjects]);
 
   const handleChangeTeacher = (subject: Subject) => {
@@ -133,6 +178,38 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
               setSelectedSubjectOption(value);
             }}
             value={selectedSubjectOption}
+          />
+
+          <Select
+            allowClear
+            showSearch
+            style={{ width: 200 }}
+            placeholder="Filtrar por trayecto"
+            optionFilterProp="label"
+            filterSort={(optionA, optionB) =>
+              (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+            }
+            options={trayectoOptions}
+            onChange={(value) => {
+              setSelectedTrayectoOption(value);
+            }}
+            value={selectedTrayectoOption}
+          />
+
+          <Select
+            allowClear
+            showSearch
+            style={{ width: 200 }}
+            placeholder="Filtrar por turno"
+            optionFilterProp="label"
+            filterSort={(optionA, optionB) =>
+              (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+            }
+            options={turnoOptions}
+            onChange={(value) => {
+              setSelectedTurnoOption(value);
+            }}
+            value={selectedTurnoOption}
           />
 
           {!searchByUserPerfil && (
@@ -179,8 +256,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                 style={{
                   height: "80px",
                   minHeight: "80px",
-                  width: "100%",
-                  maxWidth: "1000px",
+                  width: "98%",
+                  //maxWidth: "1000px",
                   display: "flex",
                   columnGap: "10px",
                   position: "relative",
