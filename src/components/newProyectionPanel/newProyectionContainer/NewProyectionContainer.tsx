@@ -160,53 +160,105 @@ export default function NewProyectionContainer({
   const handleProyecction = () => {
     if (!turnos || !pensum || !inscriptionData || !trayectoId) return;
     let list: Subject[] | [] = [];
-    turnos.forEach((turno) => {
-      const totalSections = turno?.seccions ?? 0;
-      for (let i = 1; i <= totalSections; i++) {
-        const subList = pensum.map((subject) => {
-          // se inicia un objeto donde se almacenaran los id de los profesores
-          const quarter: InlineQuarter = {};
-          const hours: InlineHours = {
-            q1: 0,
-            q2: 0,
-            q3: 0,
-          };
-          // se verifica en que trimestres se ve la materia
-          const subjectedQuarter = JSON.parse(subject.quarter.toString());
-          // si la materia se ve el el primer trimestre se asigna q1 a la inscripción de la materia
-          if (subjectedQuarter.includes(1)) {
-            quarter.q1 = null;
-            hours.q1 = subject.hours;
-          }
-          // si la materia se ve en el segundo trimestre se asigna q2 a la inscripción de la materia
-          if (subjectedQuarter.includes(2)) {
-            quarter.q2 = null;
-            hours.q2 = subject.hours;
-          }
-          // si la materia se ve en el tercer trimestre se asigna q3 a la inscripción de la materia
-          if (subjectedQuarter.includes(3)) {
-            quarter.q3 = null;
-            hours.q3 = subject.hours;
-          }
+    let currentSection = 1;
 
-          return {
-            innerId: uuidv4(),
-            id: subject.subject_id,
-            subject: subject.subject,
-            hours: hours,
-            pnf: inscriptionData.data.pnfName,
-            pnfId: inscriptionData.data.pnfId,
-            seccion: `${i}`,
-            quarter: quarter,
-            pensum_id: subject.id,
-            turnoName: turno?.turnoName ?? "no asignado",
-            trayectoId: trayectoId,
-            trayectoName: pensumTrayectoName,
-            trayecto_saga_id: subject.trayecto_saga_id.toString(),
-          };
-        });
+    // Separar y ordenar turnos
+    const manana = turnos.find((t) => t?.turnoName === "Mañana");
+    const tarde = turnos.find((t) => t?.turnoName === "Tarde");
+    const otrosTurnos = turnos.filter(
+      (t) => t?.turnoName !== "Mañana" && t?.turnoName !== "Tarde"
+    );
 
-        list = [...list, ...subList];
+    // Crear orden de procesamiento: Mañana -> Tarde -> Otros
+    const procesamientoOrdenado = [];
+    if (manana) procesamientoOrdenado.push(manana);
+    if (tarde) procesamientoOrdenado.push(tarde);
+    procesamientoOrdenado.push(...otrosTurnos);
+
+    // Procesar cada turno
+    procesamientoOrdenado.forEach((turno) => {
+      const totalSecciones = turno?.seccions ?? 0;
+      const esContinuo = ["Mañana", "Tarde"].includes(turno?.turnoName ?? "");
+
+      if (esContinuo) {
+        // Numeración continua para Mañana/Tarde
+        for (let i = 0; i < totalSecciones; i++) {
+          const sectionNumber = currentSection++;
+          const subList = pensum.map((subject) => {
+            const quarter: InlineQuarter = {};
+            const hours: InlineHours = { q1: 0, q2: 0, q3: 0 };
+            const subjectedQuarter = JSON.parse(subject.quarter.toString());
+
+            if (subjectedQuarter.includes(1)) {
+              quarter.q1 = null;
+              hours.q1 = subject.hours;
+            }
+            if (subjectedQuarter.includes(2)) {
+              quarter.q2 = null;
+              hours.q2 = subject.hours;
+            }
+            if (subjectedQuarter.includes(3)) {
+              quarter.q3 = null;
+              hours.q3 = subject.hours;
+            }
+
+            return {
+              innerId: uuidv4(),
+              id: subject.subject_id,
+              subject: subject.subject,
+              hours: hours,
+              pnf: inscriptionData.data.pnfName,
+              pnfId: inscriptionData.data.pnfId,
+              seccion: `${sectionNumber}`,
+              quarter: quarter,
+              pensum_id: subject.id,
+              turnoName: turno?.turnoName ?? "Indeterminado",
+              trayectoId: trayectoId,
+              trayectoName: pensumTrayectoName,
+              trayecto_saga_id: subject.trayecto_saga_id.toString(),
+            };
+          });
+          list = [...list, ...subList];
+        }
+      } else {
+        // Numeración independiente para otros turnos
+        for (let i = 1; i <= totalSecciones; i++) {
+          const subList = pensum.map((subject) => {
+            const quarter: InlineQuarter = {};
+            const hours: InlineHours = { q1: 0, q2: 0, q3: 0 };
+            const subjectedQuarter = JSON.parse(subject.quarter.toString());
+
+            if (subjectedQuarter.includes(1)) {
+              quarter.q1 = null;
+              hours.q1 = subject.hours;
+            }
+            if (subjectedQuarter.includes(2)) {
+              quarter.q2 = null;
+              hours.q2 = subject.hours;
+            }
+            if (subjectedQuarter.includes(3)) {
+              quarter.q3 = null;
+              hours.q3 = subject.hours;
+            }
+
+            return {
+              innerId: uuidv4(),
+              id: subject.subject_id,
+              subject: subject.subject,
+              hours: hours,
+              pnf: inscriptionData.data.pnfName,
+              pnfId: inscriptionData.data.pnfId,
+              seccion: `${i}`,
+              quarter: quarter,
+              pensum_id: subject.id,
+              turnoName: turno?.turnoName ?? "Indeterminado",
+              trayectoId: trayectoId,
+              trayectoName: pensumTrayectoName,
+              trayecto_saga_id: subject.trayecto_saga_id.toString(),
+            };
+          });
+          list = [...list, ...subList];
+        }
       }
     });
 
