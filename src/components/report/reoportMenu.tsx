@@ -10,7 +10,7 @@ const handleMenuClick: MenuProps["onClick"] = async (e) => {
   if (!pnfId) return;
   const type = Number.parseInt(e.key);
   const report = await getReport({ pnfId, type });
-  if (!report.success) return message.error(report.message);
+  if (!report.success) return message.error(report.message, 5);
 };
 
 const items: MenuProps["items"] = [
@@ -45,3 +45,4 @@ const ReportMenu: React.FC = () => {
 };
 
 export default ReportMenu;
+
