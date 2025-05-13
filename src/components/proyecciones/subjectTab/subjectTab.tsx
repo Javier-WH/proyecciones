@@ -2,7 +2,7 @@ import { Subject } from "../../../interfaces/subject";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { useContext, useEffect, useState } from "react";
-import { Button, Input, Select, Tag } from "antd";
+import { Button, Select, Tag } from "antd";
 import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInfo";
 import { FaUserPen } from "react-icons/fa6";
 import { TbTopologyStar3 } from "react-icons/tb";

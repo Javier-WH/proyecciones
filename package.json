@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build --emptyOutDir --outDir D:/JavierWorkSpace/proyecciones_backEnd/src/frontEnd",
+    "build:linux": "tsc && vite build --emptyOutDir --outDir /home/dev_uptll/data/Dev/node_app/proyecciones_backEnd/src/frontEnd",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -35,3 +36,4 @@
     "vite": "^5.1.4"
   }
 }
+
