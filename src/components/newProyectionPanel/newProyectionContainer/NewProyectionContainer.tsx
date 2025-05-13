@@ -103,6 +103,15 @@ export default function NewProyectionContainer({
       };
       return turnoData;
     });
+
+    const ordenTurnos = { Mañana: 1, Tarde: 2, Noche: 3, Diurno: 4 };
+
+    _turnos.sort((a, b) => {
+      const prioridadA = ordenTurnos[a.turnoName as keyof typeof ordenTurnos] || 5; // Valores no definidos van al final
+      const prioridadB = ordenTurnos[b.turnoName as keyof typeof ordenTurnos] || 5;
+      return prioridadA - prioridadB;
+    });
+
     setTurnos(_turnos);
     setLoading(false);
   }, [passed]);
@@ -242,6 +251,8 @@ export default function NewProyectionContainer({
     );
   }
 
+  let morningSeccions = 0;
+  console.log(turnos);
   return (
     <div>
       <ShowArrayModal
@@ -325,7 +336,9 @@ export default function NewProyectionContainer({
                   {new Array(turno?.seccions || 0).fill(0).map((_turno, j) => {
                     const totalEstudiantes = turno?.total || 0;
                     const secciones = turno?.seccions || 1; // Evitar división por cero
-
+                    if (turno?.turnoName.toLocaleLowerCase() === "mañana") {
+                      morningSeccions++;
+                    }
                     // Calcular cuántos estudiantes por sección
                     const estudiantesPorSeccion = Math.floor(totalEstudiantes / secciones);
                     const seccionesConMasEstudiantes = totalEstudiantes % secciones; // Resto para distribuir
@@ -334,8 +347,14 @@ export default function NewProyectionContainer({
                     const estudiantesEnEstaSeccion =
                       j < seccionesConMasEstudiantes ? estudiantesPorSeccion + 1 : estudiantesPorSeccion;
 
+                    const seccion =
+                      turno?.turnoName.toLocaleLowerCase() === "mañana"
+                        ? morningSeccions
+                        : turno?.turnoName.toLocaleLowerCase() === "tarde"
+                        ? morningSeccions + 1 + j
+                        : j + 1;
                     return (
-                      <Card key={j} title={`Sección ${j + 1}`} size="small" style={{ width: 300 }}>
+                      <Card key={j} title={`Sección ${seccion}`} size="small" style={{ width: 300 }}>
                         <p>{`Número de Estudiantes: ${estudiantesEnEstaSeccion}`}</p>
                       </Card>
                     );
