@@ -16,11 +16,17 @@ import EditPNF from "../components/editTrayectos/editPNF/EditPNF";
 import Config from "../components/config/config";
 import ProtectedRoute from "../components/login/protectedRute";
 import EditContracts from "../components/editContracts/EditContracts";
+import CreateUserPanel from "../components/createUser/createUserPanel";
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <Login />,
+    errorElement: <h1>404 no encontrado</h1>,
+  },
+  {
+    path: "/singin",
+    element: <CreateUserPanel />,
     errorElement: <h1>404 no encontrado</h1>,
   },
   {
