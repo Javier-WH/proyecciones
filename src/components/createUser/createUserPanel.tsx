@@ -108,6 +108,17 @@ export default function CreateUserPanel() {
     setPnfValue(value);
   };
 
+  const getLabelColor = (status: "error" | "warning" | "") => {
+    switch (status) {
+      case "error":
+        return "red";
+      case "warning":
+        return "orange";
+      default:
+        return "gray";
+    }
+  };
+
   const handleCreateUser = () => {
     if (
       name === "" ||
@@ -147,8 +158,6 @@ export default function CreateUserPanel() {
       pnf_id: pnfValue,
     };
 
-    console.log(data);
-
     postUser(data)
       .then((res) => {
         if (res.error) {
@@ -173,15 +182,15 @@ export default function CreateUserPanel() {
         maxWidth: "600px",
         margin: "20px auto",
       }}>
-      <div>
+      <div style={{ marginBottom: "20px" }}>
         <h2>Crear usuario</h2>
       </div>
       <div>
-        <label>Nombres</label>
+        <label style={{ color: getLabelColor(nameStatus) }}>Nombres</label>
         <Input status={nameStatus} placeholder="Nombres" value={name} onChange={onChangeNames} />
       </div>
       <div>
-        <label>Apellidos</label>
+        <label style={{ color: getLabelColor(lastNameStatus) }}>Apellidos</label>
         <Input
           status={lastNameStatus}
           placeholder="Apellidos"
@@ -192,12 +201,12 @@ export default function CreateUserPanel() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
         <div>
-          <label>Cédula</label>
+          <label style={{ color: getLabelColor(ciStatus) }}>Cédula</label>
           <Input status={ciStatus} placeholder="Cédula" value={ci} onChange={onChangeCI} />
         </div>
 
         <div>
-          <label style={{ display: "block" }}>Programa</label>
+          <label style={{ display: "block", color: getLabelColor(pnfStatus) }}>Programa</label>
           <Select
             status={pnfStatus}
             style={{ width: "100%" }}
@@ -208,12 +217,12 @@ export default function CreateUserPanel() {
       </div>
 
       <div>
-        <label>Usuario</label>
+        <label style={{ color: getLabelColor(userStatus) }}>Usuario</label>
         <Input status={userStatus} placeholder="Usuario" value={user} onChange={onChangeUser} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
         <div>
-          <label>Contraseña</label>
+          <label style={{ color: getLabelColor(passwordStatus) }}>Contraseña</label>
           <Input.Password
             placeholder="Contraseña"
             iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
@@ -223,7 +232,7 @@ export default function CreateUserPanel() {
           />
         </div>
         <div>
-          <label>Confirmar contraseña</label>
+          <label style={{ color: getLabelColor(confirmPasswordStatus) }}>Confirmar contraseña</label>
           <Input.Password
             placeholder="Confirmar contraseña"
             iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
