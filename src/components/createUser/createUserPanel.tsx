@@ -1,4 +1,4 @@
-import { Input, Select, Button, message } from "antd";
+import { Input, Select, Button, message, Modal } from "antd";
 import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
 import { useState, useContext, useEffect } from "react";
 import { MainContext } from "../../context/mainContext";
@@ -25,6 +25,10 @@ export default function CreateUserPanel() {
   const [pnfOptions, setPnfOptions] = useState<{ value: string; label: string }[]>([]);
   const [pnfValue, setPnfValue] = useState<string | null>(null);
   const [pnfStatus, setPnfStatus] = useState<"error" | "warning" | "">("");
+
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [modalPassword, setModalPassword] = useState("");
+  const CORRECT_MODAL_PASSWORD = "hola1234"; // esto se debe modificar mas adelante
 
   useEffect(() => {
     if (!pnfList) return;
@@ -148,7 +152,7 @@ export default function CreateUserPanel() {
       return;
     }
 
-    const data = {
+    /* const data = {
       name,
       last_name: lastName,
       ci,
@@ -169,7 +173,53 @@ export default function CreateUserPanel() {
       })
       .catch((error) => {
         message.error("Error al crear el usuario " + error);
-      });
+      });*/
+    setIsModalVisible(true);
+  };
+
+  const handleModalOk = () => {
+    if (
+      name === "" ||
+      lastName === "" ||
+      ci === "" ||
+      user === "" ||
+      password === "" ||
+      confirmPassword === "" ||
+      pnfValue === null
+    )
+      return;
+    if (modalPassword === CORRECT_MODAL_PASSWORD) {
+      setIsModalVisible(false); // Close the modal
+      const data = {
+        name,
+        last_name: lastName,
+        ci,
+        user,
+        password,
+        su: true,
+        pnf_id: pnfValue,
+      };
+
+      postUser(data)
+        .then((res) => {
+          if (res.error) {
+            message.error(res.error);
+            return;
+          }
+          message.success("Usuario creado correctamente");
+          navigate("/");
+        })
+        .catch((error) => {
+          message.error("Error al crear el usuario " + error);
+        });
+    } else {
+      message.error("Contraseña incorrecta");
+    }
+  };
+
+  const handleModalCancel = () => {
+    setIsModalVisible(false); // Close the modal
+    setModalPassword(""); // Clear the modal password
   };
 
   return (
@@ -251,6 +301,22 @@ export default function CreateUserPanel() {
           Crear
         </Button>
       </div>
+
+      <Modal
+        title="Confirmar creación de usuario"
+        visible={isModalVisible}
+        onOk={handleModalOk}
+        onCancel={handleModalCancel}
+        okText="Confirmar"
+        cancelText="Cancelar">
+        <p>Por favor, introduce la contraseña para confirmar la creación del usuario:</p>
+        <Input.Password
+          placeholder="Contraseña de confirmación"
+          value={modalPassword}
+          onChange={(e) => setModalPassword(e.target.value)}
+          onPressEnter={handleModalOk} // Allows pressing Enter to confirm
+        />
+      </Modal>
     </div>
   );
 }
