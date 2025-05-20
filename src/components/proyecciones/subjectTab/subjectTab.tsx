@@ -120,13 +120,13 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     setTrayectoOptions(trayectoList as SelectOption[]);
 
     // llena las materias
-    const subjectList = Array.from(new Set(subjects?.map((subject) => subject.subject) || [])).map(
+    /*const subjectList = Array.from(new Set(subjects?.map((subject) => subject.subject) || [])).map(
       (subject) => ({
         value: subject,
         label: subject,
       })
     );
-    setSubjectsOptions(subjectList as SelectOption[]);
+    setSubjectsOptions(subjectList as SelectOption[]);*/
 
     // llena los turnos
 
@@ -193,7 +193,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
           <Select
             allowClear
             showSearch
-            style={{ width: 200 }}
+            style={{ width: 160 }}
             placeholder="Filtrar por trayecto"
             optionFilterProp="label"
             filterSort={(optionA, optionB) =>
@@ -209,7 +209,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
           <Select
             allowClear
             showSearch
-            style={{ width: 200 }}
+            style={{ width: 400 }}
             placeholder="Filtrar por materia"
             optionFilterProp="label"
             filterSort={(optionA, optionB) =>
@@ -225,7 +225,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
           <Select
             allowClear
             showSearch
-            style={{ width: 200 }}
+            style={{ width: 150 }}
             placeholder="Filtrar por turno"
             optionFilterProp="label"
             filterSort={(optionA, optionB) =>
