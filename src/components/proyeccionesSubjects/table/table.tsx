@@ -1,11 +1,15 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { DeleteOutlined, EditOutlined, CloseCircleOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
 import { Button, Table, Tag, message, Popconfirm } from "antd";
 import { Subject } from "../../../interfaces/subject";
 import EditProyeccionesSubjectModal from "../editProyeccionesSubjectModal/editProyeccionesSubjectModal";
+import { MainContext } from "../../../context/mainContext";
+import { MainContextValues } from "../../../interfaces/contextInterfaces";
 
 const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ subjects }) => {
+  const { handleSubjectChange } = useContext(MainContext) as MainContextValues;
+
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
 
@@ -26,8 +30,13 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
   };
 
   const onDelete = (_record: Subject) => {
+    if (!subjects) return;
+    const subjectid = _record.innerId;
+    const updatedSubjects = subjects?.filter((subject) => subject.innerId !== subjectid);
+    handleSubjectChange(updatedSubjects);
     message.success("La asignatura fue eliminada de la proyección");
   };
+
   const onEdit = (record: Subject) => {
     setSelectedSubject(record);
     setOpenEditModal(true);
