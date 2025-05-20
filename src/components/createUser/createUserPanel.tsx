@@ -152,28 +152,6 @@ export default function CreateUserPanel() {
       return;
     }
 
-    /* const data = {
-      name,
-      last_name: lastName,
-      ci,
-      user,
-      password,
-      su: true,
-      pnf_id: pnfValue,
-    };
-
-    postUser(data)
-      .then((res) => {
-        if (res.error) {
-          message.error(res.error);
-          return;
-        }
-        message.success("Usuario creado correctamente");
-        navigate("/");
-      })
-      .catch((error) => {
-        message.error("Error al crear el usuario " + error);
-      });*/
     setIsModalVisible(true);
   };
 
