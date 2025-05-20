@@ -93,7 +93,6 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
   useEffect(() => {
     if (!subjects) return;
 
-    console.log(subjects);
     // llena los pnf
     const uniquePnf = subjects?.filter(
       (subject, index, self) => index === self.findIndex((s) => s.pnfId === subject.pnfId)
@@ -140,6 +139,33 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     setTurnoOptions(turnoList as SelectOption[]);
   }, [subjects]);
 
+  // llena el selector de materia condicional
+  useEffect(() => {
+    if (!subjects) return;
+    if (!selectedTrayectoOption) {
+      const subjectList = Array.from(new Set(subjects?.map((subject) => subject.subject) || [])).map(
+        (subject) => ({
+          value: subject,
+          label: subject,
+        })
+      );
+      setSubjectsOptions(subjectList as SelectOption[]);
+      return;
+    }
+
+    const subjectList = Array.from(
+      new Set(
+        subjects
+          ?.filter((subject) => subject.trayectoId === selectedTrayectoOption)
+          .map((subject) => subject.subject) || []
+      )
+    ).map((subject) => ({
+      value: subject,
+      label: subject,
+    }));
+    setSubjectsOptions(subjectList as SelectOption[]);
+  }, [selectedTrayectoOption]);
+
   const handleChangeTeacher = (subject: Subject) => {
     setSelectedSubject(subject);
   };
@@ -168,22 +194,6 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
             allowClear
             showSearch
             style={{ width: 200 }}
-            placeholder="Filtrar por materia"
-            optionFilterProp="label"
-            filterSort={(optionA, optionB) =>
-              (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
-            }
-            options={subjectsOptions}
-            onChange={(value) => {
-              setSelectedSubjectOption(value);
-            }}
-            value={selectedSubjectOption}
-          />
-
-          <Select
-            allowClear
-            showSearch
-            style={{ width: 200 }}
             placeholder="Filtrar por trayecto"
             optionFilterProp="label"
             filterSort={(optionA, optionB) =>
@@ -194,6 +204,22 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
               setSelectedTrayectoOption(value);
             }}
             value={selectedTrayectoOption}
+          />
+
+          <Select
+            allowClear
+            showSearch
+            style={{ width: 200 }}
+            placeholder="Filtrar por materia"
+            optionFilterProp="label"
+            filterSort={(optionA, optionB) =>
+              (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+            }
+            options={subjectsOptions}
+            onChange={(value) => {
+              setSelectedSubjectOption(value);
+            }}
+            value={selectedSubjectOption}
           />
 
           <Select
