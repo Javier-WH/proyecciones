@@ -37,7 +37,9 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
   subject,
   setSelectedSubject,
 }) => {
-  const { subjectColors, teachers, subjects } = useContext(MainContext) as MainContextValues;
+  const { subjectColors, teachers, subjects, handleSubjectChange } = useContext(
+    MainContext
+  ) as MainContextValues;
   const { getTeacherHoursData, addSubjectToTeacher, removeSubjectFromTeacher } = useSetSubject(
     subjects || []
   );
@@ -135,7 +137,17 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
     if (!subject || !selectedOption) return;
     const subjectId = subject?.innerId;
     const teacherId = selectedOption?.id;
-    addSubjectToTeacher({ subjectId, teacherId });
+    const addSubjectResponse = addSubjectToTeacher({ subjectId, teacherId });
+
+    if (addSubjectResponse.error) {
+      console.log(addSubjectResponse.message);
+      return;
+    }
+
+    if (addSubjectResponse.data) {
+      handleSubjectChange(addSubjectResponse.data);
+    }
+
     setSelectedSubject(null);
   };
 
