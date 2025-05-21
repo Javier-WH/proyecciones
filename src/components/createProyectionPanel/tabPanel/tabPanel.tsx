@@ -107,6 +107,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
             return student.student_info;
           }) || [];
 
+        console.log(data?.data?.fails);
         setStudentList({ pass: studentPassedList, fail: studentFailedList });
       })
       .catch((error) => {

@@ -7,7 +7,7 @@ export default function TabStudent({ students }: { students: StudentList | null 
     if (students.length === 0) {
       return (
         <div style={{ padding: "20px 0" }}>
-          <Empty description="Sin materias asignadas" />
+          <Empty description="No se encontraron estudiantes" />
         </div>
       );
     }
