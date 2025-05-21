@@ -20,7 +20,7 @@ const items: MenuProps["items"] = [
     icon: <RiFileExcel2Line />,
   },
   {
-    label: "Proyección annual",
+    label: "Proyección anual",
     key: "2",
     icon: <RiFileExcel2Line />,
   },

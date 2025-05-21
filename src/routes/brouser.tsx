@@ -5,7 +5,7 @@ import ElementNotFound from "../components/notFound/ElementNotFoud";
 import ProyeccionesContainer from "../components/proyecciones/ProyeccionesContainer";
 import Login from "../components/login/login";
 import ProyeccionesSubjects from "../components/proyeccionesSubjects/proyeccionesSubjects";
-import NewProyectionPanel from "../components/newProyectionPanel/NewProyectionPanel";
+// import NewProyectionPanel from "../components/newProyectionPanel/NewProyectionPanel";
 import EditTrayectos from "../components/editTrayectos/EditTrayectos";
 import RegisterTeacher from "../components/teachers/registerTeacher/RegisterTeacher";
 import EditTeachers from "../components/teachers/editTeachers/EditTeachers";
@@ -17,6 +17,7 @@ import Config from "../components/config/config";
 import ProtectedRoute from "../components/login/protectedRute";
 import EditContracts from "../components/editContracts/EditContracts";
 import CreateUserPanel from "../components/createUser/createUserPanel";
+import CreateProyectionPanel from "../components/createProyectionPanel/createProyectionPanel";
 
 const router = createBrowserRouter([
   {
@@ -52,7 +53,7 @@ const router = createBrowserRouter([
       },
       {
         path: "proyecciones/create",
-        element: <NewProyectionPanel />,
+        element: <CreateProyectionPanel />,
       },
       {
         path: "/app/registerTeacher",
