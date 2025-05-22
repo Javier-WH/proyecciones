@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
-import { Checkbox, Transfer } from 'antd';
+import { Transfer } from 'antd';
 import type { TransferProps } from 'antd';
 
 interface RecordType {
@@ -44,8 +44,15 @@ export default function TabConf({ turnosList, turnos, setTurnos }: TabConfProps)
   return <div>
     <h3 style={{color: 'gray'}}>Turnos en para la proyección</h3>
     <Transfer
+      locale={{
+        itemUnit: 'Turno ',    // Texto para singular
+        itemsUnit: 'Turnos',   // Texto para plural
+        notFoundContent: 'No hay turnos',
+        searchPlaceholder: 'Buscar...'
+      }}
+      showSelectAll={false}
       dataSource={allTurnsData}
-      titles={['Turnos Disponibles', 'Turnos Seleccionados']}
+      titles={['Disponibles', 'Seleccionados']}
       targetKeys={targetKeys}
       onChange={handleChange}
       render={(item) => item.title}
