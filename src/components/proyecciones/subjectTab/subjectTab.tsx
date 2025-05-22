@@ -85,7 +85,6 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     selectedPnf,
     selectedSubjectOption,
     showUnasignedSubject,
-    subjectList,
     selectedTrayectoOption,
   ]);
 
@@ -119,16 +118,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     });
     setTrayectoOptions(trayectoList as SelectOption[]);
 
-    // llena las materias
-    /*const subjectList = Array.from(new Set(subjects?.map((subject) => subject.subject) || [])).map(
-      (subject) => ({
-        value: subject,
-        label: subject,
-      })
-    );
-    setSubjectsOptions(subjectList as SelectOption[]);*/
 
-    // llena los turnos
 
     const turnoList = Array.from(new Set(subjects?.map((subject) => subject.turnoName) || [])).map(
       (subject) => ({
