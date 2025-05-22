@@ -1,11 +1,17 @@
-import { Tabs, message } from "antd";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { MainContext } from "../../../context/mainContext";
+import { MainContextValues } from "../../../interfaces/contextInterfaces";
+import { Button, Tabs, message, Divider, Popconfirm, Spin } from "antd";
 import getPensum from "../../../fetch/getPensum";
 import getInscriptionData from "../../../fetch/getInscriptionData";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Subject, InlineQuarter, InlineHours } from "../../../interfaces/subject";
 import { v4 as uuidv4 } from "uuid";
 import TabSubject from "./tabs/tabSubject";
 import TabStudent from "./tabs/tabStudent";
+import TabProyection from "./tabs/tabProyection";
+import TabConf from "./tabs/tabConf";
+import { QuestionCircleOutlined } from '@ant-design/icons';
 
 interface TabPanelProps {
   selectedPnf: string | null;
@@ -26,94 +32,163 @@ export interface StudentList {
 }
 
 export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProps) {
+  const { turnosList: defaultTurnos, subjects, handleSubjectChange} = useContext(MainContext) as MainContextValues;
   const [subjectList, setSubjectList] = useState<Subject[]>([]);
   const [studentList, setStudentList] = useState<StudentList | null>(null);
+  const [turnosList, setTurnosList] = useState<string[]>([]);
+  const [turnos, setTurnos] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+
+
+  //  llena los turnos que son utilizados en la pestana de proyeccion
+  useEffect(() => {
+    if (!turnosList) return;
+    setTurnos(turnosList);
+  }, [turnosList]);
+
+  // llena el array de turnos con los valores de defaultTurnos
+  useEffect(() => {
+    if (!defaultTurnos) return;
+    const turnos = defaultTurnos.map((turno: any) => turno.name);
+    setTurnosList(turnos);
+  }, [defaultTurnos]);
+
 
   useEffect(() => {
     if (!selectedPnf || !selectedTrayecto) return;
 
-    // se obtiene la lista de materias
-    getPensum({ programaId: selectedPnf, trayectoId: selectedTrayecto })
-      .then((data) => {
-        if (data.error) {
-          message.error(data.message);
+    setLoading(true); 
+
+    const fetchAllData = async () => {
+      try {
+        // Ejecutamos ambas peticiones en paralelo
+        const [pensumData, inscriptionData] = await Promise.all([
+          getPensum({ programaId: selectedPnf, trayectoId: selectedTrayecto }),
+          getInscriptionData({ programId: selectedPnf, trayectoId: selectedTrayecto })
+        ]);
+
+        // Procesamiento de materias
+        if (pensumData.error) {
+          message.error(pensumData.message);
           setSubjectList([]);
-          return;
+        } else {
+          const { pnfId, pnfName, trayectoId, trayectoName, pensums } = pensumData.data;
+
+          const pensumList: Subject[] = pensums.map((subject: any) => {
+            const quarter: InlineQuarter = {};
+            const hours: InlineHours = { q1: 0, q2: 0, q3: 0 };
+            const subjectedQuarter = JSON.parse(subject.quarter.toString());
+
+            [1, 2, 3].forEach((q) => {
+              if (subjectedQuarter.includes(q)) {
+                quarter[`q${q}` as keyof InlineQuarter] = null;
+                hours[`q${q}` as keyof InlineHours] = Number(subject.hours) || 0;
+              }
+            });
+
+            return {
+              innerId: uuidv4(),
+              id: subject.subject_id,
+              subject: subject.subject,
+              hours: hours,
+              pnf: pnfName,
+              pnfId: pnfId,
+              seccion: "undefined",
+              quarter: quarter,
+              pensum_id: subject.id,
+              turnoName: "undefined",
+              trayectoId: trayectoId,
+              trayectoName: trayectoName,
+              trayecto_saga_id: subject.trayecto_saga_id.toString(),
+            };
+          });
+          setSubjectList(pensumList);
         }
 
-        const { pnfId, pnfName, trayectoId, trayectoName, pensums } = data.data;
-
-        const pensumList: Subject[] = pensums.map((subject) => {
-          const quarter: InlineQuarter = {};
-          const hours: InlineHours = { q1: 0, q2: 0, q3: 0 };
-          const subjectedQuarter = JSON.parse(subject.quarter.toString());
-
-          if (subjectedQuarter.includes(1)) {
-            quarter.q1 = null;
-            hours.q1 = subject.hours;
-          }
-          if (subjectedQuarter.includes(2)) {
-            quarter.q2 = null;
-            hours.q2 = subject.hours;
-          }
-          if (subjectedQuarter.includes(3)) {
-            quarter.q3 = null;
-            hours.q3 = subject.hours;
-          }
-
-          const newSubject: Subject = {
-            innerId: uuidv4(),
-            id: subject.subject_id,
-            subject: subject.subject,
-            hours: hours,
-            pnf: pnfName,
-            pnfId: pnfId,
-            seccion: "undefined",
-            quarter: quarter,
-            pensum_id: subject.id,
-            turnoName: subject.turnoName, //
-            trayectoId: trayectoId,
-            trayectoName: trayectoName,
-            trayecto_saga_id: subject.trayecto_saga_id.toString(),
-          };
-          return newSubject;
-        });
-
-        setSubjectList(pensumList);
-      })
-      .catch((error) => {
-        console.log(error);
-      });
-
-    // se obtiene la lista de alumnos
-    getInscriptionData({ programId: selectedPnf, trayectoId: selectedTrayecto })
-      .then((data) => {
-        if (data.error) {
-          message.error(data.message);
+        // Procesamiento de estudiantes
+        if (inscriptionData.error) {
+          message.error(inscriptionData.message);
           setStudentList(null);
-          return;
+        } else {
+          const studentsPassedObject = inscriptionData?.data?.passed || {};
+          const turnos = Object.keys(studentsPassedObject);
+          setTurnosList(turnos);
+
+          const studentPassedList = turnos
+            .map((turno) => studentsPassedObject[turno].inscriptionData)
+            .flat();
+
+          const studentFailedList = inscriptionData?.data?.fails?.map(
+            (student: any) => student.student_info
+          ) || [];
+
+          setStudentList({ pass: studentPassedList, fail: studentFailedList });
         }
-        const studentsPassedObject = data?.data?.passed || {};
 
-        const turnos = Object.keys(studentsPassedObject);
-        const studentPassedList = turnos
-          .map((turno) => {
-            return studentsPassedObject[turno].inscriptionData;
-          })
-          .flat();
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        message.error("Error al cargar los datos");
+      } finally {
+        setLoading(false); // Desactivamos el loading al final
+      }
+    };
 
-        const studentFailedList =
-          data?.data?.fails?.map((student: any) => {
-            return student.student_info;
-          }) || [];
-
-        console.log(data?.data?.fails);
-        setStudentList({ pass: studentPassedList, fail: studentFailedList });
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+    fetchAllData();
   }, [selectedPnf, selectedTrayecto]);
+
+  // funcion que se encarga revisar si una proyeccion ya existe
+  const checkIfProyected = () => {
+    const isProyected = subjects?.some((subject) => {
+      if (subject.pnfId === selectedPnf && subject.trayectoId === selectedTrayecto) {
+        return true;
+      }
+    })
+    return isProyected
+  }
+
+  const handleDeleteProyected = () => { 
+    if (!subjects || !selectedPnf || !selectedTrayecto) return;
+    const subjectsCopy = JSON.parse(JSON.stringify(subjects));
+    const filteredSubjects = subjectsCopy.filter((subject: Subject) => {
+      return subject.pnfId !== selectedPnf || subject.trayectoId !== selectedTrayecto;
+    });
+    
+
+    handleSubjectChange(filteredSubjects);
+  }
+
+  if(selectedPnf === null || selectedTrayecto === null) {
+    return <div>
+      <h2 style={{ color: "gray" }}>Seleccione un programa y trayecto</h2>
+    </div>
+  }
+
+  if (checkIfProyected()) {
+    return <div>
+      <h2>Esta proyección ya ha sido creada</h2>
+      <p>Si desea crear una nueva proyección para este programa y trayecto, elimine la proyección existente.</p>
+      <Divider />
+      <Popconfirm
+        placement="bottom"
+        title={"¿Deseas eliminar esta proyección?"}
+        description={"Esta accion no se puede deshacer, se perderán todos los cambios realizados en la proyección de manera permanente."}
+        icon={<QuestionCircleOutlined style={{ color: 'red' }} />}
+        okText="Eliminar"
+        cancelText="Cancelar"
+        okType="danger"
+        onCancel={() => message.info("No se ha eliminado la proyección")}
+        onConfirm={handleDeleteProyected}>
+        <Button type="primary" danger>Eliminar proyección</Button>
+      </Popconfirm>
+    </div>
+  }
+
+  if (loading) {
+    return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", columnGap: "20px" }}>
+      <Spin size="large" />
+      <h2 style={{ color: "#1890ff" }}>Espere...</h2>
+    </div>
+  }
 
   return (
     <Tabs
@@ -122,7 +197,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
         {
           label: "Proyección",
           key: "1",
-          children: "Tab 1",
+          children: <TabProyection subjectList={subjectList} turnos={turnos} />,
         },
         {
           label: "Materias",
@@ -137,10 +212,11 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
         {
           label: "Configuración",
           key: "4",
-          children: "Tab 4",
+          children: <TabConf turnosList={defaultTurnos?.map((turno: any) => turno.name) || []} turnos={turnos} setTurnos={setTurnos} />,
         },
       ]}
     />
   );
 }
+
 
