@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
-import { Transfer } from 'antd';
+import { Checkbox, Transfer } from 'antd';
 import type { TransferProps } from 'antd';
 
 interface RecordType {
@@ -19,6 +19,7 @@ interface TabConfProps {
 export default function TabConf({ turnosList, turnos, setTurnos }: TabConfProps) {
   const [allTurnsData, setAllTurnsData] = useState<RecordType[]>([]);
   const [targetKeys, setTargetKeys] = useState<string[]>([]);
+  
 
   useEffect(() => {
     if (turnosList) {
@@ -53,6 +54,7 @@ export default function TabConf({ turnosList, turnos, setTurnos }: TabConfProps)
         height: 300,
       }}
     />
+
   </div>
 
 }

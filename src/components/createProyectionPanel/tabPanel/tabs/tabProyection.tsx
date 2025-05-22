@@ -48,18 +48,30 @@ export default function TabProyection({ subjectList, turnos }: { subjectList: Su
       alert("No hay secciones para proyectar");
       return;
     }
+    let morningSections = 1;
     const proyectedSubjects: Subject[] = [];
     for (const seccion of secciones) {
       const { turnoName, sectionCount } = seccion;
       for (let i = 1; i <= sectionCount!; i++) {
         const subjectListCopy = JSON.parse(JSON.stringify(subjectList));
+   
+
         for (const subject of subjectListCopy) {
           subject.innerId = uuidv4();
           subject.turnoName = turnoName || "No definido";
-          subject.seccion = i.toString();
           proyectedSubjects.push(subject);
+          if (turnoName === "Mañana" || turnoName === "Tarde") {
+            subject.seccion = morningSections.toString();
+          }else {
+            subject.seccion = i.toString();
+          }
+          
         }
 
+        if (turnoName === "Mañana" || turnoName === "Tarde") {
+          morningSections++;
+        }
+     
       }
     }
 
