@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
-import { Button, Tabs, message, Divider, Popconfirm, Spin } from "antd";
+import { Button, Tabs, message, Divider, Popconfirm, Spin, Tag } from "antd";
 import getPensum from "../../../fetch/getPensum";
 import getInscriptionData from "../../../fetch/getInscriptionData";
 import { useContext, useEffect, useState } from "react";
@@ -11,7 +11,7 @@ import TabSubject from "./tabs/tabSubject";
 import TabStudent from "./tabs/tabStudent";
 import TabProyection from "./tabs/tabProyection";
 import TabConf from "./tabs/tabConf";
-import { QuestionCircleOutlined } from '@ant-design/icons';
+import { ExclamationCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 
 interface TabPanelProps {
   selectedPnf: string | null;
@@ -32,7 +32,7 @@ export interface StudentList {
 }
 
 export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProps) {
-  const { turnosList: defaultTurnos, subjects, handleSubjectChange} = useContext(MainContext) as MainContextValues;
+  const { turnosList: defaultTurnos, subjects, handleSubjectChange } = useContext(MainContext) as MainContextValues;
   const [subjectList, setSubjectList] = useState<Subject[]>([]);
   const [studentList, setStudentList] = useState<StudentList | null>(null);
   const [turnosList, setTurnosList] = useState<string[]>([]);
@@ -57,7 +57,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
   useEffect(() => {
     if (!selectedPnf || !selectedTrayecto) return;
 
-    setLoading(true); 
+    setLoading(true);
 
     const fetchAllData = async () => {
       try {
@@ -69,7 +69,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
 
         // Procesamiento de materias
         if (pensumData.error) {
-          message.error(pensumData.message);
+
           setSubjectList([]);
         } else {
           const { pnfId, pnfName, trayectoId, trayectoName, pensums } = pensumData.data;
@@ -146,18 +146,18 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
     return isProyected
   }
 
-  const handleDeleteProyected = () => { 
+  const handleDeleteProyected = () => {
     if (!subjects || !selectedPnf || !selectedTrayecto) return;
     const subjectsCopy = JSON.parse(JSON.stringify(subjects));
     const filteredSubjects = subjectsCopy.filter((subject: Subject) => {
       return subject.pnfId !== selectedPnf || subject.trayectoId !== selectedTrayecto;
     });
-    
+
 
     handleSubjectChange(filteredSubjects);
   }
 
-  if(selectedPnf === null || selectedTrayecto === null) {
+  if (selectedPnf === null || selectedTrayecto === null) {
     return <div>
       <h2 style={{ color: "gray" }}>Seleccione un programa y trayecto</h2>
     </div>
@@ -183,6 +183,12 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
     </div>
   }
 
+  if (subjectList.length === 0 || subjectList === null) {
+    return <div>
+      <h2 style={{ color: "gray" }}>No hay materias registradas para este programa y trayecto</h2>
+    </div>
+  }
+
   if (loading) {
     return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", columnGap: "20px" }}>
       <Spin size="large" />
@@ -190,7 +196,10 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
     </div>
   }
 
-  return (
+  return <div>
+    {
+      studentList?.pass?.length === 0 && <Tag icon={<ExclamationCircleOutlined />} color="red">No hay estudiantes inscritos en este trayecto</Tag>
+    }
     <Tabs
       defaultActiveKey="1"
       items={[
@@ -216,7 +225,8 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
         },
       ]}
     />
-  );
+  </div>
+
 }
 
 

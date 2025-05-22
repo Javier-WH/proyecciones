@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { Subject } from "../../../../interfaces/subject";
-import { Button, Divider} from "antd";
+import { Button, Divider, message} from "antd";
 import { MainContext } from "../../../../context/mainContext";
 import { MainContextValues } from "../../../../interfaces/contextInterfaces";
 import { v4 as uuidv4 } from "uuid";
@@ -45,7 +45,7 @@ export default function TabProyection({ subjectList, turnos }: { subjectList: Su
   // funcion que se encarga de proyectar las materias
   const handleProyectar = () => {
     if (secciones.length === 0) {
-      alert("No hay secciones para proyectar");
+      message.error("No hay turnos para proyectar");
       return;
     }
     let morningSections = 1;
@@ -83,9 +83,9 @@ export default function TabProyection({ subjectList, turnos }: { subjectList: Su
 
   return (
     <div>
-      <Button type="primary" onClick={handleProyectar}>Proyectar</Button>
+      <Button disabled={secciones.length === 0} type="primary" onClick={handleProyectar}>Proyectar</Button>
       <Divider type="horizontal"/>
-      <h3 style={{ color: "gray" }}>Numero de secciones por turno</h3>
+      <h3 style={{ color: "gray" }}>{secciones.length === 0 ? "No hay turnos para proyectar" : "Numero de secciones por turno"}</h3>
       <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap" }}>
         {
           secciones.map((seccion) => (
