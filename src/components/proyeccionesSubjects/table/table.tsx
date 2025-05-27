@@ -8,7 +8,7 @@ import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 
 const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ subjects }) => {
-  const { handleSubjectChange } = useContext(MainContext) as MainContextValues;
+  const { handleSubjectChange, subjects: allSubjects } = useContext(MainContext) as MainContextValues;
 
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -30,9 +30,9 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
   };
 
   const onDelete = (_record: Subject) => {
-    if (!subjects) return;
+    if (!allSubjects) return;
     const subjectid = _record.innerId;
-    const updatedSubjects = subjects?.filter((subject) => subject.innerId !== subjectid);
+    const updatedSubjects = allSubjects?.filter((subject) => subject.innerId !== subjectid);
     handleSubjectChange(updatedSubjects);
     message.success("La asignatura fue eliminada de la proyección");
   };
