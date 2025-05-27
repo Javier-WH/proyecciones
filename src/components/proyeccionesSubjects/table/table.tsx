@@ -49,7 +49,6 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       key: "pnf",
       width: "20%",
       align: "center",
-      //...getColumnSearchProps("pnf"),
       onFilter: (value, record) => {
         const pnfValue = typeof record.pnf === "string" ? record.pnf : "";
         return pnfValue.toLowerCase().includes((String(value) || "").toLowerCase());

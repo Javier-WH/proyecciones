@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "./proyeccionesSubjects.css";
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
@@ -14,18 +15,6 @@ import { v4 as uuidv4 } from "uuid";
 interface SelectOption {
   value: string;
   label: string;
-}
-
-interface selectedSubect {
-  hours: string;
-  id: string;
-  innerId: string;
-  quarter: string;
-  seccion: string;
-  subject: string;
-  subject_id: string;
-  trayecto_saga_id: string;
-  turnoName: string;
 }
 
 export default function ProyeccionesSubjects() {
@@ -48,6 +37,7 @@ export default function ProyeccionesSubjects() {
   const [modalPensumList, setModalPensumList] = useState<Subject[]>([]);
   const [aviableModalSubjects, setAviableModalSubjects] = useState<Subject[]>([]);
   const [modalSelectedSubject, setModalSelectedSubject] = useState<Subject | null>(null);
+  const [seccionExist, setSeccionExist] = useState<boolean>(false);
 
   const showAddSubjectModal = () => {
     setIsAddSubjectModalOpen(true);
@@ -68,10 +58,13 @@ export default function ProyeccionesSubjects() {
     const subjectCopy = JSON.parse(JSON.stringify(subjects));
     subjectCopy.push(modalSelectedSubject);
 
-    console.log(subjectCopy);
-    handleSubjectChange(subjectCopy);
 
-    //setIsAddSubjectModalOpen(false);
+    message.success(
+      `Materia ${modalSelectedSubject.subject} agregada correctamente al pensum`
+    );    
+    handleSubjectChange(subjectCopy);
+    handleCancelSubjectModal();
+
   };
 
   const handleCancelSubjectModal = () => {
@@ -254,9 +247,11 @@ export default function ProyeccionesSubjects() {
     );
 
     if (!selectionExist) {
+      setSeccionExist(false);
       setAviableModalSubjects([]);
       return;
     }
+    setSeccionExist(true);
 
     const getMissingSubjects = (standardSubjects: Subject[], currentSubjects: Subject[] = []) => {
       const currentKeys = currentSubjects.map((subject) => subject.subject);
@@ -300,6 +295,63 @@ export default function ProyeccionesSubjects() {
         </Button>
       </div>
     );
+  }
+
+
+  // contenido del modal
+
+  const getModalContent = () => {
+    const styles: React.CSSProperties = {
+      display: "flex",
+      flexDirection: "column",
+      rowGap: "10px",
+      marginTop: "20px",
+      height: "400px",
+      overflow: "auto",
+    }
+    if (!selectedModalPnf || !selectedModalTrayecto || !selectedTurno || !selectedSeccion) {
+      return <>
+        <span style={{ color: "gray", fontSize: "14px" }}>Seleccione un PNF, Trayecto, Turno y Sección</span>;
+        <div style={styles}></div>
+      </>
+    }
+
+
+    if (!seccionExist) {
+      return <>
+        <span style={{ color: "red", fontSize: "14px" }}>No existe la combinación de PNF, Trayecto, Turno y Sección seleccionada</span>
+        <div style={styles}></div>
+      </>
+    }
+
+    if (aviableModalSubjects.length <= 0) {
+      return <>
+        <span style={{ color: "gray", fontSize: "14px" }}>No hay materias disponibles</span>
+        <div style={styles}></div>
+      </>
+    }
+
+
+    return <>
+      <span style={{ color: "gray", fontSize: "14px" }}>Materias disponibles</span>
+      <div style={styles}>
+        {aviableModalSubjects.map((subject, i) => (
+          <div
+            key={i}
+            onClick={() => setModalSelectedSubject(subject)}
+            style={{
+              cursor: "pointer",
+              backgroundColor: modalSelectedSubject?.subject === subject.subject ? "#1890ff" : "white",
+              color: modalSelectedSubject?.subject === subject.subject ? "white" : "black",
+              padding: "5px",
+              borderRadius: "5px",
+            }}>
+            {subject.subject}
+          </div>
+        ))}
+      </div>
+    </>
+
   }
 
   return (
@@ -482,35 +534,9 @@ export default function ProyeccionesSubjects() {
           </div>
         </div>
         <Divider />
-        {aviableModalSubjects.length > 0 ? (
-          <span style={{ color: "gray", fontSize: "14px" }}>Materias disponibles</span>
-        ) : (
-          <span style={{ color: "gray", fontSize: "14px" }}>No hay materias disponibles</span>
-        )}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            rowGap: "10px",
-            marginTop: "20px",
-            height: "400px",
-            overflow: "auto",
-          }}>
-          {aviableModalSubjects.map((subject, i) => (
-            <div
-              key={i}
-              onClick={() => setModalSelectedSubject(subject)}
-              style={{
-                cursor: "pointer",
-                backgroundColor: modalSelectedSubject?.subject === subject.subject ? "#1890ff" : "white",
-                color: modalSelectedSubject?.subject === subject.subject ? "white" : "black",
-                padding: "5px",
-                borderRadius: "5px",
-              }}>
-              {subject.subject}
-            </div>
-          ))}
-        </div>
+        {
+          getModalContent()
+        }
       </Modal>
 
       <TablePensum subjects={filteredSubjects} />
