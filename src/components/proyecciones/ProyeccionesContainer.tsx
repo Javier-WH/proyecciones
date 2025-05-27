@@ -141,15 +141,7 @@ export default function ProyeccionesContainer() {
         <div style={{ display: "flex", gap: "5px" }}>
  
           <ReportMenu />
-          <Button
-            style={{ marginLeft: "30px" }}
-            type="link"
-            icon={<LogoutOutlined />}
-            onClick={() => {
-              setIsAuthenticated(false);
-              sessionStorage.removeItem("userSesion");
-            }}
-          />
+          
         </div>
       </div>
 

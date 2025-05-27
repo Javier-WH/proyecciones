@@ -1,4 +1,5 @@
-import { useState, useContext } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input, Button, message } from "antd";
 import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
@@ -12,6 +13,11 @@ export default function Login() {
   const navigate = useNavigate();
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem("userSesion");
+  }, []);
 
   const handleLogin = async () => {
     if (user.length === 0 || password.length === 0) {
@@ -73,11 +79,11 @@ export default function Login() {
             onClick={() => navigate("/singin")}>
             Crear cuenta
           </a>
-          <a style={{ fontSize: "13px", color: "gray", cursor: "pointer" }}>Cambiar contraseña</a>
+          
         </div>
       </div>
       <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%" }}>
-        <span style={{ fontSize: "10px", color: "gray" }}> version 0.0.1</span>
+        <span style={{ fontSize: "10px", color: "gray" }}> versión 0.0.2</span>
         <span style={{ fontSize: "10px", color: "gray" }}>
           {" "}
           © 2025 Proyecciones. Todos los derechos reservados

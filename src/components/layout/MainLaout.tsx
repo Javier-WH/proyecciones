@@ -7,11 +7,13 @@ import { IoMdPlanet, IoIosCreate } from "react-icons/io";
 import { LiaSchoolSolid } from "react-icons/lia";
 import { GrSchedules } from "react-icons/gr";
 import { FaPersonMilitaryPointing } from "react-icons/fa6";
+import { QuestionCircleOutlined } from '@ant-design/icons';
+import { RiLogoutBoxFill } from "react-icons/ri";
 import { IoPersonAddSharp } from "react-icons/io5";
 import { PiStepsDuotone } from "react-icons/pi";
 import { FaUsers } from "react-icons/fa6";
 import type { MenuProps } from "antd";
-import { Layout, Menu } from "antd";
+import { Layout, Menu, Modal } from "antd";
 
 const { Sider } = Layout;
 
@@ -56,21 +58,40 @@ const items: MenuItem[] = [
     getItem("Crear Horario", "6"),
     getItem("Editar Horario", "8"),
   ]),
+  
+  getItem("Logout", "logout", <RiLogoutBoxFill />)
 ];
 
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
 
+
   const handleClick: MenuProps["onClick"] = ({ key }) => {
-    navigate(key);
+    if (key === "logout") {
+      Modal.confirm({
+        title: "¿Estás seguro de que quieres cerrar sesión?",
+        content: "Deberás iniciar sesión nuevamente si deseas continuar", 
+        okText: "Sí, cerrar sesión",
+        icon: <QuestionCircleOutlined />,
+        okType: "danger",
+        cancelText: "No",
+        onOk() {
+          sessionStorage.removeItem("userSesion");
+          navigate("/");
+        },
+   
+      });
+    } else {
+      navigate(key); 
+    }
   };
 
   return (
     <Layout style={{ minHeight: "100vh", width: "100vw" }}>
       <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
         <div className="demo-logo-vertical" style={{ height: 32, margin: 16 }} />
-        <Menu theme="dark" defaultSelectedKeys={["1"]} mode="inline" items={items} onClick={handleClick} />
+        <Menu theme="dark"  defaultSelectedKeys={["1"]} mode="inline" items={items} onClick={handleClick} />
       </Sider>
       <Layout>
         <Outlet />

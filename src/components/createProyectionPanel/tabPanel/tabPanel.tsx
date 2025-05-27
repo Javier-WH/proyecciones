@@ -156,18 +156,6 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
 
     handleSubjectChange(filteredSubjects);
   }
-  if (loading) {
-    return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", columnGap: "20px" }}>
-      <Spin size="large" />
-      <h2 style={{ color: "#1890ff" }}>Espere...</h2>
-    </div>
-  }
-
-  if (selectedPnf === null || selectedTrayecto === null) {
-    return <div>
-      <h2 style={{ color: "gray" }}>Seleccione un programa y trayecto</h2>
-    </div>
-  }
 
   if (checkIfProyected()) {
     return <div>
@@ -188,6 +176,20 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
       </Popconfirm>
     </div>
   }
+  
+  if (loading) {
+    return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", columnGap: "20px" }}>
+      <Spin size="large" />
+      <h2 style={{ color: "#1890ff" }}>Espere...</h2>
+    </div>
+  }
+
+  if (selectedPnf === null || selectedTrayecto === null) {
+    return <div>
+      <h2 style={{ color: "gray" }}>Seleccione un programa y trayecto</h2>
+    </div>
+  }
+
 
   if (subjectList.length === 0 || subjectList === null) {
     return <div>
