@@ -177,8 +177,8 @@ export default function ProyeccionesSubjects() {
   // obtiene las materias para el modal
 
   useEffect(() => {
-    if (!selectedModalPnf || !selectedModalTrayecto || !selectedTurno) return;
-    console.log(selectedTurno);
+    if (!selectedModalPnf || !selectedModalTrayecto || !selectedTurno || !selectedSeccion) return;
+
     getPensum({ programaId: selectedModalPnf, trayectoId: selectedModalTrayecto })
       .then((data) => {
         if (data.error) {
@@ -195,7 +195,7 @@ export default function ProyeccionesSubjects() {
             hours: "InlineHours",
             pnf: pnfName,
             pnfId: pnfId,
-            seccion: subject.seccion,
+            seccion: selectedSeccion,
             quarter: "InlineQuarter",
             pensum_id: subject.pensum_id,
             trayectoId: trayectoId,
@@ -205,12 +205,13 @@ export default function ProyeccionesSubjects() {
           };
           return response;
         });
+        console.log(fixxedPensum);
         setModalPensumList(fixxedPensum);
       })
       .catch((error) => {
         console.log(error);
       });
-  }, [selectedModalPnf, selectedModalTrayecto, selectedTurno]);
+  }, [selectedModalPnf, selectedModalTrayecto, selectedTurno, selectedSeccion]);
 
   useEffect(() => {
     setModalSelectedSubject(null);
