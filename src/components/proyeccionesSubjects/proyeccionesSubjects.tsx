@@ -29,7 +29,7 @@ interface selectedSubect {
 }
 
 export default function ProyeccionesSubjects() {
-  const { subjects, proyectionsDone } = useContext(MainContext) as MainContextValues;
+  const { subjects, proyectionsDone, handleSubjectChange } = useContext(MainContext) as MainContextValues;
   const navigate = useNavigate();
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
   const [pnfOptions, setPnfOptions] = useState<SelectOption[]>([]);
@@ -55,15 +55,21 @@ export default function ProyeccionesSubjects() {
 
   const handleOkSubjectModal = () => {
     if (
+      !subjects ||
       !modalSelectedSubject ||
       !selectedSeccion ||
       !selectedTurno ||
       !selectedModalPnf ||
       !selectedModalTrayecto
-    )
+    ) {
       return;
+    }
 
-    console.log(modalSelectedSubject);
+    const subjectCopy = JSON.parse(JSON.stringify(subjects));
+    subjectCopy.push(modalSelectedSubject);
+
+    console.log(subjectCopy);
+    handleSubjectChange(subjectCopy);
 
     //setIsAddSubjectModalOpen(false);
   };
@@ -187,26 +193,37 @@ export default function ProyeccionesSubjects() {
         }
         const { pnfId, pnfName, trayectoId, trayectoName, pensums } = data.data;
 
-        const fixxedPensum: Subject[] = pensums.map((subject: any) => {
-          const response: Subject = {
+        ///
+
+        const pensumList: Subject[] = pensums.map((subject: any) => {
+          const quarter: InlineQuarter = {};
+          const hours: InlineHours = { q1: 0, q2: 0, q3: 0 };
+          const subjectedQuarter = JSON.parse(subject.quarter.toString());
+
+          [1, 2, 3].forEach((q) => {
+            if (subjectedQuarter.includes(q)) {
+              quarter[`q${q}` as keyof InlineQuarter] = null;
+              hours[`q${q}` as keyof InlineHours] = Number(subject.hours) || 0;
+            }
+          });
+
+          return {
             innerId: uuidv4(),
-            id: subject.id,
+            id: subject.subject_id,
             subject: subject.subject,
-            hours: "InlineHours",
+            hours: hours,
             pnf: pnfName,
             pnfId: pnfId,
             seccion: selectedSeccion,
-            quarter: "InlineQuarter",
-            pensum_id: subject.pensum_id,
+            quarter: quarter,
+            pensum_id: subject.id,
+            turnoName: selectedTurno,
             trayectoId: trayectoId,
             trayectoName: trayectoName,
-            trayecto_saga_id: subject.trayecto_saga_id,
-            turnoName: selectedTurno,
+            trayecto_saga_id: subject.trayecto_saga_id.toString(),
           };
-          return response;
         });
-        console.log(fixxedPensum);
-        setModalPensumList(fixxedPensum);
+        setModalPensumList(pensumList);
       })
       .catch((error) => {
         console.log(error);
