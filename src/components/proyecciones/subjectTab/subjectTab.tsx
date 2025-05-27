@@ -7,6 +7,7 @@ import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInf
 import { FaUserPen } from "react-icons/fa6";
 import { TbTopologyStar3 } from "react-icons/tb";
 import AddSubjectToTeacherModal from "./addTeacherSubject";
+import { normalizeText } from "../../../utils/textFilter";
 
 interface props {
   searchByUserPerfil: boolean;
@@ -41,7 +42,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     setSelectedPnf(undefined);
   }, [searchByUserPerfil]);
 
-  // filtros
+  // se llenan filtros
   useEffect(() => {
     if (!subjects) return;
 
@@ -86,6 +87,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     selectedSubjectOption,
     showUnasignedSubject,
     selectedTrayectoOption,
+    selectedTurnoOption,
   ]);
 
   // llena nos selectores de busqueda
@@ -117,8 +119,6 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       };
     });
     setTrayectoOptions(trayectoList as SelectOption[]);
-
-
 
     const turnoList = Array.from(new Set(subjects?.map((subject) => subject.turnoName) || [])).map(
       (subject) => ({
@@ -186,8 +186,11 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
             style={{ width: 160 }}
             placeholder="Filtrar por trayecto"
             optionFilterProp="label"
+            filterOption={(input, option) =>
+              normalizeText(option?.label ?? "").includes(normalizeText(input))
+            }
             filterSort={(optionA, optionB) =>
-              (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+              normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
             }
             options={trayectoOptions}
             onChange={(value) => {
@@ -202,8 +205,11 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
             style={{ width: 400 }}
             placeholder="Filtrar por materia"
             optionFilterProp="label"
+            filterOption={(input, option) =>
+              normalizeText(option?.label ?? "").includes(normalizeText(input))
+            }
             filterSort={(optionA, optionB) =>
-              (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+              normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
             }
             options={subjectsOptions}
             onChange={(value) => {
@@ -218,8 +224,11 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
             style={{ width: 150 }}
             placeholder="Filtrar por turno"
             optionFilterProp="label"
+            filterOption={(input, option) =>
+              normalizeText(option?.label ?? "").includes(normalizeText(input))
+            }
             filterSort={(optionA, optionB) =>
-              (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+              normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
             }
             options={turnoOptions}
             onChange={(value) => {
@@ -235,8 +244,11 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
               style={{ width: 200 }}
               placeholder="Filtrar por PNF"
               optionFilterProp="label"
+              filterOption={(input, option) =>
+                normalizeText(option?.label ?? "").includes(normalizeText(input))
+              }
               filterSort={(optionA, optionB) =>
-                (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+                normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
               }
               options={pnfOptions}
               onChange={(value) => {
