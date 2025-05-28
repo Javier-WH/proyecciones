@@ -174,7 +174,7 @@ export default function CreateUserPanel() {
         ci,
         user,
         password,
-        su: true,
+        su: false,
         pnf_id: pnfValue,
       };
 
