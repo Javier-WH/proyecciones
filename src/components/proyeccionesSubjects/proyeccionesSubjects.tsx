@@ -19,7 +19,7 @@ interface SelectOption {
 }
 
 export default function ProyeccionesSubjects() {
-  const { subjects, proyectionsDone, handleSubjectChange, userData } = useContext(
+  const { subjects, proyectionsDone, handleSubjectChange, userData, userPNF } = useContext(
     MainContext
   ) as MainContextValues;
   const navigate = useNavigate();
@@ -152,6 +152,11 @@ export default function ProyeccionesSubjects() {
     if (!subjects) return;
     setModalSelectedSubject(null);
     let filteredSubjectsCopy = [...subjects];
+
+    if (!userData?.su) {
+      filteredSubjectsCopy = filteredSubjectsCopy?.filter((subject) => subject.pnfId === userPNF);
+    }
+
     // filtrdo por pnf
     if (selectedPnf) {
       filteredSubjectsCopy = filteredSubjectsCopy?.filter((subject) => subject.pnfId === selectedPnf);
@@ -271,9 +276,9 @@ export default function ProyeccionesSubjects() {
     setAviableModalSubjects(missingSubjects);
   }, [modalPensumList, selectedTurno, selectedSeccion, selectedModalPnf, selectedModalTrayecto, subjects]);
 
-  if (!userData?.su) {
+  /*if (!userData?.su) {
     return <Forbidden />;
-  }
+  }*/
 
   const iconStyle = { color: "white", fontSize: "2rem" };
   // si no hay proyecciones
@@ -386,22 +391,26 @@ export default function ProyeccionesSubjects() {
           gap: "20px",
           marginTop: "20px",
         }}>
-        <Select
-          allowClear
-          showSearch
-          style={{ width: 200 }}
-          placeholder="Filtrar por PNF"
-          optionFilterProp="label"
-          filterOption={(input, option) => normalizeText(option?.label ?? "").includes(normalizeText(input))}
-          filterSort={(optionA, optionB) =>
-            normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
-          }
-          options={pnfOptions}
-          onChange={(value) => {
-            setSelectedPnf(value);
-          }}
-          value={selectedPnf}
-        />
+        {userData?.su && (
+          <Select
+            allowClear
+            showSearch
+            style={{ width: 200 }}
+            placeholder="Filtrar por PNF"
+            optionFilterProp="label"
+            filterOption={(input, option) =>
+              normalizeText(option?.label ?? "").includes(normalizeText(input))
+            }
+            filterSort={(optionA, optionB) =>
+              normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
+            }
+            options={pnfOptions}
+            onChange={(value) => {
+              setSelectedPnf(value);
+            }}
+            value={selectedPnf}
+          />
+        )}
 
         <Select
           allowClear

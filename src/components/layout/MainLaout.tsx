@@ -47,17 +47,17 @@ const MainLayout: React.FC = () => {
     getItem("Proyecciones", "/app/_proyecciones", <FaCalendarAlt />, [
       ...(userData?.su ? [getItem("Proyección Activa", "/app/active", <FaPersonMilitaryPointing />)] : []),
       getItem("Crear", "/app/proyecciones/create", <IoIosCreate />),
-      ...(userData?.su ? [getItem("Materias", "/app/proyecciones/subjects", <MdSubject />)] : []),
+      getItem("Materias", "/app/proyecciones/subjects", <MdSubject />),
       getItem("Proyeccion", "/app/proyecciones", <FaCalendarAlt />),
+    ]),
+    getItem("Profesores", "/app/profesores", <FaChalkboardTeacher />, [
+      ...(userData?.su ? [getItem("Registrar", "/app/registerTeacher", <IoPersonAddSharp />)] : []),
+      getItem("Editar", "/app/editTeacher", <FaUserEdit />),
+      getItem("Perfiles", "/app/teacherProfiles", <FaUsers />),
+      ...(userData?.su ? [getItem("Contratos", "/app/contracts", <LiaFileContractSolid />)] : []),
     ]),
     ...(userData?.su
       ? [
-          getItem("Profesores", "/app/profesores", <FaChalkboardTeacher />, [
-            getItem("Registrar", "/app/registerTeacher", <IoPersonAddSharp />),
-            getItem("Editar", "/app/editTeacher", <FaUserEdit />),
-            getItem("Perfiles", "/app/teacherProfiles", <FaUsers />),
-            getItem("Contratos", "/app/contracts", <LiaFileContractSolid />),
-          ]),
           getItem("Pensum", "/app/pensum", <LiaSchoolSolid />, [
             getItem("Editar Materias", "/app/editSubject", <MdEditLocation />),
             getItem("Editar Pensum", "/app/pensum/edit", <FaThList />),
