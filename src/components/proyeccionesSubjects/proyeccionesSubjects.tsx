@@ -11,7 +11,6 @@ import { useNavigate } from "react-router-dom";
 import { InlineHours, InlineQuarter, Subject } from "../../interfaces/subject";
 import { normalizeText } from "../../utils/textFilter";
 import getPensum from "../../fetch/getPensum";
-import { Forbidden } from "../../utils/messageComponents";
 import { v4 as uuidv4 } from "uuid";
 
 interface SelectOption {
