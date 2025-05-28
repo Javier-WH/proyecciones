@@ -9,7 +9,9 @@ import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 
 export default function Login() {
-  const { setIsAuthenticated, setUserPerfil, setUserPNF } = useContext(MainContext) as MainContextValues;
+  const { setIsAuthenticated, setUserPerfil, setUserPNF, setUserData } = useContext(
+    MainContext
+  ) as MainContextValues;
   const navigate = useNavigate();
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
@@ -31,6 +33,7 @@ export default function Login() {
       setIsAuthenticated(false);
       return;
     }
+    setUserData(data.userData);
     setUserPNF(data?.pnf_id || "");
     setUserPerfil(data?.perfil);
     setIsAuthenticated(true);
@@ -79,7 +82,6 @@ export default function Login() {
             onClick={() => navigate("/singin")}>
             Crear cuenta
           </a>
-          
         </div>
       </div>
       <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%" }}>
@@ -92,3 +94,4 @@ export default function Login() {
     </div>
   );
 }
+

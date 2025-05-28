@@ -7,6 +7,7 @@ import SetActiveProyection from "../../fetch/setActiveProyection";
 import postProyection from "../../fetch/postProyection";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
+import { Forbidden } from "../../utils/messageComponents";
 
 interface ProyectionDataType {
   id: string;
@@ -15,7 +16,7 @@ interface ProyectionDataType {
 }
 
 export default function Config() {
-  const { handleReload } = useContext(MainContext) as MainContextValues;
+  const { handleReload, userData } = useContext(MainContext) as MainContextValues;
   const [year, setYear] = useState<string | null>(null);
   const [name, setName] = useState<string>("");
   const [proyectionList, setProyectionList] = useState<ProyectionDataType[]>([]);
@@ -87,6 +88,10 @@ export default function Config() {
       },
     },
   ];
+
+  if (!userData?.su) {
+    return <Forbidden />;
+  }
 
   return (
     <div>

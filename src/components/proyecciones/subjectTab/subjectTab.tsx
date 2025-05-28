@@ -2,7 +2,7 @@ import { Subject } from "../../../interfaces/subject";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { useContext, useEffect, useState } from "react";
-import { Button, Select, Tag } from "antd";
+import { Button, message, Select, Tag } from "antd";
 import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInfo";
 import { FaUserPen } from "react-icons/fa6";
 import { TbTopologyStar3 } from "react-icons/tb";
@@ -22,7 +22,7 @@ function unasignedSubject(obj: { q1?: string | null; q2?: string | null; q3?: st
 }
 
 export default function SubjectTab({ searchByUserPerfil }: props) {
-  const { subjects, subjectColors, teachers, setEditSubjectQuarter } = useContext(
+  const { subjects, subjectColors, teachers, setEditSubjectQuarter, userData, userPNF } = useContext(
     MainContext
   ) as MainContextValues;
   const [subjectList, setSubjectList] = useState<Subject[]>();
@@ -157,6 +157,10 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
   }, [selectedTrayectoOption]);
 
   const handleChangeTeacher = (subject: Subject) => {
+    if (!userData?.su && userPNF !== subject.pnfId) {
+      message.error("No puede asignar materias de otros programas");
+      return;
+    }
     setSelectedSubject(subject);
   };
 
@@ -329,7 +333,13 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                     subject?.quarter?.q2 != null ||
                     subject?.quarter?.q3 != null) && (
                     <Button
-                      onClick={() => setEditSubjectQuarter(subject)}
+                      onClick={() => {
+                        if (!userData?.su && userPNF !== subject.pnfId) {
+                          message.error("No puede modificar materias asignadas de otros programas");
+                          return;
+                        }
+                        setEditSubjectQuarter(subject);
+                      }}
                       className="subject-tab-button"
                       shape="circle"
                       style={{

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Button, Modal, Select, Radio, Tag, Switch } from "antd";
+import { Button, Modal, Select, Radio, Tag, Switch, message } from "antd";
 import type { RadioChangeEvent } from "antd";
 import { Quarter } from "../../interfaces/teacher";
 import { Subject } from "../../interfaces/subject";
@@ -64,7 +64,7 @@ const AddSubjectToTeacherModal: React.FC<{
   handleSubjectChange,
   selectedTeacher,
 }) => {
-  const { subjectColors } = useContext(MainContext) as MainContextValues;
+  const { subjectColors, userData, userPNF } = useContext(MainContext) as MainContextValues;
   const [_loading, setLoading] = useState(false);
   const [options, setOptions] = useState<optionsInterface[]>([]);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -110,7 +110,7 @@ const AddSubjectToTeacherModal: React.FC<{
       setOverloadedQ2(q2?.overloaded || false);
       setOverloadedQ3(q3?.overloaded || false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTeacerId, subjects]);
 
   useEffect(() => {
@@ -147,9 +147,11 @@ const AddSubjectToTeacherModal: React.FC<{
 
     const teacherPerfil = new Set(teachers[selectedQuarter][t_index]?.perfil ?? []);
     if (perfilOption === "perfil") {
-      const pnfId = sessionStorage.getItem("userPNF")?.replace(/"/g, '');
+      const pnfId = sessionStorage.getItem("userPNF")?.replace(/"/g, "");
 
-      subjectsData = subjectsData.filter((subject) => (teacherPerfil.has(subject.subjectId) && subject.pnfId === pnfId));
+      subjectsData = subjectsData.filter(
+        (subject) => teacherPerfil.has(subject.subjectId) && subject.pnfId === pnfId
+      );
     }
 
     ///// FILTRADO DE HORAS DISPONIBLES
@@ -179,7 +181,7 @@ const AddSubjectToTeacherModal: React.FC<{
 
     //console.log(subjectsData);
     setOptions(subjectsData);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     subjects,
     perfilOption,
@@ -212,6 +214,13 @@ const AddSubjectToTeacherModal: React.FC<{
       selectedQuarter === null
     )
       return;
+
+    // permisos
+    const subject = subjects.find((subject) => subject.innerId === selectedOption);
+    if (!userData?.su && userPNF !== subject?.pnfId) {
+      message.error("No puede asignar materias de otros programas");
+      return;
+    }
 
     const addSubjectResponse = addSubjectToTeacher({
       subjectId: selectedOption,

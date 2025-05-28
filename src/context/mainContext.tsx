@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 import { MainContextValues } from "../interfaces/contextInterfaces";
 import { Teacher, Quarter } from "../interfaces/teacher";
+import { UserDataInterface } from "../interfaces/userInterfacer.tsx";
 import { PNF } from "../interfaces/pnf.tsx";
 import { Trayecto } from "../interfaces/trayecto.tsx";
 import { Subject, SimpleSubject } from "../interfaces/subject";
@@ -21,7 +22,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [socket, setSocket] = useState<Socket | null>(null);
   const [teachers, setTeachers] = useState<Quarter | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
-  const [selectedQuarter, setSelectedQuarter] = useState<"q1" | "q2" | "q3" >("q1");
+  const [selectedQuarter, setSelectedQuarter] = useState<"q1" | "q2" | "q3">("q1");
   const [selectedTeacerId, setSelectedTeacerId] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -56,6 +57,18 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     // Si no hay estado guardado, devuelve null
     return null;
   });
+
+  const [userData, setUserData] = useState<UserDataInterface | null>(() => {
+    const savedState = sessionStorage.getItem("userData");
+    if (savedState) {
+      const parsedState = JSON.parse(savedState);
+      setIsAuthenticated(true);
+      return parsedState;
+    }
+    // Si no hay estado guardado, devuelve null
+    return null;
+  });
+
   const [conected, setConnected] = useState<boolean>(true);
 
   const [subjectColors, setSubjectColors] = useState<Record<string, string> | null>(null);
@@ -70,6 +83,11 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     if (!userPNF) return;
     sessionStorage.setItem("userPNF", JSON.stringify(userPNF));
   }, [userPNF]);
+
+  useEffect(() => {
+    if (!userData) return;
+    sessionStorage.setItem("userData", JSON.stringify(userData));
+  }, [userData]);
 
   useEffect(() => {
     loadInitialData();
@@ -248,7 +266,9 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     editSubjectQuarter,
     setEditSubjectQuarter,
     userPNF,
-    setUserPNF
+    setUserPNF,
+    userData,
+    setUserData,
   };
 
   return (

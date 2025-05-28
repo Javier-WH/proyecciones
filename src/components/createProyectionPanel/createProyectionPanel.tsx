@@ -1,11 +1,11 @@
-import { Select, SelectProps } from "antd";
+import { message, Select, SelectProps } from "antd";
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import TabPanel from "./tabPanel/tabPanel";
 
 export default function CreateProyectionPanel() {
-  const { pnfList, trayectosList, userPNF } = useContext(MainContext) as MainContextValues;
+  const { pnfList, trayectosList, userPNF, userData } = useContext(MainContext) as MainContextValues;
   const [pnfOptions, setPnfOptions] = useState<SelectProps["options"] | []>([]);
   const [selectedPnf, setSelectedPnf] = useState<string | null>(userPNF);
   const [trayectoOptions, setTrayectoOptions] = useState<SelectProps["options"] | []>([]);
@@ -15,7 +15,11 @@ export default function CreateProyectionPanel() {
   useEffect(() => {
     if (!pnfList || !trayectosList) return;
 
-    const pnfOpt = pnfList.map((pnf) => ({ value: pnf.id.toString(), label: pnf.name.toString() }));
+    const pnfOpt = pnfList.map((pnf) => ({
+      value: pnf.id.toString(),
+      label: pnf.name.toString(),
+      disabled: !userData?.su && pnf.id.toString() !== userPNF,
+    }));
     const trayectoOpt = trayectosList.map((trayecto) => ({
       value: trayecto.id.toString(),
       label: trayecto.name.toString(),

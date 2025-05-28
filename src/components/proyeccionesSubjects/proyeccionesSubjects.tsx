@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { InlineHours, InlineQuarter, Subject } from "../../interfaces/subject";
 import { normalizeText } from "../../utils/textFilter";
 import getPensum from "../../fetch/getPensum";
+import { Forbidden } from "../../utils/messageComponents";
 import { v4 as uuidv4 } from "uuid";
 
 interface SelectOption {
@@ -18,7 +19,9 @@ interface SelectOption {
 }
 
 export default function ProyeccionesSubjects() {
-  const { subjects, proyectionsDone, handleSubjectChange } = useContext(MainContext) as MainContextValues;
+  const { subjects, proyectionsDone, handleSubjectChange, userData } = useContext(
+    MainContext
+  ) as MainContextValues;
   const navigate = useNavigate();
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
   const [pnfOptions, setPnfOptions] = useState<SelectOption[]>([]);
@@ -58,13 +61,9 @@ export default function ProyeccionesSubjects() {
     const subjectCopy = JSON.parse(JSON.stringify(subjects));
     subjectCopy.push(modalSelectedSubject);
 
-
-    message.success(
-      `Materia ${modalSelectedSubject.subject} agregada correctamente al pensum`
-    );    
+    message.success(`Materia ${modalSelectedSubject.subject} agregada correctamente al pensum`);
     handleSubjectChange(subjectCopy);
     handleCancelSubjectModal();
-
   };
 
   const handleCancelSubjectModal = () => {
@@ -272,6 +271,10 @@ export default function ProyeccionesSubjects() {
     setAviableModalSubjects(missingSubjects);
   }, [modalPensumList, selectedTurno, selectedSeccion, selectedModalPnf, selectedModalTrayecto, subjects]);
 
+  if (!userData?.su) {
+    return <Forbidden />;
+  }
+
   const iconStyle = { color: "white", fontSize: "2rem" };
   // si no hay proyecciones
   if (subjects?.length === 0 && proyectionsDone?.length === 0) {
@@ -297,7 +300,6 @@ export default function ProyeccionesSubjects() {
     );
   }
 
-
   // contenido del modal
 
   const getModalContent = () => {
@@ -308,51 +310,60 @@ export default function ProyeccionesSubjects() {
       marginTop: "20px",
       height: "400px",
       overflow: "auto",
-    }
+    };
     if (!selectedModalPnf || !selectedModalTrayecto || !selectedTurno || !selectedSeccion) {
-      return <>
-        <span style={{ color: "gray", fontSize: "14px" }}>Seleccione un PNF, Trayecto, Turno y Sección</span>;
-        <div style={styles}></div>
-      </>
+      return (
+        <>
+          <span style={{ color: "gray", fontSize: "14px" }}>
+            Seleccione un PNF, Trayecto, Turno y Sección
+          </span>
+          ;<div style={styles}></div>
+        </>
+      );
     }
-
 
     if (!seccionExist) {
-      return <>
-        <span style={{ color: "red", fontSize: "14px" }}>No existe la combinación de PNF, Trayecto, Turno y Sección seleccionada</span>
-        <div style={styles}></div>
-      </>
+      return (
+        <>
+          <span style={{ color: "red", fontSize: "14px" }}>
+            No existe la combinación de PNF, Trayecto, Turno y Sección seleccionada
+          </span>
+          <div style={styles}></div>
+        </>
+      );
     }
 
     if (aviableModalSubjects.length <= 0) {
-      return <>
-        <span style={{ color: "gray", fontSize: "14px" }}>No hay materias disponibles</span>
-        <div style={styles}></div>
-      </>
+      return (
+        <>
+          <span style={{ color: "gray", fontSize: "14px" }}>No hay materias disponibles</span>
+          <div style={styles}></div>
+        </>
+      );
     }
 
-
-    return <>
-      <span style={{ color: "gray", fontSize: "14px" }}>Materias disponibles</span>
-      <div style={styles}>
-        {aviableModalSubjects.map((subject, i) => (
-          <div
-            key={i}
-            onClick={() => setModalSelectedSubject(subject)}
-            style={{
-              cursor: "pointer",
-              backgroundColor: modalSelectedSubject?.subject === subject.subject ? "#1890ff" : "white",
-              color: modalSelectedSubject?.subject === subject.subject ? "white" : "black",
-              padding: "5px",
-              borderRadius: "5px",
-            }}>
-            {subject.subject}
-          </div>
-        ))}
-      </div>
-    </>
-
-  }
+    return (
+      <>
+        <span style={{ color: "gray", fontSize: "14px" }}>Materias disponibles</span>
+        <div style={styles}>
+          {aviableModalSubjects.map((subject, i) => (
+            <div
+              key={i}
+              onClick={() => setModalSelectedSubject(subject)}
+              style={{
+                cursor: "pointer",
+                backgroundColor: modalSelectedSubject?.subject === subject.subject ? "#1890ff" : "white",
+                color: modalSelectedSubject?.subject === subject.subject ? "white" : "black",
+                padding: "5px",
+                borderRadius: "5px",
+              }}>
+              {subject.subject}
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  };
 
   return (
     <>
@@ -534,9 +545,7 @@ export default function ProyeccionesSubjects() {
           </div>
         </div>
         <Divider />
-        {
-          getModalContent()
-        }
+        {getModalContent()}
       </Modal>
 
       <TablePensum subjects={filteredSubjects} />

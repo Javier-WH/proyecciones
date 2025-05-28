@@ -3,6 +3,7 @@ import { Subject, SimpleSubject } from "../interfaces/subject";
 import { PNF } from "../interfaces/pnf";
 import { Trayecto } from "./trayecto";
 import { Turno } from "./turnos";
+import { UserDataInterface } from "../interfaces/userInterfacer.tsx";
 
 export interface MainContextValues {
   teachers: Quarter | null;
@@ -52,5 +53,7 @@ export interface MainContextValues {
   setEditSubjectQuarter: React.Dispatch<React.SetStateAction<Subject | null>>;
   userPNF: string | null;
   setUserPNF: React.Dispatch<React.SetStateAction<string | null>>;
+  userData: UserDataInterface | null;
+  setUserData: React.Dispatch<React.SetStateAction<UserDataInterface | null>>;
 }
 

@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import { Subject } from "../../../../interfaces/subject";
-import { Button } from "antd";
+import { Button, message } from "antd";
 import { FaTrashAlt } from "react-icons/fa";
 import { TbTopologyStar3 } from "react-icons/tb";
 import { MdAssignmentAdd } from "react-icons/md";
@@ -24,10 +24,16 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
     handleSubjectChange,
     subjectColors,
     setEditSubjectQuarter,
+    userData,
+    userPNF,
   } = useContext(MainContext) as MainContextValues;
 
   const { removeSubjectFromTeacher } = useSetSubject(subjects || []);
   const handleRemoveSubject = (subject: Subject) => {
+    if (!userData?.su && userPNF !== subject.pnfId) {
+      message.error("No puede eliminar materias asignadas de otros programas");
+      return;
+    }
     const responseRemoveSubject = removeSubjectFromTeacher({
       subjectId: subject.innerId,
       teacherId: selectedTeacerId,
@@ -45,6 +51,11 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
   };
 
   const handleEditSubjectQuarter = (subject: Subject) => {
+    if (!userData?.su && userPNF !== subject.pnfId) {
+      message.error("No puede modificar materias asignadas de otros programas");
+      return;
+    }
+
     setEditSubjectQuarter(subject);
   };
 
@@ -119,7 +130,9 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
                     <Tag color="default">{subject.pnf}</Tag>
                     <Tag color="default">{`Seccion: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
                     {showAllSubjects ? (
-                      <Tag color="default">{`Horas: ${subject?.hours?.q1 || 0} / ${subject?.hours?.q2 || 0} / ${subject?.hours?.q3 || 0}`}</Tag>
+                      <Tag color="default">{`Horas: ${subject?.hours?.q1 || 0} / ${
+                        subject?.hours?.q2 || 0
+                      } / ${subject?.hours?.q3 || 0}`}</Tag>
                     ) : (
                       <Tag color="default">{`Horas: ${subject?.hours?.[selectedQuarter] || 0}`}</Tag>
                     )}
