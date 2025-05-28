@@ -16,6 +16,7 @@ import type { MenuProps } from "antd";
 import { Layout, Menu, Modal } from "antd";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
+import UPTLL_logo from "../../assets/UPTLL_Logo_A.png";
 
 const { Sider } = Layout;
 
@@ -97,7 +98,20 @@ const MainLayout: React.FC = () => {
   return (
     <Layout style={{ minHeight: "100vh", width: "100vw" }}>
       <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
-        <div className="demo-logo-vertical" style={{ height: 32, margin: 16 }} />
+        <div className="demo-logo-vertical" style={{ height: "100px", color: "white", position: "relative" }}>
+          <img
+            src={UPTLL_logo}
+            alt="UPTLL"
+            style={{
+              width: "100%",
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              filter: "drop-shadow(0px 0px 2px rgba(255, 255, 255, 1))",
+            }}
+          />
+        </div>
         <Menu theme="dark" defaultSelectedKeys={["1"]} mode="inline" items={items} onClick={handleClick} />
       </Sider>
       <Layout>
