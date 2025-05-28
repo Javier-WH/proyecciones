@@ -7,23 +7,16 @@ import React, { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { useNavigate } from "react-router-dom";
-import { LogoutOutlined } from "@ant-design/icons";
 import SubjectTab from "./subjectTab/subjectTab";
 import ReportMenu from "../report/reoportMenu";
-
 
 export default function ProyeccionesContainer() {
   const [teacherTab, setTeacherTab] = useState(true);
   const [error, setError] = useState(false);
   const [searchByUserPerfil, setSearchByUserPerfil] = useState<boolean>(true);
-  const {
-    setSelectedTeacerId,
-    setSelectedTeacher,
-    subjects,
-    proyectionsDone,
-    proyectionName,
-    setIsAuthenticated,
-  } = useContext(MainContext) as MainContextValues;
+  const { setSelectedTeacerId, setSelectedTeacher, subjects, proyectionsDone, proyectionName } = useContext(
+    MainContext
+  ) as MainContextValues;
 
   const navigate = useNavigate();
 
@@ -39,7 +32,7 @@ export default function ProyeccionesContainer() {
 
   useEffect(() => {
     setSelectedTeacher(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   //aqui se revisa si existe algun valor null en la tabla subjects
@@ -139,9 +132,7 @@ export default function ProyeccionesContainer() {
         <span>{proyectionName}</span>
 
         <div style={{ display: "flex", gap: "5px" }}>
- 
           <ReportMenu />
-          
         </div>
       </div>
 
