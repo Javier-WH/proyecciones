@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import "./proyeccionesSubjects.css";
 import { useContext, useEffect, useState } from "react";
@@ -144,6 +145,8 @@ export default function ProyeccionesSubjects() {
     });
     setSeccionOptions(seccionList as SelectOption[]);
 
+    
+
     // lista de materias
     setFilteredSubjects(subjects);
   }, [subjects]);
@@ -153,6 +156,7 @@ export default function ProyeccionesSubjects() {
     setModalSelectedSubject(null);
     let filteredSubjectsCopy = [...subjects];
 
+    // si el usuario no es superusuario, solo muestra las materias del PNF del usuario
     if (!userData?.su) {
       filteredSubjectsCopy = filteredSubjectsCopy?.filter((subject) => subject.pnfId === userPNF);
     }
