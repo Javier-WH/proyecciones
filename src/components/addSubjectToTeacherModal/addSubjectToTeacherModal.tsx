@@ -146,11 +146,17 @@ const AddSubjectToTeacherModal: React.FC<{
     setTeacherIndex(t_index);
 
     const teacherPerfil = new Set(teachers[selectedQuarter][t_index]?.perfil ?? []);
-    if (perfilOption === "perfil") {
-      const pnfId = sessionStorage.getItem("userPNF")?.replace(/"/g, "");
 
+    // solo se muestran las materias del PNF del docente si no es superusuario
+    if(!userData?.su) {
       subjectsData = subjectsData.filter(
-        (subject) => teacherPerfil.has(subject.subjectId) && subject.pnfId === pnfId
+        (subject) => subject.pnfId === userPNF
+      );
+    }
+
+    if (perfilOption === "perfil") {
+      subjectsData = subjectsData.filter(
+        (subject) => teacherPerfil.has(subject.subjectId) && subject.pnfId === userPNF
       );
     }
 
