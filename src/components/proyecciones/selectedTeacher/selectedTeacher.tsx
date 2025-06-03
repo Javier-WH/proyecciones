@@ -4,7 +4,7 @@ import { MainContext } from "../../../context/mainContext";
 import femalePlaceHolder from "../../../assets/femalePlaceHolder.svg";
 import malePlaceHolder from "../../../assets/malePlaceHolder.svg";
 import Subjects from "./subjects/subjects";
-import { Tag, Radio, RadioChangeEvent, Flex } from "antd";
+import { Tag, Radio, RadioChangeEvent } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { Subject } from "../../../interfaces/subject";
