@@ -4,7 +4,7 @@ import { MainContext } from "../../../context/mainContext";
 import femalePlaceHolder from "../../../assets/femalePlaceHolder.svg";
 import malePlaceHolder from "../../../assets/malePlaceHolder.svg";
 import Subjects from "./subjects/subjects";
-import { Tag, Radio, RadioChangeEvent } from "antd";
+import { Tag, Radio, RadioChangeEvent, Flex } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { Subject } from "../../../interfaces/subject";
@@ -146,32 +146,34 @@ export default function SelectedTeacher() {
 
   return (
     <div className="selected-teacher-container" style={{}}>
-      <img src={teacherPhoto} alt="" />
-      <div className="teacher-info">
-        <span className="teacher-name">{`${selectedTeacher?.name} ${selectedTeacher?.lastName}`}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: "30px" }}>
-          <span>{`CI: ${selectedTeacher?.ci}`} </span>
-        </div>
-        <span>{`Titulo: ${selectedTeacher?.title}`}</span>
+      <div style={{ display: "flex", width: "100%", alignItems: "center" }}>
+        <img src={teacherPhoto} alt="" style={{ width: "150px", height: "auto", justifySelf: "center" }} />
+        <div className="teacher-info">
+          <span className="teacher-name">{`${selectedTeacher?.name} ${selectedTeacher?.lastName}`}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "30px" }}>
+            <span>{`CI: ${selectedTeacher?.ci}`} </span>
+          </div>
+          <span>{`Titulo: ${selectedTeacher?.title}`}</span>
 
-        {haveConract && (
-          <>
-            <span>{`Tipo de contrato: ${selectedTeacher?.type}`}</span>
-            <span>{`Carga Horaria: ${totalHours}`}</span>
-            <span>
-              <span>{`Horas asignadas: `}</span>
-              <span style={hourStyle("q1")}>{usedHoursQ1}</span>/
-              <span style={hourStyle("q2")}>{usedHoursQ2}</span>/
-              <span style={hourStyle("q3")}>{usedHoursQ3}</span>
-            </span>
-            <span>
-              <span>{`Horas disponibles: `}</span>
-              <span>{aviableHoursQ1}/</span>
-              <span>{aviableHoursQ2}/</span>
-              <span>{aviableHoursQ3}</span>
-            </span>
-          </>
-        )}
+          {haveConract && (
+            <>
+              <span>{`Tipo de contrato: ${selectedTeacher?.type}`}</span>
+              <span>{`Carga Horaria: ${totalHours}`}</span>
+              <span>
+                <span>{`Horas asignadas: `}</span>
+                <span style={hourStyle("q1")}>{usedHoursQ1}</span>/
+                <span style={hourStyle("q2")}>{usedHoursQ2}</span>/
+                <span style={hourStyle("q3")}>{usedHoursQ3}</span>
+              </span>
+              <span>
+                <span>{`Horas disponibles: `}</span>
+                <span>{aviableHoursQ1}/</span>
+                <span>{aviableHoursQ2}/</span>
+                <span>{aviableHoursQ3}</span>
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
       <div
@@ -203,8 +205,6 @@ export default function SelectedTeacher() {
           <>
             <div
               style={{
-                gridColumnStart: 1,
-                gridColumn: "span 2",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

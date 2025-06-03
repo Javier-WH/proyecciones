@@ -1,9 +1,6 @@
 .selected-teacher-container {
-  margin-top: -35px;
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  height: 680px;
-  margin-top: 1px;
+ padding: 5px;
+
 }
 
 .teacher-info {
@@ -12,15 +9,11 @@
   margin-left: 20px;
   row-gap: 2px;
   justify-self: stretch;
+  width: 100%;
+
 }
 .teacher-info > span{
   margin-bottom: 2px;
-}
-
-.selected-teacher-container>img {
-  width: 150px;
-  height: auto;
-  justify-self: center;
 }
 
 .teacher-name {

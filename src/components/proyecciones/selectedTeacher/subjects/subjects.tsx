@@ -60,7 +60,11 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
   };
 
   return (
-    <div className="teacher-subjects-container">
+    <div
+      style={{
+        overflow: "hidden",
+        height: "calc(100vh - 280px)",
+      }}>
       <div className="teacher-subjects-header">
         <h2>Asignaturas Asignadas</h2>
         <Button
