@@ -2,7 +2,7 @@ import { useContext, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit, FaThList } from "react-icons/fa";
 import { LiaFileContractSolid } from "react-icons/lia";
-import { MdSubject, MdEditRoad, MdEditLocation } from "react-icons/md";
+import { MdSubject, MdEditRoad, MdEditLocation, MdAdminPanelSettings } from "react-icons/md";
 import { IoMdPlanet, IoIosCreate } from "react-icons/io";
 import { LiaSchoolSolid } from "react-icons/lia";
 import { GrSchedules } from "react-icons/gr";
@@ -66,6 +66,7 @@ const MainLayout: React.FC = () => {
             getItem("Editar Trayectos", "/app/editTrayectos", <MdEditRoad />),
             getItem("Editar PNF", "/app/editPNF", <IoMdPlanet />),
           ]),
+          getItem("Administrador", "/app/admin", <MdAdminPanelSettings />),
         ]
       : []),
     getItem("Horarios", "/app/horarios", <GrSchedules />, [

@@ -18,6 +18,7 @@ import ProtectedRoute from "../components/login/protectedRute";
 import EditContracts from "../components/editContracts/EditContracts";
 import CreateUserPanel from "../components/createUser/createUserPanel";
 import CreateProyectionPanel from "../components/createProyectionPanel/createProyectionPanel";
+import AdminPanel from "../components/adminPanel/adminPanel";
 
 const router = createBrowserRouter([
   {
@@ -86,6 +87,10 @@ const router = createBrowserRouter([
       {
         path: "/app/contracts",
         element: <EditContracts />,
+      },
+      {
+        path: "/app/admin",
+        element: <AdminPanel />,
       },
       {
         path: "*",

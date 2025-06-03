@@ -4,9 +4,11 @@ import { useState, useContext, useEffect } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import postUser from "../../fetch/postUser";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function CreateUserPanel() {
+  const location = useLocation();
+  const { redirect } = location.state || {};
   const digitsOnlyRegex = /^\d*$/;
   const { pnfList } = useContext(MainContext) as MainContextValues;
   const navigate = useNavigate();
@@ -185,6 +187,10 @@ export default function CreateUserPanel() {
             return;
           }
           message.success("Usuario creado correctamente");
+          if (redirect) {
+            navigate(redirect);
+            return;
+          }
           navigate("/");
         })
         .catch((error) => {
@@ -272,7 +278,7 @@ export default function CreateUserPanel() {
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginTop: "30px" }}>
-        <Button onClick={() => navigate("/")} type="default">
+        <Button onClick={() => (redirect ? navigate(redirect) : navigate("/"))} type="default">
           Regresar
         </Button>
         <Button onClick={handleCreateUser} type="primary">
