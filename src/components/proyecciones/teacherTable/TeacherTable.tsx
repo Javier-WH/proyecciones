@@ -76,7 +76,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       title: "Nombre",
       dataIndex: "name",
       key: "name",
-      width: "200px",
+      width: "20%",
       sorter: (a, b) => a.name.localeCompare(b.name),
       sortDirections: ["descend", "ascend"],
       render: (value) => <div>{value}</div>,
@@ -85,7 +85,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       title: "Apellido",
       dataIndex: "lastName",
       key: "lastName",
-      width: "200px",
+      width: "25%",
       sorter: (a, b) => a.lastName.localeCompare(b.lastName),
       sortDirections: ["descend", "ascend"],
       render: (value) => <div>{value}</div>,
@@ -94,7 +94,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       title: "Cédula",
       dataIndex: "ci",
       key: "ci",
-      width: "100px",
+      width: "16%",
       sorter: (a, b) => Number.parseInt(a.ci) - Number.parseInt(b.ci),
       sortDirections: ["descend", "ascend"],
       render: (value) => <div>{value}</div>,
@@ -103,7 +103,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       title: "Tipo de contrato",
       dataIndex: "type",
       key: "type",
-      width: "100px",
+      width: "16%",
       sorter: (a, b) => a.type.localeCompare(b.type),
       sortDirections: ["descend", "ascend"],
       render: (value) => {
@@ -124,6 +124,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
     {
       title: "Horas",
       dataIndex: "partTime",
+      width: "16%",
       render: (_value, record) => {
         if (!record.contractTypeId) {
           return (
@@ -162,7 +163,6 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
         );
       },
       key: "partTime",
-      width: "3vw",
       sorter: (a, b) => a.partTime - b.partTime,
       sortDirections: ["descend", "ascend"],
     },

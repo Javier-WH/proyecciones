@@ -101,7 +101,7 @@ export default function ProyeccionesContainer() {
   };
 
   return (
-    <div className="proyecciones-container">
+    <div>
       <div
         className="title-bar-container"
         style={{
@@ -145,7 +145,7 @@ export default function ProyeccionesContainer() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "2fr 1.2fr",
+              gridTemplateColumns: "minmax(800px, 1fr) 1fr",
               gap: "5px",
             }}>
             <TeacherTable searchByUserPerfil={searchByUserPerfil} />

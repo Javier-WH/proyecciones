@@ -1,24 +1,4 @@
 
-/* .proyecciones-container {
-  display: grid;
-  grid-template-areas:
-    "header header header header"
-    "table table selected selected"
-    "table table selected selected"
-    "table table selected selected"
-    "table table selected selected"
-    "footer footer footer footer"
-    "footer footer footer footer"
-    "footer footer footer footer"
-    "footer footer footer footer"
-  ;
-  grid-template-columns: 4fr 4fr 4fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
-  height: 100vh;
-  column-gap: 5px;
-  overflow: hidden;
-  position: relative;
-} */
 
 .title-bar-container {
   background-color: #001529;
@@ -49,6 +29,9 @@
   padding: 3px 3px;
   background-color: #fafafa;
 }
+
+
+
 
 
 /* #001529;*/
