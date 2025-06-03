@@ -109,7 +109,18 @@ export default function ProyeccionesContainer() {
           alignItems: "center",
           justifyContent: "space-between",
         }}>
-        <h1>Proyección</h1>
+        <h3
+          style={{
+            width: "400px",
+            height: "50px",
+            lineHeight: "50px",
+            overflow: "hidden",
+            wordWrap: "break-word",
+            overflowWrap: "break-word",
+            whiteSpace: "normal",
+          }}>
+          {proyectionName}
+        </h3>
 
         <Radio.Group defaultValue="a" size="small" onChange={(e) => handleChangeRadio(e.target.value)}>
           <Radio.Button value="a">Profesores</Radio.Button>
@@ -128,7 +139,7 @@ export default function ProyeccionesContainer() {
           </Radio.Button>
         </Radio.Group>
 
-        <span>{proyectionName}</span>
+        {/*<span>{proyectionName}</span>*/}
 
         <div style={{ display: "flex", gap: "5px" }}>
           <ReportMenu />
