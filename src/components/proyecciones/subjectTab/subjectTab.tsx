@@ -172,7 +172,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
           position: "absolute",
           left: "5px",
           right: "5px",
-          top: "55px",
+          top: "5px",
           bottom: 0,
         }}>
         <div style={{ display: "flex", gap: "5px" }}>
