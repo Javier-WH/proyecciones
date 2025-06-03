@@ -82,7 +82,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       title: "Nombre",
       dataIndex: "name",
       key: "name",
-      width: "20vw",
+      width: "200px",
       sorter: (a, b) => a.name.localeCompare(b.name),
       sortDirections: ["descend", "ascend"],
       render: (value) => <div>{value}</div>,
@@ -91,7 +91,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       title: "Apellido",
       dataIndex: "lastName",
       key: "lastName",
-      width: "20vw",
+      width: "200px",
       sorter: (a, b) => a.lastName.localeCompare(b.lastName),
       sortDirections: ["descend", "ascend"],
       render: (value) => <div>{value}</div>,
@@ -100,7 +100,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       title: "Cédula",
       dataIndex: "ci",
       key: "ci",
-      width: "10vw",
+      width: "100px",
       sorter: (a, b) => Number.parseInt(a.ci) - Number.parseInt(b.ci),
       sortDirections: ["descend", "ascend"],
       render: (value) => <div>{value}</div>,
@@ -109,7 +109,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       title: "Tipo de contrato",
       dataIndex: "type",
       key: "type",
-      width: "10vw",
+      width: "100px",
       sorter: (a, b) => a.type.localeCompare(b.type),
       sortDirections: ["descend", "ascend"],
       render: (value) => {
@@ -186,12 +186,15 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
   return (
     <div
       style={{
-        width: "calc(100% - 40px)",
-        height: "100%",
+        width: "100%",
+        height: "calc(100vh - 70px)",
         cursor: "pointer",
-        gridArea: "table",
         marginTop: "5px",
         marginLeft: "5px",
+        overflow: "hidden",
+        position: "relative",
+        display: "grid",
+        gridTemplateRows: "30px auto",
       }}>
       <Input
         style={{ width: "100%" }}
@@ -211,7 +214,8 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
           dataSource={data ?? []}
           rowKey="id"
           onRow={onRow}
-          style={{ width: "100%", height: "100%", cursor: "pointer" }}
+          style={{ cursor: "pointer" }}
+          scroll={{ y: "calc(100vh - 100px)", x: "max-content" }}
         />
       )}
     </div>

@@ -40,7 +40,6 @@ export default function SelectedTeacher() {
   const [haveConract, setHaveContract] = useState(false);
   const [showAllSubjects, setShowAllSubjects] = useState(true);
 
-
   useEffect(() => {
     if (!selectedTeacher) return;
     setHaveContract(
@@ -73,7 +72,7 @@ export default function SelectedTeacher() {
       setAviableHoursQ3(q3?.aviableHours || "0");
       setOverloadedQ3(q3?.overloaded || false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTeacerId, selectedQuarter, subjects]);
 
   useEffect(() => {
@@ -109,7 +108,7 @@ export default function SelectedTeacher() {
 
   if (!selectedTeacher) {
     return (
-      <div style={{ gridArea: "selected", display: "flex", justifyContent: "center", alignItems: "center" }}>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
         <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`No hay docente seleccionado`}</Tag>
       </div>
     );
@@ -146,7 +145,7 @@ export default function SelectedTeacher() {
   };
 
   return (
-    <div className="selected-teacher-container" style={{ gridArea: "selected" }}>
+    <div className="selected-teacher-container" style={{}}>
       <img src={teacherPhoto} alt="" />
       <div className="teacher-info">
         <span className="teacher-name">{`${selectedTeacher?.name} ${selectedTeacher?.lastName}`}</span>
@@ -180,12 +179,12 @@ export default function SelectedTeacher() {
         {(overloadedQ1 || overloadedQ2 || overloadedQ3) && (
           <Tag color="error" icon={<ExclamationCircleOutlined />}>{`Sobrecarga de Horas`}</Tag>
         )}
-        
-          
-        {(((usedHoursQ1 === "0" && selectedQuarter === "q1") ||
+
+        {((usedHoursQ1 === "0" && selectedQuarter === "q1") ||
           (usedHoursQ2 === "0" && selectedQuarter === "q2") ||
           (usedHoursQ3 === "0" && selectedQuarter === "q3") ||
-          (usedHoursQ1 === "0" && usedHoursQ2 === "0" && usedHoursQ3 === "0")) && !showAllSubjects ) &&
+          (usedHoursQ1 === "0" && usedHoursQ2 === "0" && usedHoursQ3 === "0")) &&
+          !showAllSubjects &&
           haveConract && (
             <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`Sin Horas Asignadas`}</Tag>
           )}

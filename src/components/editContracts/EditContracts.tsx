@@ -37,7 +37,6 @@ export default function EditContracts() {
       <div
         className="title-bar-container"
         style={{
-          gridArea: "header",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",

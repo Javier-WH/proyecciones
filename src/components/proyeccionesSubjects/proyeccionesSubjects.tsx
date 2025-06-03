@@ -144,8 +144,6 @@ export default function ProyeccionesSubjects() {
     });
     setSeccionOptions(seccionList as SelectOption[]);
 
-    
-
     // lista de materias
     setFilteredSubjects(subjects);
   }, [subjects]);
@@ -378,7 +376,6 @@ export default function ProyeccionesSubjects() {
       <div
         className="title-bar-container"
         style={{
-          gridArea: "header",
           display: "flex",
           alignItems: "center",
           justifyContent: "start",

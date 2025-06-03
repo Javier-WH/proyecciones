@@ -98,7 +98,6 @@ export default function Config() {
       <div
         className="title-bar-container"
         style={{
-          gridArea: "header",
           display: "flex",
           alignItems: "center",
           justifyContent: "start",

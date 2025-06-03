@@ -105,7 +105,6 @@ export default function ProyeccionesContainer() {
       <div
         className="title-bar-container"
         style={{
-          gridArea: "header",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -136,16 +135,28 @@ export default function ProyeccionesContainer() {
         </div>
       </div>
 
-      {teacherTab ? (
-        <>
-          <TeacherTable searchByUserPerfil={searchByUserPerfil} />
-          <SelectedTeacher />
-        </>
-      ) : (
-        <>
-          <SubjectTab searchByUserPerfil={searchByUserPerfil} />
-        </>
-      )}
+      <div
+        style={{
+          position: "relative",
+          height: "calc(100vh - 50px)",
+          overflow: "hidden",
+        }}>
+        {teacherTab ? (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "2fr 1.2fr",
+              gap: "5px",
+            }}>
+            <TeacherTable searchByUserPerfil={searchByUserPerfil} />
+            <SelectedTeacher />
+          </div>
+        ) : (
+          <>
+            <SubjectTab searchByUserPerfil={searchByUserPerfil} />
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -56,7 +56,7 @@ export default function Profiles() {
       return subject.active === 1;
     });
 
-    const subjectInputData = cleanSubjectData.map((subject: { id: string; name: string; }) => {
+    const subjectInputData = cleanSubjectData.map((subject: { id: string; name: string }) => {
       return { value: subject.id, label: subject.name };
     });
 
@@ -93,11 +93,10 @@ export default function Profiles() {
   };
 
   const handleDeleteSubjectInPerfil = async (subjectID: string) => {
-    
     const response = await deleteSubjectInProfile({
       id: subjectID,
     });
-   
+
     if (response.error) {
       message.error("No se ha podido eliminar la materia del perfil");
       return;
@@ -123,7 +122,7 @@ export default function Profiles() {
     message.success("Materia añadida al perfil");
   };
 
-  const filterOption: SelectProps<SubjectOption>['filterOption'] = (input, option) => {
+  const filterOption: SelectProps<SubjectOption>["filterOption"] = (input, option) => {
     const label = String(option?.label ?? "").toLowerCase();
     return label.includes(input.toLowerCase());
   };
@@ -144,7 +143,6 @@ export default function Profiles() {
       <div
         className="title-bar-container"
         style={{
-          gridArea: "header",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
