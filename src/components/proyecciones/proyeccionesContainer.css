@@ -43,6 +43,12 @@
   cursor: pointer;
   scale: 1.2;
 }
+/* la cabecera de la tabla de profesores */
+.tabla-compacta .ant-table-thead > tr > th {
+  font-size: 12px; 
+  padding: 3px 3px;
+  background-color: #fafafa;
+}
 
 
 /* #001529;*/

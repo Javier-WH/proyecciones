@@ -1,12 +1,13 @@
 import React, { useContext, useEffect, useState } from "react";
 import type { TableColumnsType } from "antd";
-import { Table, Tag, Input } from "antd";
+import { Table, Tag, Input, ConfigProvider } from "antd";
 import { MainContext } from "../../../context/mainContext";
 import { CloseCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { Teacher } from "../../../interfaces/teacher";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import useSetSubject, { useSubjectResponseTeacherHours } from "../../../hooks/useSetSubject";
 import { normalizeText } from "../../../utils/textFilter";
+import es_ES from "antd/es/locale/es_ES";
 
 interface TeacherTableProps {
   searchByUserPerfil: boolean;
@@ -52,13 +53,6 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
 
     if (searchText.length > 0 && filteredTeachers?.length > 0) {
       filteredTeachers = filteredTeachers?.filter((teacher) => {
-        /*return (
-          teacher.name.toLowerCase().includes(searchText.toLowerCase()) ||
-          teacher?.lastName?.toLowerCase().includes(searchText.toLowerCase()) ||
-          teacher?.ci?.toLowerCase().includes(searchText.toLowerCase()) ||
-          teacher.perfilName?.toLowerCase()?.includes(searchText.toLowerCase()) ||
-          teacher.type?.toLowerCase()?.includes(searchText.toLowerCase())
-        );*/
         return (
           normalizeText(teacher.name).includes(normalizeText(searchText)) ||
           normalizeText(teacher?.lastName).includes(normalizeText(searchText)) ||
@@ -128,7 +122,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       },
     },
     {
-      title: "Horas asignadas",
+      title: "Horas",
       dataIndex: "partTime",
       render: (_value, record) => {
         if (!record.contractTypeId) {
@@ -208,15 +202,23 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
           Sin profesores encontrados
         </Tag>
       ) : (
-        <Table
-          pagination={{ position: ["topLeft", "none"] }}
-          columns={columns}
-          dataSource={data ?? []}
-          rowKey="id"
-          onRow={onRow}
-          style={{ cursor: "pointer" }}
-          scroll={{ y: "calc(100vh - 100px)", x: "max-content" }}
-        />
+        <ConfigProvider locale={es_ES}>
+          <Table
+            className="tabla-compacta"
+            pagination={{
+              position: ["topLeft", "none"],
+              defaultPageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: ["10", "20", "50", "100"],
+            }}
+            columns={columns}
+            dataSource={data ?? []}
+            rowKey="id"
+            onRow={onRow}
+            style={{ cursor: "pointer" }}
+            scroll={{ y: "calc(100vh - 100px)", x: "max-content" }}
+          />
+        </ConfigProvider>
       )}
     </div>
   );
