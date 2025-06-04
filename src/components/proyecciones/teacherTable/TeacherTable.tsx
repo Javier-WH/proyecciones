@@ -152,9 +152,9 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
 
         const { q1, q2, q3 } = teacherHourData.data;
 
-        let colorQ1 = q1?.overloaded ? "red" : q1?.usedHours === "0" ? "gray" : "black";
-        let colorQ2 = q2?.overloaded ? "red" : q2?.usedHours === "0" ? "gray" : "black";
-        let colorQ3 = q3?.overloaded ? "red" : q3?.usedHours === "0" ? "gray" : "black";
+        const colorQ1 = q1?.overloaded ? "red" : q1?.usedHours === "0" ? "gray" : "black";
+        const colorQ2 = q2?.overloaded ? "red" : q2?.usedHours === "0" ? "gray" : "black";
+        const colorQ3 = q3?.overloaded ? "red" : q3?.usedHours === "0" ? "gray" : "black";
 
         return (
           <div
@@ -215,7 +215,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
             className="tabla-compacta"
             pagination={{
               position: ["topLeft", "none"],
-              defaultPageSize: 10,
+              defaultPageSize: 20,
               showSizeChanger: true,
               pageSizeOptions: ["10", "20", "50", "100"],
             }}
@@ -224,7 +224,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
             rowKey="id"
             onRow={onRow}
             style={{ cursor: "pointer" }}
-            scroll={{ y: "calc(100vh - 100px)", x: "max-content" }}
+            scroll={{ y: "calc(100vh - 200px)", x: "max-content" }}
           />
         </ConfigProvider>
       )}

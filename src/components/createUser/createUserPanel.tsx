@@ -1,4 +1,4 @@
-import { Input, Select, Button, message, Checkbox } from "antd";
+import { Input, Select, Button, message, Checkbox, Modal } from "antd"; // Import Modal
 import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
 import { useState, useContext, useEffect } from "react";
 import { MainContext } from "../../context/mainContext";
@@ -6,6 +6,7 @@ import { MainContextValues } from "../../interfaces/contextInterfaces";
 import postUser from "../../fetch/postUser";
 import getUser from "../../fetch/getUser";
 import putUser from "../../fetch/putUser";
+import deleteUser from "../../fetch/deleteUser";
 import { useNavigate, useLocation } from "react-router-dom";
 
 export interface UserData {
@@ -151,7 +152,6 @@ export default function CreateUserPanel() {
           message.error("Usuario no encontrado");
           return;
         }
-        console.log(res.pnf_id);
         setUserToUpdate(res);
         setName(res.name);
         setLastName(res.last_name);
@@ -165,7 +165,14 @@ export default function CreateUserPanel() {
       .catch((error) => {
         message.error("Error al buscar el usuario: " + error);
       });
-    setSearchUser(""); // Limpiar el campo de búsqueda después de buscar
+    setSearchUser("");
+    setNameStatus("");
+    setLastNameStatus("");
+    setCiStatus("");
+    setUserStatus("");
+    setPasswordStatus("");
+    setConfirmPasswordStatus("");
+    setPnfStatus("");
   };
 
   const handleCreateUser = () => {
@@ -189,11 +196,11 @@ export default function CreateUserPanel() {
       return;
     }
     if (!digitsOnlyRegex.test(ci)) {
-      message.error("La cedula debe ser un número");
+      message.error("La cédula debe ser un número");
       return;
     }
     if (password !== confirmPassword) {
-      message.error("Las contraseñas no coinciden");
+      message.error("Las contraseñas no coinciden");
       return;
     }
 
@@ -250,6 +257,55 @@ export default function CreateUserPanel() {
       handleSearchUser();
     }
     setUserToUpdate(null);
+  };
+
+  const handleDeleteUser = () => {
+    if (!userToUpdate) {
+      return;
+    }
+
+    let confirmInput = "";
+
+    Modal.confirm({
+      title: 'Confirmar eliminación',
+      content: (
+        <div>
+          <p>Para confirmar la eliminación del usuario **{userToUpdate.user}** con cédula **{userToUpdate.ci}**, por favor escriba **ELIMINAR** en el siguiente campo:</p>
+          <Input
+            placeholder="Escriba ELIMINAR para confirmar"
+            onChange={(e) => (confirmInput = e.target.value)}
+          />
+        </div>
+      ),
+      okText: 'Eliminar',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancelar',
+      onOk() {
+        if (confirmInput === "ELIMINAR") {
+          deleteUser(userToUpdate)
+            .then((res) => {
+              if (res.error) {
+                message.error(res.error);
+                return;
+              }
+              message.success("Usuario eliminado correctamente");
+              if (redirect) {
+                navigate(redirect);
+                return;
+              }
+              navigate("/");
+            })
+            .catch((error) => {
+              message.error("Error al eliminar el usuario " + error);
+            });
+        } else {
+          message.error("Confirmación incorrecta. El usuario no ha sido eliminado.");
+        }
+      },
+      onCancel() {
+        message.info("Eliminación cancelada.");
+      },
+    });
   };
 
   return (
@@ -333,7 +389,7 @@ export default function CreateUserPanel() {
             <div>
               <label style={{ color: getLabelColor(passwordStatus) }}>Contraseña</label>
               <Input.Password
-                placeholder="Contraseña"
+                placeholder="Contraseña"
                 iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
                 value={password}
                 onChange={onChangePassword}
@@ -341,9 +397,9 @@ export default function CreateUserPanel() {
               />
             </div>
             <div>
-              <label style={{ color: getLabelColor(confirmPasswordStatus) }}>Confirmar contraseña</label>
+              <label style={{ color: getLabelColor(confirmPasswordStatus) }}>Confirmar contraseña</label>
               <Input.Password
-                placeholder="Confirmar contraseña"
+                placeholder="Confirmar contraseña"
                 iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
                 value={confirmPassword}
                 onChange={onChangeConfirmPassword}
@@ -358,9 +414,13 @@ export default function CreateUserPanel() {
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginTop: "30px" }}>
-            {!update && (
+            {!update ? (
               <Button onClick={() => (redirect ? navigate(redirect) : navigate("/"))} type="default">
                 Regresar
+              </Button>
+            ) : (
+              <Button onClick={handleDeleteUser} type="primary" danger>
+                Eliminar
               </Button>
             )}
             <Button onClick={handleCreateUser} type="primary">
@@ -372,4 +432,3 @@ export default function CreateUserPanel() {
     </div>
   );
 }
-

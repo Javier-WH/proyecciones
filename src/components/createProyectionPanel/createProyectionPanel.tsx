@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import {  Select, SelectProps } from "antd";
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
