@@ -21,6 +21,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
 
   useEffect(() => {
     if (!teachers) return;
+
     setData(teachers[selectedQuarter] || null);
   }, [selectedQuarter, teachers]);
 
@@ -62,6 +63,11 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
         );
       });
     }
+
+    // filtra los profesores sin contrato
+    filteredTeachers = filteredTeachers.filter((teacher) => {
+      return teacher.contractTypeId !== null;
+    });
 
     setData(filteredTeachers);
   }, [searchText, selectedQuarter, teachers, searchByUserPerfil, userPerfil]);
