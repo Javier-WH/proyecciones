@@ -27,11 +27,6 @@ const router = createBrowserRouter([
     errorElement: <h1>404 no encontrado</h1>,
   },
   {
-    path: "/singin",
-    element: <CreateUserPanel />,
-    errorElement: <h1>404 no encontrado</h1>,
-  },
-  {
     path: "/app",
     element: (
       <ProtectedRoute>
@@ -91,6 +86,10 @@ const router = createBrowserRouter([
       {
         path: "/app/admin",
         element: <AdminPanel />,
+      },
+      {
+        path: "/app/singin",
+        element: <CreateUserPanel />,
       },
       {
         path: "*",

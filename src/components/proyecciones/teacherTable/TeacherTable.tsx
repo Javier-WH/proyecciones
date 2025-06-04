@@ -198,9 +198,11 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
         allowClear
       />
       {data?.length === 0 ? (
-        <Tag icon={<CloseCircleOutlined />} color="error">
-          Sin profesores encontrados
-        </Tag>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
+          <Tag icon={<CloseCircleOutlined />} color="error">
+            Sin profesores encontrados
+          </Tag>
+        </div>
       ) : (
         <ConfigProvider locale={es_ES}>
           <Table

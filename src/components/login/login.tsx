@@ -76,13 +76,6 @@ export default function Login() {
         <Button onClick={handleLogin} style={{ width: "100%" }}>
           Ingresar
         </Button>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "10px" }}>
-          <a
-            style={{ fontSize: "13px", color: "gray", cursor: "pointer" }}
-            onClick={() => navigate("/singin")}>
-            Crear cuenta
-          </a>
-        </div>
       </div>
       <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%" }}>
         <span style={{ fontSize: "10px", color: "gray" }}> versión 0.0.2</span>
