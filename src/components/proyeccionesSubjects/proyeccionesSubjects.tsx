@@ -4,9 +4,10 @@ import "./proyeccionesSubjects.css";
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
-import { Button, Divider, message, Modal, Select } from "antd";
+import { Button, Divider, message, Modal, Select, Popconfirm } from "antd";
 import TablePensum from "./table/table";
 import { GiAutoRepair } from "react-icons/gi";
+import { QuestionCircleOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { InlineHours, InlineQuarter, Subject } from "../../interfaces/subject";
 import { normalizeText } from "../../utils/textFilter";
@@ -279,7 +280,23 @@ export default function ProyeccionesSubjects() {
   }, [modalPensumList, selectedTurno, selectedSeccion, selectedModalPnf, selectedModalTrayecto, subjects]);
 
   const handleDeleteSeccion = () => {
-    message.info("Eliminación cancelada.");
+    if (!selectedTurno || !selectedSeccion || !selectedModalPnf || !selectedModalTrayecto) {
+      return;
+    }
+
+    const token = `${selectedTurno}-${selectedSeccion}-${selectedModalPnf}-${selectedModalTrayecto}`;
+    const newSubjects = subjects?.filter((subject) => {
+      const subjectToken = `${subject.turnoName}-${subject.seccion}-${subject.pnfId}-${subject.trayectoId}`;
+      return subjectToken !== token;
+    });
+
+    if (!newSubjects) {
+      message.error("No se pudo eliminar la sección de la proyección");
+      return;
+    }
+
+    handleSubjectChange(newSubjects);
+    message.success("Se ha eliminado la sección de la proyección");
   };
 
   const iconStyle = { color: "white", fontSize: "2rem" };
@@ -549,9 +566,15 @@ export default function ProyeccionesSubjects() {
             />
           </div>
           {userData?.su && seccionExist && (
-            <Button type="primary" danger onClick={handleDeleteSeccion}>
-              Eliminar Sección
-            </Button>
+            <Popconfirm
+              title="Delete the task"
+              description="Are you sure to delete this task?"
+              icon={<QuestionCircleOutlined style={{ color: "red" }} />}
+              onConfirm={handleDeleteSeccion}>
+              <Button type="primary" danger>
+                Eliminar Sección
+              </Button>
+            </Popconfirm>
           )}
         </div>
         <Divider />
