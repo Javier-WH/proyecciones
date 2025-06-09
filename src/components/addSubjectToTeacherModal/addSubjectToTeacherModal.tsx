@@ -85,7 +85,7 @@ const AddSubjectToTeacherModal: React.FC<{
   const [overloadedQ2, setOverloadedQ2] = useState(false);
   const [overloadedQ3, setOverloadedQ3] = useState(false);
   const [trayectoOptions, setTrayectoOptions] = useState<{ label: string; value: string }[]>([]);
-  const [selectedTrayecto, setSelectedTrayecto] = useState<string>("todos");
+  const [selectedTrayecto, setSelectedTrayecto] = useState<string | null>(null);
 
   const getTeacherData = (teacherId: string | null | undefined): Teacher | null => {
     if (!teachers) return null;
@@ -97,7 +97,6 @@ const AddSubjectToTeacherModal: React.FC<{
 
     const uniqueTrayectos = new Set();
     const options: { label: string; value: string }[] = [];
-    options.push({ label: "Todos", value: "todos" });
 
     subjects.forEach((subject) => {
       if (!uniqueTrayectos.has(subject.trayectoId)) {
@@ -205,7 +204,7 @@ const AddSubjectToTeacherModal: React.FC<{
       subjectsData = subjectsData.filter((subject) => subject.quarters.includes(selectedQuarter));
     }
 
-    if (selectedTrayecto !== "todos") {
+    if (selectedTrayecto) {
       subjectsData = subjectsData.filter((subject) => subject.trayecto === selectedTrayecto);
     }
     //console.log(subjectsData);
@@ -413,6 +412,9 @@ const AddSubjectToTeacherModal: React.FC<{
                 style={{ width: 300 }}
                 options={trayectoOptions}
                 value={selectedTrayecto}
+                placeholder="Selecciona un trayecto"
+                disabled={trayectoOptions.length === 0}
+                allowClear
                 onChange={(e) => setSelectedTrayecto(e)}
               />
             </div>
