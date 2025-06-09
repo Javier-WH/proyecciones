@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useEffect, useState } from "react";
+import { createContext, ReactNode, useEffect, useRef, useState } from "react";
 import { MainContextValues } from "../interfaces/contextInterfaces";
 import { Teacher, Quarter } from "../interfaces/teacher";
 import { UserDataInterface } from "../interfaces/userInterfacer.tsx";
@@ -70,6 +70,8 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   });
 
   const [conected, setConnected] = useState<boolean>(true);
+  const [showDisconnected, setShowDisconnected] = useState<boolean>(false);
+  const timeoutRef = useRef<number | null>(null);
 
   const [subjectColors, setSubjectColors] = useState<Record<string, string> | null>(null);
 
@@ -168,6 +170,23 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   useEffect(() => {
     if (!socket) return;
+    const handleDisconnect = () => {
+      setConnected(false);
+      // Configurar timeout para mostrar el mensaje después de 5 segundos
+      timeoutRef.current = window.setTimeout(() => {
+        setShowDisconnected(true);
+      }, 5000);
+    };
+
+    const handleConnect = () => {
+      setConnected(true);
+      setShowDisconnected(false);
+      // Limpiar timeout si existe
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
     // Escuchar eventos de actualización de los profesores
     socket.on("updateTeachers", (newTeachers) => {
       setTeachers(newTeachers);
@@ -192,8 +211,11 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     });
 
     socket.on("disconnect", () => {
-      setConnected(false);
-      console.log("Disconnected from WebSocket");
+      handleDisconnect();
+    });
+
+    socket.on("connect", () => {
+      handleConnect();
     });
 
     return () => {
@@ -274,7 +296,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   return (
     <MainContext.Provider value={values}>
       {children}
-      {!conected && <DisconectedMessage />}
+      {showDisconnected && <DisconectedMessage />}
       <AddSubjectToTeacherModal
         open={openAddSubjectToTeacherModal}
         setOpen={setOpenAddSubjectToTeacherModal}
