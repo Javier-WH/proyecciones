@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Button, Modal, Select, Radio, Tag, Switch, message } from "antd";
+import { Button, Modal, Select, Radio, Tag, Switch, message, Divider } from "antd";
 import type { RadioChangeEvent } from "antd";
 import { Quarter } from "../../interfaces/teacher";
 import { Subject } from "../../interfaces/subject";
@@ -84,11 +84,33 @@ const AddSubjectToTeacherModal: React.FC<{
   const [overloadedQ1, setOverloadedQ1] = useState(false);
   const [overloadedQ2, setOverloadedQ2] = useState(false);
   const [overloadedQ3, setOverloadedQ3] = useState(false);
+  const [trayectoOptions, setTrayectoOptions] = useState<{ label: string; value: string }[]>([]);
+  const [selectedTrayecto, setSelectedTrayecto] = useState<string>("todos");
 
   const getTeacherData = (teacherId: string | null | undefined): Teacher | null => {
     if (!teachers) return null;
     return teachers.q1.find((teacher) => teacher.id === teacherId) || null;
   };
+
+  useEffect(() => {
+    if (!subjects) return;
+
+    const uniqueTrayectos = new Set();
+    const options: { label: string; value: string }[] = [];
+    options.push({ label: "Todos", value: "todos" });
+
+    subjects.forEach((subject) => {
+      if (!uniqueTrayectos.has(subject.trayectoId)) {
+        uniqueTrayectos.add(subject.trayectoId);
+        options.push({
+          label: subject.trayectoName,
+          value: subject.trayectoName,
+        });
+      }
+    });
+
+    setTrayectoOptions(options);
+  }, [subjects]);
 
   useEffect(() => {
     if (!selectedTeacher) return;
@@ -148,10 +170,8 @@ const AddSubjectToTeacherModal: React.FC<{
     const teacherPerfil = new Set(teachers[selectedQuarter][t_index]?.perfil ?? []);
 
     // solo se muestran las materias del PNF del docente si no es superusuario
-    if(!userData?.su) {
-      subjectsData = subjectsData.filter(
-        (subject) => subject.pnfId === userPNF
-      );
+    if (!userData?.su) {
+      subjectsData = subjectsData.filter((subject) => subject.pnfId === userPNF);
     }
 
     if (perfilOption === "perfil") {
@@ -185,6 +205,9 @@ const AddSubjectToTeacherModal: React.FC<{
       subjectsData = subjectsData.filter((subject) => subject.quarters.includes(selectedQuarter));
     }
 
+    if (selectedTrayecto !== "todos") {
+      subjectsData = subjectsData.filter((subject) => subject.trayecto === selectedTrayecto);
+    }
     //console.log(subjectsData);
     setOptions(subjectsData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -197,6 +220,7 @@ const AddSubjectToTeacherModal: React.FC<{
     selectedQuarter,
     filterByQuarter,
     showUnasigned,
+    selectedTrayecto,
   ]);
 
   //aqui vigilo si existen asignaturas
@@ -372,11 +396,27 @@ const AddSubjectToTeacherModal: React.FC<{
             marginTop: "30px",
           }}>
           <div
-            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            style={{
+              width: "100%",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "end",
+            }}>
             <div>
               <Switch onChange={() => setShowUnasigned(!showUnasigned)} value={showUnasigned} />
               <span style={{ marginLeft: "10px" }}>Mostrar solo materias no asignadas</span>
             </div>
+
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <label style={{ fontSize: "12px", color: "gray" }}>Filtrar por trayecto</label>
+              <Select
+                style={{ width: 300 }}
+                options={trayectoOptions}
+                value={selectedTrayecto}
+                onChange={(e) => setSelectedTrayecto(e)}
+              />
+            </div>
+
             <Radio.Group
               options={optionsWithDisabled}
               onChange={onChangeRadio}
@@ -386,7 +426,7 @@ const AddSubjectToTeacherModal: React.FC<{
             />
           </div>
 
-          <br />
+          <Divider />
 
           <Select
             optionFilterProp="label"
