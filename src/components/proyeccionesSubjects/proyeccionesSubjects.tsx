@@ -75,6 +75,7 @@ export default function ProyeccionesSubjects() {
     setSelectedSeccion(undefined);
     setModalSelectedSubject(null);
     setIsAddSubjectModalOpen(false);
+    setSeccionExist(false);
   };
 
   ///
@@ -277,9 +278,9 @@ export default function ProyeccionesSubjects() {
     setAviableModalSubjects(missingSubjects);
   }, [modalPensumList, selectedTurno, selectedSeccion, selectedModalPnf, selectedModalTrayecto, subjects]);
 
-  /*if (!userData?.su) {
-    return <Forbidden />;
-  }*/
+  const handleDeleteSeccion = () => {
+    message.info("Eliminación cancelada.");
+  };
 
   const iconStyle = { color: "white", fontSize: "2rem" };
   // si no hay proyecciones
@@ -307,7 +308,6 @@ export default function ProyeccionesSubjects() {
   }
 
   // contenido del modal
-
   const getModalContent = () => {
     const styles: React.CSSProperties = {
       display: "flex",
@@ -447,24 +447,24 @@ export default function ProyeccionesSubjects() {
         />
 
         <Button type="primary" onClick={showAddSubjectModal}>
-          Agregar materia
+          Modificar
         </Button>
       </div>
 
       <Modal
-        title="Agregar Materia"
+        title="Modificar Materias en la Proyección"
         closable={{ "aria-label": "Custom Close Button" }}
         open={isAddSubjectModalOpen}
         onOk={handleOkSubjectModal}
         okText="Agregar"
         cancelText="Cancelar"
         destroyOnClose={true}
-        width={800}
+        width={1000}
         centered
         className="add-subject-modal"
         maskClosable={false}
         onCancel={handleCancelSubjectModal}>
-        <div style={{ display: "flex", flexDirection: "row", gap: "20px" }}>
+        <div style={{ display: "flex", flexDirection: "row", gap: "20px", alignItems: "end" }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ color: "gray", fontSize: "10px" }}>Programa</span>
             <Select
@@ -486,7 +486,6 @@ export default function ProyeccionesSubjects() {
               value={selectedModalPnf}
             />
           </div>
-
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ color: "gray", fontSize: "10px" }}>Trayecto</span>
             <Select
@@ -508,7 +507,6 @@ export default function ProyeccionesSubjects() {
               value={selectedModalTrayecto}
             />
           </div>
-
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ color: "gray", fontSize: "10px" }}>Turno</span>
             <Select
@@ -530,14 +528,12 @@ export default function ProyeccionesSubjects() {
               value={selectedTurno}
             />
           </div>
-
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ color: "gray", fontSize: "10px" }}>Sección</span>
             <Select
               allowClear
               showSearch
               style={{ width: 50 }}
-              placeholder="Seleccione una sección"
               optionFilterProp="label"
               filterOption={(input, option) =>
                 normalizeText(option?.label ?? "").includes(normalizeText(input))
@@ -552,6 +548,11 @@ export default function ProyeccionesSubjects() {
               value={selectedSeccion}
             />
           </div>
+          {userData?.su && seccionExist && (
+            <Button type="primary" danger onClick={handleDeleteSeccion}>
+              Eliminar Sección
+            </Button>
+          )}
         </div>
         <Divider />
         {getModalContent()}
