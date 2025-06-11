@@ -1,7 +1,6 @@
 import { Modal, Input, message, Select, SelectProps, Radio } from "antd";
 import { Teacher } from "../../../interfaces/teacher";
 import { useEffect, useState } from "react";
-import placeholder from "./../../../assets/malePlaceHolder.svg";
 import getProfileNames from "../../../fetch/getProfileNames";
 import getSimpleData from "../../../fetch/getSimpleData";
 import postTeacher from "../../../fetch/postTeacher";
