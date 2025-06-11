@@ -1,8 +1,9 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState, useContext, Dispatch, SetStateAction } from "react";
 import { Button, Modal, Select, Radio, Tag, RadioChangeEvent } from "antd";
 import { Subject } from "../../../interfaces/subject";
 import useSetSubject, { useSubjectResponseTeacherHours } from "../../../hooks/useSetSubject";
-
+import Photo from "../../photo/photo";
 import { Teacher } from "../../../interfaces/teacher";
 import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInfo";
 import malePlaceHolder from "../../../assets/malePlaceHolder.svg";
@@ -247,7 +248,10 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
                     display: "flex",
                     columnGap: "10px",
                   }}>
-                  <img src={malePlaceHolder} alt="" width={80} />
+                    <div style={{ width: "80px", height: "80px", overflow: "hidden", position: "relative" }}>
+                      <Photo teacher={teacher} />
+                    </div>
+                 {/*  <img src={malePlaceHolder} alt="" width={80} /> */}
                   <div>
                     <div>{`${teacher.lastName} ${teacher.name}`.toUpperCase()}</div>
                     <div>{`Cédula: ${teacher.ci}`}</div>

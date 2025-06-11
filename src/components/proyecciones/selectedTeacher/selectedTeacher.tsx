@@ -9,6 +9,7 @@ import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { Subject } from "../../../interfaces/subject";
 import useSetSubject from "../../../hooks/useSetSubject";
+import Photo from "../../photo/photo";
 import "./selectedTeacher.css";
 
 export default function SelectedTeacher() {
@@ -23,7 +24,6 @@ export default function SelectedTeacher() {
   } = useContext(MainContext) as MainContextValues;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_teacherData, setTeacherData] = useState(getTeachersHoursData(0));
-  const [teacherPhoto, setTeacherPhoto] = useState(malePlaceHolder);
   const [subjecData, setSubjectData] = useState<Subject[]>([]);
   const { getTeacherHoursData } = useSetSubject(subjects || []);
   const [totalHours, setTotalHours] = useState("0");
@@ -96,14 +96,7 @@ export default function SelectedTeacher() {
     const teacherIndex = teachers[selectedQuarter].findIndex((teacher) => teacher.id === selectedTeacerId);
     setTeacherData(getTeachersHoursData(teacherIndex || 0));
 
-    if (selectedTeacher?.photo) {
-      //aqui se hace el fetch de la foto
-      console.log(selectedTeacher.photo);
-    } else if (selectedTeacher?.gender === "f") {
-      setTeacherPhoto(femalePlaceHolder);
-    } else {
-      setTeacherPhoto(malePlaceHolder);
-    }
+
   }, [selectedTeacerId, getTeachersHoursData, selectedTeacher, teachers, selectedQuarter]);
 
   if (!selectedTeacher) {
@@ -147,7 +140,9 @@ export default function SelectedTeacher() {
   return (
     <div className="selected-teacher-container" style={{}}>
       <div style={{ display: "flex", width: "100%", alignItems: "center" }}>
-        <img src={teacherPhoto} alt="" style={{ width: "150px", height: "auto", justifySelf: "center" }} />
+        <div style={{ width: "170px", height: "170px", overflow: "hidden", position: "relative" }}>
+          <Photo teacher={selectedTeacher} />
+        </div>
         <div className="teacher-info">
           <span className="teacher-name">{`${selectedTeacher?.name} ${selectedTeacher?.lastName}`}</span>
           <div style={{ display: "flex", alignItems: "center", gap: "30px" }}>
