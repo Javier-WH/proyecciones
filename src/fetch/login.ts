@@ -22,3 +22,23 @@ export default async function login({ user, password }: { user: string , passwor
   return data
 
 }
+
+
+export async function logout() {
+
+  const headersList = {
+    "Accept": "*/*"
+  }
+
+
+  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/logout" : "/logout";
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: headersList
+  });
+
+  const data = await response.json();
+  return data
+
+}

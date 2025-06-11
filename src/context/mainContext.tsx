@@ -69,7 +69,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     return null;
   });
 
-  const [conected, setConnected] = useState<boolean>(true);
+
   const [showDisconnected, setShowDisconnected] = useState<boolean>(false);
   const timeoutRef = useRef<number | null>(null);
 
@@ -171,7 +171,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   useEffect(() => {
     if (!socket) return;
     const handleDisconnect = () => {
-      setConnected(false);
+ 
       // Configurar timeout para mostrar el mensaje después de 5 segundos
       timeoutRef.current = window.setTimeout(() => {
         setShowDisconnected(true);
@@ -179,7 +179,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     };
 
     const handleConnect = () => {
-      setConnected(true);
+ 
       setShowDisconnected(false);
       // Limpiar timeout si existe
       if (timeoutRef.current !== null) {
@@ -190,20 +190,20 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     // Escuchar eventos de actualización de los profesores
     socket.on("updateTeachers", (newTeachers) => {
       setTeachers(newTeachers);
-      setConnected(true);
+     
     });
     socket.on("updateSubjects", (newSubjects) => {
       setSubjects(newSubjects);
-      setConnected(true);
+    
     });
     socket.on("proyectionsDone", (proyections) => {
       setProyectionsDone(proyections);
-      setConnected(true);
+      
     });
     socket.on("proyectionData", (proyectionData) => {
       setProyectionName(proyectionData.proyectionName);
       setProyectionId(proyectionData.proyectionId);
-      setConnected(true);
+      
     });
 
     socket.on("connect_error", (err) => {

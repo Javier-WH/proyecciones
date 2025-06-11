@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input, Button, message } from "antd";
 import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
-import login from "../../fetch/login";
+import login, {logout} from "../../fetch/login";
 import logo from "./proyeccionesLogo.png";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
@@ -17,27 +18,43 @@ export default function Login() {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
+    logout();
     setIsAuthenticated(false);
     sessionStorage.removeItem("userSesion");
   }, []);
 
   const handleLogin = async () => {
     if (user.length === 0 || password.length === 0) {
-      message.warning("Por favor, ingrese un usuario y una contraseña");
+      message.warning("Por favor, ingrese un usuario y una contraseña");
       setIsAuthenticated(false);
       return;
     }
-    const data = await login({ user, password });
-    if (data.error) {
-      message.error(data.error);
+    try {
+      const data = await login({ user, password });
+      if (data.error) {
+        message.error(data.error);
+        setIsAuthenticated(false);
+        return;
+      }
+      setUserData(data.userData);
+      setUserPNF(data?.pnf_id || "");
+      setUserPerfil(data?.perfil);
+      setIsAuthenticated(true);
+      navigate("/app/proyecciones");
+    } catch (error) {
+      console.error(error); 
+      if (typeof error === "object" && error !== null && "message" in error && typeof (error as any).message === "string") {
+        const errMsg = (error as any).message as string;
+        if (errMsg.includes("Failed to fetch")) {
+          message.error("No se pudo conectar con el servidor. Por favor, revisa tu conexión a la red.");
+        } else {
+          message.error(`Error al iniciar sesión: ${errMsg}`);
+        }
+      } else {
+        message.error("Error al iniciar sesión. Inténtalo de nuevo más tarde.");
+      }
       setIsAuthenticated(false);
-      return;
     }
-    setUserData(data.userData);
-    setUserPNF(data?.pnf_id || "");
-    setUserPerfil(data?.perfil);
-    setIsAuthenticated(true);
-    navigate("/app/proyecciones");
   };
 
   const onPressEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
