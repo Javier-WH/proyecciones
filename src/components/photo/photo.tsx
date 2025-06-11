@@ -18,7 +18,8 @@ export default function Photo({teacher}: {teacher: Teacher | null}) {
     }
 
     // Construir la URL de la foto
-    const photoUrl = `http://192.168.0.45:3000/photo/${teacher.ci}`;
+
+    const photoUrl = import.meta.env.MODE === 'development' ? `http://localhost:3000/photo/${teacher.ci}` : `/photo/${teacher.ci}`;
 
     // Realizar el fetch
     fetch(photoUrl)

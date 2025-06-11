@@ -5,6 +5,7 @@ import placeholder from "./../../../assets/malePlaceHolder.svg";
 import getProfileNames from "../../../fetch/getProfileNames";
 import getSimpleData from "../../../fetch/getSimpleData";
 import postTeacher from "../../../fetch/postTeacher";
+import ImageUploader from "../../photo/photoUploader";
 
 export default function EditTeacherModal({
   teacherData,
@@ -137,7 +138,7 @@ export default function EditTeacherModal({
       onCancel={handleCancel}>
       <div className="edit-teacher-modal-container">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 5fr", gap: "5px" }}>
-          <img src={placeholder} alt="" style={{ width: "165px" }} />
+            <ImageUploader filename={ci} gender={genderId}/>
           <div>
             <div className="edit-teacher-modal-row">
               <label>Nombre</label>
