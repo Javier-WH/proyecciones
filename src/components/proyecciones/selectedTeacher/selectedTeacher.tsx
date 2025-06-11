@@ -1,8 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../../context/mainContext";
-import femalePlaceHolder from "../../../assets/femalePlaceHolder.svg";
-import malePlaceHolder from "../../../assets/malePlaceHolder.svg";
 import Subjects from "./subjects/subjects";
 import { Tag, Radio, RadioChangeEvent } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";

@@ -6,7 +6,6 @@ import useSetSubject, { useSubjectResponseTeacherHours } from "../../../hooks/us
 import Photo from "../../photo/photo";
 import { Teacher } from "../../../interfaces/teacher";
 import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInfo";
-import malePlaceHolder from "../../../assets/malePlaceHolder.svg";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { normalizeText } from "../../../utils/textFilter";
