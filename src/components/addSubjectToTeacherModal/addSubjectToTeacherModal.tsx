@@ -11,6 +11,7 @@ import malePlaceHolder from "../../assets/malePlaceHolder.svg";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { normalizeText } from "../../utils/textFilter";
+import Photo from "../photo/photo";
 
 interface optionsInterface {
   value: string;
@@ -65,7 +66,7 @@ const AddSubjectToTeacherModal: React.FC<{
   selectedTeacher,
 }) => {
   const { subjectColors, userData, userPNF } = useContext(MainContext) as MainContextValues;
-  const [_loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [options, setOptions] = useState<optionsInterface[]>([]);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [perfilOption, setPerfilOption] = useState("perfil");
@@ -329,7 +330,9 @@ const AddSubjectToTeacherModal: React.FC<{
           </Button>,
         ]}>
         <div style={{ display: "flex", alignItems: "center" }}>
-          <img src={malePlaceHolder} width={120} alt="" />
+         <div style={{width: "120px", height: "120px", position: "relative"}}>
+           <Photo teacher={selectedTeacher} />
+         </div>
           <div style={{ display: "flex", flexDirection: "column", marginLeft: "20px" }}>
             <span style={{ fontWeight: "bold" }}>
               {`${teachers?.[selectedQuarter][teacherIndex ?? 0]?.name ?? ""} 

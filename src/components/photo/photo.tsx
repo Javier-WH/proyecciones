@@ -2,48 +2,27 @@
 import { Teacher } from "../../interfaces/teacher"
 import MalePlaceHolder from "../../assets/malePlaceHolder.svg"
 import FemalePlaceHolder from "../../assets/femalePlaceHolder.svg"
-import { useEffect, useState } from "react";
-import { Spin } from "antd";
+import { useQuery } from '@tanstack/react-query';
 
-export default function Photo({teacher}: {teacher: Teacher | null}) {
 
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function Photo({ teacher }: { teacher: Teacher | null }) {
+  const fetchTeacherPhoto = async (ci: string) => {
+    const photoUrl = import.meta.env.MODE === 'development'
+      ? `http://localhost:3000/photo/${ci}`
+      : `/photo/${ci}`;
 
-  useEffect(() => {
-    // Verificar si tenemos un profesor con  ci
-    if (!teacher?.ci) {
-      setPhoto(null);
-      return;
-    }
+    const response = await fetch(photoUrl);
+    if (!response.ok) throw new Error("Error en la foto");
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  };
 
-    // Construir la URL de la foto
-
-    const photoUrl = import.meta.env.MODE === 'development' ? `http://localhost:3000/photo/${teacher.ci}` : `/photo/${teacher.ci}`;
-
-    // Realizar el fetch
-    fetch(photoUrl)
-      .then(response => {
-        if (!response.ok) throw new Error("Error en la foto");
-        return response.blob();
-      })
-      .then(blob => {
-        // Crear URL para el blob
-        const objectUrl = URL.createObjectURL(blob);
-        setPhoto(objectUrl);
-      })
-      .catch(() => {
-        setPhoto(null); // Fallback a placeholder
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-
-    // Limpieza: revocar el ObjectURL al desmontar
-    return () => {
-      if (photo) URL.revokeObjectURL(photo);
-    };
-  }, [teacher?.ci]);
+  const { data: photo, isError } = useQuery({
+    queryKey: ['teacherPhoto', teacher?.ci],
+    queryFn: () => teacher?.ci ? fetchTeacherPhoto(teacher.ci) : null,
+    enabled: !!teacher?.ci, // Solo ejecuta si hay CI
+    staleTime: 60 * 60 * 1000, // 1 hora de caché
+  });
 
   const photoStyle: React.CSSProperties = {
     position: "absolute",
@@ -51,19 +30,22 @@ export default function Photo({teacher}: {teacher: Teacher | null}) {
     left: 0,
     width: "100%",
     height: "100%",
-    objectFit: "cover", 
+    objectFit: "cover",
   };
 
-  if (loading) {
-    return <Spin tip="Cargando..." size="large" />
-  }
+
 
   if (photo) {
     return <img src={photo} alt="Teacher photo" style={photoStyle} />;
   }
 
-  if (teacher?.genderId === "2") {
-    return <img src={FemalePlaceHolder} alt="female" style={photoStyle} />
+  if (isError || !photo) {
+    if (teacher?.genderId === "2") {
+      return <img src={FemalePlaceHolder} alt="female" style={photoStyle} />;
+    }
+    return <img src={MalePlaceHolder} alt="male" style={photoStyle} />;
   }
-  return <img src={MalePlaceHolder} alt="male" style={photoStyle} />
+
+  // Default fallback
+  return <img src={MalePlaceHolder} alt="male" style={photoStyle} />;
 }
