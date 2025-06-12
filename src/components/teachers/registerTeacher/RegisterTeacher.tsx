@@ -5,6 +5,7 @@ import femalePlaceHolder from "../../../assets/femalePlaceHolder.svg";
 import getProfileNames from "../../../fetch/getProfileNames";
 import getSimpleData from "../../../fetch/getSimpleData";
 import postTeacher from "../../../fetch/postTeacher";
+import ImageUploader from "../../photo/photoUploader";
 import "./registerTeacher.css";
 
 export default function RegisterTeacher() {
@@ -122,8 +123,8 @@ export default function RegisterTeacher() {
       </div>
 
       <div className="register-teacher-form-container">
-        <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", columnGap: "1rem" }}>
-          <img src={femalePlaceHolder} alt="" style={{ width: "150px" }} />
+        <div style={{display: "flex", columnGap: "1rem" }}>
+          <ImageUploader filename={ci?.toString() || "unknown"} gender={genderId || "1"} /> {/* la imagen es el retrato del profesor */}
 
           <div style={{ display: "flex", flexDirection: "column", rowGap: "1rem", width: "100%" }}>
             <div>
