@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Input, Button, InputNumber, Select, message } from "antd";
 import type { SelectProps } from "antd";
-import femalePlaceHolder from "../../../assets/femalePlaceHolder.svg";
 import getProfileNames from "../../../fetch/getProfileNames";
 import getSimpleData from "../../../fetch/getSimpleData";
 import postTeacher from "../../../fetch/postTeacher";
@@ -18,7 +17,7 @@ export default function RegisterTeacher() {
   const [contractOptions, setContractOptions] = useState<SelectProps["options"]>([]);
   const [typeId, setTypeId] = useState<string>("");
   const [profileOptions, setProfileOptions] = useState<SelectProps["options"]>([]);
-  const [perfilId, setPerfilId] = useState<string>("");
+  const [perfilId, setPerfilId] = useState<string[]>([]);
 
   useEffect(() => {
     async function getProfileList() {
@@ -72,7 +71,7 @@ export default function RegisterTeacher() {
     setTitle("");
     setGenderId("");
     setTypeId("");
-    setPerfilId("");
+    setPerfilId([]);
   };
 
   const ableToRegister = (): boolean => {
@@ -83,7 +82,7 @@ export default function RegisterTeacher() {
       title !== "" &&
       genderId !== "" &&
       typeId !== "" &&
-      perfilId !== ""
+      perfilId.length > 0
     );
   };
 
@@ -101,7 +100,7 @@ export default function RegisterTeacher() {
       gender_id: genderId,
       contractTypes_id: typeId,
       title,
-      perfil_name_id: perfilId,
+      perfil_name_id: perfilId.join(","),
     };
 
     const response = await postTeacher(requestData);
@@ -115,16 +114,17 @@ export default function RegisterTeacher() {
   };
 
   return (
-    <div>
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
       <div
-        className="title-bar-container"
         style={{ display: "flex", alignItems: "center", justifyContent: "start", columnGap: "3rem" }}>
         <h1>Registro de profesor</h1>
       </div>
 
       <div className="register-teacher-form-container">
         <div style={{display: "flex", columnGap: "1rem" }}>
-          <ImageUploader filename={ci?.toString() || "unknown"} gender={genderId || "1"} /> {/* la imagen es el retrato del profesor */}
+          <div style={{ pointerEvents: ci===null ? "none" : "all"}}>
+            <ImageUploader filename={ci?.toString()} gender={genderId || "1"} /> {/* la imagen es el retrato del profesor */}
+          </div>
 
           <div style={{ display: "flex", flexDirection: "column", rowGap: "1rem", width: "100%" }}>
             <div>
@@ -170,7 +170,7 @@ export default function RegisterTeacher() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", columnGap: "1rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "1rem" }}>
           <div className="register-teacher-form-input">
             <label>Tipo de contrato</label>
             <Select
@@ -195,10 +195,13 @@ export default function RegisterTeacher() {
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
+        </div>
           <div className="register-teacher-form-input">
             <label>Perfil</label>
             <Select
               style={{ width: "100%" }}
+              mode="multiple"
+              allowClear
               showSearch
               placeholder="Selecciona un perfil"
               filterOption={(input, option) =>
@@ -211,7 +214,6 @@ export default function RegisterTeacher() {
               onChange={(value) => setPerfilId(value)}
             />
           </div>
-        </div>
 
         <div style={{ display: "flex", justifyContent: "end", columnGap: "1rem", marginTop: "3rem" }}>
           <Button type="dashed" onClick={cleanForm}>
