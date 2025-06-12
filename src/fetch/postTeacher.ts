@@ -22,7 +22,8 @@ export default async function postTeacher(requestData
   const response = await fetch(url, {
     method: "POST",
     body: bodyContent,
-    headers: headersList
+    headers: headersList,
+    credentials: 'include'
   });
 
   const data = await response.json();

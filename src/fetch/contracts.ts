@@ -14,7 +14,8 @@ export async function getContracts() {
   
     const response = await fetch(url, {
       method: "GET",
-      headers: headersList
+      headers: headersList,
+      credentials: 'include'
     });
   
     const data = await response.json();
@@ -27,7 +28,7 @@ export async function putContract({id, contractType, hours, active }: ContractTy
       "Accept": "*/*",
       "Content-Type": "application/json"
     }
-    let body: ContractTypeType = {
+    const body: ContractTypeType = {
       id
     }
     if (contractType) body.contractType = contractType;

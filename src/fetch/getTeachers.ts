@@ -7,7 +7,8 @@ export default async function getTeachers() {
 
   const response = await fetch(url, {
     method: "GET",
-    headers: headersList
+    headers: headersList,
+    credentials: 'include'
   });
 
   const data = await response.json();

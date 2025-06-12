@@ -35,10 +35,12 @@ export async function logout() {
 
   const response = await fetch(url, {
     method: "GET",
-    headers: headersList
+    headers: headersList,
+    credentials: 'include'
   });
 
   const data = await response.json();
+  console.log(data);
   return data
 
 }

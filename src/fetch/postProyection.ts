@@ -16,7 +16,8 @@ export default async function postProyection({ year, name }: { year: string , na
   const response = await fetch(url, {
     method: "POST",
     body: bodyContent,
-    headers: headersList
+    headers: headersList,
+    credentials: 'include'
   });
 
   const data = await response.json();

@@ -4,7 +4,7 @@ import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input, Button, message } from "antd";
 import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
-import login, {logout} from "../../fetch/login";
+import login, {logout}  from "../../fetch/login";
 import logo from "./proyeccionesLogo.png";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
@@ -21,6 +21,8 @@ export default function Login() {
     logout();
     setIsAuthenticated(false);
     sessionStorage.removeItem("userSesion");
+    sessionStorage.removeItem("userPNF");
+    sessionStorage.removeItem("userData");
   }, []);
 
   const handleLogin = async () => {

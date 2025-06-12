@@ -20,7 +20,8 @@ export default async function postPensum({ id, pnf_id, subject_id, trayecto_id, 
   const response = await fetch(url, {
     method: "POST",
     body: bodyContent,
-    headers: headersList
+    headers: headersList,
+    credentials: 'include'
   });
 
   const data = await response.json();

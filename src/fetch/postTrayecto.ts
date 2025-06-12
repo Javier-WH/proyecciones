@@ -14,7 +14,8 @@ export default async function PostTrayecto({ name, order }: { name: string | und
   const response = await fetch(url, {
     method: "POST",
     headers: headersList,
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    credentials: 'include'
   });
 
   const data = await response.json();

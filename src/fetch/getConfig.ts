@@ -6,7 +6,8 @@ export default async function getConfig() {
 
   const response = await fetch(url, {
     method: "GET",
-    headers: headersList
+    headers: headersList,
+    credentials: 'include'
   });
 
   const data = await response.json();

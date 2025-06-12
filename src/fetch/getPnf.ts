@@ -7,7 +7,8 @@ export default async function getPnf() {
 
   const response = await fetch(url, {
     method: "GET",
-    headers: headersList
+    headers: headersList,
+    credentials: 'include'
   });
 
   if (response.status !== 200) {

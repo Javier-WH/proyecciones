@@ -13,7 +13,8 @@ export default async function setActiveProyection({ active_proyection }: { activ
   const response = await fetch(url, {
     method: "POST",
     headers: headersList,
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    credentials: 'include'
   });
 
   const data = await response.json();

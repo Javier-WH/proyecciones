@@ -9,7 +9,8 @@ export default async function deleteSubjectInPerfil({ id }: { id: string }) {
   
     const response = await fetch(url, {
       method: "DELETE",
-      headers: headersList
+      headers: headersList,
+      credentials: 'include'
     });
   
     const data = await response.json();

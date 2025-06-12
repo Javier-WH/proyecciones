@@ -17,7 +17,8 @@ export default async function postSubjects({ id, name, active }: { id: string | 
   const response = await fetch(url, {
     method: "POST",
     body: bodyContent,
-    headers: headersList
+    headers: headersList,
+    credentials: 'include'
   });
 
   const data = await response.json();

@@ -16,6 +16,7 @@ export default async function getReport({ pnfId, type }: { pnfId: string; type: 
       method: "POST",
       body: bodyContent,
       headers: headersList,
+      credentials: 'include'
     });
 
     if (!response.ok) {

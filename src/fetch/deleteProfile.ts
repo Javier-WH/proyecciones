@@ -11,6 +11,7 @@ export default async function deleteProfile({ perfil_name_id }: { perfil_name_id
     const response = await fetch(url, {
       method: "DELETE",
       headers: headersList,
+      credentials: 'include'
     });
   
     const data = await response.json();

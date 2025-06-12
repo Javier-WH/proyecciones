@@ -91,9 +91,12 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     sessionStorage.setItem("userData", JSON.stringify(userData));
   }, [userData]);
 
+
   useEffect(() => {
+    if(!isAuthenticated) return
+    console.log("cargando datos iniciales");
     loadInitialData();
-  }, []);
+  }, [isAuthenticated]);
 
   // cargar datos iniciales
   const loadInitialData = () => {
@@ -165,8 +168,9 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   ///websocket/////////////////////////////////////////////////////////////////////////////////
   useEffect(() => {
+    if (!isAuthenticated) return;
     setSocket(import.meta.env.MODE === "development" ? io("ws://localhost:3000") : io());
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!socket) return;

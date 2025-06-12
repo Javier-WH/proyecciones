@@ -14,7 +14,8 @@ export default async function setProfile({name, description}: {name: string, des
     const response = await fetch(url, {
       method: "POST",
       body: JSON.stringify(body),
-      headers: headersList
+      headers: headersList,
+      credentials: 'include'
     });
   
    

@@ -8,6 +8,7 @@ export default async function getUser(ci: string) {
   const response = await fetch(url, {
     method: "GET",
     headers: headersList,
+    credentials: 'include'
   });
 
   if (response.status !== 200) {

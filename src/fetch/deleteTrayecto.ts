@@ -13,7 +13,8 @@ export default async function deleteTrayecto({ id }: { id: string }) {
   const response = await fetch(url, {
     method: "DELETE",
     headers: headersList,
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    credentials: 'include'
   });
 
   const data = await response.json();

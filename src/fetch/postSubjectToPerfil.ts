@@ -18,7 +18,8 @@ export default async function postSubjectToPerfil({ perfil_name_id, subject_id }
     const response = await fetch(url, { 
         method: "POST",
         body: bodyContent,
-        headers: headersList
+        headers: headersList,
+        credentials: 'include'
       });
   
     const data = await response.json();

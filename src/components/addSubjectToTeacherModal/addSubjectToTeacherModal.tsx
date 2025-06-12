@@ -7,7 +7,6 @@ import { CloseCircleOutlined } from "@ant-design/icons";
 import useSetSubject from "../../hooks/useSetSubject";
 import { Teacher } from "../../interfaces/teacher";
 import SubjectTeacherInfo from "./subjectTeacherInfo";
-import malePlaceHolder from "../../assets/malePlaceHolder.svg";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { normalizeText } from "../../utils/textFilter";
