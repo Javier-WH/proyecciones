@@ -14,7 +14,7 @@ export default async function setActiveProyection({ active_proyection }: { activ
     method: "POST",
     headers: headersList,
     body: JSON.stringify(body),
-    credentials: 'include'
+
   });
 
   const data = await response.json();

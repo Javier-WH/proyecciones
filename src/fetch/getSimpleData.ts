@@ -7,7 +7,7 @@ export default async function getSimpleData() {
   const response = await fetch(url, {
     method: "GET",
     headers: headersList,
-    credentials: 'include'
+
   });
 
   const data = await response.json();

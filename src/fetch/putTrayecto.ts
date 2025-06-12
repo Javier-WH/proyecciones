@@ -16,7 +16,7 @@ export default async function putTrayecto({id, name, order}: {id: string, name: 
     method: "PUT",
     headers: headersList,
     body: JSON.stringify(body),
-    credentials: 'include'
+
   });
 
   const data = await response.json();

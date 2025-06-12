@@ -19,7 +19,7 @@ export default async function postUser(requestData: {
     method: "POST",
     body: bodyContent,
     headers: headersList,
-    credentials: 'include'
+
   });
 
   const data = await response.json();

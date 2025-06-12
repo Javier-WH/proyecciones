@@ -15,7 +15,8 @@ export default async function login({ user, password }: { user: string , passwor
   const response = await fetch(url, {
     method: "POST",
     body: bodyContent,
-    headers: headersList
+    headers: headersList,
+
   });
 
   const data = await response.json();
@@ -36,7 +37,7 @@ export async function logout() {
   const response = await fetch(url, {
     method: "GET",
     headers: headersList,
-    credentials: 'include'
+
   });
 
   const data = await response.json();

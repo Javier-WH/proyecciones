@@ -20,7 +20,7 @@ export default async function postPNF({ id, name, active, saga_id, color }
     method: "POST",
     body: bodyContent,
     headers: headersList,
-    credentials: 'include'
+
   });
 
   const data = await response.json();

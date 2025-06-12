@@ -23,7 +23,7 @@ export default async function postTeacher(requestData
     method: "POST",
     body: bodyContent,
     headers: headersList,
-    credentials: 'include'
+
   });
 
   const data = await response.json();

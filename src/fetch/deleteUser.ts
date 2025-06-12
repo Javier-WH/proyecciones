@@ -12,7 +12,7 @@ export default async function deleteUser(requestData: UserData) {
     method: "DELETE",
     body: JSON.stringify(requestData),
     headers: headersList,
-    credentials: 'include'
+
   });
 
   const data = await response.json();

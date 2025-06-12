@@ -12,7 +12,7 @@ export default async function getInscriptionData({programId, trayectoId}: {progr
   const response = await fetch(url, {
     method: "GET",
     headers: headersList,
-    credentials: 'include'
+
   });
 
   const data = await response.json();

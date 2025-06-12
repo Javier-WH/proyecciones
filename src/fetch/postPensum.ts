@@ -21,7 +21,7 @@ export default async function postPensum({ id, pnf_id, subject_id, trayecto_id, 
     method: "POST",
     body: bodyContent,
     headers: headersList,
-    credentials: 'include'
+
   });
 
   const data = await response.json();

@@ -12,7 +12,7 @@ export default async function putUser(user: UserData) {
     method: "PUT",
     headers: headersList,
     body: JSON.stringify(body),
-    credentials: 'include'
+
   });
 
   const data = await response.json();

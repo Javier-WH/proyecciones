@@ -18,7 +18,7 @@ export default async function postSubjects({ id, name, active }: { id: string | 
     method: "POST",
     body: bodyContent,
     headers: headersList,
-    credentials: 'include'
+
   });
 
   const data = await response.json();

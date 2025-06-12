@@ -9,7 +9,7 @@ export default async function getPensum({programaId, trayectoId}: {programaId: s
   const response = await fetch(`${url}${programaId}/${trayectoId}`, {
     method: "GET",
     headers: headersList,
-    credentials: 'include'
+
   });
 
   const data = await response.json();

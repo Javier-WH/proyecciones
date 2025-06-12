@@ -7,7 +7,7 @@ export default async function getTurnos() {
   const response = await fetch(url, {
     method: "GET",
     headers: headersList,
-    credentials: 'include'
+
   });
 
   const data = await response.json();

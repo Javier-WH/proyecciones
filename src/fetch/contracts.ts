@@ -15,7 +15,7 @@ export async function getContracts() {
     const response = await fetch(url, {
       method: "GET",
       headers: headersList,
-      credentials: 'include'
+    
     });
   
     const data = await response.json();

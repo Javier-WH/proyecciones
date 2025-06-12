@@ -15,7 +15,7 @@ export default async function setProfile({name, description}: {name: string, des
       method: "POST",
       body: JSON.stringify(body),
       headers: headersList,
-      credentials: 'include'
+
     });
   
    

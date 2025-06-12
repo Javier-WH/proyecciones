@@ -7,7 +7,7 @@ export default async function getProfile({id}: {id: string}) {
   const response = await fetch(url, {
     method: "GET",
     headers: headersList,
-    credentials: 'include'
+
   });
 
  

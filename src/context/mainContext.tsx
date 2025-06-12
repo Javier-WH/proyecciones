@@ -96,7 +96,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     if(!isAuthenticated) return
     console.log("cargando datos iniciales");
     loadInitialData();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userPNF, userData, userPerfil]);
 
   // cargar datos iniciales
   const loadInitialData = () => {
