@@ -1,4 +1,4 @@
-import { Modal, Input, message, Select, SelectProps, Radio, Divider } from "antd";
+import { Modal, Input, message, Select, SelectProps, Radio } from "antd";
 import { Teacher } from "../../../interfaces/teacher";
 import { useEffect, useState } from "react";
 import getProfileNames from "../../../fetch/getProfileNames";
