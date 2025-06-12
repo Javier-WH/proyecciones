@@ -1,4 +1,4 @@
-import { Modal, Input, message, Select, SelectProps, Radio } from "antd";
+import { Modal, Input, message, Select, SelectProps, Radio, Divider } from "antd";
 import { Teacher } from "../../../interfaces/teacher";
 import { useEffect, useState } from "react";
 import getProfileNames from "../../../fetch/getProfileNames";
@@ -15,7 +15,7 @@ export default function EditTeacherModal({
   setTeacherData: (teacherData: Teacher | null) => void;
   fetchTeachers: () => Promise<void>;
 }) {
- 
+
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -137,7 +137,7 @@ export default function EditTeacherModal({
       onCancel={handleCancel}>
       <div className="edit-teacher-modal-container">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 5fr", gap: "5px" }}>
-            <ImageUploader filename={ci} gender={genderId}/>
+          <ImageUploader filename={ci} gender={genderId} />
           <div>
             <div className="edit-teacher-modal-row">
               <label>Nombre</label>
@@ -153,7 +153,9 @@ export default function EditTeacherModal({
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "10px" }}>
+
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 150px", gap: "5px" }}>
           <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
             <label style={{ display: "block" }}>Tipo</label>
             <Select
@@ -171,26 +173,7 @@ export default function EditTeacherModal({
             />
           </div>
 
-          <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
-            <label style={{ display: "block" }}>Perfil</label>
-            <Select
-              style={{ width: "100%" }}
-              mode="multiple"
-              allowClear
-              showSearch
-              placeholder="Selecciona un perfil"
-              filterOption={(input, option) =>
-                String(option?.label ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-              options={profileOptions}
-              value={perfilId}
-              onChange={(value) => setPerfilId(value)}
-            />
-          </div>
-        </div>
-        <div style={{ display: "flex", justifyContent: "stretch", gap: "10px" }}>
+
           <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
             <label>Título</label>
             <Input
@@ -200,6 +183,7 @@ export default function EditTeacherModal({
               style={{ width: "100%" }}
             />
           </div>
+
           <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
             <label style={{ display: "block" }}>Género</label>
             <Select
@@ -210,6 +194,7 @@ export default function EditTeacherModal({
               value={genderId}
               onChange={(value) => setGenderId(value)}
             />
+
           </div>
           <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
             <label style={{ display: "block" }}>Activo</label>
@@ -226,7 +211,29 @@ export default function EditTeacherModal({
             />
           </div>
         </div>
+
+
+        <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
+          <label style={{ display: "block" }}>Perfil</label>
+          <Select
+            style={{ width: "100%" }}
+            mode="multiple"
+            allowClear
+            showSearch
+            placeholder="Selecciona un perfil"
+            filterOption={(input, option) =>
+              String(option?.label ?? "")
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
+            options={profileOptions}
+            value={perfilId}
+            onChange={(value) => setPerfilId(value)}
+          />
+        </div>
+
       </div>
+     <br />
     </Modal>
   );
 }
