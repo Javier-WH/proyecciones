@@ -3,56 +3,31 @@ import { message } from 'antd';
 import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
 import MalePlaceholder from '../../assets/malePlaceHolder.svg';
 import FemalePlaceholder from '../../assets/femalePlaceHolder.svg';
+import  fetchPhoto  from '../../fetch/fetchPhoto';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+
 
 function ImageUploader({ filename, gender }: { filename: string | undefined, gender: string | undefined }) {
   const [previewUrl, setPreviewUrl] = useState<string>('');
-  const [serverPhoto, setServerPhoto] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [refreshCounter, setRefreshCounter] = useState(0);
+  const queryClient = useQueryClient(); 
 
-  // Obtener foto del servidor
-  useEffect(() => {
-    if (!filename) {
-      setServerPhoto(null);
-      return;
-    }
+  const { data: serverPhoto } = useQuery<string | null, Error>({
+    queryKey: ['teacherPhoto', filename], 
+    queryFn: () => filename ? fetchPhoto(filename) : Promise.resolve(null),
+    enabled: !!filename, 
+    staleTime: 60 * 60 * 1000, 
+    gcTime: 5 * 60 * 1000, 
+  });
+ 
 
-    // Versión actualizada con parámetro de caché único
-    const cacheBuster = `?t=${refreshCounter}`;
-    const baseUrl = import.meta.env.MODE === 'development'
-      ? `http://localhost:3000/photo/${filename}`
-      : `/photo/${filename}`;
-
-    const photoUrl = `${baseUrl}${cacheBuster}`;
-
-    fetch(photoUrl)
-      .then(response => {
-        if (!response.ok) throw new Error("Error en la foto");
-        return response.blob();
-      })
-      .then(blob => {
-        const objectUrl = URL.createObjectURL(blob);
-        setServerPhoto(prev => {
-          if (prev) URL.revokeObjectURL(prev);
-          return objectUrl;
-        });
-      })
-      .catch(() => {
-        setServerPhoto(prev => {
-          if (prev) URL.revokeObjectURL(prev);
-          return null;
-        });
-      });
-
-  }, [filename, refreshCounter]);
-
-  // Limpieza al desmontar
+ // Revocar la URL de la vista previa cuando el componente se desmonta
   useEffect(() => {
     return () => {
-      if (serverPhoto) URL.revokeObjectURL(serverPhoto);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
-  }, []);
+  }, [previewUrl]);
+
 
   const handleClick = () => {
     fileInputRef.current?.click();
@@ -62,7 +37,8 @@ function ImageUploader({ filename, gender }: { filename: string | undefined, gen
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Crear preview inmediato
+    // Revocar la URL de la vista previa anterior antes de crear una nueva
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
 
@@ -87,15 +63,18 @@ function ImageUploader({ filename, gender }: { filename: string | undefined, gen
 
       if (response.ok) {
         message.success("Foto actualizada correctamente");
-        // Forzar nueva carga de la foto del servidor
-        setRefreshCounter(prev => prev + 1);
+        if (filename) {
+          queryClient.invalidateQueries({ queryKey: ['teacherPhoto', filename] });
+        }
+        setPreviewUrl(''); 
       } else {
         message.error("Error al actualizar la foto");
-        // Eliminar preview si falla
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
         setPreviewUrl('');
       }
     } catch (error) {
       message.error("Error al actualizar la foto");
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl('');
     }
   };
@@ -118,7 +97,6 @@ function ImageUploader({ filename, gender }: { filename: string | undefined, gen
     height: '170px',
   };
 
-  // Determinar qué imagen mostrar
   const displayImage = previewUrl || serverPhoto || (gender === '1' ? MalePlaceholder : FemalePlaceholder);
 
   return (

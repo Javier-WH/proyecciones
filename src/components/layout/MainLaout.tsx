@@ -109,8 +109,7 @@ const MainLayout: React.FC = () => {
               position: "absolute",
               top: "50%",
               left: "50%",
-              transform: "translate(-50%, -50%)",
-              //filter: "drop-shadow(0px 0px 2px rgba(255, 255, 255, 1))",
+              transform: "translate(-50%, -50%)"
             }}
           />
         </div>

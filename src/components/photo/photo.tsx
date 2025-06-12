@@ -3,19 +3,10 @@ import { Teacher } from "../../interfaces/teacher"
 import MalePlaceHolder from "../../assets/malePlaceHolder.svg"
 import FemalePlaceHolder from "../../assets/femalePlaceHolder.svg"
 import { useQuery } from '@tanstack/react-query';
+import fetchTeacherPhoto from '../../fetch/fetchPhoto';
 
 
 export default function Photo({ teacher }: { teacher: Teacher | null }) {
-  const fetchTeacherPhoto = async (ci: string) => {
-    const photoUrl = import.meta.env.MODE === 'development'
-      ? `http://localhost:3000/photo/${ci}`
-      : `/photo/${ci}`;
-
-    const response = await fetch(photoUrl);
-    if (!response.ok) throw new Error("Error en la foto");
-    const blob = await response.blob();
-    return URL.createObjectURL(blob);
-  };
 
   const { data: photo, isError } = useQuery({
     queryKey: ['teacherPhoto', teacher?.ci],
@@ -32,8 +23,6 @@ export default function Photo({ teacher }: { teacher: Teacher | null }) {
     height: "100%",
     objectFit: "cover",
   };
-
-
 
   if (photo) {
     return <img src={photo} alt="Teacher photo" style={photoStyle} />;
