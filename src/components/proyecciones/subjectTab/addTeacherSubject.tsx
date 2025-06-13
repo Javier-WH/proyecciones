@@ -54,7 +54,7 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
   });
 
   useEffect(() => {
-    if (!subject) {
+    if (!subject || !teachers) {
       setOpen(false);
       setasignedTeacher({
         q1: null,
@@ -69,6 +69,7 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
   }, [subject]);
 
   useEffect(() => {
+    if (!teachers) return
     const teacherData: asignedTeacherProps = {
       q1: null,
       q2: null,
@@ -80,17 +81,17 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
     }
 
     if (subject?.quarter?.q1) {
-      const teacherQ1 = teachers?.q1.find((t) => t.id === subject.quarter.q1);
+      const teacherQ1 = teachers.find((t) => t.id === subject.quarter.q1);
       teacherData.q1 = teacherQ1 ? teacherQ1 : null;
     }
 
     if (subject?.quarter.q2) {
-      const teacherQ2 = teachers?.q2.find((t) => t.id === subject.quarter.q2);
+      const teacherQ2 = teachers.find((t) => t.id === subject.quarter.q2);
       teacherData.q2 = teacherQ2 ? teacherQ2 : null;
     }
 
     if (subject?.quarter.q3) {
-      const teacherQ3 = teachers?.q3.find((t) => t.id === subject.quarter.q3);
+      const teacherQ3 = teachers.find((t) => t.id === subject.quarter.q3);
       teacherData.q3 = teacherQ3 ? teacherQ3 : null;
     }
 
@@ -99,7 +100,7 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
 
   useEffect(() => {
     if (!teachers || !subject) return;
-    let filteredTeachers = teachers?.q1.map((teacher) => {
+    let filteredTeachers = teachers.map((teacher) => {
       const hours = getTeacherHoursData(teacher);
       return {
         label: `${teacher.lastName} ${teacher.name}`.toUpperCase(),
@@ -129,7 +130,7 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
   };
 
   const handleChange = (value: string) => {
-    const selectedTeacher = teachers?.q1.find((t) => t.id === value) || null;
+    const selectedTeacher = teachers?.find((t) => t.id === value) || null;
     setSelectedOption(selectedTeacher);
   };
 

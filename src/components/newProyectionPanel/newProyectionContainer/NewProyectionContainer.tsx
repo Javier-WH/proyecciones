@@ -36,7 +36,7 @@ export default function NewProyectionContainer({
     trayecto_saga_id: number;
   }
 
-  const { subjects, handleSubjectChange, handleProyectionsDoneChange } = useContext(
+  const { subjects, handleSubjectChange } = useContext(
     MainContext
   ) as MainContextValues;
   const [inscriptionData, setInscriptionData] = useState<InscriptionData | null>(null);

@@ -276,9 +276,9 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
             const color = subjectColors?.[subject.pnfId];
 
             const teacher = {
-              q1: teachers?.q1.find((teacher) => teacher.id === subject.quarter.q1) || null,
-              q2: teachers?.q2.find((teacher) => teacher.id === subject.quarter.q2) || null,
-              q3: teachers?.q3.find((teacher) => teacher.id === subject.quarter.q3) || null,
+              q1: teachers?.find((teacher) => teacher.id === subject.quarter.q1) || null,
+              q2: teachers?.find((teacher) => teacher.id === subject.quarter.q2) || null,
+              q3: teachers?.find((teacher) => teacher.id === subject.quarter.q3) || null,
             };
 
             return (
