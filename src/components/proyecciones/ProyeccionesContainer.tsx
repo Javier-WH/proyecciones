@@ -14,7 +14,7 @@ export default function ProyeccionesContainer() {
   const [teacherTab, setTeacherTab] = useState(true);
   const [error, setError] = useState(false);
   const [searchByUserPerfil, setSearchByUserPerfil] = useState<boolean>(true);
-  const { setSelectedTeacerId, setSelectedTeacher, subjects, proyectionsDone, proyectionName } = useContext(
+  const { setSelectedTeacerId, setSelectedTeacher, subjects, proyectionName } = useContext(
     MainContext
   ) as MainContextValues;
 
@@ -73,7 +73,7 @@ export default function ProyeccionesContainer() {
   }
 
   // si no hay materias y no hay proyecciones hechas
-  if (subjects?.length === 0 && proyectionsDone.length === 0) {
+  if (subjects?.length === 0 ) {
     return (
       <div
         className="proyecciones-container"

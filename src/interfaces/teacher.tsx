@@ -19,11 +19,6 @@ export interface Teacher {
   active: boolean;
 }
 
-export interface Quarter {
-  q1: Array<Teacher>;
-  q2: Array<Teacher>;
-  q3: Array<Teacher>;
-}
 
 export interface TeacherContract {
   id: string;

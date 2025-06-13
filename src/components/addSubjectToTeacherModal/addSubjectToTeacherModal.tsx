@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Button, Modal, Select, Radio, Tag, Switch, message, Divider } from "antd";
 import type { RadioChangeEvent } from "antd";
-import { Quarter } from "../../interfaces/teacher";
 import { Subject } from "../../interfaces/subject";
 import { CloseCircleOutlined } from "@ant-design/icons";
 import useSetSubject from "../../hooks/useSetSubject";
@@ -43,14 +42,13 @@ interface optionsInterface {
 const AddSubjectToTeacherModal: React.FC<{
   open: boolean;
   setOpen: (open: boolean) => void;
-  teachers: Quarter | null;
-  setTeachers: React.Dispatch<React.SetStateAction<Quarter | null>>;
+  teachers: Teacher[] | null;
+  setTeachers: React.Dispatch<React.SetStateAction<Teacher[] | null>>;
   selectedTeacerId: string | null;
   subjects: Array<Subject> | null;
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>;
   selectedQuarter: "q1" | "q2" | "q3";
   setSelectedQuarter: React.Dispatch<React.SetStateAction<"q1" | "q2" | "q3">>;
-  handleTeacherChange: (data: Quarter) => void;
   handleSubjectChange: (data: Subject[]) => void;
   selectedTeacher: Teacher | null;
 }> = ({
@@ -89,7 +87,7 @@ const AddSubjectToTeacherModal: React.FC<{
 
   const getTeacherData = (teacherId: string | null | undefined): Teacher | null => {
     if (!teachers) return null;
-    return teachers.q1.find((teacher) => teacher.id === teacherId) || null;
+    return teachers.find((teacher) => teacher.id === teacherId) || null;
   };
 
   useEffect(() => {
@@ -163,10 +161,10 @@ const AddSubjectToTeacherModal: React.FC<{
         },
       };
     });
-    const t_index = teachers[selectedQuarter].findIndex((teacher) => teacher.id === selectedTeacerId);
+    const t_index = teachers.findIndex((teacher) => teacher.id === selectedTeacerId);
     setTeacherIndex(t_index);
 
-    const teacherPerfil = new Set(teachers[selectedQuarter][t_index]?.perfil ?? []);
+    const teacherPerfil = new Set(teachers[t_index]?.perfil ?? []);
 
     // solo se muestran las materias del PNF del docente si no es superusuario
     if (!userData?.su) {
@@ -334,11 +332,11 @@ const AddSubjectToTeacherModal: React.FC<{
          </div>
           <div style={{ display: "flex", flexDirection: "column", marginLeft: "20px" }}>
             <span style={{ fontWeight: "bold" }}>
-              {`${teachers?.[selectedQuarter][teacherIndex ?? 0]?.name ?? ""} 
-            ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.lastName ?? ""}`}
+              {`${teachers?.[teacherIndex ?? 0]?.name ?? ""} 
+            ${teachers?.[teacherIndex ?? 0]?.lastName ?? ""}`}
             </span>
-            <span>{`C.I.: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.ci ?? ""}`}</span>
-            <span>{`Carga horaria: ${teachers?.[selectedQuarter][teacherIndex ?? 0]?.partTime ?? ""}`}</span>
+            <span>{`C.I.: ${teachers?.[teacherIndex ?? 0]?.ci ?? ""}`}</span>
+            <span>{`Carga horaria: ${teachers?.[teacherIndex ?? 0]?.partTime ?? ""}`}</span>
             <span>
               <span>{`Horas asignadas: `}</span>
               <>

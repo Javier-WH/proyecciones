@@ -36,7 +36,7 @@ export default function NewProyectionContainer({
     trayecto_saga_id: number;
   }
 
-  const { subjects, handleSubjectChange, proyectionsDone, handleProyectionsDoneChange } = useContext(
+  const { subjects, handleSubjectChange, handleProyectionsDoneChange } = useContext(
     MainContext
   ) as MainContextValues;
   const [inscriptionData, setInscriptionData] = useState<InscriptionData | null>(null);
@@ -273,24 +273,12 @@ export default function NewProyectionContainer({
 
     handleSubjectChange([...(subjects ?? []), ...(list ?? [])]);
 
-    // registrar que se hizo esta proyección
-    const _proyectionsDone = [...proyectionsDone];
-    _proyectionsDone.push(`${programaId}${trayectoId}`);
-    handleProyectionsDoneChange(_proyectionsDone);
+    
     message.success("Proyección generada con exito");
     navigate("/app/proyecciones");
   };
 
-  // si la proyeccion ya se genero, no se puede generar de nuevo
-  if (proyectionsDone.find((id) => id === `${programaId}${trayectoId}`)) {
-    return (
-      <div style={{ margin: "20px", display: "flex", flexDirection: "column", rowGap: "10px" }}>
-        <Tag icon={<CloseCircleOutlined />} color="warning">
-          Ya se generó esta proyección
-        </Tag>
-      </div>
-    );
-  }
+
 
   // si no hay materias, no se puede generar la proyeccion
   if (pensumSlist?.length === 0) {

@@ -22,7 +22,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
   useEffect(() => {
     if (!teachers) return;
 
-    setData(teachers[selectedQuarter] || null);
+    setData(teachers || null);
   }, [selectedQuarter, teachers]);
 
   // filtro de busqueda
@@ -42,14 +42,14 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
     }
 
     if (searchByUserPerfil) {
-      filteredTeachers = teachers[selectedQuarter]?.filter((teacher) => {
+      filteredTeachers = teachers?.filter((teacher) => {
         if (canTeach(teacher.perfil || [], userPerfil || [])) {
           return true;
         }
         return false;
       });
     } else {
-      filteredTeachers = teachers[selectedQuarter];
+      filteredTeachers = teachers;
     }
 
     if (searchText.length > 0 && filteredTeachers?.length > 0) {

@@ -20,7 +20,7 @@ interface SelectOption {
 }
 
 export default function ProyeccionesSubjects() {
-  const { subjects, proyectionsDone, handleSubjectChange, userData, userPNF } = useContext(
+  const { subjects, handleSubjectChange, userData, userPNF } = useContext(
     MainContext
   ) as MainContextValues;
   const navigate = useNavigate();
@@ -301,7 +301,7 @@ export default function ProyeccionesSubjects() {
 
   const iconStyle = { color: "white", fontSize: "2rem" };
   // si no hay proyecciones
-  if (subjects?.length === 0 && proyectionsDone?.length === 0) {
+  if (subjects?.length === 0) {
     return (
       <div
         className="proyecciones-container"

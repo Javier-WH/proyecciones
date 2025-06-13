@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Button, Modal, Radio } from "antd";
-import { Teacher, Quarter } from "../../interfaces/teacher";
+import { Teacher } from "../../interfaces/teacher";
 import { Subject } from "../../interfaces/subject";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
@@ -10,8 +10,8 @@ import "./changeSubjectFromTeacherModal.css";
 const ChangeSubjectFromTeacherModal: React.FC<{
   open: boolean;
   setOpen: (open: boolean) => void;
-  teachers: Quarter | null;
-  setTeachers: React.Dispatch<React.SetStateAction<Quarter | null>>;
+  teachers: Teacher[] | null;
+  setTeachers: React.Dispatch<React.SetStateAction<Teacher[] | null>>;
   selectedTeacerId: string | null;
   subjects: Array<Subject> | null;
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>;
@@ -27,7 +27,7 @@ const ChangeSubjectFromTeacherModal: React.FC<{
     if (selectedSubject === null || teachers === null) return;
     const subjectId = selectedSubject.id;
 
-    let viableTeachers = teachers[selectedQuarter].filter((teacher) => {
+    let viableTeachers = teachers.filter((teacher) => {
       return teacher.perfil?.some((subject) => subject === subjectId);
     });
 

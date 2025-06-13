@@ -41,8 +41,8 @@ export default function SelectedTeacher() {
   useEffect(() => {
     if (!selectedTeacher) return;
     setHaveContract(
-      teachers?.[selectedQuarter]?.[
-        teachers[selectedQuarter]?.findIndex((teacher) => teacher.id === selectedTeacerId)
+      teachers?.[
+        teachers?.findIndex((teacher) => teacher.id === selectedTeacerId)
       ]?.type
         ? true
         : false
@@ -91,7 +91,7 @@ export default function SelectedTeacher() {
 
   useEffect(() => {
     if (!teachers || !selectedTeacerId) return;
-    const teacherIndex = teachers[selectedQuarter].findIndex((teacher) => teacher.id === selectedTeacerId);
+    const teacherIndex = teachers.findIndex((teacher) => teacher.id === selectedTeacerId);
     setTeacherData(getTeachersHoursData(teacherIndex || 0));
 
 

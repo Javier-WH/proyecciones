@@ -1,4 +1,4 @@
-import { Teacher, Quarter } from "../interfaces/teacher";
+import { Teacher } from "../interfaces/teacher";
 import { Subject, SimpleSubject } from "../interfaces/subject";
 import { PNF } from "../interfaces/pnf";
 import { Trayecto } from "./trayecto";
@@ -6,8 +6,8 @@ import { Turno } from "./turnos";
 import { UserDataInterface } from "../interfaces/userInterfacer.tsx";
 
 export interface MainContextValues {
-  teachers: Quarter | null;
-  setTeachers: React.Dispatch<React.SetStateAction<Quarter | null>>;
+  teachers: Teacher[] | null;
+  setTeachers: React.Dispatch<React.SetStateAction<Teacher[] | null>>;
   selectedTeacher: Teacher | null;
   setSelectedTeacher: React.Dispatch<React.SetStateAction<Teacher | null>>;
   setSelectedTeacherById(id: string): void;
@@ -28,17 +28,13 @@ export interface MainContextValues {
   setSelectedSubject: React.Dispatch<React.SetStateAction<Subject | null>>;
   selectedQuarter: "q1" | "q2" | "q3";
   setSelectedQuarter: React.Dispatch<React.SetStateAction<"q1" | "q2" | "q3">>;
-  handleTeacherChange: (data: Quarter) => void;
   handleSubjectChange: (data: Subject[]) => void;
-  handleProyectionsDoneChange: (proyections: string[]) => void;
   pnfList: Array<PNF> | null;
   subjectList: Array<SimpleSubject> | null;
   trayectosList: Array<Trayecto> | null;
   setTrayectosList: React.Dispatch<React.SetStateAction<Trayecto[]>>;
   turnosList: Array<Turno> | null;
   setTurnosList: React.Dispatch<React.SetStateAction<Turno[]>>;
-  proyectionsDone: string[] | [];
-  setProyectionsDone: React.Dispatch<React.SetStateAction<string[] | []>>;
   handleSingleTeacherChange: (data: Teacher) => void;
   proyectionName: string | null;
   proyectionId: string | null;

@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useEffect, useRef, useState } from "react";
 import { MainContextValues } from "../interfaces/contextInterfaces";
-import { Teacher, Quarter } from "../interfaces/teacher";
+import { Teacher } from "../interfaces/teacher";
 import { UserDataInterface } from "../interfaces/userInterfacer.tsx";
 import { PNF } from "../interfaces/pnf.tsx";
 import { Trayecto } from "../interfaces/trayecto.tsx";
@@ -20,7 +20,7 @@ export const MainContext = createContext<MainContextValues | null>(null);
 
 export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [teachers, setTeachers] = useState<Quarter | null>(null);
+  const [teachers, setTeachers] = useState<Teacher[] | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [selectedQuarter, setSelectedQuarter] = useState<"q1" | "q2" | "q3">("q1");
   const [selectedTeacerId, setSelectedTeacerId] = useState<string | null>(null);
@@ -32,7 +32,6 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [subjectList, setSubjectList] = useState<SimpleSubject[] | null>(null);
   const [trayectosList, setTrayectosList] = useState<Trayecto[]>([]);
   const [turnosList, setTurnosList] = useState<Turno[]>([]);
-  const [proyectionsDone, setProyectionsDone] = useState<string[] | []>([]);
   const [proyectionName, setProyectionName] = useState<string | null>(null);
   const [proyectionId, setProyectionId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -142,7 +141,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   const setSelectedTeacherById = (id: string) => {
     if (!teachers) return;
-    const teacher = teachers[selectedQuarter].find((teacher) => teacher.id === id);
+    const teacher = teachers.find((teacher) => teacher.id === id);
     setSelectedTeacerId(id);
     setSelectedTeacher(teacher || null);
   };
@@ -155,12 +154,12 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         aviableHours: null,
       };
 
-    const subjects = teachers[selectedQuarter][id]?.load ?? [];
+    const subjects = teachers[id]?.load ?? [];
     const asignedHpours = subjects.reduce((acc, subject) => Number(acc) + Number(subject.hours), 0);
-    const aviableHours = Number(teachers[selectedQuarter][id]?.partTime) - Number(asignedHpours);
+    const aviableHours = Number(teachers[id]?.partTime) - Number(asignedHpours);
 
     return {
-      partTime: teachers[selectedQuarter][id]?.partTime,
+      partTime: teachers[id]?.partTime,
       asignedHpours,
       aviableHours: aviableHours < 0 ? 0 : aviableHours,
     };
@@ -200,10 +199,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
       setSubjects(newSubjects);
     
     });
-    socket.on("proyectionsDone", (proyections) => {
-      setProyectionsDone(proyections);
-      
-    });
+ 
     socket.on("proyectionData", (proyectionData) => {
       setProyectionName(proyectionData.proyectionName);
       setProyectionId(proyectionData.proyectionId);
@@ -227,10 +223,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     };
   }, [socket]);
 
-  const handleTeacherChange = (data: Quarter) => {
-    if (!socket) return;
-    socket.emit("updateTeachers", data);
-  };
+
   const handleSingleTeacherChange = (data: Teacher) => {
     if (!socket) return;
     socket.emit("updateTeacher", data);
@@ -239,10 +232,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     if (!socket) return;
     socket.emit("updateSubjects", data);
   };
-  const handleProyectionsDoneChange = (proyections: string[]) => {
-    if (!socket) return;
-    socket.emit("proyectionsDone", proyections);
-  };
+
 
   const handleReload = () => {
     if (!socket) return;
@@ -268,17 +258,13 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     setSelectedSubject,
     selectedQuarter,
     setSelectedQuarter,
-    handleTeacherChange,
     handleSubjectChange,
-    handleProyectionsDoneChange,
     pnfList,
     subjectList,
     trayectosList,
     setTrayectosList,
     turnosList,
     setTurnosList,
-    proyectionsDone,
-    setProyectionsDone,
     handleSingleTeacherChange,
     proyectionId,
     proyectionName,
@@ -311,7 +297,6 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         setSubjects={setSubjects}
         selectedQuarter={selectedQuarter}
         setSelectedQuarter={setSelectedQuarter}
-        handleTeacherChange={handleTeacherChange}
         handleSubjectChange={handleSubjectChange}
         selectedTeacher={selectedTeacher}
       />
@@ -330,7 +315,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
       <EditSubjectQuarterModal
         subject={editSubjectQuarter}
         setSubject={setEditSubjectQuarter}
-        teachers={teachers?.q1 || []}
+        teachers={teachers || []}
         subjectColors={subjectColors}
         handleSubjectChange={handleSubjectChange}
         subjects={subjects}
