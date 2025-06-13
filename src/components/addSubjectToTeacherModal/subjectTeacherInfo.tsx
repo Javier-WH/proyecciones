@@ -56,12 +56,22 @@ export default function SubjectTeacherInfo({ teacher }: Props) {
   }
 
   // Verificar si todos los trimestres tienen el mismo profesor
-  const allSame =
+  let allSame = false;
+  if (teacher.q1 && teacher.q2 && teacher.q3) {
+    allSame =
     teacher.q1 &&
     teacher.q2 &&
     teacher.q3 &&
     teacher.q1.ci === teacher.q2.ci &&
     teacher.q2.ci === teacher.q3.ci;
+  }
+
+  if (teacher.q1 && teacher.q2) {
+    allSame =
+      teacher.q1 &&
+      teacher.q2 &&
+      teacher.q1.ci === teacher.q2.ci 
+  }
 
   // Renderizar el profesor una vez si todos son iguales
   if (allSame) {

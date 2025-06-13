@@ -235,7 +235,6 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
             value={selectedOption?.id}
             showSearch
             filterOption={(input, option) =>
-              //(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
               normalizeText(option?.label ?? "").includes(normalizeText(input))
             }
             disabled={options.length === 0}
@@ -251,7 +250,6 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
                     <div style={{ width: "80px", height: "80px", overflow: "hidden", position: "relative" }}>
                       <Photo teacher={teacher} />
                     </div>
-                 {/*  <img src={malePlaceHolder} alt="" width={80} /> */}
                   <div>
                     <div>{`${teacher.lastName} ${teacher.name}`.toUpperCase()}</div>
                     <div>{`Cédula: ${teacher.ci}`}</div>
