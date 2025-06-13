@@ -12,6 +12,8 @@ import TabStudent from "./tabs/tabStudent";
 import TabProyection from "./tabs/tabProyection";
 import TabConf from "./tabs/tabConf";
 import { ExclamationCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import getConfig from "../../../fetch/getConfig";
+import { useNavigate } from "react-router-dom";
 
 interface TabPanelProps {
   selectedPnf: string | null;
@@ -32,13 +34,23 @@ export interface StudentList {
 }
 
 export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProps) {
-  const { turnosList: defaultTurnos, subjects, handleSubjectChange } = useContext(MainContext) as MainContextValues;
+  const { turnosList: defaultTurnos, subjects, handleSubjectChange, userData } = useContext(MainContext) as MainContextValues;
   const [subjectList, setSubjectList] = useState<Subject[]>([]);
   const [studentList, setStudentList] = useState<StudentList | null>(null);
   const [turnosList, setTurnosList] = useState<string[]>([]);
   const [turnos, setTurnos] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-
+  const [isActiveProyection, setIsActiveProyection] = useState<boolean | null>(null);
+  const navigate = useNavigate();
+  // obtener la proyeccion activa
+  useEffect(()=>{
+        getConfig()
+        .then((config) => setIsActiveProyection(config.active_proyection))
+        .catch((error) => {
+          console.error(error);
+          setIsActiveProyection(null)
+        });
+  },[]);
 
   //  llena los turnos que son utilizados en la pestana de proyeccion
   useEffect(() => {
@@ -155,6 +167,17 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
 
 
     handleSubjectChange(filteredSubjects);
+  }
+
+  if(!isActiveProyection){
+    return <div>
+      <h2 style={{ color: 'red' }}>No hay ninguna proyección activa</h2>
+      <Divider />
+      {
+        userData?.su ? <Button type="primary" onClick={() => navigate("/app/active")}>Crear proyección</Button> : <p>Solo los administradores del sistema pueden crear una proyección, habla con uno de ellos</p>
+      }
+      
+    </div>
   }
 
   if (checkIfProyected()) {
