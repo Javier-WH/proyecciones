@@ -5,7 +5,7 @@ import ElementNotFound from "../components/notFound/ElementNotFoud";
 import ProyeccionesContainer from "../components/proyecciones/ProyeccionesContainer";
 import Login from "../components/login/login";
 import ProyeccionesSubjects from "../components/proyeccionesSubjects/proyeccionesSubjects";
-// import NewProyectionPanel from "../components/newProyectionPanel/NewProyectionPanel";
+import AboutView from "../components/info/AboutView";
 import EditTrayectos from "../components/editTrayectos/EditTrayectos";
 import RegisterTeacher from "../components/teachers/registerTeacher/RegisterTeacher";
 import EditTeachers from "../components/teachers/editTeachers/EditTeachers";
@@ -90,6 +90,10 @@ const router = createBrowserRouter([
       {
         path: "/app/singin",
         element: <CreateUserPanel />,
+      },
+      {
+        path: "/app/info",
+        element: <AboutView />,
       },
       {
         path: "*",

@@ -7,6 +7,7 @@ import { IoMdPlanet, IoIosCreate } from "react-icons/io";
 import { LiaSchoolSolid } from "react-icons/lia";
 import { GrSchedules } from "react-icons/gr";
 import { FaPersonMilitaryPointing } from "react-icons/fa6";
+import { TiInfoLargeOutline } from "react-icons/ti";
 import { QuestionCircleOutlined } from "@ant-design/icons";
 import { RiLogoutBoxFill } from "react-icons/ri";
 import { IoPersonAddSharp } from "react-icons/io5";
@@ -69,11 +70,14 @@ const MainLayout: React.FC = () => {
           getItem("Administrador", "/app/admin", <MdAdminPanelSettings />),
         ]
       : []),
-    getItem("Horarios", "/app/horarios", <GrSchedules />, [
-      getItem("Crear Horario", "6"),
-      getItem("Editar Horario", "8"),
-    ]),
-
+    getItem(
+      "Horarios",
+      "/app/horarios",
+      <GrSchedules />,
+      [getItem("Crear Horario", "6"), getItem("Editar Horario", "8")],
+      true
+    ),
+    getItem("Información", "/app/info", <TiInfoLargeOutline />),
     getItem("Logout", "logout", <RiLogoutBoxFill />),
   ];
 
@@ -98,18 +102,31 @@ const MainLayout: React.FC = () => {
 
   return (
     <Layout style={{ minHeight: "100vh", width: "100vw" }}>
-      <Sider collapsible collapsed={collapsed} onCollapse={(value) => setCollapsed(value)}>
-        <div className="demo-logo-vertical" style={{ height: "100px", color: "white", position: "relative" }}>
+      <Sider
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "100px",
+        }}
+        collapsible
+        collapsed={collapsed}
+        onCollapse={(value) => setCollapsed(value)}>
+        <div
+          className="demo-logo-vertical"
+          style={{
+            height: "100px",
+            color: "white",
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}>
           <img
             src={proyeccionesLogo}
             alt="UPTLL"
             style={{
               width: "90%",
               maxWidth: "100px",
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)"
             }}
           />
         </div>

@@ -4,7 +4,7 @@ import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input, Button, message } from "antd";
 import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
-import login, {logout}  from "../../fetch/login";
+import login, { logout } from "../../fetch/login";
 import logo from "./proyeccionesLogo.png";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
@@ -44,8 +44,13 @@ export default function Login() {
       setIsAuthenticated(true);
       navigate("/app/proyecciones");
     } catch (error) {
-      console.error(error); 
-      if (typeof error === "object" && error !== null && "message" in error && typeof (error as any).message === "string") {
+      console.error(error);
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof (error as any).message === "string"
+      ) {
         const errMsg = (error as any).message as string;
         if (errMsg.includes("Failed to fetch")) {
           message.error("No se pudo conectar con el servidor. Por favor, revisa tu conexión a la red.");
@@ -97,7 +102,6 @@ export default function Login() {
         </Button>
       </div>
       <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%" }}>
-        <span style={{ fontSize: "10px", color: "gray" }}> versión 0.0.2</span>
         <span style={{ fontSize: "10px", color: "gray" }}>
           {" "}
           © 2025 Proyecciones. Todos los derechos reservados
