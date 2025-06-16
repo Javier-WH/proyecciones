@@ -64,6 +64,11 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       });
     }
 
+    //filtra los profesores inactivos
+    filteredTeachers = filteredTeachers.filter((teacher) => {
+      return teacher.active;
+    });
+
     // filtra los profesores sin contrato
     filteredTeachers = filteredTeachers.filter((teacher) => {
       return teacher.contractTypeId !== null;
