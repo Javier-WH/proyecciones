@@ -69,7 +69,7 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
   }, [subject]);
 
   useEffect(() => {
-    if (!teachers) return
+    if (!teachers) return;
     const teacherData: asignedTeacherProps = {
       q1: null,
       q2: null,
@@ -100,16 +100,22 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
 
   useEffect(() => {
     if (!teachers || !subject) return;
-    let filteredTeachers = teachers.map((teacher) => {
+
+    // filtra los profesores activos
+    const activeTeachers = teachers.filter((teacher) => teacher.active);
+
+    let filteredTeachers = activeTeachers.map((teacher) => {
       const hours = getTeacherHoursData(teacher);
       return {
         label: `${teacher.lastName} ${teacher.name}`.toUpperCase(),
         value: teacher.id,
         teacher: teacher,
         hours: hours,
+        active: teacher.active,
       };
     });
 
+    // filtra los profesores sin contrato
     filteredTeachers = filteredTeachers.filter((teacher) => {
       return teacher.teacher.contractTypeId !== null;
     });
@@ -247,9 +253,9 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
                     display: "flex",
                     columnGap: "10px",
                   }}>
-                    <div style={{ width: "80px", height: "80px", overflow: "hidden", position: "relative" }}>
-                      <Photo teacher={teacher} />
-                    </div>
+                  <div style={{ width: "80px", height: "80px", overflow: "hidden", position: "relative" }}>
+                    <Photo teacher={teacher} />
+                  </div>
                   <div>
                     <div>{`${teacher.lastName} ${teacher.name}`.toUpperCase()}</div>
                     <div>{`Cédula: ${teacher.ci}`}</div>
