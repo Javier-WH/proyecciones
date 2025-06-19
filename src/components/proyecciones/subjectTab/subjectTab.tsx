@@ -88,6 +88,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     showUnasignedSubject,
     selectedTrayectoOption,
     selectedTurnoOption,
+    userPNF,
   ]);
 
   // llena nos selectores de busqueda

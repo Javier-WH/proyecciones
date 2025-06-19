@@ -73,7 +73,7 @@ export default function ProyeccionesContainer() {
   }
 
   // si no hay materias y no hay proyecciones hechas
-  if (subjects?.length === 0 ) {
+  if (subjects?.length === 0) {
     return (
       <div
         className="proyecciones-container"
@@ -156,7 +156,7 @@ export default function ProyeccionesContainer() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(800px, 1fr) 1fr",
+              gridTemplateColumns: "minmax(700px, 1fr) 1fr",
               gap: "5px",
             }}>
             <TeacherTable searchByUserPerfil={searchByUserPerfil} />
