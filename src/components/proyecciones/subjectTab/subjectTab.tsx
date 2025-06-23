@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { Subject } from "../../../interfaces/subject";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
@@ -22,9 +23,8 @@ function unasignedSubject(obj: { q1?: string | null; q2?: string | null; q3?: st
 }
 
 export default function SubjectTab({ searchByUserPerfil }: props) {
-  const { subjects, subjectColors, teachers, setEditSubjectQuarter, userData, userPNF } = useContext(
-    MainContext
-  ) as MainContextValues;
+  const { subjects, subjectColors, teachers, setEditSubjectQuarter, userData, userPNF, isAuthenticated } =
+    useContext(MainContext) as MainContextValues;
   const [subjectList, setSubjectList] = useState<Subject[]>();
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [pnfOptions, setPnfOptions] = useState<SelectOption[]>([]);
@@ -46,7 +46,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
   useEffect(() => {
     if (!subjects) return;
 
-    let filteredSubjects = [...subjects];
+    let filteredSubjects = JSON.parse(JSON.stringify(subjects)) as Subject[];
 
     if (searchByUserPerfil) {
       const pnfId = sessionStorage.getItem("userPNF")?.replace(/"/g, "");
@@ -89,6 +89,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     selectedTrayectoOption,
     selectedTurnoOption,
     userPNF,
+    isAuthenticated,
   ]);
 
   // llena nos selectores de busqueda
@@ -290,7 +291,6 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                   height: "80px",
                   minHeight: "80px",
                   width: "98%",
-                  //maxWidth: "1000px",
                   display: "flex",
                   columnGap: "10px",
                   position: "relative",
