@@ -86,7 +86,7 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
           data.map((subject, i) => {
             const backgroundColor = subjectColors?.[subject.pnfId] || "pink";
             return (
-              <div key={i} style={{ height: "80px", position: "relative" }}>
+              <div key={i} style={{ minHeight: "80px", height: "content", position: "relative" }}>
                 <div className="teacher-subjects-buttons">
                   <Button
                     id={`${subject.id}:${subject.pensum_id}:${subject.seccion}:${subject.trayectoName}:${subject.turnoName}`}
@@ -109,18 +109,21 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
                   )}
                 </div>
                 <div style={{ height: "10px", backgroundColor: backgroundColor }}></div>
-                <div>
-                  <h4>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "5fr 2fr 1fr",
-                        width: "100%",
-                      }}>
-                      <span>{subject.subject}</span>
-                      <span>{subject.trayectoName}</span>
-                    </div>
+                <div style={{ marginRight: "22px", display: "flex", flexDirection: "column" }}>
+                  <h4
+                    style={{
+                      width: "90%",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: "8px",
+                      height: "content",
+                      marginTop: "10px",
+                    }}>
+                    <span>{subject.subject}</span>
+                    <span>{subject.trayectoName}</span>
                   </h4>
+
                   <div
                     style={{
                       marginLeft: "20px",

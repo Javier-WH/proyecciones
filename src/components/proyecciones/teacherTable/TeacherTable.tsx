@@ -105,12 +105,12 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       title: "Cédula",
       dataIndex: "ci",
       key: "ci",
-      width: "16%",
+      width: "14%",
       sorter: (a, b) => Number.parseInt(a.ci) - Number.parseInt(b.ci),
       sortDirections: ["descend", "ascend"],
       render: (value) => <div>{value}</div>,
     },
-    {
+    /*{
       title: "Tipo de contrato",
       dataIndex: "type",
       key: "type",
@@ -131,11 +131,11 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
           </Tag>
         );
       },
-    },
+    },*/
     {
       title: "Horas",
       dataIndex: "partTime",
-      width: "16%",
+      width: "11%",
       render: (_value, record) => {
         if (!record.contractTypeId) {
           return (
@@ -181,7 +181,6 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
 
   const onRow = (record: Teacher) => {
     return {
-      //onClick: () => { setSelectedTeacherById(Number.parseInt(record.id) - 1) },
       onClick: () => {
         setSelectedTeacherById(record.id);
       },

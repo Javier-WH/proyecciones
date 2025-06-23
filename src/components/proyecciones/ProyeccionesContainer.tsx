@@ -156,7 +156,7 @@ export default function ProyeccionesContainer() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(700px, 1fr) 1fr",
+              gridTemplateColumns: "minmax(650px, 1fr) 1fr",
               gap: "5px",
             }}>
             <TeacherTable searchByUserPerfil={searchByUserPerfil} />
