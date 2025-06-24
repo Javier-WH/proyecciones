@@ -196,9 +196,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
         marginTop: "5px",
         marginLeft: "5px",
         overflow: "hidden",
-        position: "relative",
-        display: "grid",
-        gridTemplateRows: "30px auto",
+        position: "relative"
       }}>
       <Input
         style={{ width: "100%" }}
@@ -228,7 +226,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
             rowKey="id"
             onRow={onRow}
             style={{ cursor: "pointer" }}
-            scroll={{ y: "calc(100vh - 200px)", x: "max-content" }}
+            scroll={{ y: "calc(100vh - 200px)" }}
           />
         </ConfigProvider>
       )}
