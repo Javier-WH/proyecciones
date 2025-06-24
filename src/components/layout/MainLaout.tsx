@@ -28,14 +28,14 @@ function getItem(
   key: React.Key,
   icon?: React.ReactNode,
   children?: MenuItem[],
-  disabled?: boolean // Nuevo parámetro opcional
+  disabled?: boolean 
 ): MenuItem {
   return {
     key,
     icon,
     children,
     label,
-    disabled, // Añade la propiedad disabled
+    disabled, 
   } as MenuItem;
 }
 
