@@ -44,6 +44,7 @@ const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
 
+  // Manejo del cambio de tamaño de la ventana para colapsar el menú
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 1300) {
@@ -61,6 +62,7 @@ const MainLayout: React.FC = () => {
     };
   }, []);
 
+  // Definición de los elementos del menú
   const items: MenuItem[] = [
     getItem("Proyecciones", "/app/_proyecciones", <FaCalendarAlt />, [
       ...(userData?.su ? [getItem("Proyección Activa", "/app/active", <FaPersonMilitaryPointing />)] : []),
