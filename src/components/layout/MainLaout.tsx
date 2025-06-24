@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit, FaThList } from "react-icons/fa";
 import { LiaFileContractSolid } from "react-icons/lia";
@@ -43,6 +43,23 @@ const MainLayout: React.FC = () => {
   const { userData } = useContext(MainContext) as MainContextValues;
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1300) {
+        setCollapsed(true);
+        return;
+      }
+      setCollapsed(false);
+    };
+
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const items: MenuItem[] = [
     getItem("Proyecciones", "/app/_proyecciones", <FaCalendarAlt />, [
