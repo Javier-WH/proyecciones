@@ -5,7 +5,7 @@ import { LiaFileContractSolid } from "react-icons/lia";
 import { MdSubject, MdEditRoad, MdEditLocation, MdAdminPanelSettings } from "react-icons/md";
 import { IoMdPlanet, IoIosCreate } from "react-icons/io";
 import { LiaSchoolSolid } from "react-icons/lia";
-import { GrSchedules } from "react-icons/gr";
+import { GrSchedules, GrScheduleNew, GrSchedule } from "react-icons/gr";
 import { FaPersonMilitaryPointing } from "react-icons/fa6";
 import { TiInfoLargeOutline } from "react-icons/ti";
 import { QuestionCircleOutlined } from "@ant-design/icons";
@@ -28,14 +28,14 @@ function getItem(
   key: React.Key,
   icon?: React.ReactNode,
   children?: MenuItem[],
-  disabled?: boolean 
+  disabled?: boolean
 ): MenuItem {
   return {
     key,
     icon,
     children,
     label,
-    disabled, 
+    disabled,
   } as MenuItem;
 }
 
@@ -56,9 +56,9 @@ const MainLayout: React.FC = () => {
 
     handleResize();
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
@@ -89,13 +89,10 @@ const MainLayout: React.FC = () => {
           getItem("Administrador", "/app/admin", <MdAdminPanelSettings />),
         ]
       : []),
-    getItem(
-      "Horarios",
-      "/app/horarios",
-      <GrSchedules />,
-      [getItem("Crear Horario", "6"), getItem("Editar Horario", "8")],
-      true
-    ),
+    getItem("Horarios", "/app/horarios", <GrSchedules />, [
+      getItem("Crear Horario", "/app/horarios/create", <GrScheduleNew />),
+      getItem("Mostrar Horarios", "/app/horarios/show", <GrSchedule />, [], true),
+    ]),
     getItem("Información", "/app/info", <TiInfoLargeOutline />),
     getItem("Logout", "logout", <RiLogoutBoxFill />),
   ];

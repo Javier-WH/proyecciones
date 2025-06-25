@@ -96,6 +96,10 @@ const router = createBrowserRouter([
         element: <AboutView />,
       },
       {
+        path: "/app/horarios/create",
+        element: <h1>Crear Horario</h1>,
+      },
+      {
         path: "*",
         element: <ElementNotFound />,
       },
