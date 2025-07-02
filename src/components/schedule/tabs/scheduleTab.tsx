@@ -22,7 +22,7 @@ interface Classroom {
 }
 
 export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
-  const { subjects, teachers } = data;
+  const { subjects, teachers, turnos } = data;
 
   const [days, setDays] = useState<Days[]>([]);
   const [hours, setHours] = useState<Hours[]>([]);
@@ -50,21 +50,49 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
     if (
       !subjects ||
       !teachers ||
+      !turnos ||
       subjects.length === 0 ||
       teachers.length === 0 ||
       days.length === 0 ||
       hours.length === 0 ||
-      classrooms.length === 0
+      classrooms.length === 0 ||
+      turnos.length === 0
     ) {
       return;
     }
 
-    const schedule: ScheduleItem[] = [];
+    const scheduleData: ScheduleItem[] = [];
+    const asignedClassrooms: string[] = []; // las aulas de clase ocupadas ese dia a esa hora
+    const asignedHours: string[] = []; // las horas asignadas a un profesor ese dia
+    const asignedSubjects: string[] = []; // las materias que ya ha sido asignadas
 
-    for (const day of days) {
-      for (const hour of hours) {
-        for (const classroom of classrooms) {
-          for (const subject of subjects) {
+    for (const subject of subjects) {
+      const turno = turnos.find((t) => t.name === subject.turnoName);
+      // que la materia no esté ya asignada
+      const newSubjectKey = subject.id + subject.seccion + subject.trayectoId + turno?.id + subject.pnfId;
+      if (asignedSubjects.includes(newSubjectKey)) {
+        continue;
+      } else {
+        asignedSubjects.push(newSubjectKey);
+      }
+      for (const day of days) {
+        for (const hour of hours) {
+          for (const classroom of classrooms) {
+            // que el aula de clase no este ocupada ese dia a esa hora
+            const newClassroomKey = hour.id + day.id + classroom.id;
+            if (asignedClassrooms.includes(newClassroomKey)) {
+              continue;
+            } else {
+              asignedClassrooms.push(newClassroomKey);
+            }
+            // que el profesor no este ocupado ese dia a esa hora
+            const newHourKey = hour.id + day.id + subject.quarter.q1;
+            if (asignedHours.includes(newHourKey)) {
+              continue;
+            } else {
+              asignedHours.push(newHourKey);
+            }
+
             const scheduleIem: ScheduleItem = {
               hours_id: hour.id,
               teacher_id: subject.quarter.q1 || "",
@@ -73,30 +101,16 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
               classroom_id: classroom.id,
               seccion: subject.seccion || "",
               trayecto_id: subject.trayectoId,
-              turn_id: subject.turnoName, // hay que buscar el id
+              turn_id: turno?.id || "",
               pnf_id: subject.pnfId,
             };
-            schedule.push(scheduleIem);
+            scheduleData.push(scheduleIem);
           }
         }
       }
     }
-    console.log(schedule);
-    return;
-    const testData: ScheduleItem[] = [
-      {
-        hours_id: "b4b33b9a-787a-49a6-8c4e-a2a59ca2b46f",
-        teacher_id: "00ac3ed9-bb44-4adf-b6f8-a51ccf12d097",
-        day_id: "2b098350-f552-4fbb-ae40-65b46dadd932",
-        subject_id: "000af8b4-96cc-4dbe-b3c9-0b6e188600a4",
-        classroom_id: "65895923-45b8-41dd-9ff2-a849f58056ea",
-        seccion: "1",
-        trayecto_id: "16817025-cd37-41e7-8d2b-5db381c7a725",
-        turn_id: "5df454ed-2874-4d14-a74b-115f4d2c3463",
-        pnf_id: "00635193-cb18-4e16-93c3-87506b07a0f3",
-      },
-    ];
-    const schedule = await InsertSchedule(testData);
+
+    const schedule = await InsertSchedule(scheduleData);
     if (schedule.error) {
       message.error(schedule.message.error);
       console.error(schedule);

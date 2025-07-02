@@ -6,14 +6,16 @@ import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { Subject } from "../../interfaces/subject";
 import { Teacher } from "../../interfaces/teacher";
+import { Turno } from "../../interfaces/turnos";
 
 export interface ScheduleCommonData {
   subjects: Subject[] | null;
   teachers: Teacher[] | null;
+  turnos: Turno[] | null;
 }
 
 export default function Schedule() {
-  const { teachers, subjects } = useContext(MainContext) as MainContextValues;
+  const { teachers, subjects, turnosList } = useContext(MainContext) as MainContextValues;
 
   const onChange = (key: string) => {
     console.log(key);
@@ -22,6 +24,7 @@ export default function Schedule() {
   const scheduleComonValues: ScheduleCommonData = {
     subjects,
     teachers,
+    turnos: turnosList,
   };
 
   const items: TabsProps["items"] = [
