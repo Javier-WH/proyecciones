@@ -108,7 +108,7 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
       const turno = turnos.find((t) => t.name === subject.turnoName);
       if (!turno) continue;
 
-      const subjectKey = getSubjectKey({ subject, quarter: "q1" });
+      const subjectKey = getSubjectKey({ subject });
       if (assignedSubjects.has(subjectKey)) continue;
 
       // Buscar slot disponible
@@ -153,7 +153,7 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
     }
   };
 
-  // Función de clave única para materias (modificada)
+  // Función de clave única para materias
   function getSubjectKey({ subject }: { subject: Subject }): string {
     return `${subject.id}-${subject.seccion}-${subject.trayectoId}-${subject.pnfId}`;
   }
