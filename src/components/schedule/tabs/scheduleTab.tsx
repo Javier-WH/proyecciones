@@ -142,7 +142,12 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
     try {
       const schedule = await InsertSchedule(scheduleData);
       if (schedule.error) {
+        const error = schedule.message.message;
+        const [messaje, fileds] = error.split(":");
+        console.log({ messaje, fileds });
+
         message.error(`Error: ${schedule.message.error}`);
+
         console.error("Detalles del error:", schedule);
       } else {
         message.success(`Horario generado: ${scheduleData.length} clases asignadas`);
