@@ -83,7 +83,11 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
     // 3. Función para encontrar slot disponible
     const findAvailableSlot = (teacherId: string) => {
       for (const day of days) {
+        // aqui van las restricciones de dias
+
         for (const hour of hours) {
+          // aqui van las restricciones de horas
+
           const teacherKey = `${teacherId}-${day.id}-${hour.id}`;
 
           // Verificar si el profesor ya está ocupado
@@ -144,7 +148,7 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
       if (schedule.error) {
         const error = schedule.message.message;
         const [messaje, fileds] = error.split(":");
-        console.log({ messaje, fileds });
+        console.log({ messaje, fileds }); // tengo que crear un manejo de erores mas adecuado
 
         message.error(`Error: ${schedule.message.error}`);
 
