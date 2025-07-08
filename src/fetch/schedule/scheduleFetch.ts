@@ -91,3 +91,28 @@ export async function getClassrooms() {
   return response.json();
 }
 
+/**
+ * Fetches the schedule data from the server.
+ * @returns A promise that resolves to an object containing the schedule data if successful.
+ * If an error occurs, the promise resolves to an object with an error property set to true,
+ * a status code, and a message describing the error.
+ */
+
+export async function getSchedule() {
+  let headersList = {
+    Accept: "*/*",
+    "Content-Type": "application/json",
+  };
+
+  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/schedule" : "/schedule";
+  let response = await fetch(url, {
+    method: "GET",
+    headers: headersList,
+  });
+
+  if (!response.ok) {
+    return { error: true, status: response.status, message: await response.json() };
+  }
+  return response.json();
+}
+
