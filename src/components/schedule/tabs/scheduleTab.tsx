@@ -25,7 +25,7 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
     const cellData = scheduleRawData.find((item) => item.day_id == dayId && item.hours_id == hourId);
 
     if (!cellData) return null;
-    const subject = subjects?.find((subject) => subject.id === cellData.subject_id)?.subject;
+    const subject = subjects?.find((subject) => subject.id === cellData.subject_id)?.subject || "Desconocido";
     const classroom = classrooms?.find((classroom) => classroom.id === cellData.classroom_id)?.classroom;
     const turn = turnos?.find((turno) => turno.id === cellData.turn_id)?.name;
     const teacher = teachers?.find((teacher) => teacher.id === cellData.teacher_id);
