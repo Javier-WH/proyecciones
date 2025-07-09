@@ -32,6 +32,27 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
     return { subject, classroom, turn, teacher: teacher?.name + " " + teacher?.lastName };
   };
 
+  function normalizeTeacherName(teacherName: string): string {
+    // 1. Convertir todo el nombre a minúsculas
+    const lowerCaseName = teacherName.toLowerCase();
+
+    // 2. Dividir el nombre en palabras usando el espacio como delimitador
+    const words = lowerCaseName.split(" ");
+
+    // 3. Capitalizar la primera letra de cada palabra
+    const capitalizeWords = words.map((word) => {
+      // Si la palabra está vacía (por ejemplo, doble espacio), retornarla como está
+      if (word.length === 0) {
+        return "";
+      }
+      // Capitalizar la primera letra y añadir el resto de la palabra
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    });
+
+    // 4. Unir las palabras capitalizadas de nuevo en una sola cadena
+    return capitalizeWords.join(" ");
+  }
+
   return (
     <div>
       <table className="schedule-table">
@@ -50,17 +71,24 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
               {days?.map((day) => {
                 const key = `${hour.id}-${day.id}`;
                 const cellData = getCellData(hour.id, day.id);
+                const teacherName = normalizeTeacherName(cellData?.teacher || "");
+                const rowStyle: React.CSSProperties = {
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100px",
+                };
                 return (
                   <td key={key} id={key}>
                     {cellData ? (
-                      <>
-                        <div className="subject">{cellData.subject}</div>
-                        <div className="teacher">{cellData.teacher}</div>
-                        <div className="classroom">{cellData.classroom}</div>
-                        <div className="turn">{cellData.turn}</div>
-                      </>
+                      <div style={rowStyle}>
+                        <span style={{ fontWeight: "bold" }}>{cellData.subject}</span>
+                        <span style={{ fontSize: "0.9em", textAlign: "center" }}>{teacherName}</span>
+                        <span style={{ fontSize: "0.8em", textAlign: "center" }}>{cellData.classroom}</span>
+                      </div>
                     ) : (
-                      <div>vacio</div>
+                      <div style={rowStyle}>vacio</div>
                     )}
                   </td>
                 );
