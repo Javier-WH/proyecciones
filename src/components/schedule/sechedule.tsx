@@ -28,19 +28,19 @@ export interface ScheduleCommonData {
   schedule: ScheduleItem[];
 }
 
-interface Days {
+export interface Days {
   id: string;
   index: number;
   day: string;
 }
 
-interface Hours {
+export interface Hours {
   id: string;
   index: number;
-  hour: string;
+  hours: string;
 }
 
-interface Classroom {
+export interface Classroom {
   id: string;
   classroom: string;
 }

@@ -1,0 +1,9 @@
+.schedule-table {
+    width: 100%;
+
+}
+
+.schedule-table th {
+    width: calc(100%/8);
+
+}
