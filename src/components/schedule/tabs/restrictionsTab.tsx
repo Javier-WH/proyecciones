@@ -1,18 +1,23 @@
 import { Button, message } from "antd";
 import { Days, Hours, ScheduleCommonData } from "../sechedule";
 import { useEffect, useState } from "react";
+import { InlineHours, Subject } from "../../../interfaces/subject";
 
 export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) {
   const { subjects, teachers, turnos, days, hours, classrooms, InsertSchedule } = data;
   const [filteredHours, setFilteredHours] = useState<Hours[]>([]);
   const [filteredDays, setFilteredDays] = useState<Days[]>([]);
+  const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
 
   useEffect(() => {
-    if (!hours || hours.length === 0 || !days || days.length === 0) return;
+    if (!hours || hours.length === 0 || !days || days.length === 0 || !subjects || subjects?.length === 0)
+      return;
     const filteredHours = hours.filter((hour) => hour.index >= 1 && hour.index <= 7);
     const filteredDays = days.filter((day) => day.index >= 1 && day.index <= 5);
     setFilteredDays(filteredDays);
     setFilteredHours(filteredHours);
+    const filteredSubjects = splitSubjectsByQuarter(subjects, "q1");
+    setFilteredSubjects(filteredSubjects);
   }, [hours, days]);
 
   const handleGenerateSchedule = async () => {
@@ -24,12 +29,14 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       !hours ||
       !filteredHours ||
       !classrooms ||
+      !filteredSubjects ||
       subjects.length === 0 ||
       teachers.length === 0 ||
       days.length === 0 ||
       hours.length === 0 ||
       filteredHours.length === 0 ||
       classrooms.length === 0 ||
+      filteredSubjects.length === 0 ||
       turnos.length === 0
     ) {
       message.warning("Faltan datos necesarios para generar el horario");
@@ -42,7 +49,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
     const occupiedSubjectCombos = new Set<string>(); //No se puede asignar una materia de una secccion, trayecto, turno y programa dos veces. Formato: "subject_id-seccion-trayecto_id-turn_id-pnf_id"
     const scheduleData = [];
 
-    for (const subject of subjects) {
+    for (const subject of filteredSubjects) {
       let assigned = false;
       let selectedDay = "";
       let selectedHour = "";
@@ -51,12 +58,12 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       const turnoId =
         turnos.find((turno) => turno.name.toLowerCase() === subject.turnoName.toLowerCase())?.id || null;
       const teacherId = subject?.quarter?.q1 || null;
-      const subjectComboKey = `${subject.id}-${subject.seccion}-${subject.trayectoId}-${turnoId}-${subject.pnfId}`;
 
       if (!teacherId || !turnoId) {
         continue;
       }
 
+      const subjectComboKey = `${subject.id}-${subject.seccion}-${subject.trayectoId}-${turnoId}-${subject.pnfId}`;
       if (occupiedSubjectCombos.has(subjectComboKey)) {
         console.warn(`Combinación única ya ocupada para: ${subject.subject}`);
         continue;
@@ -129,5 +136,38 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       </Button>
     </div>
   );
+}
+
+function splitSubjectsByQuarter(subjects: Subject[], quarter: keyof InlineHours): Subject[] {
+  const result: Subject[] = [];
+
+  for (const subject of subjects) {
+    // Obtener la cantidad de horas para el trimestre especificado
+    const hoursCount = subject.hours[quarter] || 0;
+
+    // Si no hay horas para este trimestre, saltar esta materia
+    if (hoursCount <= 0) continue;
+
+    // Crear n copias de la materia, una por cada hora
+    for (let i = 1; i <= hoursCount; i++) {
+      const clonedSubject: Subject = {
+        ...subject,
+        innerId: `${subject.innerId}-${quarter}-${i}`,
+        hours: {
+          ...subject.hours,
+          [quarter]: 1, // Cada copia representa 1 hora
+        },
+      };
+
+      // Actualizar la clave si existe
+      if (clonedSubject.key) {
+        clonedSubject.key = `${clonedSubject.key}-${quarter}-${i}`;
+      }
+
+      result.push(clonedSubject);
+    }
+  }
+
+  return result;
 }
 
