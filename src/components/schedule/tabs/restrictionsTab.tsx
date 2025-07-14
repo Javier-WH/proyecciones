@@ -1,8 +1,19 @@
 import { Button, message } from "antd";
-import { ScheduleCommonData } from "../sechedule";
+import { Days, Hours, ScheduleCommonData } from "../sechedule";
+import { useEffect, useState } from "react";
 
 export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) {
   const { subjects, teachers, turnos, days, hours, classrooms, InsertSchedule } = data;
+  const [filteredHours, setFilteredHours] = useState<Hours[]>([]);
+  const [filteredDays, setFilteredDays] = useState<Days[]>([]);
+
+  useEffect(() => {
+    if (!hours || hours.length === 0 || !days || days.length === 0) return;
+    const filteredHours = hours.filter((hour) => hour.index >= 1 && hour.index <= 7);
+    const filteredDays = days.filter((day) => day.index >= 1 && day.index <= 5);
+    setFilteredDays(filteredDays);
+    setFilteredHours(filteredHours);
+  }, [hours, days]);
 
   const handleGenerateSchedule = async () => {
     if (
@@ -11,11 +22,13 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       !turnos ||
       !days ||
       !hours ||
+      !filteredHours ||
       !classrooms ||
       subjects.length === 0 ||
       teachers.length === 0 ||
       days.length === 0 ||
       hours.length === 0 ||
+      filteredHours.length === 0 ||
       classrooms.length === 0 ||
       turnos.length === 0
     ) {
@@ -49,8 +62,8 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
         continue;
       }
 
-      outerLoop: for (const day of days) {
-        for (const hour of hours) {
+      outerLoop: for (const day of filteredDays) {
+        for (const hour of filteredHours) {
           for (const classroom of classrooms) {
             const classroomSlot = `${day.id}-${hour.id}-${classroom.id}`;
             const pnfSlot = `${day.id}-${hour.id}-${subject.pnfId}-${subject.trayectoId}`;
