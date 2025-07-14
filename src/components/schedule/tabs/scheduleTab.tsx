@@ -1,15 +1,24 @@
 import { Days, ScheduleCommonData } from "../sechedule";
 import { useEffect, useState } from "react";
 import "./scheduleTable.css";
+import { ScheduleItem } from "../scheduleInterfaces";
 
 export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
   const { schedule: scheduleRawData, hours, turnos, days: daysData, classrooms, subjects, teachers } = data;
 
   const [days, setDays] = useState<Days[]>([]);
+  const [filteredScheduleData, setFilteredScheduleData] = useState<ScheduleItem[]>([]);
 
   useEffect(() => {
     if (!scheduleRawData || scheduleRawData.length === 0) return;
-    //console.log(scheduleRawData);
+    const filteredData = scheduleRawData.filter(
+      (item) =>
+        item.pnf_id === "00635193-cb18-4e16-93c3-87506b07a0f3" &&
+        item.turn_id === "5df454ed-2874-4d14-a74b-115f4d2c3463" &&
+        item.trayecto_id === "7881c5df-a7d4-4ec5-89ec-3140243181bc" &&
+        item.seccion === "1"
+    );
+    setFilteredScheduleData(filteredData);
   }, [scheduleRawData]);
 
   useEffect(() => {
@@ -22,7 +31,7 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
   }, [daysData]);
 
   const getCellData = (hourId: string, dayId: string) => {
-    const cellData = scheduleRawData.find((item) => item.day_id == dayId && item.hours_id == hourId);
+    const cellData = filteredScheduleData.find((item) => item.day_id == dayId && item.hours_id == hourId);
 
     if (!cellData) return null;
     const subject = subjects?.find((subject) => subject.id === cellData.subject_id)?.subject || "Desconocido";

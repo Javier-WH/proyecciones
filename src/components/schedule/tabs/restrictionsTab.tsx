@@ -1,7 +1,5 @@
 import { Button, message } from "antd";
-import { ScheduleItem } from "../scheduleInterfaces";
 import { ScheduleCommonData } from "../sechedule";
-import { Subject } from "../../../interfaces/subject";
 
 export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) {
   const { subjects, teachers, turnos, days, hours, classrooms, InsertSchedule } = data;
@@ -25,109 +23,91 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       return;
     }
 
-    const scheduleData: ScheduleItem[] = [];
-    const busyTeacherSlots = new Set<string>(); // Formato: teacherId-dayId-hourId
-    const busyClassroomSlots = new Set<string>(); // Formato: classroomId-dayId-hourId
-    const assignedSubjects = new Set<string>(); // Materias ya asignadas
+    const occupiedClassrooms = new Set<string>(); // Un alula de clases no puede estar ocupada en el mismo horario. Formato: "dia-hora-aula"
+    const occupiedPNFs = new Set<string>(); //Un PNF no puede ver dos clases el mismo dia a la misma hora. Formato: "dia-hora-pnfId-trayectoId"
+    const occupiedTeachers = new Set<string>(); //Un profesor no puede dar dos clases el mismo dia a la misma hora. Formato: "dia-hora-teacherId"
+    const occupiedSubjectCombos = new Set<string>(); //No se puede asignar una materia de una secccion, trayecto, turno y programa dos veces. Formato: "subject_id-seccion-trayecto_id-turn_id-pnf_id"
+    const scheduleData = [];
 
-    // 1. Filtrar solo materias con profesor asignado en q1
-    const q1Subjects = subjects.filter(
-      (subject) => subject.quarter?.q1 && teachers.some((t) => t.id === subject.quarter.q1)
-    );
+    for (const subject of subjects) {
+      let assigned = false;
+      let selectedDay = "";
+      let selectedHour = "";
+      let selectedClassroom = "";
 
-    // 2. Ordenar por cantidad de horas requeridas (si está disponible)
-    q1Subjects.sort((a, b) => {
-      const hoursA = a.hours.q1 || 0;
-      const hoursB = b.hours.q1 || 0;
-      return hoursB - hoursA; // Materias con más horas primero
-    });
+      const turnoId =
+        turnos.find((turno) => turno.name.toLowerCase() === subject.turnoName.toLowerCase())?.id || null;
+      const teacherId = subject?.quarter?.q1 || null;
+      const subjectComboKey = `${subject.id}-${subject.seccion}-${subject.trayectoId}-${turnoId}-${subject.pnfId}`;
 
-    // 3. Función para encontrar slot disponible
-    const findAvailableSlot = (teacherId: string) => {
-      for (const day of days) {
-        // aqui van las restricciones de dias
+      if (!teacherId || !turnoId) {
+        continue;
+      }
 
+      if (occupiedSubjectCombos.has(subjectComboKey)) {
+        console.warn(`Combinación única ya ocupada para: ${subject.subject}`);
+        continue;
+      }
+
+      outerLoop: for (const day of days) {
         for (const hour of hours) {
-          // aqui van las restricciones de horas
-
-          const teacherKey = `${teacherId}-${day.id}-${hour.id}`;
-
-          // Verificar si el profesor ya está ocupado
-          if (busyTeacherSlots.has(teacherKey)) continue;
-
-          // Buscar aula disponible para este slot
           for (const classroom of classrooms) {
-            const classroomKey = `${classroom.id}-${day.id}-${hour.id}`;
+            const classroomSlot = `${day.id}-${hour.id}-${classroom.id}`;
+            const pnfSlot = `${day.id}-${hour.id}-${subject.pnfId}-${subject.trayectoId}`;
+            const teacherSlot = `${day.id}-${hour.id}-${teacherId}`;
 
-            if (!busyClassroomSlots.has(classroomKey)) {
-              return { day, hour, classroom };
+            const isClassroomFree = !occupiedClassrooms.has(classroomSlot);
+            const isPNFFree = !occupiedPNFs.has(pnfSlot);
+            const isTeacherFree = !occupiedTeachers.has(teacherSlot);
+
+            if (isClassroomFree && isPNFFree && isTeacherFree) {
+              // Reservar recursos
+              occupiedClassrooms.add(classroomSlot);
+              occupiedPNFs.add(pnfSlot);
+              occupiedTeachers.add(teacherSlot);
+              occupiedSubjectCombos.add(subjectComboKey);
+
+              selectedDay = day.id;
+              selectedHour = hour.id;
+              selectedClassroom = classroom.id;
+              assigned = true;
+              break outerLoop;
             }
           }
         }
       }
-      return null; // No hay slots disponibles
-    };
 
-    // 4. Asignar materias
-    for (const subject of q1Subjects) {
-      const teacherId = subject.quarter.q1!;
-      const turno = turnos.find((t) => t.name === subject.turnoName);
-      if (!turno) continue;
-
-      const subjectKey = getSubjectKey({ subject });
-      if (assignedSubjects.has(subjectKey)) continue;
-
-      // Buscar slot disponible
-      const slot = findAvailableSlot(teacherId);
-      if (!slot) {
-        console.warn(`No hay slots disponibles para: ${subject.subject}`);
+      if (!assigned) {
+        console.warn(`No hay horario disponible para: ${subject.subject}`);
         continue;
       }
 
-      // Crear registro de horario
-      const scheduleItem: ScheduleItem = {
-        hours_id: slot.hour.id,
-        teacher_id: teacherId,
-        day_id: slot.day.id,
+      scheduleData.push({
+        classroom_id: selectedClassroom,
+        day_id: selectedDay,
+        hours_id: selectedHour,
         subject_id: subject.id,
-        classroom_id: slot.classroom.id,
-        seccion: subject.seccion,
+        teacher_id: teacherId,
+        turn_id: turnoId,
         trayecto_id: subject.trayectoId,
-        turn_id: turno.id,
         pnf_id: subject.pnfId,
-      };
-
-      // Registrar asignación
-      scheduleData.push(scheduleItem);
-      busyTeacherSlots.add(`${teacherId}-${slot.day.id}-${slot.hour.id}`);
-      busyClassroomSlots.add(`${slot.classroom.id}-${slot.day.id}-${slot.hour.id}`);
-      assignedSubjects.add(subjectKey);
+        seccion: subject.seccion,
+      });
     }
 
-    // 5. Insertar en la base de datos
     try {
-      const schedule = await InsertSchedule(scheduleData);
-      if (schedule.error) {
-        const error = schedule.message.message;
-        const [messaje, fileds] = error.split(":");
-        console.log({ messaje, fileds }); // tengo que crear un manejo de erores mas adecuado
-
-        message.error(`Error: ${schedule.message.error}`);
-
-        console.error("Detalles del error:", schedule);
-      } else {
-        message.success(`Horario generado: ${scheduleData.length} clases asignadas`);
+      const response = await InsertSchedule(scheduleData);
+      if (response.error) {
+        console.error("Detalles del error:", response.message);
+        message.error(`Error: ${response.message}`);
+        return;
       }
+      message.success(`Horario generado con ${scheduleData.length}/${subjects.length} materias asignadas`);
     } catch (error) {
-      console.error("Error inesperado:", error);
-      message.error("Error al guardar el horario");
+      console.error("Error completo:", error);
+      message.error("Error crítico al generar el horario");
     }
   };
-
-  // Función de clave única para materias
-  function getSubjectKey({ subject }: { subject: Subject }): string {
-    return `${subject.id}-${subject.seccion}-${subject.trayectoId}-${subject.pnfId}`;
-  }
 
   return (
     <div>
