@@ -3,6 +3,12 @@ import { Days, Hours, ScheduleCommonData } from "../sechedule";
 import { useEffect, useState } from "react";
 import { InlineHours, Subject } from "../../../interfaces/subject";
 
+interface GroupedSubjects {
+  [pnf: string]: {
+    [seccion: string]: Subject[];
+  };
+}
+
 export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) {
   const { subjects, teachers, turnos, days, hours, classrooms, InsertSchedule, loadInitialData } = data;
   const [filteredHours, setFilteredHours] = useState<Hours[]>([]);
@@ -140,6 +146,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
   );
 }
 
+//separa las materias por horas individuales
 function splitSubjectsByQuarter(subjects: Subject[], quarter: keyof InlineHours): Subject[] {
   const result: Subject[] = [];
 
@@ -171,5 +178,29 @@ function splitSubjectsByQuarter(subjects: Subject[], quarter: keyof InlineHours)
   }
 
   return result;
+}
+
+//agrupa las materias por pnf y seccion
+function groupSubjectsByPnfAndSeccion(subjects: Subject[]): GroupedSubjects {
+  const grouped: GroupedSubjects = {};
+
+  for (const subject of subjects) {
+    const { pnf, seccion } = subject;
+
+    // Crear grupo para el PNF si no existe
+    if (!grouped[pnf]) {
+      grouped[pnf] = {};
+    }
+
+    // Crear grupo para la sección si no existe
+    if (!grouped[pnf][seccion]) {
+      grouped[pnf][seccion] = [];
+    }
+
+    // Agregar asignatura al grupo
+    grouped[pnf][seccion].push(subject);
+  }
+
+  return grouped;
 }
 
