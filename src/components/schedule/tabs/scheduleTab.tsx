@@ -1,5 +1,5 @@
 import { Days, ScheduleCommonData } from "../sechedule";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import "./scheduleTable.css";
 import { ScheduleItem } from "../scheduleInterfaces";
 
@@ -8,58 +8,124 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
 
   const [days, setDays] = useState<Days[]>([]);
   const [filteredScheduleData, setFilteredScheduleData] = useState<ScheduleItem[]>([]);
+  const [cellMatrix, setCellMatrix] = useState<{ rowspan: number; data: ScheduleItem | null }[][]>([]);
 
+  // Filtrar datos iniciales
   useEffect(() => {
     if (!scheduleRawData || scheduleRawData.length === 0) return;
     const filteredData = scheduleRawData.filter(
       (item) =>
         item.pnf_id === "00635193-cb18-4e16-93c3-87506b07a0f3" &&
+        item.trayecto_id === "16817025-cd37-41e7-8d2b-5db381c7a725" &&
         item.turn_id === "5df454ed-2874-4d14-a74b-115f4d2c3463" &&
         item.seccion === "1"
     );
     setFilteredScheduleData(filteredData);
   }, [scheduleRawData]);
 
+  // Ordenar y filtrar días (excluir sábado y domingo)
   useEffect(() => {
     if (!daysData || daysData.length === 0) return;
     const orderedDays = daysData.sort((a: Days, b: Days) => a.index - b.index);
-    setDays(orderedDays);
-    // excluir sabados y domingos
     const filteredDays = orderedDays.filter((day) => day.index !== 6 && day.index !== 7);
     setDays(filteredDays);
   }, [daysData]);
 
-  const getCellData = (hourId: string, dayId: string) => {
-    const cellData = filteredScheduleData.find((item) => item.day_id == dayId && item.hours_id == hourId);
+  // Calcular bloques consecutivos y matriz de rowSpan
+  useEffect(() => {
+    if (!hours || !days || !filteredScheduleData || filteredScheduleData.length === 0) {
+      return;
+    }
 
-    if (!cellData) return null;
-    const subject = subjects?.find((subject) => subject.id === cellData.subject_id)?.subject || "Desconocido";
-    const classroom = classrooms?.find((classroom) => classroom.id === cellData.classroom_id)?.classroom;
-    const turn = turnos?.find((turno) => turno.id === cellData.turn_id)?.name;
-    const teacher = teachers?.find((teacher) => teacher.id === cellData.teacher_id);
-    return { subject, classroom, turn, teacher: teacher?.name + " " + teacher?.lastName };
-  };
+    // Crear matriz inicial (todas las celdas con rowspan=1 y data=null)
+    const matrix = hours.map(() => days.map(() => ({ rowspan: 1, data: null })));
 
-  function normalizeTeacherName(teacherName: string): string {
-    // 1. Convertir todo el nombre a minúsculas
-    const lowerCaseName = teacherName.toLowerCase();
-
-    // 2. Dividir el nombre en palabras usando el espacio como delimitador
-    const words = lowerCaseName.split(" ");
-
-    // 3. Capitalizar la primera letra de cada palabra
-    const capitalizeWords = words.map((word) => {
-      // Si la palabra está vacía (por ejemplo, doble espacio), retornarla como está
-      if (word.length === 0) {
-        return "";
-      }
-      // Capitalizar la primera letra y añadir el resto de la palabra
-      return word.charAt(0).toUpperCase() + word.slice(1);
+    // Mapa para encontrar índice de una hora por ID
+    const hourIndexMap: Record<string, number> = {};
+    hours.forEach((hour, idx) => {
+      hourIndexMap[hour.id] = idx;
     });
 
-    // 4. Unir las palabras capitalizadas de nuevo en una sola cadena
-    return capitalizeWords.join(" ");
-  }
+    // Procesar cada día
+    days.forEach((day, dayIdx) => {
+      const dayItems = filteredScheduleData
+        .filter((item) => item.day_id === day.id)
+        .sort((a, b) => hourIndexMap[a.hours_id] - hourIndexMap[b.hours_id]);
+
+      let currentBlock: ScheduleItem[] = [];
+
+      for (let i = 0; i < dayItems.length; i++) {
+        const item = dayItems[i];
+        const prevItem = currentBlock[currentBlock.length - 1];
+
+        // Verificar si el item es consecutivo y del mismo tipo
+        if (
+          prevItem &&
+          hourIndexMap[item.hours_id] === hourIndexMap[prevItem.hours_id] + 1 &&
+          item.subject_id === prevItem.subject_id &&
+          item.teacher_id === prevItem.teacher_id &&
+          item.classroom_id === prevItem.classroom_id
+        ) {
+          currentBlock.push(item);
+        } else {
+          if (currentBlock.length > 0) {
+            processBlock(currentBlock, dayIdx, matrix, hourIndexMap);
+          }
+          currentBlock = [item];
+        }
+      }
+
+      if (currentBlock.length > 0) {
+        processBlock(currentBlock, dayIdx, matrix, hourIndexMap);
+      }
+    });
+
+    setCellMatrix(matrix);
+  }, [filteredScheduleData, hours, days]);
+
+  // Procesar un bloque de clases consecutivas
+  const processBlock = (
+    block: ScheduleItem[],
+    dayIdx: number,
+    matrix: { rowspan: number; data: null | ScheduleItem }[][],
+    hourIndexMap: Record<string, number>
+  ) => {
+    const startRow = hourIndexMap[block[0].hours_id];
+    const rowSpan = block.length;
+
+    // Actualizar primera celda del bloque
+    matrix[startRow][dayIdx] = {
+      rowspan: rowSpan,
+      data: block[0],
+    };
+
+    // Marcar celdas restantes como cubiertas (rowspan=0)
+    for (let i = 1; i < rowSpan; i++) {
+      matrix[startRow + i][dayIdx] = {
+        rowspan: 0,
+        data: null,
+      };
+    }
+  };
+
+  // Obtener datos formateados para una celda
+  const getCellData = (item: ScheduleItem) => {
+    const subject = subjects?.find((s) => s.id === item.subject_id)?.subject || "Desconocido";
+    const classroom = classrooms?.find((c) => c.id === item.classroom_id)?.classroom || "";
+    const teacher = teachers?.find((t) => t.id === item.teacher_id);
+    const teacherName = teacher ? `${teacher.name} ${teacher.lastName}` : "";
+
+    return { subject, classroom, teacher: teacherName };
+  };
+
+  // Normalizar nombre del profesor
+  const normalizeTeacherName = (teacherName: string): string => {
+    return teacherName
+      .toLowerCase()
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
 
   return (
     <div>
@@ -73,30 +139,26 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
           </tr>
         </thead>
         <tbody>
-          {hours?.map((hour) => (
+          {hours?.map((hour, rowIdx) => (
             <tr key={hour.id}>
               <th>{hour.hours}</th>
-              {days?.map((day) => {
-                const key = `${hour.id}-${day.id}`;
-                const cellData = getCellData(hour.id, day.id);
-                const teacherName = normalizeTeacherName(cellData?.teacher || "");
-                const rowStyle: React.CSSProperties = {
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: "100px",
-                };
+              {days?.map((day, colIdx) => {
+                const cell = cellMatrix[rowIdx]?.[colIdx];
+                if (!cell || cell.rowspan === 0) return null;
+
+                const cellInfo = cell.data ? getCellData(cell.data) : null;
+                const teacherName = cellInfo ? normalizeTeacherName(cellInfo.teacher) : "";
+
                 return (
-                  <td key={key} id={key}>
-                    {cellData ? (
-                      <div style={rowStyle}>
-                        <span style={{ fontWeight: "bold" }}>{cellData.subject}</span>
-                        <span style={{ fontSize: "0.9em", textAlign: "center" }}>{teacherName}</span>
-                        <span style={{ fontSize: "0.8em", textAlign: "center" }}>{cellData.classroom}</span>
+                  <td key={`${hour.id}-${day.id}`} rowSpan={cell.rowspan > 1 ? cell.rowspan : undefined}>
+                    {cellInfo ? (
+                      <div className="cell-content">
+                        <span className="subject">{cellInfo.subject}</span>
+                        <span className="teacher">{teacherName}</span>
+                        <span className="classroom">{cellInfo.classroom}</span>
                       </div>
                     ) : (
-                      <div style={rowStyle}>vacio</div>
+                      <div className="cell-content">vacio</div>
                     )}
                   </td>
                 );

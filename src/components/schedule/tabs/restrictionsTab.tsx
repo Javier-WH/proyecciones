@@ -1,16 +1,12 @@
 import { Button, message } from "antd";
 import { Days, Hours, ScheduleCommonData } from "../sechedule";
 import { useEffect, useState } from "react";
-import { InlineHours, Subject } from "../../../interfaces/subject";
-
-interface GroupedSubjects {
-  [pnf: string]: {
-    [seccion: string]: Subject[];
-  };
-}
+import { Subject } from "../../../interfaces/subject";
+import SaveSchedule from "./utils/saveSchedule";
+import { splitSubjectsByQuarter } from "./utils/SubjectArraysFunctions";
 
 export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) {
-  const { subjects, teachers, turnos, days, hours, classrooms, InsertSchedule, loadInitialData } = data;
+  const { subjects, teachers, turnos, days, hours, classrooms, schedule, loadInitialData } = data;
   const [filteredHours, setFilteredHours] = useState<Hours[]>([]);
   const [filteredDays, setFilteredDays] = useState<Days[]>([]);
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
@@ -20,10 +16,16 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       return;
     const filteredHours = hours.filter((hour) => hour.index >= 1 && hour.index <= 7);
     const filteredDays = days.filter((day) => day.index >= 1 && day.index <= 5);
-    console.log(filteredDays);
     setFilteredDays(filteredDays);
     setFilteredHours(filteredHours);
-    const filteredSubjects = splitSubjectsByQuarter(subjects, "q1");
+    const gropedSubjects = subjects.filter(
+      (item) =>
+        item.pnfId === "00635193-cb18-4e16-93c3-87506b07a0f3" &&
+        item.trayectoId === "16817025-cd37-41e7-8d2b-5db381c7a725" &&
+        item.turnoName === "Mañana" &&
+        item.seccion === "2"
+    );
+    const filteredSubjects = splitSubjectsByQuarter(gropedSubjects, "q1");
     setFilteredSubjects(filteredSubjects);
   }, [hours, days]);
 
@@ -56,6 +58,20 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
     //const occupiedSubjectCombos = new Set<string>(); //No se puede asignar una materia de una secccion, trayecto, turno y programa dos veces. Formato: "subject_id-seccion-trayecto_id-turn_id-pnf_id"
     const scheduleData = [];
 
+    if (schedule.length > 0) {
+      for (const scheduleItem of schedule) {
+        occupiedClassrooms.add(
+          `${scheduleItem.day_id}-${scheduleItem.hours_id}-${scheduleItem.classroom_id}`
+        );
+
+        occupiedPNFs.add(
+          `${scheduleItem.day_id}-${scheduleItem.hours_id}-${scheduleItem.pnf_id}-${scheduleItem.trayecto_id}-${scheduleItem.seccion}-${scheduleItem.turn_id}`
+        );
+        occupiedTeachers.add(`${scheduleItem.day_id}-${scheduleItem.hours_id}-${scheduleItem.teacher_id}`);
+        //occupiedSubjectCombos.add(`${scheduleItem.subject_id}-${scheduleItem.seccion}-${scheduleItem.trayecto_id}-${scheduleItem.turn_id}-${scheduleItem.pnf_id}`);
+      }
+    }
+
     for (const subject of filteredSubjects) {
       let assigned = false;
       let selectedDay = "";
@@ -80,7 +96,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
         for (const hour of filteredHours) {
           for (const classroom of classrooms) {
             const classroomSlot = `${day.id}-${hour.id}-${classroom.id}`;
-            const pnfSlot = `${day.id}-${hour.id}-${subject.pnfId}-${subject.trayectoId}`;
+            const pnfSlot = `${day.id}-${hour.id}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}-${turnoId}`;
             const teacherSlot = `${day.id}-${hour.id}-${teacherId}`;
 
             const isClassroomFree = !occupiedClassrooms.has(classroomSlot);
@@ -122,19 +138,12 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       });
     }
 
-    try {
-      const response = await InsertSchedule(scheduleData);
-      if (response.error) {
-        console.error("Detalles del error:", response.message);
-        message.error(`Error: ${response.message.message}`);
-        return;
-      }
-      // await loadInitialData();
-      message.success(`Horario generado con ${scheduleData.length}/${subjects.length} materias asignadas`);
-    } catch (error) {
-      console.error("Error completo:", error);
-      message.error("Error crítico al generar el horario");
+    const resposeSaveSchedule = await SaveSchedule(scheduleData, subjects);
+    if (resposeSaveSchedule.error) {
+      message.error(resposeSaveSchedule.message);
+      return;
     }
+    message.success(resposeSaveSchedule.message);
   };
 
   return (
@@ -144,63 +153,5 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       </Button>
     </div>
   );
-}
-
-//separa las materias por horas individuales
-function splitSubjectsByQuarter(subjects: Subject[], quarter: keyof InlineHours): Subject[] {
-  const result: Subject[] = [];
-
-  for (const subject of subjects) {
-    // Obtener la cantidad de horas para el trimestre especificado
-    const hoursCount = subject.hours[quarter] || 0;
-
-    // Si no hay horas para este trimestre, saltar esta materia
-    if (hoursCount <= 0) continue;
-
-    // Crear n copias de la materia, una por cada hora
-    for (let i = 1; i <= hoursCount; i++) {
-      const clonedSubject: Subject = {
-        ...subject,
-        innerId: `${subject.innerId}-${quarter}-${i}`,
-        hours: {
-          ...subject.hours,
-          [quarter]: 1, // Cada copia representa 1 hora
-        },
-      };
-
-      // Actualizar la clave si existe
-      if (clonedSubject.key) {
-        clonedSubject.key = `${clonedSubject.key}-${quarter}-${i}`;
-      }
-
-      result.push(clonedSubject);
-    }
-  }
-
-  return result;
-}
-
-//agrupa las materias por pnf y seccion
-function groupSubjectsByPnfAndSeccion(subjects: Subject[]): GroupedSubjects {
-  const grouped: GroupedSubjects = {};
-
-  for (const subject of subjects) {
-    const { pnf, seccion } = subject;
-
-    // Crear grupo para el PNF si no existe
-    if (!grouped[pnf]) {
-      grouped[pnf] = {};
-    }
-
-    // Crear grupo para la sección si no existe
-    if (!grouped[pnf][seccion]) {
-      grouped[pnf][seccion] = [];
-    }
-
-    // Agregar asignatura al grupo
-    grouped[pnf][seccion].push(subject);
-  }
-
-  return grouped;
 }
 
