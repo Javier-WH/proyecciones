@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { InlineHours, Subject } from "../../../interfaces/subject";
 
 export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) {
-  const { subjects, teachers, turnos, days, hours, classrooms, InsertSchedule } = data;
+  const { subjects, teachers, turnos, days, hours, classrooms, InsertSchedule, loadInitialData } = data;
   const [filteredHours, setFilteredHours] = useState<Hours[]>([]);
   const [filteredDays, setFilteredDays] = useState<Days[]>([]);
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
@@ -14,6 +14,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       return;
     const filteredHours = hours.filter((hour) => hour.index >= 1 && hour.index <= 7);
     const filteredDays = days.filter((day) => day.index >= 1 && day.index <= 5);
+    console.log(filteredDays);
     setFilteredDays(filteredDays);
     setFilteredHours(filteredHours);
     const filteredSubjects = splitSubjectsByQuarter(subjects, "q1");
@@ -46,7 +47,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
     const occupiedClassrooms = new Set<string>(); // Un alula de clases no puede estar ocupada en el mismo horario. Formato: "dia-hora-aula"
     const occupiedPNFs = new Set<string>(); //Un PNF no puede ver dos clases el mismo dia a la misma hora. Formato: "dia-hora-pnfId-trayectoId"
     const occupiedTeachers = new Set<string>(); //Un profesor no puede dar dos clases el mismo dia a la misma hora. Formato: "dia-hora-teacherId"
-    const occupiedSubjectCombos = new Set<string>(); //No se puede asignar una materia de una secccion, trayecto, turno y programa dos veces. Formato: "subject_id-seccion-trayecto_id-turn_id-pnf_id"
+    //const occupiedSubjectCombos = new Set<string>(); //No se puede asignar una materia de una secccion, trayecto, turno y programa dos veces. Formato: "subject_id-seccion-trayecto_id-turn_id-pnf_id"
     const scheduleData = [];
 
     for (const subject of filteredSubjects) {
@@ -63,11 +64,11 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
         continue;
       }
 
-      const subjectComboKey = `${subject.id}-${subject.seccion}-${subject.trayectoId}-${turnoId}-${subject.pnfId}`;
+      /*const subjectComboKey = `${subject.id}-${subject.seccion}-${subject.trayectoId}-${turnoId}-${subject.pnfId}`;
       if (occupiedSubjectCombos.has(subjectComboKey)) {
         console.warn(`Combinación única ya ocupada para: ${subject.subject}`);
         continue;
-      }
+      }*/
 
       outerLoop: for (const day of filteredDays) {
         for (const hour of filteredHours) {
@@ -85,7 +86,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
               occupiedClassrooms.add(classroomSlot);
               occupiedPNFs.add(pnfSlot);
               occupiedTeachers.add(teacherSlot);
-              occupiedSubjectCombos.add(subjectComboKey);
+              //occupiedSubjectCombos.add(subjectComboKey);
 
               selectedDay = day.id;
               selectedHour = hour.id;
@@ -119,9 +120,10 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       const response = await InsertSchedule(scheduleData);
       if (response.error) {
         console.error("Detalles del error:", response.message);
-        message.error(`Error: ${response.message}`);
+        message.error(`Error: ${response.message.message}`);
         return;
       }
+      // await loadInitialData();
       message.success(`Horario generado con ${scheduleData.length}/${subjects.length} materias asignadas`);
     } catch (error) {
       console.error("Error completo:", error);

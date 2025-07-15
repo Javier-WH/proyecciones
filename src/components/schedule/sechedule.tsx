@@ -26,6 +26,7 @@ export interface ScheduleCommonData {
   classrooms: Classroom[] | null;
   InsertSchedule: (schedule: ScheduleItem[]) => Promise<{ error: boolean; status: number; message: any }>;
   schedule: ScheduleItem[];
+  loadInitialData: () => void;
 }
 
 export interface Days {
@@ -88,6 +89,7 @@ export default function Schedule() {
     classrooms,
     InsertSchedule,
     schedule,
+    loadInitialData,
   };
 
   const items: TabsProps["items"] = [

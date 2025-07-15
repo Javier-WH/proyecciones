@@ -25,8 +25,8 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
     const orderedDays = daysData.sort((a: Days, b: Days) => a.index - b.index);
     setDays(orderedDays);
     // excluir sabados y domingos
-    /*const filteredDays = orderedDays.filter((day) => day.index !== 6 && day.index !== 7);
-    setDays(filteredDays);*/
+    const filteredDays = orderedDays.filter((day) => day.index !== 6 && day.index !== 7);
+    setDays(filteredDays);
   }, [daysData]);
 
   const getCellData = (hourId: string, dayId: string) => {
