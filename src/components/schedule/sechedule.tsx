@@ -108,13 +108,8 @@ export default function Schedule() {
     },
     {
       key: "2",
-      label: "Restricciones",
+      label: "Crear",
       children: <RestrictionsTab data={scheduleComonValues} />,
-    },
-    {
-      key: "3",
-      label: "Configuración",
-      children: "Content of Tab Pane 3",
     },
   ];
   return <Tabs style={{ marginLeft: "20px" }} defaultActiveKey="1" items={items} onChange={onChange} />;
