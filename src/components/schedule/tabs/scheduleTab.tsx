@@ -95,7 +95,7 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
         item.pnf_id === selectedPnf &&
         item.trayecto_id === selectedTrayecto &&
         item.turn_id === selectedTurn &&
-        item.quarter === "1" &&
+        item.quarter === selectedQuarter &&
         item.seccion === selectedSeccion
     );
 
@@ -267,6 +267,19 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
           options={seccionOptions}
           value={selectedSeccion}
           onChange={(value) => setSelectedSeccion(value)}
+        />
+
+        <Select
+          showSearch
+          style={{ width: 200 }}
+          placeholder="Seleccione un trimestre"
+          optionFilterProp="label"
+          filterSort={(optionA, optionB) =>
+            (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+          }
+          options={quarterOptions}
+          value={selectedQuarter}
+          onChange={(value) => setSelectedQuarter(value)}
         />
       </div>
 
