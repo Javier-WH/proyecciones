@@ -1,27 +1,106 @@
 import { Days, ScheduleCommonData } from "../sechedule";
-import { useEffect, useState, useMemo } from "react";
-import "./scheduleTable.css";
+import { useEffect, useState } from "react";
 import { ScheduleItem } from "../scheduleInterfaces";
+import { Select, Tag } from "antd";
+import "./scheduleTable.css";
 
 export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
-  const { schedule: scheduleRawData, hours, turnos, days: daysData, classrooms, subjects, teachers } = data;
+  const {
+    schedule: scheduleRawData,
+    hours,
+    turnos,
+    days: daysData,
+    classrooms,
+    subjects,
+    teachers,
+    pnfList,
+    loadInitialData,
+    trayectosList,
+  } = data;
 
   const [days, setDays] = useState<Days[]>([]);
   const [filteredScheduleData, setFilteredScheduleData] = useState<ScheduleItem[]>([]);
   const [cellMatrix, setCellMatrix] = useState<{ rowspan: number; data: ScheduleItem | null }[][]>([]);
+  const [pnfOptions, setPnfOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedPnf, setSelectedPnf] = useState<string>("");
+  const [trayectoOptions, setTrayectoOptions] = useState<{ value: string; label: string; order: number }[]>(
+    []
+  );
+  const [selectedTrayecto, setSelectedTrayecto] = useState<string>("");
+  const [turnOptions, setTurnOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedTurn, setSelectedTurn] = useState<string>("");
+  const [quarterOptions, setQuarterOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedQuarter, setSelectedQuarter] = useState<string>("");
+  const [seccionOptions, setSeccionOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedSeccion, setSelectedSeccion] = useState<string>("");
+
+  // Llenar opciones
+  useEffect(() => {
+    if (
+      !pnfList ||
+      pnfList.length === 0 ||
+      !trayectosList ||
+      trayectosList.length === 0 ||
+      !turnos ||
+      turnos.length === 0
+    )
+      return;
+    const pnfOpt = pnfList.map((pnf) => ({
+      value: pnf.id.toString(),
+      label: pnf.name.toString(),
+    }));
+    setPnfOptions(pnfOpt);
+
+    const trayectoOpt = trayectosList.map((trayecto) => ({
+      value: trayecto.id.toString(),
+      label: trayecto.name.toString(),
+      order: trayecto.order,
+    }));
+    setTrayectoOptions(trayectoOpt.sort((a, b) => a.order - b.order));
+
+    const turnOpt = turnos.map((turn) => ({
+      value: turn.id.toString(),
+      label: turn.name.toString(),
+    }));
+    setTurnOptions(turnOpt);
+
+    const aviableSeccions = new Set(subjects?.map((subject) => subject.seccion));
+    const seccionOpt = Array.from(aviableSeccions).map((seccion) => ({
+      value: seccion,
+      label: `Sección ${seccion}`,
+    }));
+    setSeccionOptions(seccionOpt);
+
+    const quarterOpt = [
+      { value: "1", label: "Trimestre 1" },
+      { value: "2", label: "Trimestre 2" },
+      { value: "3", label: "Trimestre 3" },
+    ];
+    setQuarterOptions(quarterOpt);
+  }, [pnfList]);
 
   // Filtrar datos iniciales
   useEffect(() => {
-    if (!scheduleRawData || scheduleRawData.length === 0) return;
+    if (
+      !scheduleRawData ||
+      scheduleRawData.length === 0 ||
+      selectedPnf === "" ||
+      selectedTrayecto === "" ||
+      selectedTurn === ""
+    )
+      return;
+
     const filteredData = scheduleRawData.filter(
       (item) =>
-        item.pnf_id === "00635193-cb18-4e16-93c3-87506b07a0f3" &&
-        item.trayecto_id === "16817025-cd37-41e7-8d2b-5db381c7a725" &&
-        item.turn_id === "5df454ed-2874-4d14-a74b-115f4d2c3463" &&
-        item.seccion === "1"
+        item.pnf_id === selectedPnf &&
+        item.trayecto_id === selectedTrayecto &&
+        item.turn_id === selectedTurn &&
+        item.quarter === "1" &&
+        item.seccion === selectedSeccion
     );
+
     setFilteredScheduleData(filteredData);
-  }, [scheduleRawData]);
+  }, [scheduleRawData, selectedPnf, selectedTrayecto, selectedTurn, selectedQuarter, selectedSeccion]);
 
   // Ordenar y filtrar días (excluir sábado y domingo)
   useEffect(() => {
@@ -33,7 +112,7 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
 
   // Calcular bloques consecutivos y matriz de rowSpan
   useEffect(() => {
-    if (!hours || !days || !filteredScheduleData || filteredScheduleData.length === 0) {
+    if (!hours || !days || !filteredScheduleData) {
       return;
     }
 
@@ -129,44 +208,121 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
 
   return (
     <div>
-      <table className="schedule-table">
-        <thead>
-          <tr>
-            <th></th>
-            {days?.map((day) => (
-              <th key={day.id}>{day.day}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {hours?.map((hour, rowIdx) => (
-            <tr key={hour.id}>
-              <th>{hour.hours}</th>
-              {days?.map((day, colIdx) => {
-                const cell = cellMatrix[rowIdx]?.[colIdx];
-                if (!cell || cell.rowspan === 0) return null;
+      <div
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "20px",
+          gap: "20px",
+        }}>
+        <Select
+          showSearch
+          style={{ width: 200 }}
+          placeholder="Selecciona un PNF"
+          optionFilterProp="label"
+          filterSort={(optionA, optionB) =>
+            (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+          }
+          options={pnfOptions}
+          value={selectedPnf}
+          onChange={(value) => setSelectedPnf(value)}
+        />
 
-                const cellInfo = cell.data ? getCellData(cell.data) : null;
-                const teacherName = cellInfo ? normalizeTeacherName(cellInfo.teacher) : "";
+        <Select
+          showSearch
+          style={{ width: 200 }}
+          placeholder="Selecciona un trayecto"
+          optionFilterProp="label"
+          filterSort={(optionA, optionB) =>
+            (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+          }
+          options={trayectoOptions}
+          value={selectedTrayecto}
+          onChange={(value) => setSelectedTrayecto(value)}
+        />
 
-                return (
-                  <td key={`${hour.id}-${day.id}`} rowSpan={cell.rowspan > 1 ? cell.rowspan : undefined}>
-                    {cellInfo ? (
-                      <div className="cell-content">
-                        <span className="subject">{cellInfo.subject}</span>
-                        <span className="teacher">{teacherName}</span>
-                        <span className="classroom">{cellInfo.classroom}</span>
-                      </div>
-                    ) : (
-                      <div className="cell-content">vacio</div>
-                    )}
-                  </td>
-                );
-              })}
+        <Select
+          showSearch
+          style={{ width: 200 }}
+          placeholder="Selecciona un turno"
+          optionFilterProp="label"
+          filterSort={(optionA, optionB) =>
+            (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+          }
+          options={turnOptions}
+          value={selectedTurn}
+          onChange={(value) => setSelectedTurn(value)}
+        />
+
+        <Select
+          showSearch
+          style={{ width: 200 }}
+          placeholder="Selecciona una sección"
+          optionFilterProp="label"
+          filterSort={(optionA, optionB) =>
+            (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
+          }
+          options={seccionOptions}
+          value={selectedSeccion}
+          onChange={(value) => setSelectedSeccion(value)}
+        />
+      </div>
+
+      {filteredScheduleData?.length === 0 ? (
+        <div
+          style={{
+            width: "100%",
+            height: "100px",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}>
+          <Tag color="red">
+            No hay horarios disponibles para el PNF, Trayecto, Trimestre y Sección seleccionados
+          </Tag>
+        </div>
+      ) : (
+        <table className="schedule-table">
+          <thead>
+            <tr>
+              <th></th>
+              {days?.map((day) => (
+                <th key={day.id}>{day.day}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {hours?.map((hour, rowIdx) => (
+              <tr key={rowIdx}>
+                <th>{hour.hours}</th>
+                {days?.map((day, colIdx) => {
+                  const cell = cellMatrix[rowIdx]?.[colIdx];
+                  if (!cell || cell.rowspan === 0) return null;
+
+                  const cellInfo = cell.data ? getCellData(cell.data) : null;
+                  const teacherName = cellInfo ? normalizeTeacherName(cellInfo.teacher) : "";
+
+                  return (
+                    <td key={`${hour.id}-${day.id}`} rowSpan={cell.rowspan > 1 ? cell.rowspan : undefined}>
+                      {cellInfo ? (
+                        <div className="cell-content">
+                          <span className="subject">{cellInfo.subject}</span>
+                          <span className="teacher">{teacherName}</span>
+                          <span className="classroom">{cellInfo.classroom}</span>
+                        </div>
+                      ) : (
+                        <div className="cell-content"></div>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

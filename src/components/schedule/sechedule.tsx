@@ -16,6 +16,8 @@ import {
   getSchedule,
 } from "../../fetch/schedule/scheduleFetch";
 import { ScheduleItem } from "./scheduleInterfaces";
+import { PNF } from "../../interfaces/pnf";
+import { Trayecto } from "../../interfaces/trayecto";
 
 export interface ScheduleCommonData {
   subjects: Subject[] | null;
@@ -27,6 +29,8 @@ export interface ScheduleCommonData {
   InsertSchedule: (schedule: ScheduleItem[]) => Promise<{ error: boolean; status: number; message: any }>;
   schedule: ScheduleItem[];
   loadInitialData: () => void;
+  pnfList: PNF[] | null;
+  trayectosList: Trayecto[] | null;
 }
 
 export interface Days {
@@ -47,7 +51,9 @@ export interface Classroom {
 }
 
 export default function Schedule() {
-  const { teachers, subjects, turnosList } = useContext(MainContext) as MainContextValues;
+  const { teachers, subjects, turnosList, pnfList, trayectosList } = useContext(
+    MainContext
+  ) as MainContextValues;
   const [days, setDays] = useState<Days[]>([]);
   const [hours, setHours] = useState<Hours[]>([]);
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
@@ -90,6 +96,8 @@ export default function Schedule() {
     InsertSchedule,
     schedule,
     loadInitialData,
+    pnfList,
+    trayectosList,
   };
 
   const items: TabsProps["items"] = [

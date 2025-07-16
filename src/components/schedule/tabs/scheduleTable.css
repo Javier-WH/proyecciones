@@ -1,6 +1,6 @@
 .schedule-table {
   border-collapse: collapse;
-  width: 100%;
+  width: 95%;
 }
 
 .schedule-table th, .schedule-table td {
@@ -8,7 +8,15 @@
   padding: 8px;
   text-align: center;
   width: calc(100% / 7);
+
 }
+
+.schedule-table td {
+
+  height: 90px !important;
+}
+
+
 
 .cell-content {
   display: flex;
@@ -19,15 +27,16 @@
 }
 
 .subject {
+  font-size: 0.8em;
   font-weight: bold;
   margin-bottom: 4px;
 }
 
 .teacher {
-  font-size: 0.9em;
+  font-size: 0.7em;
   margin-bottom: 4px;
 }
 
 .classroom {
-  font-size: 0.8em;
+  font-size: 0.6em;
 }

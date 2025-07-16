@@ -9,5 +9,6 @@ export interface ScheduleItem {
   trayecto_id: string;
   turn_id: string;
   pnf_id: string;
+  quarter: string;
 }
 
