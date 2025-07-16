@@ -103,11 +103,16 @@ export default function Schedule() {
   const items: TabsProps["items"] = [
     {
       key: "1",
-      label: "Horarios",
+      label: "Horarios por sección",
       children: <ScheduleTab data={scheduleComonValues} />,
     },
     {
       key: "2",
+      label: "Horarios por profesor",
+      children: <span>En construcción</span>,
+    },
+    {
+      key: "3",
       label: "Crear",
       children: <RestrictionsTab data={scheduleComonValues} />,
     },
