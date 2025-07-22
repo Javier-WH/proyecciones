@@ -3,7 +3,7 @@ import { Days, Hours, ScheduleCommonData } from "../sechedule";
 import { useEffect, useState } from "react";
 import { Subject } from "../../../interfaces/subject";
 import SaveSchedule from "./utils/saveSchedule";
-import { splitSubjectsByQuarter } from "./utils/SubjectArraysFunctions";
+import { splitSubjectsByQuarter, rearrangeSubjectsForSchedule } from "./utils/SubjectArraysFunctions";
 import { generateSchedule } from "./utils/generateSchedule";
 
 export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) {
@@ -11,6 +11,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
   const [filteredHours, setFilteredHours] = useState<Hours[]>([]);
   const [filteredDays, setFilteredDays] = useState<Days[]>([]);
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
+  const [quarter, setQuarter] = useState<"q1" | "q2" | "q3">("q1");
 
   useEffect(() => {
     if (!hours || hours.length === 0 || !days || days.length === 0 || !subjects || subjects?.length === 0)
@@ -21,20 +22,10 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
     const filteredDays = days.filter((day) => day.index >= 1 && day.index <= 5);
     setFilteredDays(filteredDays);
     setFilteredHours(filteredHours);
-    //agrego filtro temporal para que solo aparezcan las materias del pnf en administracion, seccion 1, primer trayecto, turno manana
-    /* const gropedSubjects = subjects.filter(
-      (item) =>
-        item.pnfId === "00635193-cb18-4e16-93c3-87506b07a0f3" &&
-        item.trayectoId === "16817025-cd37-41e7-8d2b-5db381c7a725" &&
-        item.turnoName === "Mañana" &&
-        item.seccion === "1"
-    );*/
-
-    //separo las horas agrupadas en horas individuales
-    // const filteredSubjects = splitSubjectsByQuarter(gropedSubjects, "q1");
-    const filteredSubjects = splitSubjectsByQuarter(subjects, "q1");
-    setFilteredSubjects(filteredSubjects);
-  }, [hours, days]);
+    const filteredSubjects = splitSubjectsByQuarter(subjects, quarter); //divide las materias por horas
+    const reordenenSubject = rearrangeSubjectsForSchedule(filteredSubjects, 3);
+    setFilteredSubjects(reordenenSubject);
+  }, [hours, days, quarter]);
 
   const handleGenerateSchedule = async () => {
     if (
@@ -66,7 +57,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       filteredDays,
       filteredHours,
       classrooms,
-      quarter: "q1",
+      quarter,
     });
     const resposeSaveSchedule = await SaveSchedule(scheduleData, subjects);
     if (resposeSaveSchedule.error) {

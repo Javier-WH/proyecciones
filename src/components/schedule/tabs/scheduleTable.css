@@ -11,8 +11,8 @@
 
 }
 
+.schedule-table tr:not(.schedule-table-header),
 .schedule-table td {
-
   height: 90px !important;
 }
 

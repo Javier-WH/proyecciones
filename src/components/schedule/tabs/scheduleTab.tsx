@@ -299,7 +299,7 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
       ) : (
         <table className="schedule-table">
           <thead>
-            <tr>
+            <tr className="schedule-table-header">
               <th></th>
               {days?.map((day) => (
                 <th key={day.id}>{day.day}</th>
