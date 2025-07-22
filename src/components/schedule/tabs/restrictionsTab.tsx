@@ -105,13 +105,13 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
         for (const hour of filteredHours) {
           for (const classroom of classrooms) {
             const classroomSlot = `${day.id}-${hour.id}-${classroom.id}-${
-              subject.quarter?.q1 ? 1 : subject.quarter?.q2 ? 2 : 3
+              subject.quarter?.q1 ? 1 : subject.quarter?.q2 ? 2 : 3 //posible bug.
             }`;
             const pnfSlot = `${day.id}-${hour.id}-${subject.pnfId}-${subject.trayectoId}-${
               subject.seccion
             }-${turnoId}${subject.quarter?.q1 ? 1 : subject.quarter?.q2 ? 2 : 3}`;
             const teacherSlot = `${day.id}-${hour.id}-${teacherId}${
-              subject.quarter?.q1 ? 1 : subject.quarter?.q2 ? 2 : 3
+              subject.quarter?.q1 ? 1 : subject.quarter?.q2 ? 2 : 3 // posible bug.
             }`;
 
             const isClassroomFree = !occupiedClassrooms.has(classroomSlot);
