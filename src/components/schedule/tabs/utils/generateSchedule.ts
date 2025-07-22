@@ -10,6 +10,7 @@ export interface GenerateScheduleProps {
   filteredDays: Days[];
   filteredHours: Hours[];
   classrooms: Classroom[];
+  quarter: "q1" | "q2" | "q3";
 }
 
 export interface GenerateScheduleResponse {
@@ -25,6 +26,27 @@ export interface GenerateScheduleResponse {
   quarter: string;
 }
 
+/**
+ * Genera un horario de materias, asignando las materias a los profesores y aulas disponibles.
+ * @param schedule Horario existente para no chocar con el nuevo horario que se va a generar.
+ * @param filteredSubjects Materias a asignar.
+ * @param turnos Turnos disponibles.
+ * @param filteredDays Días disponibles.
+ * @param filteredHours Horas disponibles.
+ * @param classrooms Aulas disponibles.
+ * @param quarter Cuatrimestre a considerar (q1, q2 o q3).
+ * @returns Un arreglo de horarios generados, cada item es un objeto con los campos:
+ *  - classroom_id: Identificador de la aula asignada.
+ *  - day_id: Identificador del día asignado.
+ *  - hours_id: Identificador de la hora asignada.
+ *  - subject_id: Identificador de la materia asignada.
+ *  - teacher_id: Identificador del profesor asignado.
+ *  - turn_id: Identificador del turno asignado.
+ *  - trayecto_id: Identificador del trayecto asignado.
+ *  - pnf_id: Identificador del PNF asignado.
+ *  - seccion: Sección asignada.
+ *  - quarter: Cuatrimestre asignado (1, 2 o 3).
+ */
 export function generateSchedule({
   schedule,
   filteredSubjects,
@@ -32,6 +54,7 @@ export function generateSchedule({
   filteredDays,
   filteredHours,
   classrooms,
+  quarter = "q1",
 }: GenerateScheduleProps): GenerateScheduleResponse[] {
   const occupiedClassrooms = new Set<string>(); // Un alula de clases no puede estar ocupada en el mismo horario. Formato: "dia-hora-aula"
   const occupiedPNFs = new Set<string>(); //Un PNF no puede ver dos clases el mismo dia a la misma hora. Formato: "dia-hora-pnfId-trayectoId"
@@ -62,9 +85,14 @@ export function generateSchedule({
     let selectedHour = "";
     let selectedClassroom = "";
 
+    if (!subject.quarter || !subject.quarter[quarter] === undefined) {
+      console.warn(`Materia sin cuatrimestre asignado: ${subject.subject}`);
+      continue;
+    }
+
     const turnoId =
       turnos.find((turno) => turno.name.toLowerCase() === subject.turnoName.toLowerCase())?.id || null;
-    const teacherId = subject?.quarter?.q1 || null;
+    const teacherId = subject?.quarter?.[quarter] || null;
 
     if (!teacherId || !turnoId) {
       continue;
@@ -79,15 +107,9 @@ export function generateSchedule({
     outerLoop: for (const day of filteredDays) {
       for (const hour of filteredHours) {
         for (const classroom of classrooms) {
-          const classroomSlot = `${day.id}-${hour.id}-${classroom.id}-${
-            subject.quarter?.q1 ? 1 : subject.quarter?.q2 ? 2 : 3 //posible bug.
-          }`;
-          const pnfSlot = `${day.id}-${hour.id}-${subject.pnfId}-${subject.trayectoId}-${
-            subject.seccion
-          }-${turnoId}${subject.quarter?.q1 ? 1 : subject.quarter?.q2 ? 2 : 3}`;
-          const teacherSlot = `${day.id}-${hour.id}-${teacherId}${
-            subject.quarter?.q1 ? 1 : subject.quarter?.q2 ? 2 : 3 // posible bug.
-          }`;
+          const classroomSlot = `${day.id}-${hour.id}-${classroom.id}-${quarter}`;
+          const pnfSlot = `${day.id}-${hour.id}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}-${turnoId}-${quarter}`;
+          const teacherSlot = `${day.id}-${hour.id}-${teacherId}${quarter}`;
 
           const isClassroomFree = !occupiedClassrooms.has(classroomSlot);
           const isPNFFree = !occupiedPNFs.has(pnfSlot);
@@ -125,7 +147,7 @@ export function generateSchedule({
       trayecto_id: subject.trayectoId,
       pnf_id: subject.pnfId,
       seccion: subject.seccion,
-      quarter: subject.quarter.q1 ? "1" : subject.quarter.q2 ? "2" : "3",
+      quarter: quarter,
     });
   }
 

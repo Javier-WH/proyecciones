@@ -95,7 +95,7 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
         item.pnf_id === selectedPnf &&
         item.trayecto_id === selectedTrayecto &&
         item.turn_id === selectedTurn &&
-        item.quarter === selectedQuarter &&
+        item.quarter === `q${selectedQuarter}` &&
         item.seccion === selectedSeccion
     );
 
