@@ -24,6 +24,7 @@ export interface GenerateScheduleResponse {
   pnf_id: string;
   seccion: string;
   quarter: string;
+  maxHoursPerDay?: number; // Opcional, si se quiere controlar horas máximas por materia
 }
 
 /**
@@ -55,27 +56,40 @@ export function generateSchedule({
   filteredHours,
   classrooms,
   quarter = "q1",
+  maxHoursPerDay = 3,
 }: GenerateScheduleProps): GenerateScheduleResponse[] {
-  const occupiedClassrooms = new Set<string>(); // Un alula de clases no puede estar ocupada en el mismo horario. Formato: "dia-hora-aula"
-  const occupiedPNFs = new Set<string>(); //Un PNF no puede ver dos clases el mismo dia a la misma hora. Formato: "dia-hora-pnfId-trayectoId"
-  const occupiedTeachers = new Set<string>(); //Un profesor no puede dar dos clases el mismo dia a la misma hora. Formato: "dia-hora-teacherId"
-  //const occupiedSubjectCombos = new Set<string>(); //No se puede asignar una materia de una secccion, trayecto, turno y programa dos veces. Formato: "subject_id-seccion-trayecto_id-turn_id-pnf_id"
+  const occupiedClassrooms = new Set<string>();
+  const occupiedPNFs = new Set<string>();
+  const occupiedTeachers = new Set<string>();
   const scheduleData = [];
 
-  // carga las horas que estan ocupadas desde la base de datos
+  // Nuevas estructuras para control de restricciones
+  const subjectDayHourAssignments = new Set<string>(); // Evita misma materia mismo día misma hora
+  const subjectHoursPerDay = new Map<string, number>(); // Controla horas por día por materia
+  const subjectClassroomPerDay = new Map<string, string>(); // Controla aula por materia y día
+
+  // Cargar horas ocupadas desde horario existente
   if (schedule.length > 0) {
     for (const scheduleItem of schedule) {
-      occupiedClassrooms.add(
-        `${scheduleItem.day_id}-${scheduleItem.hours_id}-${scheduleItem.classroom_id}-${scheduleItem.quarter}`
-      );
+      const key = `${scheduleItem.day_id}-${scheduleItem.hours_id}-${scheduleItem.classroom_id}-${scheduleItem.quarter}`;
+      occupiedClassrooms.add(key);
 
-      occupiedPNFs.add(
-        `${scheduleItem.day_id}-${scheduleItem.hours_id}-${scheduleItem.pnf_id}-${scheduleItem.trayecto_id}-${scheduleItem.seccion}-${scheduleItem.turn_id}-${scheduleItem.quarter}`
-      );
-      occupiedTeachers.add(
-        `${scheduleItem.day_id}-${scheduleItem.hours_id}-${scheduleItem.teacher_id}-${scheduleItem.quarter}`
-      );
-      //occupiedSubjectCombos.add(`${scheduleItem.subject_id}-${scheduleItem.seccion}-${scheduleItem.trayecto_id}-${scheduleItem.turn_id}-${scheduleItem.pnf_id}`);
+      const pnfKey = `${scheduleItem.day_id}-${scheduleItem.hours_id}-${scheduleItem.pnf_id}-${scheduleItem.trayecto_id}-${scheduleItem.seccion}-${scheduleItem.turn_id}-${scheduleItem.quarter}`;
+      occupiedPNFs.add(pnfKey);
+
+      const teacherKey = `${scheduleItem.day_id}-${scheduleItem.hours_id}-${scheduleItem.teacher_id}-${scheduleItem.quarter}`;
+      occupiedTeachers.add(teacherKey);
+
+      // Inicializar contadores para restricciones
+      const subjectDayKey = `${scheduleItem.subject_id}-${scheduleItem.day_id}`;
+      const currentCount = subjectHoursPerDay.get(subjectDayKey) || 0;
+      subjectHoursPerDay.set(subjectDayKey, currentCount + 1);
+
+      const subjectDayHourKey = `${scheduleItem.subject_id}-${scheduleItem.day_id}-${scheduleItem.hours_id}`;
+      subjectDayHourAssignments.add(subjectDayHourKey);
+
+      // Registrar aula usada por materia en día
+      subjectClassroomPerDay.set(subjectDayKey, scheduleItem.classroom_id);
     }
   }
 
@@ -85,31 +99,49 @@ export function generateSchedule({
     let selectedHour = "";
     let selectedClassroom = "";
 
-    if (!subject.quarter || !subject.quarter[quarter] === undefined) {
+    if (!subject.quarter || subject.quarter[quarter] === undefined) {
       console.warn(`Materia sin cuatrimestre asignado: ${subject.subject}`);
       continue;
     }
 
     const turnoId =
       turnos.find((turno) => turno.name.toLowerCase() === subject.turnoName.toLowerCase())?.id || null;
+
     const teacherId = subject?.quarter?.[quarter] || null;
 
     if (!teacherId || !turnoId) {
       continue;
     }
 
-    /*const subjectComboKey = `${subject.id}-${subject.seccion}-${subject.trayectoId}-${turnoId}-${subject.pnfId}`;
-      if (occupiedSubjectCombos.has(subjectComboKey)) {
-        console.warn(`Combinación única ya ocupada para: ${subject.subject}`);
-        continue;
-      }*/
+    // Contador para horas asignadas por día para esta materia
+    const getSubjectDayCount = (dayId: string) => subjectHoursPerDay.get(`${subject.id}-${dayId}`) || 0;
 
     outerLoop: for (const day of filteredDays) {
+      // Verificar límite de horas por día (máx 3)
+      if (getSubjectDayCount(day.id) >= maxHoursPerDay) {
+        continue; // Saltar este día si ya tiene 3 horas
+      }
+
+      // Determinar aula permitida para esta materia en este día
+      const subjectDayKey = `${subject.id}-${day.id}`;
+      const allowedClassroomId = subjectClassroomPerDay.get(subjectDayKey);
+      const classroomsToCheck = allowedClassroomId
+        ? classrooms.filter((c) => c.id === allowedClassroomId)
+        : classrooms;
+
+      if (classroomsToCheck.length === 0) continue;
+
       for (const hour of filteredHours) {
-        for (const classroom of classrooms) {
+        // Evitar misma materia mismo día misma hora
+        const subjectDayHourKey = `${subject.id}-${day.id}-${hour.id}`;
+        if (subjectDayHourAssignments.has(subjectDayHourKey)) {
+          continue; // Ya existe asignación para esta combinación
+        }
+
+        for (const classroom of classroomsToCheck) {
           const classroomSlot = `${day.id}-${hour.id}-${classroom.id}-${quarter}`;
           const pnfSlot = `${day.id}-${hour.id}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}-${turnoId}-${quarter}`;
-          const teacherSlot = `${day.id}-${hour.id}-${teacherId}${quarter}`;
+          const teacherSlot = `${day.id}-${hour.id}-${teacherId}-${quarter}`;
 
           const isClassroomFree = !occupiedClassrooms.has(classroomSlot);
           const isPNFFree = !occupiedPNFs.has(pnfSlot);
@@ -120,7 +152,15 @@ export function generateSchedule({
             occupiedClassrooms.add(classroomSlot);
             occupiedPNFs.add(pnfSlot);
             occupiedTeachers.add(teacherSlot);
-            //occupiedSubjectCombos.add(subjectComboKey);
+
+            // Actualizar nuevas restricciones
+            subjectDayHourAssignments.add(subjectDayHourKey);
+            subjectHoursPerDay.set(`${subject.id}-${day.id}`, getSubjectDayCount(day.id) + 1);
+
+            // Registrar aula usada si es primera hora del día
+            if (!allowedClassroomId) {
+              subjectClassroomPerDay.set(subjectDayKey, classroom.id);
+            }
 
             selectedDay = day.id;
             selectedHour = hour.id;

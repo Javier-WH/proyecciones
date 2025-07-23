@@ -23,8 +23,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
     setFilteredDays(filteredDays);
     setFilteredHours(filteredHours);
     const filteredSubjects = splitSubjectsByQuarter(subjects, quarter); //divide las materias por horas
-    const reordenenSubject = rearrangeSubjectsForSchedule(filteredSubjects, 3);
-    setFilteredSubjects(reordenenSubject);
+    setFilteredSubjects(filteredSubjects);
   }, [hours, days, quarter]);
 
   const handleGenerateSchedule = async () => {
