@@ -25,30 +25,8 @@ export interface GenerateScheduleResponse {
   pnf_id: string;
   seccion: string;
   quarter: string;
-  // Opcional, si se quiere controlar horas máximas por materia
 }
 
-/**
- * Genera un horario de materias, asignando las materias a los profesores y aulas disponibles.
- * @param schedule Horario existente para no chocar con el nuevo horario que se va a generar.
- * @param filteredSubjects Materias a asignar.
- * @param turnos Turnos disponibles.
- * @param filteredDays Días disponibles.
- * @param filteredHours Horas disponibles.
- * @param classrooms Aulas disponibles.
- * @param quarter Cuatrimestre a considerar (q1, q2 o q3).
- * @returns Un arreglo de horarios generados, cada item es un objeto con los campos:
- *  - classroom_id: Identificador de la aula asignada.
- *  - day_id: Identificador del día asignado.
- *  - hours_id: Identificador de la hora asignada.
- *  - subject_id: Identificador de la materia asignada.
- *  - teacher_id: Identificador del profesor asignado.
- *  - turn_id: Identificador del turno asignado.
- *  - trayecto_id: Identificador del trayecto asignado.
- *  - pnf_id: Identificador del PNF asignado.
- *  - seccion: Sección asignada.
- *  - quarter: Cuatrimestre asignado (1, 2 o 3).
- */
 export function generateSchedule({
   schedule,
   filteredSubjects,
@@ -62,10 +40,18 @@ export function generateSchedule({
   const occupiedClassrooms = new Set<string>();
   const occupiedPNFs = new Set<string>();
   const occupiedTeachers = new Set<string>();
-  const scheduleData = [];
-  const subjectDayHourAssignments = new Set<string>(); // Evita misma materia mismo día misma hora
-  const subjectHoursPerDay = new Map<string, number>(); // Controla horas por día por materia
-  const subjectClassroomPerDay = new Map<string, string>(); // Controla aula por materia y día
+  const scheduleData: GenerateScheduleResponse[] = [];
+
+  // Estructuras para control de restricciones
+  const subjectDayHourAssignments = new Set<string>();
+  const subjectHoursPerDay = new Map<string, number>();
+  const subjectClassroomPerDay = new Map<string, string>();
+
+  // Nuevas estructuras para agrupamiento y control de consecutividad
+  // { subject-day: [hourId1, hourId2] } - Mantiene las horas asignadas a una materia en un día
+  const subjectDayAssignments = new Map<string, string[]>();
+  // { subject-day: classroomId } - Mantiene el aula asignada a una materia en un día
+  const subjectDayClassroom = new Map<string, string>();
 
   // Cargar horas ocupadas desde horario existente
   if (schedule.length > 0) {
@@ -89,8 +75,91 @@ export function generateSchedule({
 
       // Registrar aula usada por materia en día
       subjectClassroomPerDay.set(subjectDayKey, scheduleItem.classroom_id);
+
+      // Cargar asignaciones existentes para agrupamiento
+      const existingHours = subjectDayAssignments.get(subjectDayKey) || [];
+      existingHours.push(scheduleItem.hours_id);
+      subjectDayAssignments.set(subjectDayKey, existingHours);
+      subjectDayClassroom.set(subjectDayKey, scheduleItem.classroom_id);
     }
   }
+
+  // Ordenar horas cronológicamente
+  const sortedHours = [...filteredHours].sort((a, b) => {
+    const timeA = new Date(`1970-01-01T${a.start_time}`);
+    const timeB = new Date(`1970-01-01T${b.start_time}`);
+    return timeA.getTime() - timeB.getTime();
+  });
+
+  /**
+   * Encuentra un slot consecutivo para una materia en un día dado.
+   * @param dayId El ID del día.
+   * @param subjectId El ID de la materia.
+   * @param teacherId El ID del profesor.
+   * @param turnoId El ID del turno.
+   * @param subject El objeto de la materia.
+   * @param requiredClassroom El ID del aula requerida si ya hay una asignada para esta materia en este día.
+   * @returns Un objeto con hourId y classroomId si se encuentra un slot consecutivo, de lo contrario, null.
+   */
+  const findConsecutiveSlot = (
+    dayId: string,
+    subjectId: string,
+    teacherId: string,
+    turnoId: string,
+    subject: Subject,
+    requiredClassroom: string | null
+  ): { hourId: string; classroomId: string } | null => {
+    const subjectDayKey = `${subjectId}-${dayId}`;
+    const existingHours = subjectDayAssignments.get(subjectDayKey) || [];
+
+    // Si ya hay horas asignadas, buscar la siguiente consecutiva
+    if (existingHours.length > 0) {
+      // Ordenar las horas asignadas para asegurar que 'lastHour' es realmente la última
+      const sortedExistingHours = [...existingHours].sort((a, b) => {
+        const hourA = sortedHours.find((h) => h.id === a);
+        const hourB = sortedHours.find((h) => h.id === b);
+        if (!hourA || !hourB) return 0;
+        const timeA = new Date(`1970-01-01T${hourA.start_time}`);
+        const timeB = new Date(`1970-01-01T${hourB.start_time}`);
+        return timeA.getTime() - timeB.getTime();
+      });
+
+      const lastHour = sortedExistingHours[sortedExistingHours.length - 1];
+      const lastHourIndex = sortedHours.findIndex((h) => h.id === lastHour);
+
+      // Verificar si hay una hora siguiente disponible en el mismo día
+      if (lastHourIndex < sortedHours.length - 1) {
+        const nextHour = sortedHours[lastHourIndex + 1];
+        // Si hay un aula ya asignada para esta materia en este día, debe ser la misma.
+        // De lo contrario, se permite buscar en cualquier aula disponible.
+        const classroomId = requiredClassroom || subjectDayClassroom.get(subjectDayKey);
+
+        // Si ya hay un aula asignada y no se encuentra, o si no hay aula asignada y no se encuentra ninguna,
+        // no se puede asignar de forma consecutiva
+        if (!classroomId) {
+          // Esto solo debería pasar para la primera asignación del día si no hay requiredClassroom
+          // En el caso de consecutivas, always requiredClassroom should be present
+          return null;
+        }
+
+        // Verificar disponibilidad del slot de la hora consecutiva
+        const classroomSlot = `${dayId}-${nextHour.id}-${classroomId}-${quarter}`;
+        const pnfSlot = `${dayId}-${nextHour.id}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}-${turnoId}-${quarter}`;
+        const teacherSlot = `${dayId}-${nextHour.id}-${teacherId}-${quarter}`;
+        const subjectDayHourKey = `${subjectId}-${dayId}-${nextHour.id}`;
+
+        if (
+          !occupiedClassrooms.has(classroomSlot) &&
+          !occupiedPNFs.has(pnfSlot) &&
+          !occupiedTeachers.has(teacherSlot) &&
+          !subjectDayHourAssignments.has(subjectDayHourKey)
+        ) {
+          return { hourId: nextHour.id, classroomId };
+        }
+      }
+    }
+    return null;
+  };
 
   for (const subject of filteredSubjects) {
     let assigned = false;
@@ -115,27 +184,48 @@ export function generateSchedule({
     // Contador para horas asignadas por día para esta materia
     const getSubjectDayCount = (dayId: string) => subjectHoursPerDay.get(`${subject.id}-${dayId}`) || 0;
 
+    // Iterar por cada día para intentar asignar la materia
     outerLoop: for (const day of filteredDays) {
-      // Verificar límite de horas por día (máx 3)
-      if (getSubjectDayCount(day.id) >= maxHoursPerDay) {
-        continue; // Saltar este día si ya tiene 3 horas
+      const subjectDayKey = `${subject.id}-${day.id}`;
+      const currentCount = getSubjectDayCount(day.id);
+
+      // Si ya alcanzó el máximo de horas por día para esta materia, pasar al siguiente día
+      if (currentCount >= maxHoursPerDay) continue;
+
+      // Si la materia ya tiene asignaciones en este día, intentar asignar de forma consecutiva
+      if (currentCount > 0) {
+        const consecutiveSlot = findConsecutiveSlot(
+          day.id,
+          subject.id,
+          teacherId,
+          turnoId,
+          subject,
+          subjectClassroomPerDay.get(subjectDayKey) || null // Aseguramos que busque en el aula ya asignada
+        );
+
+        if (consecutiveSlot) {
+          selectedDay = day.id;
+          selectedHour = consecutiveSlot.hourId;
+          selectedClassroom = consecutiveSlot.classroomId;
+          assigned = true;
+          break outerLoop; // Se encontró un slot consecutivo, salir de los bucles
+        }
+        // Si no se encontró un slot consecutivo para una materia que ya tiene horas asignadas en este día,
+        // NO se debe intentar una asignación no consecutiva en este mismo día para esa materia.
+        // Se debe pasar al siguiente día.
+        continue;
       }
 
-      // Determinar aula permitida para esta materia en este día
-      const subjectDayKey = `${subject.id}-${day.id}`;
-      const allowedClassroomId = subjectClassroomPerDay.get(subjectDayKey);
-      const classroomsToCheck = allowedClassroomId
-        ? classrooms.filter((c) => c.id === allowedClassroomId)
-        : classrooms;
+      // Si la materia no tiene asignaciones previas en este día (currentCount === 0),
+      // buscar la primera hora disponible para empezar la secuencia.
+      const classroomsToCheck = classrooms; // Puede ser cualquier aula disponible
 
-      // Verificar si hay aulas disponibles
-      if (classroomsToCheck.length === 0) continue;
-
-      for (const hour of filteredHours) {
-        // Evitar misma materia mismo día misma hora
+      for (const hour of sortedHours) {
         const subjectDayHourKey = `${subject.id}-${day.id}-${hour.id}`;
+        // Si la hora ya está asignada a esta materia en este día, saltarla.
+        // Esto previene que se asigne la misma materia en la misma hora dos veces.
         if (subjectDayHourAssignments.has(subjectDayHourKey)) {
-          continue; // Ya existe asignación para esta combinación
+          continue;
         }
 
         for (const classroom of classroomsToCheck) {
@@ -148,23 +238,11 @@ export function generateSchedule({
           const isTeacherFree = !occupiedTeachers.has(teacherSlot);
 
           if (isClassroomFree && isPNFFree && isTeacherFree) {
-            // Reservar recursos
-            occupiedClassrooms.add(classroomSlot);
-            occupiedPNFs.add(pnfSlot);
-            occupiedTeachers.add(teacherSlot);
-            subjectDayHourAssignments.add(subjectDayHourKey);
-            subjectHoursPerDay.set(`${subject.id}-${day.id}`, getSubjectDayCount(day.id) + 1);
-
-            // Registrar aula usada si es primera hora del día
-            if (!allowedClassroomId) {
-              subjectClassroomPerDay.set(subjectDayKey, classroom.id);
-            }
-
             selectedDay = day.id;
             selectedHour = hour.id;
             selectedClassroom = classroom.id;
             assigned = true;
-            break outerLoop;
+            break outerLoop; // Se encontró un slot para empezar la secuencia, salir de los bucles
           }
         }
       }
@@ -174,6 +252,32 @@ export function generateSchedule({
       console.warn(`No hay horario disponible para: ${subject.subject}`);
       continue;
     }
+
+    // Registrar asignación
+    const subjectDayKey = `${subject.id}-${selectedDay}`;
+    const existingHours = subjectDayAssignments.get(subjectDayKey) || [];
+    existingHours.push(selectedHour);
+    subjectDayAssignments.set(subjectDayKey, existingHours);
+
+    // Registrar el aula para esta materia en este día, si es la primera hora asignada
+    if (!subjectClassroomPerDay.has(subjectDayKey)) {
+      subjectClassroomPerDay.set(subjectDayKey, selectedClassroom);
+    }
+
+    // Reservar recursos
+    const classroomSlot = `${selectedDay}-${selectedHour}-${selectedClassroom}-${quarter}`;
+    const pnfSlot = `${selectedDay}-${selectedHour}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}-${turnoId}-${quarter}`;
+    const teacherSlot = `${selectedDay}-${selectedHour}-${teacherId}-${quarter}`;
+    const subjectDayHourKey = `${subject.id}-${selectedDay}-${selectedHour}`;
+
+    occupiedClassrooms.add(classroomSlot);
+    occupiedPNFs.add(pnfSlot);
+    occupiedTeachers.add(teacherSlot);
+    subjectDayHourAssignments.add(subjectDayHourKey);
+
+    // Actualizar contador de horas
+    const currentCount = subjectHoursPerDay.get(subjectDayKey) || 0;
+    subjectHoursPerDay.set(subjectDayKey, currentCount + 1);
 
     scheduleData.push({
       classroom_id: selectedClassroom,
