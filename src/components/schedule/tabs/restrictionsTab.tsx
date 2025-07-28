@@ -3,7 +3,7 @@ import { Days, Hours, ScheduleCommonData } from "../sechedule";
 import { useEffect, useState } from "react";
 import { Subject } from "../../../interfaces/subject";
 import SaveSchedule from "./utils/saveSchedule";
-import { splitSubjectsByQuarter, rearrangeSubjectsForSchedule } from "./utils/SubjectArraysFunctions";
+import { splitSubjectsByQuarter } from "./utils/SubjectArraysFunctions";
 import { generateSchedule } from "./utils/generateSchedule";
 
 export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) {
@@ -12,6 +12,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
   const [filteredDays, setFilteredDays] = useState<Days[]>([]);
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
   const [quarter, setQuarter] = useState<"q1" | "q2" | "q3">("q1");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!hours || hours.length === 0 || !days || days.length === 0 || !subjects || subjects?.length === 0)
@@ -48,6 +49,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       message.warning("Faltan datos necesarios para generar el horario");
       return;
     }
+    setLoading(true);
 
     const scheduleData = generateSchedule({
       schedule,
@@ -58,17 +60,21 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       classrooms,
       quarter,
     });
+
     const resposeSaveSchedule = await SaveSchedule(scheduleData, subjects);
     if (resposeSaveSchedule.error) {
+      setLoading(false);
       message.error(resposeSaveSchedule.message);
       return;
     }
+    setLoading(false);
     message.success(resposeSaveSchedule.message);
     loadInitialData();
   };
 
   return (
     <div>
+      {loading && <p>Generando horario...</p>}
       <Button type="primary" onClick={handleGenerateSchedule}>
         Generar horario
       </Button>
