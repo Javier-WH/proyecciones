@@ -46,8 +46,6 @@ export function generateSchedule({
   const subjectDayHourAssignments = new Set<string>();
   const subjectHoursPerDay = new Map<string, number>();
   const subjectClassroomPerDay = new Map<string, string>();
-
-  // Nuevas estructuras para agrupamiento y control de consecutividad
   // { subject-day: [hourId1, hourId2] } - Mantiene las horas asignadas a una materia en un día
   const subjectDayAssignments = new Map<string, string[]>();
   // { subject-day: classroomId } - Mantiene el aula asignada a una materia en un día
@@ -83,7 +81,7 @@ export function generateSchedule({
       subjectDayClassroom.set(subjectDayKey, scheduleItem.classroom_id);
     }
   }
-
+ 
   // Ordenar horas cronológicamente
   const sortedHours = [...filteredHours].sort((a, b) => {
     const timeA = new Date(`1970-01-01T${a.start_time}`);
