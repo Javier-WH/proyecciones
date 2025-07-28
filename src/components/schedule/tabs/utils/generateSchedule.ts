@@ -11,6 +11,7 @@ export interface GenerateScheduleProps {
   filteredHours: Hours[];
   classrooms: Classroom[];
   quarter: "q1" | "q2" | "q3";
+  maxHoursPerDay?: number;
 }
 
 export interface GenerateScheduleResponse {
@@ -24,7 +25,7 @@ export interface GenerateScheduleResponse {
   pnf_id: string;
   seccion: string;
   quarter: string;
-  maxHoursPerDay?: number; // Opcional, si se quiere controlar horas máximas por materia
+  // Opcional, si se quiere controlar horas máximas por materia
 }
 
 /**
