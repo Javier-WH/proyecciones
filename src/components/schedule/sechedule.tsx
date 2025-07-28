@@ -40,6 +40,7 @@ export interface Days {
 }
 
 export interface Hours {
+  start_time: any;
   id: string;
   index: number;
   hours: string;

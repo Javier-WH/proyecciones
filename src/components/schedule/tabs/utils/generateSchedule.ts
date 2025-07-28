@@ -119,8 +119,8 @@ export function generateSchedule({
         const hourA = sortedHours.find((h) => h.id === a);
         const hourB = sortedHours.find((h) => h.id === b);
         if (!hourA || !hourB) return 0;
-        const timeA = new Date(`1970-01-01T${hourA.start_time}`);
-        const timeB = new Date(`1970-01-01T${hourB.start_time}`);
+        const timeA = new Date(`1970-01-01T${hourA?.start_time}`);
+        const timeB = new Date(`1970-01-01T${hourB?.start_time}`);
         return timeA.getTime() - timeB.getTime();
       });
 
