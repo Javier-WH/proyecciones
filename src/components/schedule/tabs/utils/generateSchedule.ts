@@ -63,8 +63,6 @@ export function generateSchedule({
   const occupiedPNFs = new Set<string>();
   const occupiedTeachers = new Set<string>();
   const scheduleData = [];
-
-  // Nuevas estructuras para control de restricciones
   const subjectDayHourAssignments = new Set<string>(); // Evita misma materia mismo día misma hora
   const subjectHoursPerDay = new Map<string, number>(); // Controla horas por día por materia
   const subjectClassroomPerDay = new Map<string, string>(); // Controla aula por materia y día
@@ -130,6 +128,7 @@ export function generateSchedule({
         ? classrooms.filter((c) => c.id === allowedClassroomId)
         : classrooms;
 
+      // Verificar si hay aulas disponibles
       if (classroomsToCheck.length === 0) continue;
 
       for (const hour of filteredHours) {
@@ -153,8 +152,6 @@ export function generateSchedule({
             occupiedClassrooms.add(classroomSlot);
             occupiedPNFs.add(pnfSlot);
             occupiedTeachers.add(teacherSlot);
-
-            // Actualizar nuevas restricciones
             subjectDayHourAssignments.add(subjectDayHourKey);
             subjectHoursPerDay.set(`${subject.id}-${day.id}`, getSubjectDayCount(day.id) + 1);
 
