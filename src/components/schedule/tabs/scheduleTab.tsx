@@ -3,6 +3,10 @@ import { useEffect, useState } from "react";
 import { ScheduleItem } from "../scheduleInterfaces";
 import { Select, Tag } from "antd";
 import "./scheduleTable.css";
+import PnfSelector from "../elements/PnfSelector";
+import TrayectoSelector from "../elements/TrayectoSelector";
+import TurnSelector from "../elements/TurnSelector";
+import SeccionSelector from "../elements/SeccionSelector";
 
 export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
   const {
@@ -21,13 +25,8 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
   const [days, setDays] = useState<Days[]>([]);
   const [filteredScheduleData, setFilteredScheduleData] = useState<ScheduleItem[]>([]);
   const [cellMatrix, setCellMatrix] = useState<{ rowspan: number; data: ScheduleItem | null }[][]>([]);
-  const [pnfOptions, setPnfOptions] = useState<{ value: string; label: string }[]>([]);
   const [selectedPnf, setSelectedPnf] = useState<string>("");
-  const [trayectoOptions, setTrayectoOptions] = useState<{ value: string; label: string; order: number }[]>(
-    []
-  );
   const [selectedTrayecto, setSelectedTrayecto] = useState<string>("");
-  const [turnOptions, setTurnOptions] = useState<{ value: string; label: string }[]>([]);
   const [selectedTurn, setSelectedTurn] = useState<string>("");
   const [quarterOptions, setQuarterOptions] = useState<{ value: string; label: string }[]>([]);
   const [selectedQuarter, setSelectedQuarter] = useState<string>("");
@@ -36,33 +35,7 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
 
   // Llenar opciones
   useEffect(() => {
-    if (
-      !pnfList ||
-      pnfList.length === 0 ||
-      !trayectosList ||
-      trayectosList.length === 0 ||
-      !turnos ||
-      turnos.length === 0
-    )
-      return;
-    const pnfOpt = pnfList.map((pnf) => ({
-      value: pnf.id.toString(),
-      label: pnf.name.toString(),
-    }));
-    setPnfOptions(pnfOpt);
-
-    const trayectoOpt = trayectosList.map((trayecto) => ({
-      value: trayecto.id.toString(),
-      label: trayecto.name.toString(),
-      order: trayecto.order,
-    }));
-    setTrayectoOptions(trayectoOpt.sort((a, b) => a.order - b.order));
-
-    const turnOpt = turnos.map((turn) => ({
-      value: turn.id.toString(),
-      label: turn.name.toString(),
-    }));
-    setTurnOptions(turnOpt);
+    if (!trayectosList || trayectosList.length === 0 || !turnos || turnos.length === 0) return;
 
     const aviableSeccions = new Set(subjects?.map((subject) => subject.seccion));
     const seccionOpt = Array.from(aviableSeccions).map((seccion) => ({
@@ -217,57 +190,13 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
           padding: "20px",
           gap: "20px",
         }}>
-        <Select
-          showSearch
-          style={{ width: 200 }}
-          placeholder="Selecciona un PNF"
-          optionFilterProp="label"
-          filterSort={(optionA, optionB) =>
-            (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
-          }
-          options={pnfOptions}
-          value={selectedPnf}
-          onChange={(value) => setSelectedPnf(value)}
-        />
+        <PnfSelector value={selectedPnf} setValue={setSelectedPnf} />
 
-        <Select
-          showSearch
-          style={{ width: 200 }}
-          placeholder="Selecciona un trayecto"
-          optionFilterProp="label"
-          filterSort={(optionA, optionB) =>
-            (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
-          }
-          options={trayectoOptions}
-          value={selectedTrayecto}
-          onChange={(value) => setSelectedTrayecto(value)}
-        />
+        <TrayectoSelector value={selectedTrayecto} setValue={setSelectedTrayecto} />
 
-        <Select
-          showSearch
-          style={{ width: 200 }}
-          placeholder="Selecciona un turno"
-          optionFilterProp="label"
-          filterSort={(optionA, optionB) =>
-            (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
-          }
-          options={turnOptions}
-          value={selectedTurn}
-          onChange={(value) => setSelectedTurn(value)}
-        />
+        <TurnSelector value={selectedTurn} setValue={setSelectedTurn} />
 
-        <Select
-          showSearch
-          style={{ width: 200 }}
-          placeholder="Selecciona una sección"
-          optionFilterProp="label"
-          filterSort={(optionA, optionB) =>
-            (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
-          }
-          options={seccionOptions}
-          value={selectedSeccion}
-          onChange={(value) => setSelectedSeccion(value)}
-        />
+        <SeccionSelector value={selectedSeccion} setValue={setSelectedSeccion} />
 
         <Select
           showSearch
