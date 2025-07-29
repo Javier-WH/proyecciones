@@ -2,12 +2,12 @@ import { Days, ScheduleCommonData } from "../sechedule";
 import { useEffect, useState } from "react";
 import { ScheduleItem } from "../scheduleInterfaces";
 import { Tag } from "antd";
-import "./scheduleTable.css";
 import PnfSelector from "../elements/PnfSelector";
 import TrayectoSelector from "../elements/TrayectoSelector";
 import TurnSelector from "../elements/TurnSelector";
 import SeccionSelector from "../elements/SeccionSelector";
 import QuarterSelector from "../elements/QuarterSelector";
+import "./scheduleTable.css";
 
 export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
   const { schedule: scheduleRawData, hours, days: daysData, classrooms, subjects, teachers } = data;

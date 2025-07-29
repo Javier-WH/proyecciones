@@ -8,6 +8,9 @@ import { generateSchedule } from "./utils/generateSchedule";
 
 export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) {
   const { subjects, teachers, turnos, days, hours, classrooms, schedule, loadInitialData } = data;
+  ///
+
+  /////
   const [filteredHours, setFilteredHours] = useState<Hours[]>([]);
   const [filteredDays, setFilteredDays] = useState<Days[]>([]);
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
@@ -50,6 +53,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       return;
     }
     setLoading(true);
+    loadInitialData();
 
     const scheduleData = generateSchedule({
       schedule,
@@ -72,9 +76,10 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
     loadInitialData();
   };
 
+  if (loading) return <p>Generando horario...</p>;
+
   return (
     <div>
-      {loading && <p>Generando horario...</p>}
       <Button type="primary" onClick={handleGenerateSchedule}>
         Generar horario
       </Button>
