@@ -116,3 +116,21 @@ export async function getSchedule() {
   return response.json();
 }
 
+export async function deleteSchedule(): Promise<any> {
+  let headersList = {
+    Accept: "*/*",
+    "Content-Type": "application/json",
+  };
+
+  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/schedule" : "/schedule";
+  let response = await fetch(url, {
+    method: "DELETE",
+    headers: headersList,
+  });
+
+  if (!response.ok) {
+    return { error: true, status: response.status, message: await response.json() };
+  }
+  return response.json();
+}
+

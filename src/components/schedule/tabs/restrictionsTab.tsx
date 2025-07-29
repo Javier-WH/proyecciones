@@ -5,6 +5,7 @@ import { Subject } from "../../../interfaces/subject";
 import SaveSchedule from "./utils/saveSchedule";
 import { splitSubjectsByQuarter } from "./utils/SubjectArraysFunctions";
 import { generateSchedule } from "./utils/generateSchedule";
+import { deleteSchedule } from "../../../fetch/schedule/scheduleFetch";
 
 export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) {
   const { subjects, teachers, turnos, days, hours, classrooms, schedule, loadInitialData } = data;
@@ -53,8 +54,8 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
       return;
     }
     setLoading(true);
-    loadInitialData();
-
+    await deleteSchedule();
+    await loadInitialData();
     const scheduleData = generateSchedule({
       schedule,
       filteredSubjects,
@@ -82,6 +83,15 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
     <div>
       <Button type="primary" onClick={handleGenerateSchedule}>
         Generar horario
+      </Button>
+
+      <Button
+        type="primary"
+        danger
+        onClick={() => {
+          deleteSchedule();
+        }}>
+        Borrar horario
       </Button>
     </div>
   );

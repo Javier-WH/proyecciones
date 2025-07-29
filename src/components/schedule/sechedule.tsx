@@ -60,22 +60,34 @@ export default function Schedule() {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
 
-  const loadInitialData = async () => {
+  const loadInitialData = async (): Promise<void> => {
     const daysData = await getDays();
-    if (daysData.error) return message.error(daysData.message);
+    if (daysData.error) {
+      message.error(daysData.message);
+      return;
+    }
     const orderedDays = daysData.sort((a: Days, b: Days) => a.index - b.index);
     setDays(orderedDays);
 
     const hoursData = await getHours();
-    if (hoursData.error) return message.error(hoursData.message);
+    if (hoursData.error) {
+      message.error(hoursData.message);
+      return;
+    }
     setHours(hoursData);
 
     const classroomsData = await getClassrooms();
-    if (classroomsData.error) return message.error(classroomsData.message);
+    if (classroomsData.error) {
+      message.error(classroomsData.message);
+      return;
+    }
     setClassrooms(classroomsData);
 
     const scheduleData = await getSchedule();
-    if (scheduleData.error) return message.error(scheduleData.message);
+    if (scheduleData.error) {
+      message.error(scheduleData.message);
+      return;
+    }
     setSchedule(scheduleData);
   };
 
