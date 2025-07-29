@@ -7,20 +7,10 @@ import PnfSelector from "../elements/PnfSelector";
 import TrayectoSelector from "../elements/TrayectoSelector";
 import TurnSelector from "../elements/TurnSelector";
 import SeccionSelector from "../elements/SeccionSelector";
+import QuarterSelector from "../elements/QuarterSelector";
 
 export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
-  const {
-    schedule: scheduleRawData,
-    hours,
-    turnos,
-    days: daysData,
-    classrooms,
-    subjects,
-    teachers,
-    pnfList,
-    loadInitialData,
-    trayectosList,
-  } = data;
+  const { schedule: scheduleRawData, hours, days: daysData, classrooms, subjects, teachers } = data;
 
   const [days, setDays] = useState<Days[]>([]);
   const [filteredScheduleData, setFilteredScheduleData] = useState<ScheduleItem[]>([]);
@@ -28,29 +18,8 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
   const [selectedPnf, setSelectedPnf] = useState<string>("");
   const [selectedTrayecto, setSelectedTrayecto] = useState<string>("");
   const [selectedTurn, setSelectedTurn] = useState<string>("");
-  const [quarterOptions, setQuarterOptions] = useState<{ value: string; label: string }[]>([]);
   const [selectedQuarter, setSelectedQuarter] = useState<string>("");
-  const [seccionOptions, setSeccionOptions] = useState<{ value: string; label: string }[]>([]);
   const [selectedSeccion, setSelectedSeccion] = useState<string>("");
-
-  // Llenar opciones
-  useEffect(() => {
-    if (!trayectosList || trayectosList.length === 0 || !turnos || turnos.length === 0) return;
-
-    const aviableSeccions = new Set(subjects?.map((subject) => subject.seccion));
-    const seccionOpt = Array.from(aviableSeccions).map((seccion) => ({
-      value: seccion,
-      label: `Sección ${seccion}`,
-    }));
-    setSeccionOptions(seccionOpt);
-
-    const quarterOpt = [
-      { value: "1", label: "Trimestre 1" },
-      { value: "2", label: "Trimestre 2" },
-      { value: "3", label: "Trimestre 3" },
-    ];
-    setQuarterOptions(quarterOpt);
-  }, [pnfList]);
 
   // Filtrar datos iniciales
   useEffect(() => {
@@ -198,18 +167,7 @@ export default function ScheduleTab({ data }: { data: ScheduleCommonData }) {
 
         <SeccionSelector value={selectedSeccion} setValue={setSelectedSeccion} />
 
-        <Select
-          showSearch
-          style={{ width: 200 }}
-          placeholder="Seleccione un trimestre"
-          optionFilterProp="label"
-          filterSort={(optionA, optionB) =>
-            (optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
-          }
-          options={quarterOptions}
-          value={selectedQuarter}
-          onChange={(value) => setSelectedQuarter(value)}
-        />
+        <QuarterSelector value={selectedQuarter} setValue={setSelectedQuarter} />
       </div>
 
       {filteredScheduleData?.length === 0 ? (
