@@ -1,7 +1,7 @@
 import { Days, ScheduleCommonData } from "../sechedule";
 import { useEffect, useState } from "react";
 import { ScheduleItem } from "../scheduleInterfaces";
-import { Select, Tag } from "antd";
+import { Tag } from "antd";
 import "./scheduleTable.css";
 import PnfSelector from "../elements/PnfSelector";
 import TrayectoSelector from "../elements/TrayectoSelector";
