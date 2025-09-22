@@ -89,7 +89,7 @@ const MainLayout: React.FC = () => {
           getItem("Administrador", "/app/admin", <MdAdminPanelSettings />),
         ]
       : []),
-    getItem("Horarios", "/app/horarios/create", <GrSchedules />),
+    //getItem("Horarios", "/app/horarios/create", <GrSchedules />),
     getItem("Información", "/app/info", <TiInfoLargeOutline />),
     getItem("Logout", "logout", <RiLogoutBoxFill />),
   ];
