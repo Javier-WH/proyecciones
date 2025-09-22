@@ -5,7 +5,7 @@ import { LiaFileContractSolid } from "react-icons/lia";
 import { MdSubject, MdEditRoad, MdEditLocation, MdAdminPanelSettings } from "react-icons/md";
 import { IoMdPlanet, IoIosCreate } from "react-icons/io";
 import { LiaSchoolSolid } from "react-icons/lia";
-import { GrSchedules, GrScheduleNew, GrSchedule } from "react-icons/gr";
+import { GrSchedules } from "react-icons/gr";
 import { FaPersonMilitaryPointing } from "react-icons/fa6";
 import { TiInfoLargeOutline } from "react-icons/ti";
 import { QuestionCircleOutlined } from "@ant-design/icons";

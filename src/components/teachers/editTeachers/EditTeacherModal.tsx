@@ -1,10 +1,12 @@
 import { Modal, Input, message, Select, SelectProps, Radio } from "antd";
 import { Teacher } from "../../../interfaces/teacher";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import getProfileNames from "../../../fetch/getProfileNames";
 import getSimpleData from "../../../fetch/getSimpleData";
 import postTeacher from "../../../fetch/postTeacher";
 import ImageUploader from "../../photo/photoUploader";
+import { MainContext } from "../../../context/mainContext";
+import { MainContextValues } from "../../../interfaces/contextInterfaces";
 
 export default function EditTeacherModal({
   teacherData,
@@ -15,10 +17,8 @@ export default function EditTeacherModal({
   setTeacherData: (teacherData: Teacher | null) => void;
   fetchTeachers: () => Promise<void>;
 }) {
-
-
   const [isModalOpen, setIsModalOpen] = useState(false);
-
+  const { pnfList } = useContext(MainContext) as MainContextValues;
   const [name, setName] = useState<string>("");
   const [lastName, setLastName] = useState<string>("");
   const [ci, setCi] = useState<string>("");
@@ -29,7 +29,18 @@ export default function EditTeacherModal({
   const [profileOptions, setProfileOptions] = useState<SelectProps["options"]>([]);
   const [genderOprions, setGenderOprions] = useState<SelectProps["options"]>([]);
   const [contractOptions, setContractOptions] = useState<SelectProps["options"]>([]);
+  const [pnfOptions, setPnfOptions] = useState<SelectProps["options"]>([]);
+  const [pnf, setPnf] = useState<string>("");
   const [active, setActive] = useState<string>("1");
+
+  useEffect(() => {
+    if (!pnfList) return;
+    setPnfOptions(
+      pnfList.map((pnfItem: { id: string; name: string }) => {
+        return { value: pnfItem.id, label: pnfItem.name };
+      })
+    );
+  }, [pnfList]);
 
   useEffect(() => {
     if (teacherData !== null) {
@@ -42,6 +53,7 @@ export default function EditTeacherModal({
       setGenderId(teacherData.genderId);
       setActive(teacherData.active ? "1" : "0");
       setPerfilId(teacherData?.perfil_name_id?.split(",") || []);
+      setPnf(teacherData?.PNF || "");
     } else {
       setName("");
       setLastName("");
@@ -52,6 +64,7 @@ export default function EditTeacherModal({
       setGenderId("");
       setActive("1");
       setIsModalOpen(false);
+      setPnf("");
     }
   }, [teacherData]);
 
@@ -114,6 +127,7 @@ export default function EditTeacherModal({
       contractTypes_id: typeId,
       title,
       perfil_name_id: perfilId.join(","),
+      PNF: pnf,
       active,
     };
 
@@ -147,13 +161,26 @@ export default function EditTeacherModal({
               <label>Apellido</label>
               <Input placeholder="Apellido" value={lastName} onChange={(e) => setLastName(e.target.value)} />
             </div>
-            <div className="edit-teacher-modal-row">
-              <label>Cédula</label>
-              <Input placeholder="Cédula" value={ci} onChange={(e) => setCi(e.target.value)} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px" }}>
+              <div className="edit-teacher-modal-row">
+                <label>Cédula</label>
+                <Input placeholder="Cédula" value={ci} onChange={(e) => setCi(e.target.value)} />
+              </div>
+
+              <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
+                <label style={{ display: "block" }}>Programa asociado</label>
+                <Select
+                  style={{ width: "100%" }}
+                  showSearch
+                  placeholder="Selecciona un PNF"
+                  options={pnfOptions}
+                  value={pnf}
+                  onChange={(value) => setPnf(value)}
+                />
+              </div>
             </div>
           </div>
         </div>
-
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 150px", gap: "5px" }}>
           <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
@@ -172,7 +199,6 @@ export default function EditTeacherModal({
               onChange={(value) => setTypeId(value)}
             />
           </div>
-
 
           <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
             <label>Título</label>
@@ -194,7 +220,6 @@ export default function EditTeacherModal({
               value={genderId}
               onChange={(value) => setGenderId(value)}
             />
-
           </div>
           <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
             <label style={{ display: "block" }}>Activo</label>
@@ -211,7 +236,6 @@ export default function EditTeacherModal({
             />
           </div>
         </div>
-
 
         <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
           <label style={{ display: "block" }}>Perfil</label>
@@ -231,9 +255,8 @@ export default function EditTeacherModal({
             onChange={(value) => setPerfilId(value)}
           />
         </div>
-
       </div>
-     <br />
+      <br />
     </Modal>
   );
 }

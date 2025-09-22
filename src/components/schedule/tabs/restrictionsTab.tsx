@@ -15,7 +15,7 @@ export default function RestrictionsTab({ data }: { data: ScheduleCommonData }) 
   const [filteredHours, setFilteredHours] = useState<Hours[]>([]);
   const [filteredDays, setFilteredDays] = useState<Days[]>([]);
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
-  const [quarter, setQuarter] = useState<"q1" | "q2" | "q3">("q1");
+  const [quarter /*setQuarter*/] = useState<"q1" | "q2" | "q3">("q1");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
