@@ -19,7 +19,8 @@ import EditContracts from "../components/editContracts/EditContracts";
 import CreateUserPanel from "../components/createUser/createUserPanel";
 import CreateProyectionPanel from "../components/createProyectionPanel/createProyectionPanel";
 import AdminPanel from "../components/adminPanel/adminPanel";
-import SchedulePanel from "../components/schedule/sechedule";
+//import SchedulePanel from "../components/schedule/sechedule";
+import SchoolSchedule from "../components/SchoolSchedule/schoolSchedule";
 
 const router = createBrowserRouter([
   {
@@ -98,7 +99,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/app/horarios/create",
-        element: <SchedulePanel />,
+        element: <SchoolSchedule />,
       },
       {
         path: "*",

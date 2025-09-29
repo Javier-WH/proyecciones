@@ -1,0 +1,22 @@
+/* SchoolSchedule.css */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.calendar-container {
+  height: 100%;
+  /* ocupa toda la ventana */
+  width: 100%;
+  /* ocupa todo el ancho */
+  overflow: hidden;
+}
+
+/* Elimina el fondo amarillo del día actual */
+.fc-day-today {
+  background-color: transparent !important;
+}
+
