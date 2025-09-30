@@ -8,6 +8,7 @@ import { MainContextValues } from '../../interfaces/contextInterfaces';
 import { Subject } from "../../interfaces/subject";
 import './SchoolSchedule.css';
 import { getClassrooms } from '../../fetch/schedule/scheduleFetch';
+import { Select } from 'antd';
 
 export interface Classroom {
   id: string;
@@ -68,14 +69,36 @@ const turnos: Record<string, [string, string][]> = {
     ['19:45', '20:30'],
     ['20:30', '21:15'],
   ],
+  diurno: [
+    ['07:00', '07:45'],
+    ['07:45', '08:30'],
+    ['08:30', '09:15'],
+    ['09:15', '10:00'],
+    ['10:00', '10:45'],
+    ['10:45', '11:30'],
+    ['11:30', '12:15'],
+    ['12:15', '13:00'],
+    ['13:00', '13:45'],
+    ['13:45', '14:30'],
+    ['14:30', '15:15'],
+    ['15:15', '16:00'],
+    ['16:00', '16:45'],
+    ['16:45', '17:30'],
+  ]
 };
 
 const SchoolSchedule: React.FC = () => {
 
-  const { subjects, teachers, /*turnosList*/ } = useContext(MainContext) as MainContextValues;
+  const { subjects, teachers } = useContext(MainContext) as MainContextValues;
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [eventData, setEventData] = useState<Event[]>([]);
   const [events, setEvents] = useState<EventInput[]>([]);
+  const [turn, setTurn] = useState('mañana');
+  const [seccion, setSeccion] = useState('1');
+
+  const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
+  const lastHour = turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
+
 
   const loadInitialData = async (): Promise<void> => {
     const classroomsData = await getClassrooms();
@@ -112,7 +135,7 @@ const SchoolSchedule: React.FC = () => {
       {
         subjectId: "f5171975-35be-4511-9ac8-0763721105a4",
         classroomIds: ["4b8c9d1a-6e5f-4a3b-8c2d-1e0f9b4a7c6d"],
-       
+
       }
     ]
 
@@ -123,32 +146,60 @@ const SchoolSchedule: React.FC = () => {
       preferredClassrooms: classroomRestrictions,
       unavailableDays: restrictions
     });
-    console.log(eventsdata);
+
     setEventData(eventsdata);
   }, [classrooms, subjects]);
 
 
   useEffect(() => {
     if (!eventData || eventData.length === 0) return;
-    const filteredByPnf = eventData.filter((event) => event.extendedProps.pnfId === '00635193-cb18-4e16-93c3-87506b07a0f3' && event.extendedProps.seccion === '1' && event.extendedProps.trayectoId === '16817025-cd37-41e7-8d2b-5db381c7a725' && event.extendedProps.turnName.toLowerCase() === 'mañana');
+    const filteredByPnf = eventData.filter((event) => event.extendedProps.pnfId === '00635193-cb18-4e16-93c3-87506b07a0f3' && event.extendedProps.seccion === seccion && event.extendedProps.trayectoId === '16817025-cd37-41e7-8d2b-5db381c7a725' && event.extendedProps.turnName.toLowerCase() === turn);
     setEvents(mergeConsecutiveEvents(filteredByPnf));
-  }, [eventData]);
+  }, [eventData, turn, seccion]);
 
 
-
+  console.log(events[0]?.extendedProps?.seccion);
 
 
   return <div style={{ height: '100%', width: '100%' }}>
+    <div className='schedule-select'>
+      <span>Turno:</span>
+      <Select
+        defaultValue={Object.keys(turnos)[0]}
+        style={{ width: 120 }}
+        onChange={setTurn}
+        options={Object.keys(turnos).map((turn) => ({ value: turn, label: turn }))}
+      />
+    </div>
+
+    <div className='schedule-select'>
+      <span>Sección:</span>
+      <Select
+        defaultValue={eventData[0]?.extendedProps?.seccion}
+        style={{ width: 120 }}
+        onChange={setSeccion}
+        options={Array.from(
+          new Set(eventData.map(event => event?.extendedProps?.seccion))
+        )
+          .filter(Boolean) 
+          .map(seccion => ({
+            value: seccion,
+            label: `Sección ${seccion}`
+          }))}
+      />
+    </div>
+    
 
     <div style={{ height: '100%', width: '100%', maxWidth: '1200px', maxHeight: '700px', margin: '0 auto' }}>
       <div className="calendar-container">
         <FullCalendar
+          key={turn}
           plugins={[timeGridPlugin]}
           initialView="timeGridWeek"
           locale={esLocale}
           weekends={false}
-          slotMinTime="07:00:00"
-          slotMaxTime="12:15:00"
+          slotMinTime={firstHour}
+          slotMaxTime={lastHour}
           slotDuration="00:45:00"
           slotLabelContent={(arg) => {
             const start = arg.date;
