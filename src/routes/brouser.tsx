@@ -19,8 +19,7 @@ import EditContracts from "../components/editContracts/EditContracts";
 import CreateUserPanel from "../components/createUser/createUserPanel";
 import CreateProyectionPanel from "../components/createProyectionPanel/createProyectionPanel";
 import AdminPanel from "../components/adminPanel/adminPanel";
-//import SchedulePanel from "../components/schedule/sechedule";
-import SchoolSchedule from "../components/SchoolSchedule/schoolSchedule";
+import SchoolSchedule from "../components/SchoolSchedule/SchoolSchedule";
 
 const router = createBrowserRouter([
   {
