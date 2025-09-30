@@ -161,7 +161,7 @@ const SchoolSchedule: React.FC = () => {
 
 
 
-  console.log(trayectosList);
+  console.log(eventData);
 
   return <div style={{ height: '100%', width: '100%' }}>
     <div className='schedule-select'>
