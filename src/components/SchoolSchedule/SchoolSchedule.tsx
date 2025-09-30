@@ -127,21 +127,12 @@ interface Event {
   };
 }
 
-/*const timeSlots = [
-  ['07:00', '07:45'],
-  ['07:45', '08:30'],
-  ['08:30', '09:15'],
-  ['09:15', '10:00'],
-  ['10:00', '10:45'],
-  ['10:45', '11:30'],
-  ['11:30', '12:15'],
-  ['12:15', '13:00'],
-];*/
 
 function generateScheduleEvents(
   subjects: Subject[],
   classrooms: Classroom[],
-  trimestre: 'q1' | 'q2' | 'q3'
+  trimestre: 'q1' | 'q2' | 'q3',
+  unavailableDays?: { teacherId: string; days: number[] }[]
 ): Event[] {
   const events: Event[] = [];
 
@@ -189,7 +180,11 @@ function generateScheduleEvents(
 
     let remainingHours = hours;
 
-    for (const day of days) {
+    // 🔒 Filtrar días prohibidos para este profesor
+    const restrictedDays = unavailableDays?.find(r => r.teacherId === professorId)?.days ?? [];
+    const availableDays = days.filter(day => !restrictedDays.includes(day));
+
+    for (const day of availableDays) {
       if (remainingHours <= 0) break;
 
       let blocksAssigned = 0;
@@ -208,6 +203,7 @@ function generateScheduleEvents(
           sectionUsedSlots.has(conflictKeySection)
         ) continue;
 
+        const blockId = `${day}-${subject.innerId}`;
 
         events.push({
           title: subject.subject,
@@ -223,7 +219,7 @@ function generateScheduleEvents(
             seccion: subject.seccion,
             pnfName: subject.pnf,
             turnName: subject.turnoName,
-            blockId: `${day}-${subject.innerId}-${day}`
+            blockId,
           },
         });
 
@@ -238,6 +234,7 @@ function generateScheduleEvents(
 
   return events;
 }
+
 
 
 
