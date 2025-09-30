@@ -38,6 +38,7 @@ interface generateScheduleParams {
   classrooms: Classroom[];
   trimestre: 'q1' | 'q2' | 'q3';
   unavailableDays?: { teacherId: string; days: number[] }[];
+  preferredClassrooms?: { subjectId: string; classroomIds: string[], preferLastSlot?: boolean; }[]
   existingEvents?: Event[]
 }
 
@@ -73,7 +74,7 @@ const SchoolSchedule: React.FC = () => {
 
   const { subjects, teachers, /*turnosList*/ } = useContext(MainContext) as MainContextValues;
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
-  const [eventData , setEventData] = useState<Event[]>([]);
+  const [eventData, setEventData] = useState<Event[]>([]);
   const [events, setEvents] = useState<EventInput[]>([]);
 
   const loadInitialData = async (): Promise<void> => {
@@ -95,28 +96,41 @@ const SchoolSchedule: React.FC = () => {
     const restrictions = [
       {
         teacherId: "86d72bb0-9a93-4c15-ab26-220977a909d3",
-        days:[1,3]
+        days: [1, 3]
       },
-     {
-        teacherId: "50ab598d-8306-413e-970d-061bc13f2e37",
-        days:[1]
-     }
+      {
+        teacherId: "ce7d1039-7656-41ae-ae55-b14d315303ac",
+        days: [1, 3]
+      }
     ]
-    
+
+    const classroomRestrictions = [
+      {
+        subjectId: "66c36779-98ee-48d2-8653-590026606ffb",
+        classroomIds: ["986d550a-e81b-4baf-96a6-ef2898dd2492", "0df11e0c-9a7d-47c7-8070-ea39586158e5", "7945c41b-88b1-4cdc-8b3a-430888017a01"]
+      },
+      {
+        subjectId: "f5171975-35be-4511-9ac8-0763721105a4",
+        classroomIds: ["4b8c9d1a-6e5f-4a3b-8c2d-1e0f9b4a7c6d"],
+       
+      }
+    ]
+
     const eventsdata = generateScheduleEvents({
       subjects: subjects as Subject[],
       classrooms: classrooms,
       trimestre: 'q1',
-      //unavailableDays: restrictions
+      preferredClassrooms: classroomRestrictions,
+      unavailableDays: restrictions
     });
     console.log(eventsdata);
     setEventData(eventsdata);
   }, [classrooms, subjects]);
-  
+
 
   useEffect(() => {
-    if (!eventData || eventData.length === 0 ) return;
-    const filteredByPnf = eventData.filter((event) => event.extendedProps.pnfId === '00635193-cb18-4e16-93c3-87506b07a0f3' && event.extendedProps.seccion === '2' && event.extendedProps.trayectoId === '16817025-cd37-41e7-8d2b-5db381c7a725' && event.extendedProps.turnName.toLowerCase() === 'tarde');
+    if (!eventData || eventData.length === 0) return;
+    const filteredByPnf = eventData.filter((event) => event.extendedProps.pnfId === '00635193-cb18-4e16-93c3-87506b07a0f3' && event.extendedProps.seccion === '1' && event.extendedProps.trayectoId === '16817025-cd37-41e7-8d2b-5db381c7a725' && event.extendedProps.turnName.toLowerCase() === 'mañana');
     setEvents(mergeConsecutiveEvents(filteredByPnf));
   }, [eventData]);
 
@@ -133,8 +147,8 @@ const SchoolSchedule: React.FC = () => {
           initialView="timeGridWeek"
           locale={esLocale}
           weekends={false}
-          slotMinTime="12:15:00"
-          slotMaxTime="17:30:00"
+          slotMinTime="07:00:00"
+          slotMaxTime="12:15:00"
           slotDuration="00:45:00"
           slotLabelContent={(arg) => {
             const start = arg.date;
@@ -191,9 +205,9 @@ function generateScheduleEvents({
   classrooms,
   trimestre,
   unavailableDays,
-  existingEvents
-}: generateScheduleParams
-): Event[] {
+  existingEvents,
+  preferredClassrooms
+}: generateScheduleParams): Event[] {
   const events: Event[] = [];
   const days = [1, 2, 3, 4, 5];
 
@@ -208,11 +222,10 @@ function generateScheduleEvents({
       const { professorId, classroomId, trayectoId, seccion, pnfId } = event.extendedProps;
 
       if (professorId) {
-        globalUsedSlots.add(`${day}-${start}-${trayectoId}-${professorId}`);
+        globalUsedSlots.add(`${day}-${start}-${professorId}`);
       }
       globalUsedSlots.add(`${day}-${start}-${trayectoId}-${classroomId}`);
       sectionUsedSlots.add(`${day}-${start}-${pnfId}-${trayectoId}-${seccion}`);
-
     }
   }
 
@@ -233,7 +246,10 @@ function generateScheduleEvents({
     const hours = subject.hours[trimestre];
     const professorId = subject.quarter[trimestre];
     const turno = subject.turnoName?.toLowerCase();
-    const timeSlots = turnos[turno];
+    const preferConfig = preferredClassrooms?.find(p => p.subjectId === subject.id);
+    const timeSlots = preferConfig?.preferLastSlot
+      ? [...turnos[turno]].reverse()
+      : turnos[turno];
 
     if (!hours || !professorId || !timeSlots) return false;
 
@@ -249,45 +265,55 @@ function generateScheduleEvents({
 
       for (let i = 0; i < timeSlots.length && blocksAssigned < 3 && remainingHours > 0; i++) {
         const [start, end] = timeSlots[i];
-        const classroom = classrooms[(events.length + i) % classrooms.length];
 
-        const conflictKeyProf = `${day}-${start}-${subject.trayectoId}-${professorId}`;
-        const conflictKeyRoom = `${day}-${start}-${subject.trayectoId}-${classroom.id}`;
-        const conflictKeySection = `${day}-${start}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
+        const candidateClassrooms = preferConfig?.classroomIds?.length
+          ? classrooms.filter(c => preferConfig.classroomIds.includes(c.id))
+          : classrooms;
 
+        let assigned = false;
 
-        if (
-          globalUsedSlots.has(conflictKeyProf) ||
-          globalUsedSlots.has(conflictKeyRoom) ||
-          sectionUsedSlots.has(conflictKeySection)
-        ) continue;
+        for (const classroom of candidateClassrooms) {
+          const conflictKeyProf = `${day}-${start}-${professorId}`;
+          const conflictKeyRoom = `${day}-${start}-${subject.trayectoId}-${classroom.id}`;
+          const conflictKeySection = `${day}-${start}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
 
-        const blockId = `${day}-${subject.innerId}`;
+          if (
+            globalUsedSlots.has(conflictKeyProf) ||
+            globalUsedSlots.has(conflictKeyRoom) ||
+            sectionUsedSlots.has(conflictKeySection)
+          ) continue;
 
-        events.push({
-          title: subject.subject,
-          daysOfWeek: [day],
-          startTime: start,
-          endTime: end,
-          extendedProps: {
-            subjectId: subject.innerId,
-            professorId,
-            classroomId: classroom.id,
-            classroomName: classroom.classroom,
-            pnfId: subject.pnfId,
-            trayectoId: subject.trayectoId,
-            seccion: subject.seccion,
-            pnfName: subject.pnf,
-            turnName: subject.turnoName,
-            blockId,
-          },
-        });
+          const blockId = `${day}-${subject.innerId}`;
 
-        globalUsedSlots.add(conflictKeyProf);
-        globalUsedSlots.add(conflictKeyRoom);
-        sectionUsedSlots.add(conflictKeySection);
-        blocksAssigned++;
-        remainingHours--;
+          events.push({
+            title: subject.subject,
+            daysOfWeek: [day],
+            startTime: start,
+            endTime: end,
+            extendedProps: {
+              subjectId: subject.innerId,
+              professorId,
+              classroomId: classroom.id,
+              classroomName: classroom.classroom,
+              pnfId: subject.pnfId,
+              trayectoId: subject.trayectoId,
+              seccion: subject.seccion,
+              pnfName: subject.pnf,
+              turnName: subject.turnoName,
+              blockId,
+            },
+          });
+
+          globalUsedSlots.add(conflictKeyProf);
+          globalUsedSlots.add(conflictKeyRoom);
+          sectionUsedSlots.add(conflictKeySection);
+          blocksAssigned++;
+          remainingHours--;
+          assigned = true;
+          break;
+        }
+
+        if (!assigned) continue;
       }
     }
 
@@ -311,6 +337,7 @@ function generateScheduleEvents({
 
   return events;
 }
+
 
 
 
