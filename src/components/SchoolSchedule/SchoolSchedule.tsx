@@ -6,108 +6,13 @@ import { EventInput } from '@fullcalendar/core';
 import { MainContext } from '../../context/mainContext';
 import { MainContextValues } from '../../interfaces/contextInterfaces';
 import { Subject } from "../../interfaces/subject";
-import './SchoolSchedule.css'; 
+import './SchoolSchedule.css';
 import { getClassrooms } from '../../fetch/schedule/scheduleFetch';
 
 export interface Classroom {
   id: string;
   classroom: string;
 }
-
-const SchoolSchedule: React.FC = () => {
-
-  const { subjects } = useContext(MainContext) as MainContextValues;
-  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
-
-  const [events, setEvents] = useState<EventInput[]>([
-    {
-      title: 'Matemáticas',
-      daysOfWeek: [1],
-      startTime: '07:00',
-      endTime: '08:30',
-      startRecur: '2025-09-29',
-      endRecur: '2025-10-03',
-    },
-    {
-      title: 'Historia',
-      daysOfWeek: [2],
-      startTime: '10:00',
-      endTime: '11:30',
-      startRecur: '2025-09-29',
-      endRecur: '2025-10-03',
-    },
-    {
-      title: 'Química',
-      daysOfWeek: [3],
-      startTime: '08:30',
-      endTime: '10:45',
-      startRecur: '2025-09-29',
-      endRecur: '2025-10-03',
-    },
-  ]);
-  const loadInitialData = async (): Promise<void> => {
-    const classroomsData = await getClassrooms();
-    if (classroomsData.error) {
-      console.error(classroomsData.message);
-      return;
-    }
-    setClassrooms(classroomsData);
-  }
-  useEffect(()=>{
-    loadInitialData();
-  },[])
-
-  useEffect(() => {
-    if (!classrooms || classrooms.length === 0 || !subjects || subjects.length === 0) return;
-    const eventsdata = generateScheduleEvents(subjects as Subject[], classrooms, 'q1'); 
-    console.log(eventsdata);
-    const filteredByPnf = eventsdata.filter((event) => event.extendedProps.pnfId === 'bd6ebd71-c81a-4cae-bf00-b129fd680636' && event.extendedProps.seccion === '3' && event.extendedProps.trayectoId === '16817025-cd37-41e7-8d2b-5db381c7a725' && event.extendedProps.turnName.toLowerCase() === 'tarde');
-    //console.log(filteredByPnf);
-    setEvents(mergeConsecutiveEvents(filteredByPnf));
-  }, [classrooms, subjects]);
-
-  //console.log(generateScheduleEvents(subjects as Subject[], classrooms, 'q1'));
- 
-
-
-  return (
-    <div className="calendar-container">
-      <FullCalendar
-        plugins={[timeGridPlugin]}
-        initialView="timeGridWeek"
-        locale={esLocale}
-        weekends={false}
-        slotMinTime="13:00:00"
-        slotMaxTime="21:00:00"
-        slotDuration="00:45:00"
-        slotLabelContent={(arg) => {
-          const start = arg.date;
-          const end = new Date(start.getTime() + 45 * 60000);
-          const formatTime = (date: Date) =>
-            date.toLocaleTimeString('es-VE', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: true,
-            });
-          return `${formatTime(start)} - ${formatTime(end)}`;
-        }}
-        dayHeaderFormat={{ weekday: 'long' }}
-        allDaySlot={false}
-        headerToolbar={{ left: '', center: '', right: '' }}
-        events={events}
-        height="100%"
-        expandRows={true}
-        contentHeight={1400}
-      />
-
-
-    </div>
-  );
-};
-
-export default SchoolSchedule;
-
-
 
 interface Event {
   title: string;
@@ -118,6 +23,7 @@ interface Event {
     subjectId: string;
     professorId: string | null;
     classroomId: string;
+    classroomName: string;
     pnfId: string;
     trayectoId: string;
     seccion: string;
@@ -127,62 +33,214 @@ interface Event {
   };
 }
 
+interface generateScheduleParams {
+  subjects: Subject[];
+  classrooms: Classroom[];
+  trimestre: 'q1' | 'q2' | 'q3';
+  unavailableDays?: { teacherId: string; days: number[] }[];
+  existingEvents?: Event[]
+}
 
-function generateScheduleEvents(
-  subjects: Subject[],
-  classrooms: Classroom[],
-  trimestre: 'q1' | 'q2' | 'q3',
-  unavailableDays?: { teacherId: string; days: number[] }[]
+const turnos: Record<string, [string, string][]> = {
+  mañana: [
+    ['07:00', '07:45'],
+    ['07:45', '08:30'],
+    ['08:30', '09:15'],
+    ['09:15', '10:00'],
+    ['10:00', '10:45'],
+    ['10:45', '11:30'],
+    ['11:30', '12:15'],
+  ],
+  tarde: [
+    ['12:15', '13:00'],
+    ['13:00', '13:45'],
+    ['13:45', '14:30'],
+    ['14:30', '15:15'],
+    ['15:15', '16:00'],
+    ['16:00', '16:45'],
+    ['16:45', '17:30'],
+  ],
+  noche: [
+    ['17:30', '18:15'],
+    ['18:15', '19:00'],
+    ['19:00', '19:45'],
+    ['19:45', '20:30'],
+    ['20:30', '21:15'],
+  ],
+};
+
+const SchoolSchedule: React.FC = () => {
+
+  const { subjects, teachers, /*turnosList*/ } = useContext(MainContext) as MainContextValues;
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [eventData , setEventData] = useState<Event[]>([]);
+  const [events, setEvents] = useState<EventInput[]>([]);
+
+  const loadInitialData = async (): Promise<void> => {
+    const classroomsData = await getClassrooms();
+    if (classroomsData.error) {
+      console.error(classroomsData.message);
+      return;
+    }
+    setClassrooms(classroomsData);
+  }
+
+  useEffect(() => {
+    loadInitialData();
+  }, [])
+
+  useEffect(() => {
+    if (!classrooms || classrooms.length === 0 || !subjects || subjects.length === 0) return;
+
+    const restrictions = [
+      {
+        teacherId: "86d72bb0-9a93-4c15-ab26-220977a909d3",
+        days:[1,3]
+      },
+     {
+        teacherId: "50ab598d-8306-413e-970d-061bc13f2e37",
+        days:[1]
+     }
+    ]
+    
+    const eventsdata = generateScheduleEvents({
+      subjects: subjects as Subject[],
+      classrooms: classrooms,
+      trimestre: 'q1',
+      //unavailableDays: restrictions
+    });
+    console.log(eventsdata);
+    setEventData(eventsdata);
+  }, [classrooms, subjects]);
+  
+
+  useEffect(() => {
+    if (!eventData || eventData.length === 0 ) return;
+    const filteredByPnf = eventData.filter((event) => event.extendedProps.pnfId === '00635193-cb18-4e16-93c3-87506b07a0f3' && event.extendedProps.seccion === '2' && event.extendedProps.trayectoId === '16817025-cd37-41e7-8d2b-5db381c7a725' && event.extendedProps.turnName.toLowerCase() === 'tarde');
+    setEvents(mergeConsecutiveEvents(filteredByPnf));
+  }, [eventData]);
+
+
+
+
+
+  return <div style={{ height: '100%', width: '100%' }}>
+
+    <div style={{ height: '100%', width: '100%', maxWidth: '1200px', maxHeight: '700px', margin: '0 auto' }}>
+      <div className="calendar-container">
+        <FullCalendar
+          plugins={[timeGridPlugin]}
+          initialView="timeGridWeek"
+          locale={esLocale}
+          weekends={false}
+          slotMinTime="12:15:00"
+          slotMaxTime="17:30:00"
+          slotDuration="00:45:00"
+          slotLabelContent={(arg) => {
+            const start = arg.date;
+            const end = new Date(start.getTime() + 45 * 60000);
+            const formatTime = (date: Date) =>
+              date.toLocaleTimeString('es-VE', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+              });
+            return `${formatTime(start)} - ${formatTime(end)}`;
+          }}
+          dayHeaderFormat={{ weekday: 'long' }}
+          allDaySlot={false}
+          headerToolbar={{ left: '', center: '', right: '' }}
+          events={events}
+          height="100%"
+          expandRows={true}
+          contentHeight={1400}
+          eventContent={(arg) => {
+            const { event } = arg;
+            const title = event.title;
+            const professorId = event.extendedProps?.professorId;
+            const classroomName = event.extendedProps?.classroomName;
+            const teacherName = `${teachers?.find((teacher) => teacher.id === professorId)?.lastName} ${teachers?.find((teacher) => teacher.id === professorId)?.name}`;
+            return (
+              <div className="fc-event-custom">
+                <div><strong>{title}</strong></div>
+                <div style={{ fontSize: '0.75em', color: '#555' }}>
+                  Profesor: {teacherName}
+                </div>
+                <div style={{ fontSize: '0.75em', color: '#777' }}>
+                  {classroomName}
+                </div>
+              </div>
+            );
+          }}
+        />
+
+      </div>
+    </div>
+
+  </div>
+
+};
+
+export default SchoolSchedule;
+
+
+
+
+function generateScheduleEvents({
+  subjects,
+  classrooms,
+  trimestre,
+  unavailableDays,
+  existingEvents
+}: generateScheduleParams
 ): Event[] {
   const events: Event[] = [];
+  const days = [1, 2, 3, 4, 5];
 
-  const turnos: Record<string, [string, string][]> = {
-    mañana: [
-      ['07:00', '07:45'],
-      ['07:45', '08:30'],
-      ['08:30', '09:15'],
-      ['09:15', '10:00'],
-      ['10:00', '10:45'],
-      ['10:45', '11:30'],
-      ['11:30', '12:15'],
-      ['12:15', '13:00'],
-    ],
-    tarde: [
-      ['13:00', '13:45'],
-      ['13:45', '14:30'],
-      ['14:30', '15:15'],
-      ['15:15', '16:00'],
-      ['16:00', '16:45'],
-      ['16:45', '17:30'],
-    ],
-    noche: [
-      ['17:30', '18:15'],
-      ['18:15', '19:00'],
-      ['19:00', '19:45'],
-      ['19:45', '20:30'],
-      ['20:30', '21:15'],
-    ],
-  };
+  const globalUsedSlots = new Set<string>();
+  const sectionUsedSlots = new Set<string>();
 
-  const days = [1, 2, 3, 4, 5]; // lunes a viernes
+  // Precargar conflictos existentes
+  if (existingEvents?.length) {
+    for (const event of existingEvents) {
+      const day = event.daysOfWeek[0];
+      const start = event.startTime;
+      const { professorId, classroomId, trayectoId, seccion, pnfId } = event.extendedProps;
 
-  // Conflictos globales
-  const globalUsedSlots = new Set<string>(); // profesor y aula
-  const sectionUsedSlots = new Set<string>(); // sección
+      if (professorId) {
+        globalUsedSlots.add(`${day}-${start}-${trayectoId}-${professorId}`);
+      }
+      globalUsedSlots.add(`${day}-${start}-${trayectoId}-${classroomId}`);
+      sectionUsedSlots.add(`${day}-${start}-${pnfId}-${trayectoId}-${seccion}`);
 
-  for (const subject of subjects) {
+    }
+  }
+
+  // Fase 1: profesores con restricciones
+  const withRestrictions = subjects.filter(subject =>
+    unavailableDays?.some(r => r.teacherId === subject.quarter[trimestre])
+  );
+
+  // Fase 2: profesores sin restricciones
+  const withoutRestrictions = subjects.filter(subject =>
+    !unavailableDays?.some(r => r.teacherId === subject.quarter[trimestre])
+  );
+
+  // Fase 3: materias no asignadas
+  const unassignedSubjects: Subject[] = [];
+
+  const assignSubject = (subject: Subject, ignoreRestrictions = false): boolean => {
     const hours = subject.hours[trimestre];
     const professorId = subject.quarter[trimestre];
     const turno = subject.turnoName?.toLowerCase();
     const timeSlots = turnos[turno];
 
-    if (!hours || !professorId || !timeSlots) continue;
+    if (!hours || !professorId || !timeSlots) return false;
 
     let remainingHours = hours;
 
-    // 🔒 Filtrar días prohibidos para este profesor
     const restrictedDays = unavailableDays?.find(r => r.teacherId === professorId)?.days ?? [];
-    const availableDays = days.filter(day => !restrictedDays.includes(day));
+    const availableDays = ignoreRestrictions ? days : days.filter(day => !restrictedDays.includes(day));
 
     for (const day of availableDays) {
       if (remainingHours <= 0) break;
@@ -195,7 +253,8 @@ function generateScheduleEvents(
 
         const conflictKeyProf = `${day}-${start}-${subject.trayectoId}-${professorId}`;
         const conflictKeyRoom = `${day}-${start}-${subject.trayectoId}-${classroom.id}`;
-        const conflictKeySection = `${day}-${start}-${subject.trayectoId}-${subject.seccion}`;
+        const conflictKeySection = `${day}-${start}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
+
 
         if (
           globalUsedSlots.has(conflictKeyProf) ||
@@ -214,6 +273,7 @@ function generateScheduleEvents(
             subjectId: subject.innerId,
             professorId,
             classroomId: classroom.id,
+            classroomName: classroom.classroom,
             pnfId: subject.pnfId,
             trayectoId: subject.trayectoId,
             seccion: subject.seccion,
@@ -230,11 +290,27 @@ function generateScheduleEvents(
         remainingHours--;
       }
     }
+
+    return remainingHours === 0;
+  };
+
+  // Ejecutar fases
+  for (const subject of withRestrictions) {
+    const success = assignSubject(subject, false);
+    if (!success) unassignedSubjects.push(subject);
+  }
+
+  for (const subject of withoutRestrictions) {
+    const success = assignSubject(subject, false);
+    if (!success) unassignedSubjects.push(subject);
+  }
+
+  for (const subject of unassignedSubjects) {
+    assignSubject(subject, true); // Ignorar restricciones como último recurso
   }
 
   return events;
 }
-
 
 
 
