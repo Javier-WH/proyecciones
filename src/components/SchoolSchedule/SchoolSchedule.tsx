@@ -95,6 +95,8 @@ const SchoolSchedule: React.FC = () => {
   const [events, setEvents] = useState<EventInput[]>([]);
   const [turn, setTurn] = useState('mañana');
   const [seccion, setSeccion] = useState('1');
+  const [pnf, setPnf] = useState('');
+  const [trayectoId, setTrayectoId] = useState('');
 
   const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
   const lastHour = turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
@@ -153,13 +155,13 @@ const SchoolSchedule: React.FC = () => {
 
   useEffect(() => {
     if (!eventData || eventData.length === 0) return;
-    const filteredByPnf = eventData.filter((event) => event.extendedProps.pnfId === '00635193-cb18-4e16-93c3-87506b07a0f3' && event.extendedProps.seccion === seccion && event.extendedProps.trayectoId === '16817025-cd37-41e7-8d2b-5db381c7a725' && event.extendedProps.turnName.toLowerCase() === turn);
+    const filteredByPnf = eventData.filter((event) => event.extendedProps.pnfId === pnf && event.extendedProps.seccion === seccion && event.extendedProps.trayectoId === '16817025-cd37-41e7-8d2b-5db381c7a725' && event.extendedProps.turnName.toLowerCase() === turn);
     setEvents(mergeConsecutiveEvents(filteredByPnf));
-  }, [eventData, turn, seccion]);
+  }, [eventData, turn, seccion, pnf]);
 
 
-  console.log(events[0]?.extendedProps?.seccion);
 
+  console.log(pnf);
 
   return <div style={{ height: '100%', width: '100%' }}>
     <div className='schedule-select'>
@@ -181,14 +183,36 @@ const SchoolSchedule: React.FC = () => {
         options={Array.from(
           new Set(eventData.map(event => event?.extendedProps?.seccion))
         )
-          .filter(Boolean) 
+          .filter(Boolean)
           .map(seccion => ({
             value: seccion,
             label: `Sección ${seccion}`
           }))}
       />
     </div>
-    
+
+    <div className='schedule-select'>
+      <span>PNF:</span>
+      <Select
+        value={pnf}
+        style={{ width: 120 }}
+        onChange={setPnf}
+        options={Array.from(
+          new Map(
+            eventData
+              .filter(event => event?.extendedProps?.pnfId && event?.extendedProps?.pnfName)
+              .map(event => [
+                event.extendedProps.pnfId,
+                event.extendedProps.pnfName
+              ])
+          )
+        ).map(([value, label]) => ({
+          value,
+          label
+        }))}
+      />
+    </div>
+
 
     <div style={{ height: '100%', width: '100%', maxWidth: '1200px', maxHeight: '700px', margin: '0 auto' }}>
       <div className="calendar-container">
