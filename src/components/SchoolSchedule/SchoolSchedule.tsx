@@ -89,7 +89,7 @@ const turnos: Record<string, [string, string][]> = {
 
 const SchoolSchedule: React.FC = () => {
 
-  const { subjects, teachers } = useContext(MainContext) as MainContextValues;
+  const { subjects, teachers, trayectosList} = useContext(MainContext) as MainContextValues;
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [eventData, setEventData] = useState<Event[]>([]);
   const [events, setEvents] = useState<EventInput[]>([]);
@@ -155,13 +155,13 @@ const SchoolSchedule: React.FC = () => {
 
   useEffect(() => {
     if (!eventData || eventData.length === 0) return;
-    const filteredByPnf = eventData.filter((event) => event.extendedProps.pnfId === pnf && event.extendedProps.seccion === seccion && event.extendedProps.trayectoId === '16817025-cd37-41e7-8d2b-5db381c7a725' && event.extendedProps.turnName.toLowerCase() === turn);
+    const filteredByPnf = eventData.filter((event) => event.extendedProps.pnfId === pnf && event.extendedProps.seccion === seccion && event.extendedProps.trayectoId === trayectoId && event.extendedProps.turnName.toLowerCase() === turn);
     setEvents(mergeConsecutiveEvents(filteredByPnf));
-  }, [eventData, turn, seccion, pnf]);
+  }, [eventData, turn, seccion, pnf, trayectoId]);
 
 
 
-  console.log(pnf);
+  console.log(trayectosList);
 
   return <div style={{ height: '100%', width: '100%' }}>
     <div className='schedule-select'>
@@ -209,6 +209,19 @@ const SchoolSchedule: React.FC = () => {
         ).map(([value, label]) => ({
           value,
           label
+        }))}
+      />
+    </div>
+
+    <div className='schedule-select'>
+      <span>Trayecto:</span>
+      <Select
+        value={trayectoId}
+        style={{ width: 120 }}
+        onChange={setTrayectoId}
+        options={trayectosList?.map((trayecto) => ({
+          value: trayecto.id,
+          label: trayecto.name
         }))}
       />
     </div>
