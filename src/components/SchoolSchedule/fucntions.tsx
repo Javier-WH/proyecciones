@@ -1,5 +1,4 @@
-
-import { Subject} from "../../interfaces/subject";
+import { Subject } from "../../interfaces/subject";
 
 export interface Classroom {
   id: string;
@@ -28,60 +27,56 @@ export interface Event {
 export interface generateScheduleParams {
   subjects: Subject[];
   classrooms: Classroom[];
-  trimestre: 'q1' | 'q2' | 'q3';
+  trimestre: "q1" | "q2" | "q3";
   unavailableDays?: { teacherId: string; days: number[] }[];
-  preferredClassrooms?: { subjectId: string; classroomIds: string[], preferLastSlot?: boolean; }[]
-  existingEvents?: Event[]
-  conserveSlots?: number
+  preferredClassrooms?: { subjectId: string; classroomIds: string[]; preferLastSlot?: boolean }[];
+  existingEvents?: Event[];
+  conserveSlots?: number;
 }
-
-
-
 
 export const turnos: Record<string, [string, string][]> = {
   mañana: [
-    ['07:00', '07:45'],
-    ['07:45', '08:30'],
-    ['08:30', '09:15'],
-    ['09:15', '10:00'],
-    ['10:00', '10:45'],
-    ['10:45', '11:30'],
-    ['11:30', '12:15'],
+    ["07:00", "07:45"],
+    ["07:45", "08:30"],
+    ["08:30", "09:15"],
+    ["09:15", "10:00"],
+    ["10:00", "10:45"],
+    ["10:45", "11:30"],
+    ["11:30", "12:15"],
   ],
   tarde: [
-    ['12:15', '13:00'],
-    ['13:00', '13:45'],
-    ['13:45', '14:30'],
-    ['14:30', '15:15'],
-    ['15:15', '16:00'],
-    ['16:00', '16:45'],
-    ['16:45', '17:30'],
+    ["12:15", "13:00"],
+    ["13:00", "13:45"],
+    ["13:45", "14:30"],
+    ["14:30", "15:15"],
+    ["15:15", "16:00"],
+    ["16:00", "16:45"],
+    ["16:45", "17:30"],
   ],
   noche: [
-    ['17:30', '18:15'],
-    ['18:15', '19:00'],
-    ['19:00', '19:45'],
-    ['19:45', '20:30'],
-    ['20:30', '21:15'],
+    ["17:30", "18:15"],
+    ["18:15", "19:00"],
+    ["19:00", "19:45"],
+    ["19:45", "20:30"],
+    ["20:30", "21:15"],
   ],
   diurno: [
-    ['07:00', '07:45'],
-    ['07:45', '08:30'],
-    ['08:30', '09:15'],
-    ['09:15', '10:00'],
-    ['10:00', '10:45'],
-    ['10:45', '11:30'],
-    ['11:30', '12:15'],
-    ['12:15', '13:00'],
-    ['13:00', '13:45'],
-    ['13:45', '14:30'],
-    ['14:30', '15:15'],
-    ['15:15', '16:00'],
-    ['16:00', '16:45'],
-    ['16:45', '17:30'],
-  ]
+    ["07:00", "07:45"],
+    ["07:45", "08:30"],
+    ["08:30", "09:15"],
+    ["09:15", "10:00"],
+    ["10:00", "10:45"],
+    ["10:45", "11:30"],
+    ["11:30", "12:15"],
+    ["12:15", "13:00"],
+    ["13:00", "13:45"],
+    ["13:45", "14:30"],
+    ["14:30", "15:15"],
+    ["15:15", "16:00"],
+    ["16:00", "16:45"],
+    ["16:45", "17:30"],
+  ],
 };
-
 
 export function generateScheduleEvents({
   subjects,
@@ -90,7 +85,7 @@ export function generateScheduleEvents({
   unavailableDays,
   existingEvents,
   preferredClassrooms,
-  conserveSlots = 3
+  conserveSlots = 3,
 }: generateScheduleParams): Event[] {
   const events: Event[] = [];
   const days = [1, 2, 3, 4, 5];
@@ -114,13 +109,13 @@ export function generateScheduleEvents({
   }
 
   // Fase 1: profesores con restricciones
-  const withRestrictions = subjects.filter(subject =>
-    unavailableDays?.some(r => r.teacherId === subject.quarter[trimestre])
+  const withRestrictions = subjects.filter((subject) =>
+    unavailableDays?.some((r) => r.teacherId === subject.quarter[trimestre])
   );
 
   // Fase 2: profesores sin restricciones
-  const withoutRestrictions = subjects.filter(subject =>
-    !unavailableDays?.some(r => r.teacherId === subject.quarter[trimestre])
+  const withoutRestrictions = subjects.filter(
+    (subject) => !unavailableDays?.some((r) => r.teacherId === subject.quarter[trimestre])
   );
 
   // Fase 3: materias no asignadas
@@ -130,17 +125,15 @@ export function generateScheduleEvents({
     const hours = subject.hours[trimestre];
     const professorId = subject.quarter[trimestre];
     const turno = subject.turnoName?.toLowerCase();
-    const preferConfig = preferredClassrooms?.find(p => p.subjectId === subject.id);
-    const timeSlots = preferConfig?.preferLastSlot
-      ? [...turnos[turno]].reverse()
-      : turnos[turno];
+    const preferConfig = preferredClassrooms?.find((p) => p.subjectId === subject.id);
+    const timeSlots = preferConfig?.preferLastSlot ? [...turnos[turno]].reverse() : turnos[turno];
 
     if (!hours || !professorId || !timeSlots) return false;
 
     let remainingHours = hours;
 
-    const restrictedDays = unavailableDays?.find(r => r.teacherId === professorId)?.days ?? [];
-    const availableDays = ignoreRestrictions ? days : days.filter(day => !restrictedDays.includes(day));
+    const restrictedDays = unavailableDays?.find((r) => r.teacherId === professorId)?.days ?? [];
+    const availableDays = ignoreRestrictions ? days : days.filter((day) => !restrictedDays.includes(day));
 
     for (const day of availableDays) {
       if (remainingHours <= 0) break;
@@ -151,7 +144,7 @@ export function generateScheduleEvents({
         const [start, end] = timeSlots[i];
 
         const candidateClassrooms = preferConfig?.classroomIds?.length
-          ? classrooms.filter(c => preferConfig.classroomIds.includes(c.id))
+          ? classrooms.filter((c) => preferConfig.classroomIds.includes(c.id))
           : classrooms;
 
         let assigned = false;
@@ -165,7 +158,8 @@ export function generateScheduleEvents({
             globalUsedSlots.has(conflictKeyProf) ||
             globalUsedSlots.has(conflictKeyRoom) ||
             sectionUsedSlots.has(conflictKeySection)
-          ) continue;
+          )
+            continue;
 
           const blockId = `${day}-${subject.innerId}`;
 
@@ -222,7 +216,6 @@ export function generateScheduleEvents({
   return events;
 }
 
-
 export function mergeConsecutiveEvents(events: Event[]): Event[] {
   const merged: Event[] = [];
 
@@ -242,10 +235,7 @@ export function mergeConsecutiveEvents(events: Event[]): Event[] {
       const current = { ...sorted[i] };
       let j = i + 1;
 
-      while (
-        j < sorted.length &&
-        sorted[j].startTime === current.endTime
-      ) {
+      while (j < sorted.length && sorted[j].startTime === current.endTime) {
         current.endTime = sorted[j].endTime;
         j++;
       }

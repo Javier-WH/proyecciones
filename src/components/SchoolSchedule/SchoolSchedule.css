@@ -46,3 +46,22 @@ body,
 .fc-event-custom div {
   text-align: center;
 }
+
+/**/
+
+.schedule-select-main-container{
+  width: 100%;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.schedule-select-container{
+  display: flex;
+  width: 100%;
+  justify-content: space-evenly;
+}
+
+.schedule-select{
+  display: flex;
+  flex-direction: column;
+}
