@@ -8,8 +8,9 @@ import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { Subject } from "../../interfaces/subject";
 import "./SchoolSchedule.css";
 import { getClassrooms } from "../../fetch/schedule/scheduleFetch";
-import { Select } from "antd";
+import { Button, Select } from "antd";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
+import TeacherRestrictionModal from "./TeacherRestrictionModal";
 
 const SchoolSchedule: React.FC = () => {
   const { subjects, teachers, trayectosList } = useContext(MainContext) as MainContextValues;
@@ -20,6 +21,7 @@ const SchoolSchedule: React.FC = () => {
   const [seccion, setSeccion] = useState("1");
   const [pnf, setPnf] = useState("");
   const [trayectoId, setTrayectoId] = useState("");
+  const [teacherRestrictionModalVisible, setTeacherRestrictionModalVisible] = useState(false);
 
   const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
   const lastHour = turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
@@ -37,6 +39,7 @@ const SchoolSchedule: React.FC = () => {
     loadInitialData();
   }, []);
 
+  // genera lops eventos del horario
   useEffect(() => {
     if (!classrooms || classrooms.length === 0 || !subjects || subjects.length === 0) return;
 
@@ -78,6 +81,7 @@ const SchoolSchedule: React.FC = () => {
     setEventData(eventsdata);
   }, [classrooms, subjects]);
 
+  // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {
     if (!eventData || eventData.length === 0) return;
     const filteredByPnf = eventData.filter(
@@ -90,126 +94,128 @@ const SchoolSchedule: React.FC = () => {
     setEvents(mergeConsecutiveEvents(filteredByPnf));
   }, [eventData, turn, seccion, pnf, trayectoId]);
 
-  console.log(turnos?.[turn]?.length * 100);
   return (
-    <div className="schedule-select-main-container">
-      <div className="schedule-select-container">
-        <div className="schedule-select">
-          <span>Turno:</span>
-          <Select
-            defaultValue={Object.keys(turnos)[0]}
-            style={{ width: 150 }}
-            onChange={setTurn}
-            options={Object.keys(turnos).map((turn) => ({ value: turn, label: turn }))}
-          />
-        </div>
+    <>
+      <div className="schedule-select-main-container">
+        <div className="schedule-select-container">
+          <div className="schedule-select">
+            <span>Turno:</span>
+            <Select
+              defaultValue={Object.keys(turnos)[0]}
+              style={{ width: 150 }}
+              onChange={setTurn}
+              options={Object.keys(turnos).map((turn) => ({ value: turn, label: turn }))}
+            />
+          </div>
 
-        <div className="schedule-select">
-          <span>Sección:</span>
-          <Select
-            defaultValue={eventData[0]?.extendedProps?.seccion}
-            style={{ width: 150 }}
-            onChange={setSeccion}
-            options={Array.from(new Set(eventData.map((event) => event?.extendedProps?.seccion)))
-              .filter(Boolean)
-              .map((seccion) => ({
-                value: seccion,
-                label: `Sección ${seccion}`,
+          <div className="schedule-select">
+            <span>Sección:</span>
+            <Select
+              defaultValue={eventData[0]?.extendedProps?.seccion}
+              style={{ width: 150 }}
+              onChange={setSeccion}
+              options={Array.from(new Set(eventData.map((event) => event?.extendedProps?.seccion)))
+                .filter(Boolean)
+                .map((seccion) => ({
+                  value: seccion,
+                  label: `Sección ${seccion}`,
+                }))}
+            />
+          </div>
+
+          <div className="schedule-select">
+            <span>PNF:</span>
+            <Select
+              value={pnf}
+              style={{ width: 300 }}
+              onChange={setPnf}
+              options={Array.from(
+                new Map(
+                  eventData
+                    .filter((event) => event?.extendedProps?.pnfId && event?.extendedProps?.pnfName)
+                    .map((event) => [event.extendedProps.pnfId, event.extendedProps.pnfName])
+                )
+              ).map(([value, label]) => ({
+                value,
+                label,
               }))}
-          />
+            />
+          </div>
+
+          <div className="schedule-select">
+            <span>Trayecto:</span>
+            <Select
+              value={trayectoId}
+              style={{ width: 200 }}
+              onChange={setTrayectoId}
+              options={trayectosList?.map((trayecto) => ({
+                value: trayecto.id,
+                label: trayecto.name,
+              }))}
+            />
+          </div>
+          <TeacherRestrictionModal />
         </div>
 
-        <div className="schedule-select">
-          <span>PNF:</span>
-          <Select
-            value={pnf}
-            style={{ width: 300 }}
-            onChange={setPnf}
-            options={Array.from(
-              new Map(
-                eventData
-                  .filter((event) => event?.extendedProps?.pnfId && event?.extendedProps?.pnfName)
-                  .map((event) => [event.extendedProps.pnfId, event.extendedProps.pnfName])
-              )
-            ).map(([value, label]) => ({
-              value,
-              label,
-            }))}
-          />
-        </div>
-
-        <div className="schedule-select">
-          <span>Trayecto:</span>
-          <Select
-            value={trayectoId}
-            style={{ width: 200 }}
-            onChange={setTrayectoId}
-            options={trayectosList?.map((trayecto) => ({
-              value: trayecto.id,
-              label: trayecto.name,
-            }))}
-          />
-        </div>
-      </div>
-
-      <div
-        style={{
-          height: "100%",
-          width: "100%",
-          maxWidth: "1200px",
-          maxHeight: `${turnos?.[turn]?.length * 80}px`,
-          margin: "0 auto",
-        }}>
-        <div className="calendar-container">
-          <FullCalendar
-            key={turn}
-            plugins={[timeGridPlugin]}
-            initialView="timeGridWeek"
-            locale={esLocale}
-            weekends={false}
-            slotMinTime={firstHour}
-            slotMaxTime={lastHour}
-            slotDuration="00:45:00"
-            slotLabelContent={(arg) => {
-              const start = arg.date;
-              const end = new Date(start.getTime() + 45 * 60000);
-              const formatTime = (date: Date) =>
-                date.toLocaleTimeString("es-VE", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: true,
-                });
-              return `${formatTime(start)} - ${formatTime(end)}`;
-            }}
-            dayHeaderFormat={{ weekday: "long" }}
-            allDaySlot={false}
-            headerToolbar={{ left: "", center: "", right: "" }}
-            events={events}
-            height="100%"
-            expandRows={true}
-            contentHeight={1400}
-            eventContent={(arg) => {
-              const { event } = arg;
-              const title = event.title;
-              const professorId = event.extendedProps?.professorId;
-              const classroomName = event.extendedProps?.classroomName;
-              const teacherName = `${teachers?.find((teacher) => teacher.id === professorId)?.lastName} ${
-                teachers?.find((teacher) => teacher.id === professorId)?.name
-              }`;
-              return (
-                <div className="fc-event-custom">
-                  <div>
-                    <strong>{title}</strong>
+        <div
+          style={{
+            height: "100%",
+            width: "100%",
+            maxWidth: "1200px",
+            maxHeight: `${turnos?.[turn]?.length * 80}px`,
+            margin: "0 auto",
+          }}>
+          <div className="calendar-container">
+            <FullCalendar
+              key={turn}
+              plugins={[timeGridPlugin]}
+              initialView="timeGridWeek"
+              locale={esLocale}
+              weekends={false}
+              slotMinTime={firstHour}
+              slotMaxTime={lastHour}
+              slotDuration="00:45:00"
+              slotLabelContent={(arg) => {
+                const start = arg.date;
+                const end = new Date(start.getTime() + 45 * 60000);
+                const formatTime = (date: Date) =>
+                  date.toLocaleTimeString("es-VE", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  });
+                return `${formatTime(start)} - ${formatTime(end)}`;
+              }}
+              dayHeaderFormat={{ weekday: "long" }}
+              allDaySlot={false}
+              headerToolbar={{ left: "", center: "", right: "" }}
+              events={events}
+              height="100%"
+              expandRows={true}
+              contentHeight={1400}
+              eventContent={(arg) => {
+                const { event } = arg;
+                const title = event.title;
+                const professorId = event.extendedProps?.professorId;
+                const classroomName = event.extendedProps?.classroomName;
+                const teacherName = `${teachers?.find((teacher) => teacher.id === professorId)?.lastName} ${
+                  teachers?.find((teacher) => teacher.id === professorId)?.name
+                }`;
+                return (
+                  <div className="fc-event-custom">
+                    <div>
+                      <strong>{title}</strong>
+                    </div>
+                    <div style={{ fontSize: "0.75em", color: "#555" }}>Profesor: {teacherName}</div>
+                    <div style={{ fontSize: "0.75em", color: "#777" }}>{classroomName}</div>
                   </div>
-                  <div style={{ fontSize: "0.75em", color: "#555" }}>Profesor: {teacherName}</div>
-                  <div style={{ fontSize: "0.75em", color: "#777" }}>{classroomName}</div>
-                </div>
-              );
-            }}
-          />
+                );
+              }}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

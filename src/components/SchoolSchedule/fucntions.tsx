@@ -78,6 +78,21 @@ export const turnos: Record<string, [string, string][]> = {
   ],
 };
 
+/**
+ * Genera un horario para los profesores y materias pasadas como parámetro.
+ * Intenta asignar materias a los profesores con restricciones en los horarios disponibles.
+ * Si no hay horarios disponibles, intenta asignar materias a los profesores sin restricciones.
+ * Si aún no hay horarios disponibles, intenta asignar materias a los profesores con restricciones, ignorando las restricciones.
+ * @param {generateScheduleParams} params - parámetros para generar el horario
+ * @param {Subject[]} params.subjects - lista de materias de la proyección
+ * @param {Classroom[]} params.classrooms - lista de todos los salones disponibles (interface Classroom)
+ * @param {string} params.trimestre - trimestre donde se generaran los datos del usuario, solo admite (q1, q2 o q3)
+ * @param {Object[]} [params.unavailableDays] - Días no disponibles para cada profesor { teacherId: string; days: number[] }[], 1-lunes, 2-martes, 3-miercoles, 4-jueves, 5-viernes
+ * @param {Event[]} [params.existingEvents] - eventos existentes que se deberán respetar, si existem datos guardados deben ser sumisrados aqui
+ * @param {Object[]} [params.preferredClassrooms] - restricción de salones por materia { subjectId: string; classroomIds: string[]; preferLastSlot?: boolean }[], selecciona que salones es preferible para la materia y si debe estar al final del dia
+ * @param {number} [params.conserveSlots=3] - cuantas horas al dia como maximo se debe ver una materia, por defecto 3
+ * @return {Event[]} - eventos generados (interface Event [])
+ */
 export function generateScheduleEvents({
   subjects,
   classrooms,
@@ -256,6 +271,11 @@ export function generateScheduleEvents({
   return events;
 }
 
+/**
+ * Agrupa eventos consecutivos con el mismo blockId y mergea sus horarios.
+ * @param events lista de eventos a agrupar
+ * @returns lista de eventos con horarios mergeados
+ */
 export function mergeConsecutiveEvents(events: Event[]): Event[] {
   const merged: Event[] = [];
 
@@ -288,6 +308,15 @@ export function mergeConsecutiveEvents(events: Event[]): Event[] {
   return merged;
 }
 
+/**
+ * Verificar si un índice candidato es adyacente a un horario ya asignado en el mismo día.
+ * @param subjectId identificador del bloque a asignar
+ * @param day día de la semana (1-7)
+ * @param candidateIndex índice candidato a asignar
+ * @param events lista de eventos ya asignados
+ * @param timeSlots lista de horarios posibles
+ * @returns true si el índice candidato es adyacente, false de lo contrario
+ */
 function isConsecutiveToExisting(
   subjectId: string,
   day: number,
