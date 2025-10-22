@@ -138,11 +138,47 @@ export function generateScheduleEvents({
     for (const day of availableDays) {
       if (remainingHours <= 0) break;
 
+      // Obtener todas las asignaciones existentes de esta materia en este día
+      const existingAssignments = events.filter(
+        (event) => event.daysOfWeek[0] === day && event.extendedProps.subjectId === subject.innerId
+      );
+
+      const currentAssignedCount = existingAssignments.length;
+
+      // Si ya hay asignaciones y alcanzó el límite, saltar este día
+      if (currentAssignedCount >= conserveSlots) {
+        continue;
+      }
+
       let blocksAssigned = 0;
 
       for (let i = 0; i < timeSlots.length && blocksAssigned < conserveSlots && remainingHours > 0; i++) {
         const [start, end] = timeSlots[i];
 
+        // VERIFICACIÓN SIMPLE DE CONSECUTIVIDAD
+        if (currentAssignedCount > 0) {
+          // Obtener los horarios ya asignados
+          const assignedStartTimes = existingAssignments.map((e) => e.startTime);
+
+          // Verificar si este slot es consecutivo a algún horario ya asignado
+          let isConsecutive = false;
+
+          for (const assignedStart of assignedStartTimes) {
+            // Encontrar el índice del horario asignado
+            const assignedIndex = timeSlots.findIndex((slot) => slot[0] === assignedStart);
+
+            // Verificar si el slot actual es inmediatamente anterior o posterior
+            if (assignedIndex !== -1 && Math.abs(i - assignedIndex) === 1) {
+              isConsecutive = true;
+              break;
+            }
+          }
+
+          // Si no es consecutivo, saltar este slot
+          if (!isConsecutive) continue;
+        }
+
+        // VERIFICACIONES NORMALES DE DISPONIBILIDAD
         const candidateClassrooms = preferConfig?.classroomIds?.length
           ? classrooms.filter((c) => preferConfig.classroomIds.includes(c.id))
           : classrooms;
@@ -162,6 +198,10 @@ export function generateScheduleEvents({
             continue;
 
           const blockId = `${day}-${subject.innerId}`;
+
+          if (!isConsecutiveToExisting(subject.innerId, day, i, events, timeSlots)) {
+            continue; // no es consecutivo, saltar
+          }
 
           events.push({
             title: subject.subject,
@@ -246,5 +286,27 @@ export function mergeConsecutiveEvents(events: Event[]): Event[] {
   }
 
   return merged;
+}
+
+function isConsecutiveToExisting(
+  subjectId: string,
+  day: number,
+  candidateIndex: number,
+  events: Event[],
+  timeSlots: [string, string][]
+): boolean {
+  const assignedEvents = events.filter(
+    (e) => e.daysOfWeek[0] === day && e.extendedProps.subjectId === subjectId
+  );
+
+  const assignedIndices = assignedEvents
+    .map((e) => timeSlots.findIndex((slot) => slot[0] === e.startTime))
+    .filter((i) => i !== -1)
+    .sort((a, b) => a - b);
+
+  if (assignedIndices.length === 0) return true; // primer bloque del día
+
+  // Verificar si el nuevo índice es adyacente a alguno ya asignado
+  return assignedIndices.some((i) => Math.abs(candidateIndex - i) === 1);
 }
 

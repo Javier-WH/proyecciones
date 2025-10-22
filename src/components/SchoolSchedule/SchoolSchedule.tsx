@@ -67,11 +67,12 @@ const SchoolSchedule: React.FC = () => {
     ];
 
     const eventsdata = generateScheduleEvents({
-      subjects: subjects as Subject[],
-      classrooms: classrooms,
-      trimestre: "q1",
-      preferredClassrooms: classroomRestrictions,
-      unavailableDays: restrictions,
+      subjects: subjects as Subject[], // la lista de materias
+      classrooms: classrooms, // la lista de aulas
+      trimestre: "q1", // el trimeste a generar el horario
+      preferredClassrooms: classroomRestrictions, //las restricciones de materias por aulas de clase
+      unavailableDays: restrictions, // restricciones de dias donde el profesor no puede dar clases
+      conserveSlots: 3, // el numero maximo de horas consecutivas que una materia puede ser vista en un dia
     });
 
     setEventData(eventsdata);
