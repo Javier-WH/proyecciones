@@ -15,3 +15,8 @@
     filter: brightness(0.9);
     scale: 1.2;
 }
+
+.selectorContainer{
+    display: flex;
+    flex-direction: column;
+}
