@@ -11,6 +11,7 @@ import { getClassrooms } from "../../fetch/schedule/scheduleFetch";
 import { Button, Select } from "antd";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
+import ScheduleErrorsModal from "./ErrorsModal";
 
 export interface teacherRestriction {
   teacherId: string;
@@ -182,6 +183,7 @@ const SchoolSchedule: React.FC = () => {
             />
           </div>
           <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
+          <ScheduleErrorsModal />
         </div>
 
         <div

@@ -108,6 +108,13 @@ export function generateScheduleEvents({
   const globalUsedSlots = new Set<string>();
   const sectionUsedSlots = new Set<string>();
 
+  const cleanSubject = subjects.filter(
+    (sub) =>
+      Object.keys(sub.quarter).includes(trimestre) && sub?.hours?.[trimestre] && sub?.hours?.[trimestre] > 0
+  );
+
+  subjects = cleanSubject;
+
   // Precargar conflictos existentes
   if (existingEvents?.length) {
     for (const event of existingEvents) {
@@ -143,12 +150,24 @@ export function generateScheduleEvents({
     const preferConfig = preferredClassrooms?.find((p) => p.subjectId === subject.id);
     const timeSlots = preferConfig?.preferLastSlot ? [...turnos[turno]].reverse() : turnos[turno];
 
-    if (!hours || !professorId || !timeSlots) return false;
+    if (!hours || !professorId || !timeSlots) {
+      console.warn(`[ASIGNACIÓN FALLIDA] Materia: ${subject.subject} - Datos incompletos:`, {
+        horas: hours,
+        profesorId: professorId,
+        turno: turno,
+        timeSlots: timeSlots,
+      });
+      return false;
+    }
 
     let remainingHours = hours;
 
     const restrictedDays = unavailableDays?.find((r) => r.teacherId === professorId)?.days ?? [];
     const availableDays = ignoreRestrictions ? days : days.filter((day) => !restrictedDays.includes(day));
+
+    console.log(
+      `[ASIGNANDO] Materia: ${subject.subject}, Horas: ${hours}, Días disponibles: ${availableDays.length}`
+    );
 
     for (const day of availableDays) {
       if (remainingHours <= 0) break;
@@ -162,6 +181,7 @@ export function generateScheduleEvents({
 
       // Si ya hay asignaciones y alcanzó el límite, saltar este día
       if (currentAssignedCount >= conserveSlots) {
+        console.log(`  [DÍA ${day}] Límite de slots (${conserveSlots}) alcanzado`);
         continue;
       }
 
@@ -190,7 +210,10 @@ export function generateScheduleEvents({
           }
 
           // Si no es consecutivo, saltar este slot
-          if (!isConsecutive) continue;
+          if (!isConsecutive) {
+            console.log(`  [SLOT ${start}] No es consecutivo a asignaciones existentes`);
+            continue;
+          }
         }
 
         // VERIFICACIONES NORMALES DE DISPONIBILIDAD
@@ -199,22 +222,28 @@ export function generateScheduleEvents({
           : classrooms;
 
         let assigned = false;
+        let assignmentReason = "";
 
         for (const classroom of candidateClassrooms) {
           const conflictKeyProf = `${day}-${start}-${professorId}`;
           const conflictKeyRoom = `${day}-${start}-${subject.trayectoId}-${classroom.id}`;
           const conflictKeySection = `${day}-${start}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
 
-          if (
-            globalUsedSlots.has(conflictKeyProf) ||
-            globalUsedSlots.has(conflictKeyRoom) ||
-            sectionUsedSlots.has(conflictKeySection)
-          )
+          const hasProfConflict = globalUsedSlots.has(conflictKeyProf);
+          const hasRoomConflict = globalUsedSlots.has(conflictKeyRoom);
+          const hasSectionConflict = sectionUsedSlots.has(conflictKeySection);
+
+          if (hasProfConflict || hasRoomConflict || hasSectionConflict) {
+            assignmentReason = `Conflictos: ${hasProfConflict ? "Profesor " : ""}${
+              hasRoomConflict ? "Aula " : ""
+            }${hasSectionConflict ? "Sección" : ""}`;
             continue;
+          }
 
           const blockId = `${day}-${subject.innerId}`;
 
           if (!isConsecutiveToExisting(subject.innerId, day, i, events, timeSlots)) {
+            assignmentReason = "No es consecutivo a eventos existentes";
             continue; // no es consecutivo, saltar
           }
 
@@ -243,30 +272,69 @@ export function generateScheduleEvents({
           blocksAssigned++;
           remainingHours--;
           assigned = true;
+          console.log(`  [ASIGNADO] Día ${day}, ${start}-${end}, Aula: ${classroom.classroom}`);
           break;
         }
 
-        if (!assigned) continue;
+        if (!assigned) {
+          console.log(`  [SLOT ${start}] No asignado - ${assignmentReason || "Todas las aulas ocupadas"}`);
+        }
       }
+    }
+
+    if (remainingHours > 0) {
+      console.warn(
+        `[ASIGNACIÓN INCOMPLETA] Materia: ${subject.subject} - Horas faltantes: ${remainingHours}/${hours}`
+      );
+      console.warn(
+        `  Días disponibles: ${availableDays.length}, Días restringidos: ${restrictedDays.length}`
+      );
+    } else {
+      console.log(`[ASIGNACIÓN COMPLETA] Materia: ${subject.subject} - Todas las horas asignadas`);
     }
 
     return remainingHours === 0;
   };
 
   // Ejecutar fases
+  console.log("=== FASE 1: Profesores con restricciones ===");
   for (const subject of withRestrictions) {
     const success = assignSubject(subject, false);
     if (!success) unassignedSubjects.push(subject);
   }
 
+  console.log("=== FASE 2: Profesores sin restricciones ===");
   for (const subject of withoutRestrictions) {
     const success = assignSubject(subject, false);
     if (!success) unassignedSubjects.push(subject);
   }
 
+  console.log("=== FASE 3: Reintentar materias no asignadas (ignorando restricciones) ===");
   for (const subject of unassignedSubjects) {
-    assignSubject(subject, true); // Ignorar restricciones como último recurso
+    const success = assignSubject(subject, true); // Ignorar restricciones como último recurso
+
+    if (!success) {
+      console.error(
+        `[MATERIA NO ASIGNADA] ${subject.subject} - No se pudo asignar completamente incluso ignorando restricciones`
+      );
+      console.error(
+        `  Horas: ${subject.hours[trimestre]}, Profesor: ${subject.quarter[trimestre]}, Turno: ${subject.turnoName}`
+      );
+    }
   }
+
+  // Resumen final
+  const assignedHours = events.reduce((total, event) => {
+    const subject = subjects.find((s) => s.innerId === event.extendedProps.subjectId);
+    return total + (subject?.hours[trimestre] || 0);
+  }, 0);
+
+  const totalHours = subjects.reduce((total, subject) => total + (subject.hours[trimestre] || 0), 0);
+
+  console.log("=== RESUMEN FINAL ===");
+  console.log(`Total materias: ${subjects.length}`);
+  console.log(`Materias no asignadas completamente: ${unassignedSubjects.length}`);
+  console.log(`Horas asignadas: ${assignedHours}/${totalHours}`);
 
   return events;
 }
