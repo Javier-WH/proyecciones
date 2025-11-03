@@ -11,7 +11,9 @@ interface day {
   label: string;
 }
 
-const TeacherRestrictionModal: React.FC = () => {
+const TeacherRestrictionModal: React.FC<{
+  putTeacherRestriction: (id: string, restricions: number[]) => void;
+}> = ({ putTeacherRestriction }) => {
   const { teachers } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
@@ -50,11 +52,7 @@ const TeacherRestrictionModal: React.FC = () => {
   };
 
   const handleOk = () => {
-    const restriction = {
-      teacherId: selectedTeacher,
-      days: restrictedDays,
-    };
-    console.log(restriction);
+    putTeacherRestriction(selectedTeacher, restrictedDays);
   };
 
   return (
@@ -75,13 +73,17 @@ const TeacherRestrictionModal: React.FC = () => {
             <span>Seleccione el profesor</span>
             <Select
               allowClear
-              defaultValue={teachers?.[0]?.id || ""}
+              showSearch
+              defaultValue=""
               style={{ width: "100%" }}
               onChange={setSelectedTeacher}
-              options={teachers?.map((teachers) => ({
-                value: teachers.id,
-                label: `${teachers.lastName} ${teachers.name}`,
+              options={teachers?.map((teacher) => ({
+                value: teacher.id,
+                label: `${teacher.lastName} ${teacher.name}`,
               }))}
+              filterOption={(input, option) =>
+                !!option?.label?.toString()?.toLowerCase()?.includes(input.toLowerCase())
+              }
             />
           </div>
           <br />

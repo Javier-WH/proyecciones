@@ -12,6 +12,11 @@ import { Button, Select } from "antd";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 
+export interface teacherRestriction {
+  teacherId: string;
+  days: number[];
+}
+
 const SchoolSchedule: React.FC = () => {
   const { subjects, teachers, trayectosList } = useContext(MainContext) as MainContextValues;
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
@@ -21,7 +26,7 @@ const SchoolSchedule: React.FC = () => {
   const [seccion, setSeccion] = useState("1");
   const [pnf, setPnf] = useState("");
   const [trayectoId, setTrayectoId] = useState("");
-  const [teacherRestrictionModalVisible, setTeacherRestrictionModalVisible] = useState(false);
+  const [teacherRestrictions, setTeacherRestrictions] = useState<teacherRestriction[]>([]);
 
   const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
   const lastHour = turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
@@ -35,6 +40,28 @@ const SchoolSchedule: React.FC = () => {
     setClassrooms(classroomsData);
   };
 
+  const putTeacherRestriction = (id: string, restricions: number[]) => {
+    if (!id || id.length === 0 || !restricions) return;
+    const currentRestrictions: teacherRestriction[] = JSON.parse(JSON.stringify(teacherRestrictions));
+
+    // si no hay restricciones, se elimina el profesor de la lista de restricciones
+    if (restricions.length === 0) {
+      const filteredRestrictions = currentRestrictions.filter(
+        (rest: teacherRestriction) => rest.teacherId !== id
+      );
+      setTeacherRestrictions(filteredRestrictions);
+      return;
+    }
+
+    const currentRestriction = currentRestrictions.find((rest: teacherRestriction) => rest.teacherId === id);
+    if (currentRestriction) {
+      currentRestriction.days = restricions;
+    } else {
+      currentRestrictions.push({ teacherId: id, days: restricions });
+    }
+    setTeacherRestrictions(currentRestrictions);
+  };
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -43,7 +70,7 @@ const SchoolSchedule: React.FC = () => {
   useEffect(() => {
     if (!classrooms || classrooms.length === 0 || !subjects || subjects.length === 0) return;
 
-    const restrictions = [
+    /*const restrictions = [
       {
         teacherId: "86d72bb0-9a93-4c15-ab26-220977a909d3",
         days: [1, 3],
@@ -52,7 +79,7 @@ const SchoolSchedule: React.FC = () => {
         teacherId: "ce7d1039-7656-41ae-ae55-b14d315303ac",
         days: [1, 3],
       },
-    ];
+    ];*/
 
     const classroomRestrictions = [
       {
@@ -74,12 +101,12 @@ const SchoolSchedule: React.FC = () => {
       classrooms: classrooms, // la lista de aulas
       trimestre: "q1", // el trimeste a generar el horario
       preferredClassrooms: classroomRestrictions, //las restricciones de materias por aulas de clase
-      unavailableDays: restrictions, // restricciones de dias donde el profesor no puede dar clases
+      unavailableDays: teacherRestrictions, // restricciones de dias donde el profesor no puede dar clases
       conserveSlots: 3, // el numero maximo de horas consecutivas que una materia puede ser vista en un dia
     });
 
     setEventData(eventsdata);
-  }, [classrooms, subjects]);
+  }, [classrooms, subjects, teacherRestrictions]);
 
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {
@@ -154,7 +181,7 @@ const SchoolSchedule: React.FC = () => {
               }))}
             />
           </div>
-          <TeacherRestrictionModal />
+          <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
         </div>
 
         <div
