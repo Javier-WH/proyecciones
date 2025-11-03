@@ -9,22 +9,13 @@ interface scheduleError {
   description: string;
 }
 
-const ScheduleErrorsModal: React.FC<{}> = () => {
+const ScheduleErrorsModal: React.FC<{ errors: scheduleError[] }> = ({ errors }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorList, setErrorList] = useState<scheduleError[]>([]);
 
   useEffect(() => {
-    setErrorList([
-      { name: "error 1", description: "Descripcion del error 1" },
-      { name: "error 2", description: "Descripcion del error 2" },
-      { name: "error 3", description: "Descripcion del error 3" },
-      { name: "error 4", description: "Descripcion del error 4" },
-      { name: "error 5", description: "Descripcion del error 5" },
-      { name: "error 6", description: "Descripcion del error 6" },
-      { name: "error 7", description: "Descripcion del error 7" },
-      { name: "error 8", description: "Descripcion del error 8" },
-    ]);
-  }, []);
+    setErrorList(errors);
+  }, [errors]);
 
   const showModal = () => {
     setIsModalOpen(true);
@@ -38,7 +29,7 @@ const ScheduleErrorsModal: React.FC<{}> = () => {
 
   return (
     <>
-      {errorList.length > 0 && (
+      {errorList?.length > 0 && (
         <div style={{ position: "relative", height: "30px" }}>
           <MdOutlineErrorOutline title="Errores" className={styles.icon} onClick={showModal} />
           <span
@@ -71,7 +62,7 @@ const ScheduleErrorsModal: React.FC<{}> = () => {
         onOk={handleOk}
         onCancel={handleCancel}>
         <div style={{ maxHeight: "500px", overflow: "auto" }}>
-          {errorList.map((err) => {
+          {errorList?.map((err) => {
             return (
               <div
                 style={{
