@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Modal } from "antd";
-import { FaScrewdriver } from "react-icons/fa";
+import { MdOutlineErrorOutline } from "react-icons/md";
 //import { BsCalendarWeek } from "react-icons/bs";
 import styles from "./modal.module.css";
 
@@ -19,8 +19,8 @@ const ScheduleErrorsModal: React.FC<{}> = () => {
 
   return (
     <>
-      <div style={{ position: "relative" }}>
-        <FaScrewdriver title="Errores" className={styles.icon} onClick={showModal} />
+      <div style={{ position: "relative", height: "30px" }}>
+        <MdOutlineErrorOutline title="Errores" className={styles.icon} onClick={showModal} />
         <span
           style={{
             position: "absolute",
@@ -32,8 +32,8 @@ const ScheduleErrorsModal: React.FC<{}> = () => {
             display: "flex",
             justifyContent: "center",
             alignContent: "center",
-            top: "0px",
-            left: "0px",
+            bottom: "0px",
+            left: "-5px",
             pointerEvents: "none",
           }}>
           3
