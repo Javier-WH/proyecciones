@@ -4,12 +4,16 @@ import { MdOutlineErrorOutline } from "react-icons/md";
 //import { BsCalendarWeek } from "react-icons/bs";
 import styles from "./modal.module.css";
 
-interface scheduleError {
+export interface scheduleError {
   name: string;
   description: string;
 }
 
-const ScheduleErrorsModal: React.FC<{ errors: scheduleError[] }> = ({ errors }) => {
+interface params {
+  errors: scheduleError[];
+}
+
+const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorList, setErrorList] = useState<scheduleError[]>([]);
 

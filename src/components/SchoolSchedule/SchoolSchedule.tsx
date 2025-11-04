@@ -11,7 +11,7 @@ import { getClassrooms } from "../../fetch/schedule/scheduleFetch";
 import { Button, Select } from "antd";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
-import ScheduleErrorsModal from "./ErrorsModal";
+import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
 
 export interface teacherRestriction {
   teacherId: string;
@@ -28,6 +28,7 @@ const SchoolSchedule: React.FC = () => {
   const [pnf, setPnf] = useState("");
   const [trayectoId, setTrayectoId] = useState("");
   const [teacherRestrictions, setTeacherRestrictions] = useState<teacherRestriction[]>([]);
+  const [errors, setErrors] = useState<scheduleError[]>([]);
 
   const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
   const lastHour = turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
@@ -39,6 +40,10 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
     setClassrooms(classroomsData);
+  };
+
+  const addError = (err: scheduleError) => {
+    errors.push(err);
   };
 
   const putTeacherRestriction = (id: string, restricions: number[]) => {
@@ -104,6 +109,7 @@ const SchoolSchedule: React.FC = () => {
       preferredClassrooms: classroomRestrictions, //las restricciones de materias por aulas de clase
       unavailableDays: teacherRestrictions, // restricciones de dias donde el profesor no puede dar clases
       conserveSlots: 3, // el numero maximo de horas consecutivas que una materia puede ser vista en un dia
+      setErrors: addError,
     });
 
     setEventData(eventsdata);
@@ -183,7 +189,7 @@ const SchoolSchedule: React.FC = () => {
             />
           </div>
           <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
-          <ScheduleErrorsModal />
+          <ScheduleErrorsModal errors={errors} />
         </div>
 
         <div
