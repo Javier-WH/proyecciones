@@ -343,7 +343,7 @@ export function generateScheduleEvents({
         subject,
         reason: `[FASE 1] ${result.reason}`,
         assignedHours: result.assignedHours,
-        totalHours: subject.hours[trimestre],
+        totalHours: Number(subject.hours[trimestre]),
       });
     }
   }
@@ -355,7 +355,7 @@ export function generateScheduleEvents({
         subject,
         reason: `[FASE 2] ${result.reason}`,
         assignedHours: result.assignedHours,
-        totalHours: subject.hours[trimestre],
+        totalHours: Number(subject.hours[trimestre]),
       });
     }
   }

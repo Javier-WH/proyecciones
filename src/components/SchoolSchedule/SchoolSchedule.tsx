@@ -28,6 +28,7 @@ const SchoolSchedule: React.FC = () => {
   const [pnf, setPnf] = useState("");
   const [trayectoId, setTrayectoId] = useState("");
   const [teacherRestrictions, setTeacherRestrictions] = useState<teacherRestriction[]>([]);
+  const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">("q1");
   const [errors, setErrors] = useState<scheduleError[]>([]);
 
   const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
@@ -105,7 +106,7 @@ const SchoolSchedule: React.FC = () => {
     const eventsdata = generateScheduleEvents({
       subjects: subjects as Subject[], // la lista de materias
       classrooms: classrooms, // la lista de aulas
-      trimestre: "q1", // el trimeste a generar el horario
+      trimestre: trimestre, // el trimeste a generar el horario
       preferredClassrooms: classroomRestrictions, //las restricciones de materias por aulas de clase
       unavailableDays: teacherRestrictions, // restricciones de dias donde el profesor no puede dar clases
       conserveSlots: 3, // el numero maximo de horas consecutivas que una materia puede ser vista en un dia
@@ -113,7 +114,7 @@ const SchoolSchedule: React.FC = () => {
     });
 
     setEventData(eventsdata);
-  }, [classrooms, subjects, teacherRestrictions]);
+  }, [classrooms, subjects, teacherRestrictions, trimestre]);
 
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {
@@ -190,6 +191,23 @@ const SchoolSchedule: React.FC = () => {
           </div>
           <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
           <ScheduleErrorsModal errors={errors} />
+        </div>
+
+        <div className="schedule-select">
+          <span>Trimestre:</span>
+          <Select
+            value={trimestre}
+            style={{ width: 200 }}
+            onChange={(e) => {
+              setErrors([]);
+              setTrimestre(e);
+            }}
+            options={[
+              { value: "q1", label: "Trimestre 1" },
+              { value: "q2", label: "Trimestre 2" },
+              { value: "q3", label: "Trimestre 3" },
+            ]}
+          />
         </div>
 
         <div
