@@ -47,6 +47,8 @@ const SchoolSchedule: React.FC = () => {
     errors.push(err);
   };
 
+  const putClassroomRestriction = (subjectId: string, classroomIds: Classroom[]) => {};
+
   const putTeacherRestriction = (id: string, restricions: number[]) => {
     if (!id || id.length === 0 || !restricions) return;
     const currentRestrictions: teacherRestriction[] = JSON.parse(JSON.stringify(teacherRestrictions));
@@ -207,7 +209,7 @@ const SchoolSchedule: React.FC = () => {
           </div>
           <div style={{ display: "flex", gap: "10px", width: "120px" }}>
             <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
-            <SubjectRestrictionModal putTeacherRestriction={putTeacherRestriction} />
+            <SubjectRestrictionModal putClassroomRestriction={putClassroomRestriction} />
             <ScheduleErrorsModal errors={errors} />
           </div>
         </div>

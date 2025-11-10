@@ -4,16 +4,16 @@ import { BiSolidSchool } from "react-icons/bi";
 import styles from "./modal.module.css";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
+import { Classroom } from "./fucntions";
 
-interface day {
+interface SubjectIem {
   value: number;
   label: string;
 }
 
 const SubjectRestrictionModal: React.FC<{
-  putTeacherRestriction: (id: string, restricions: number[]) => void;
-}> = ({ putTeacherRestriction }) => {
-  const { teachers } = useContext(MainContext) as MainContextValues;
+  putClassroomRestriction: (subjectId: string, classroomIds: Classroom[]) => void;
+}> = ({ putClassroomRestriction }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [restrictedDays, setRestrictedDays] = useState<number[]>([]);
@@ -27,7 +27,7 @@ const SubjectRestrictionModal: React.FC<{
   };
 
   const handleOk = () => {
-    putTeacherRestriction(selectedTeacher, restrictedDays);
+    //putTeacherRestriction(selectedTeacher, restrictedDays);
   };
 
   return (
