@@ -55,7 +55,7 @@ export const turnos: Record<string, [string, string][]> = {
     ["16:00", "16:45"],
     ["16:45", "17:30"],
   ],
-  noche: [
+  nocturno: [
     ["17:30", "18:15"],
     ["18:15", "19:00"],
     ["19:00", "19:45"],
@@ -380,6 +380,9 @@ export function generateScheduleEvents({
     setErrors({
       name: item.subject.subject,
       description: `${item.subject.subject} - No se pudo asignar completamente. ${item.reason} (Asignadas: ${item.assignedHours}/${item.totalHours} horas)`,
+      seccion: item.subject.seccion,
+      year: item.subject.trayectoName,
+      turn: item.subject.turnoName,
     });
   }
 

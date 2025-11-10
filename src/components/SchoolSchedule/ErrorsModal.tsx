@@ -6,6 +6,9 @@ import styles from "./modal.module.css";
 
 export interface scheduleError {
   name: string;
+  seccion: string;
+  turn: string;
+  year: string;
   description: string;
 }
 
@@ -78,6 +81,11 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
                   marginBottom: "5px",
                 }}>
                 <span style={{ fontSize: "16px", fontWeight: "600" }}>{err.name}</span>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <span>{`Seccion ${err.seccion}`}</span>
+                  <span>{err.turn}</span>
+                  <span>{err.year}</span>
+                </div>
                 <span>{err.description}</span>
               </div>
             );

@@ -8,9 +8,10 @@ import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { Subject } from "../../interfaces/subject";
 import "./SchoolSchedule.css";
 import { getClassrooms } from "../../fetch/schedule/scheduleFetch";
-import { Button, Select } from "antd";
+import { Select } from "antd";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
+import SubjectRestrictionModal from "./SubjectRestrictionModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
 
 export interface teacherRestriction {
@@ -30,7 +31,6 @@ const SchoolSchedule: React.FC = () => {
   const [teacherRestrictions, setTeacherRestrictions] = useState<teacherRestriction[]>([]);
   const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">("q1");
   const [errors, setErrors] = useState<scheduleError[]>([]);
-
   const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
   const lastHour = turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
 
@@ -205,8 +205,11 @@ const SchoolSchedule: React.FC = () => {
               ]}
             />
           </div>
-          <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
-          <ScheduleErrorsModal errors={errors} />
+          <div style={{ display: "flex", gap: "10px", width: "120px" }}>
+            <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
+            <SubjectRestrictionModal putTeacherRestriction={putTeacherRestriction} />
+            <ScheduleErrorsModal errors={errors} />
+          </div>
         </div>
 
         <div
