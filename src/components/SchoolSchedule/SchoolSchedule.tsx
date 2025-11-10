@@ -189,25 +189,24 @@ const SchoolSchedule: React.FC = () => {
               }))}
             />
           </div>
+          <div className="schedule-select">
+            <span>Trimestre:</span>
+            <Select
+              value={trimestre}
+              style={{ width: 200 }}
+              onChange={(e) => {
+                setErrors([]);
+                setTrimestre(e);
+              }}
+              options={[
+                { value: "q1", label: "Trimestre 1" },
+                { value: "q2", label: "Trimestre 2" },
+                { value: "q3", label: "Trimestre 3" },
+              ]}
+            />
+          </div>
           <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
           <ScheduleErrorsModal errors={errors} />
-        </div>
-
-        <div className="schedule-select">
-          <span>Trimestre:</span>
-          <Select
-            value={trimestre}
-            style={{ width: 200 }}
-            onChange={(e) => {
-              setErrors([]);
-              setTrimestre(e);
-            }}
-            options={[
-              { value: "q1", label: "Trimestre 1" },
-              { value: "q2", label: "Trimestre 2" },
-              { value: "q3", label: "Trimestre 3" },
-            ]}
-          />
         </div>
 
         <div
