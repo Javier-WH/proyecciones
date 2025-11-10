@@ -14,9 +14,10 @@ interface SubjectIem {
 const SubjectRestrictionModal: React.FC<{
   putClassroomRestriction: (subjectId: string, classroomIds: Classroom[]) => void;
 }> = ({ putClassroomRestriction }) => {
+  const { subjects } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedTeacher, setSelectedTeacher] = useState<string>("");
-  const [restrictedDays, setRestrictedDays] = useState<number[]>([]);
+  const [selectedSubject, setSelectedSubject] = useState<string>("");
+  const [restrictedClassrooms, setRestrictedClassrooms] = useState<Classroom[]>([]);
 
   const showModal = () => {
     setIsModalOpen(true);
@@ -27,7 +28,7 @@ const SubjectRestrictionModal: React.FC<{
   };
 
   const handleOk = () => {
-    //putTeacherRestriction(selectedTeacher, restrictedDays);
+    putClassroomRestriction(selectedSubject, restrictedClassrooms);
   };
 
   return (
@@ -51,10 +52,10 @@ const SubjectRestrictionModal: React.FC<{
               showSearch
               defaultValue=""
               style={{ width: "100%" }}
-              onChange={setSelectedTeacher}
-              options={teachers?.map((teacher) => ({
-                value: teacher.id,
-                label: `${teacher.lastName} ${teacher.name}`,
+              onChange={setSelectedSubject}
+              options={subjects?.map((subject) => ({
+                value: subject.innerId,
+                label: subject.subject,
               }))}
               filterOption={(input, option) =>
                 !!option?.label?.toString()?.toLowerCase()?.includes(input.toLowerCase())
