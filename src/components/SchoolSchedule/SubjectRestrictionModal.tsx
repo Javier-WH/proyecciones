@@ -7,11 +7,6 @@ import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { getClassrooms } from "../../fetch/schedule/scheduleFetch";
 import { Classroom } from "./fucntions";
 
-interface SubjectIem {
-  value: number;
-  label: string;
-}
-
 const SubjectRestrictionModal: React.FC<{
   putSubjectRestriction: (subjectId: string, classroomIds: string[]) => void;
 }> = ({ putSubjectRestriction }) => {
@@ -77,7 +72,7 @@ const SubjectRestrictionModal: React.FC<{
         height={600}
         onOk={handleOk}
         onCancel={handleCancel}>
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <div className={styles.selectorContainer}>
             <span>Seleccione la materia</span>
             <Select
@@ -96,9 +91,18 @@ const SubjectRestrictionModal: React.FC<{
             />
           </div>
         </div>
+        <br />
         <div className={styles.selectorContainer}>
-          <span>Seleccione los dias donde el profesor puede dar clases</span>
-          <div style={{ display: "flex", gap: "5px", justifyContent: "center", margin: "10px 0px" }}>
+          <span>Seleccione las aulas preferidas para dar esta materia</span>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "5px",
+              width: "100%",
+              height: "300px",
+              overflowY: "scroll",
+            }}>
             {classrooms.map((classroom) => {
               return (
                 <div
@@ -108,7 +112,7 @@ const SubjectRestrictionModal: React.FC<{
                       ? "white"
                       : "rgb(84, 122, 226)",
                     color: restrictedClassrooms.includes(classroom.id) ? "gray" : "white",
-                    width: "80px",
+                    width: "100%",
                     height: "50px",
                     display: "flex",
                     justifyContent: "center",
