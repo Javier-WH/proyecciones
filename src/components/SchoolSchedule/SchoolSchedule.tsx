@@ -18,6 +18,10 @@ export interface teacherRestriction {
   teacherId: string;
   days: number[];
 }
+export interface subjectRestriction {
+  subjectId: string;
+  classroomIds: string[];
+}
 
 const SchoolSchedule: React.FC = () => {
   const { subjects, teachers, trayectosList } = useContext(MainContext) as MainContextValues;
@@ -29,6 +33,7 @@ const SchoolSchedule: React.FC = () => {
   const [pnf, setPnf] = useState("");
   const [trayectoId, setTrayectoId] = useState("");
   const [teacherRestrictions, setTeacherRestrictions] = useState<teacherRestriction[]>([]);
+  const [subjectRestriction, setSubjectRestriction] = useState<subjectRestriction[]>([]);
   const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">("q1");
   const [errors, setErrors] = useState<scheduleError[]>([]);
   const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
@@ -44,10 +49,31 @@ const SchoolSchedule: React.FC = () => {
   };
 
   const addError = (err: scheduleError) => {
-    errors.push(err);
+    setErrors((prevErrors) => [...prevErrors, err]);
   };
 
-  const putClassroomRestriction = (subjectId: string, classroomIds: Classroom[]) => {};
+  const putSubjectRestriction = (subjectId: string, classroomIds: string[]) => {
+    if (!subjectId || subjectId.length === 0 || !classroomIds) return;
+    const currentRestrictions: subjectRestriction[] = JSON.parse(JSON.stringify(subjectRestriction));
+
+    if (classroomIds.length === 0) {
+      const filteredRestrictions = currentRestrictions.filter(
+        (rest: subjectRestriction) => rest.subjectId !== subjectId
+      );
+      setSubjectRestriction(filteredRestrictions);
+      return;
+    }
+
+    const currentRestriction = currentRestrictions.find(
+      (rest: subjectRestriction) => rest.subjectId === subjectId
+    );
+    if (currentRestriction) {
+      currentRestriction.classroomIds = classroomIds;
+    } else {
+      currentRestrictions.push({ subjectId: subjectId, classroomIds: classroomIds });
+    }
+    setSubjectRestriction(currentRestrictions);
+  };
 
   const putTeacherRestriction = (id: string, restricions: number[]) => {
     if (!id || id.length === 0 || !restricions) return;
@@ -78,7 +104,7 @@ const SchoolSchedule: React.FC = () => {
   // genera lops eventos del horario
   useEffect(() => {
     if (!classrooms || classrooms.length === 0 || !subjects || subjects.length === 0) return;
-
+    setErrors([]);
     /*const restrictions = [
       {
         teacherId: "86d72bb0-9a93-4c15-ab26-220977a909d3",
@@ -90,7 +116,7 @@ const SchoolSchedule: React.FC = () => {
       },
     ];*/
 
-    const classroomRestrictions = [
+    /*const classroomRestrictions = [
       {
         subjectId: "66c36779-98ee-48d2-8653-590026606ffb",
         classroomIds: [
@@ -103,13 +129,13 @@ const SchoolSchedule: React.FC = () => {
         subjectId: "f5171975-35be-4511-9ac8-0763721105a4",
         classroomIds: ["4b8c9d1a-6e5f-4a3b-8c2d-1e0f9b4a7c6d"],
       },
-    ];
+    ];*/
 
     const eventsdata = generateScheduleEvents({
       subjects: subjects as Subject[], // la lista de materias
       classrooms: classrooms, // la lista de aulas
       trimestre: trimestre, // el trimeste a generar el horario
-      preferredClassrooms: classroomRestrictions, //las restricciones de materias por aulas de clase
+      preferredClassrooms: subjectRestriction, //las restricciones de materias por aulas de clase
       unavailableDays: teacherRestrictions, // restricciones de dias donde el profesor no puede dar clases
       conserveSlots: 3, // el numero maximo de horas consecutivas que una materia puede ser vista en un dia
       setErrors: addError,
@@ -209,7 +235,7 @@ const SchoolSchedule: React.FC = () => {
           </div>
           <div style={{ display: "flex", gap: "10px", width: "120px" }}>
             <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
-            <SubjectRestrictionModal putClassroomRestriction={putClassroomRestriction} />
+            <SubjectRestrictionModal putSubjectRestriction={putSubjectRestriction} />
             <ScheduleErrorsModal errors={errors} />
           </div>
         </div>

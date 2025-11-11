@@ -79,7 +79,7 @@ const TeacherRestrictionModal: React.FC<{
               onChange={setSelectedTeacher}
               options={teachers?.map((teacher) => ({
                 value: teacher.id,
-                label: `${teacher.lastName} ${teacher.name}`,
+                label: `${teacher.lastName} ${teacher.name} - ${teacher.ci}`,
               }))}
               filterOption={(input, option) =>
                 !!option?.label?.toString()?.toLowerCase()?.includes(input.toLowerCase())
