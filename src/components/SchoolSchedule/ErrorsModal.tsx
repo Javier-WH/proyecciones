@@ -69,9 +69,10 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
         onOk={handleOk}
         onCancel={handleCancel}>
         <div style={{ maxHeight: "500px", overflow: "auto" }}>
-          {errorList?.map((err) => {
+          {errorList?.map((err, index) => {
             return (
               <div
+                key={err.name + index}
                 style={{
                   display: "flex",
                   flexDirection: "column",

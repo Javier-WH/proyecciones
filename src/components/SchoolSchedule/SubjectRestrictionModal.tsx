@@ -1,19 +1,20 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { Modal, Select } from "antd";
 import { BiSolidSchool } from "react-icons/bi";
 import styles from "./modal.module.css";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
-import { getClassrooms } from "../../fetch/schedule/scheduleFetch";
+
 import { Classroom } from "./fucntions";
 
 const SubjectRestrictionModal: React.FC<{
   putSubjectRestriction: (subjectId: string, classroomIds: string[]) => void;
-}> = ({ putSubjectRestriction }) => {
+  classrooms: Classroom[];
+}> = ({ putSubjectRestriction, classrooms }) => {
   const { subjects } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string>("");
-  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+
   const [restrictedClassrooms, setRestrictedClassrooms] = useState<string[]>([]);
 
   const showModal = () => {
@@ -46,25 +47,6 @@ const SubjectRestrictionModal: React.FC<{
     }
     pushRestricteClassroom(room.id);
   };
-
-  useEffect(() => {
-    getClassrooms()
-      .then((response) => {
-        if (response.error) {
-          console.log(response.message);
-          return;
-        }
-
-        const sortedClassrooms = response.sort((a: Classroom, b: Classroom) => {
-          return a.classroom.localeCompare(b.classroom, undefined, {
-            numeric: true,
-          });
-        });
-
-        setClassrooms(sortedClassrooms);
-      })
-      .catch((error) => console.log(error));
-  }, []);
 
   return (
     <>
@@ -113,6 +95,7 @@ const SubjectRestrictionModal: React.FC<{
             {classrooms.map((classroom) => {
               return (
                 <div
+                  key={classroom.id}
                   onClick={() => toggleRestrictedClassroom(classroom)}
                   style={{
                     backgroundColor: restrictedClassrooms.includes(classroom.id)

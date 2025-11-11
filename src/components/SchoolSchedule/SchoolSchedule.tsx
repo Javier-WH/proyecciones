@@ -142,7 +142,7 @@ const SchoolSchedule: React.FC = () => {
     });
 
     setEventData(eventsdata);
-  }, [classrooms, subjects, teacherRestrictions, trimestre]);
+  }, [classrooms, subjects, teacherRestrictions, trimestre, subjectRestriction]);
 
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {
@@ -235,7 +235,7 @@ const SchoolSchedule: React.FC = () => {
           </div>
           <div style={{ display: "flex", gap: "10px", width: "120px" }}>
             <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
-            <SubjectRestrictionModal putSubjectRestriction={putSubjectRestriction} />
+            <SubjectRestrictionModal putSubjectRestriction={putSubjectRestriction} classrooms={classrooms} />
             <ScheduleErrorsModal errors={errors} />
           </div>
         </div>
