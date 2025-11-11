@@ -54,7 +54,14 @@ const SubjectRestrictionModal: React.FC<{
           console.log(response.message);
           return;
         }
-        setClassrooms(response);
+
+        const sortedClassrooms = response.sort((a: Classroom, b: Classroom) => {
+          return a.classroom.localeCompare(b.classroom, undefined, {
+            numeric: true,
+          });
+        });
+
+        setClassrooms(sortedClassrooms);
       })
       .catch((error) => console.log(error));
   }, []);
