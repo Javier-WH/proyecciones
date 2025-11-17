@@ -26,11 +26,18 @@ const TeacherRestrictionModal: React.FC<{
     { value: 5, label: "Viernes" },
   ];
 
+  const cleanUp = () => {
+    setSelectedTeacher("");
+    setRestrictedDays([]);
+  };
+
   const showModal = () => {
+    cleanUp();
     setIsModalOpen(true);
   };
 
   const handleCancel = () => {
+    cleanUp();
     setIsModalOpen(false);
   };
 
@@ -77,6 +84,7 @@ const TeacherRestrictionModal: React.FC<{
               defaultValue=""
               style={{ width: "100%" }}
               onChange={setSelectedTeacher}
+              value={selectedTeacher}
               options={teachers?.map((teacher) => ({
                 value: teacher.id,
                 label: `${teacher.lastName} ${teacher.name} - ${teacher.ci}`,
@@ -88,29 +96,33 @@ const TeacherRestrictionModal: React.FC<{
           </div>
           <br />
           <div className={styles.selectorContainer}>
-            <span>Seleccione los dias donde el profesor puede dar clases</span>
-            <div style={{ display: "flex", gap: "5px", justifyContent: "center", margin: "10px 0px" }}>
-              {days.map((day) => {
-                return (
-                  <div
-                    onClick={() => toggleRestrictedDay(day.value)}
-                    style={{
-                      backgroundColor: restrictedDays.includes(day.value) ? "white" : "rgb(84, 122, 226)",
-                      color: restrictedDays.includes(day.value) ? "gray" : "white",
-                      width: "80px",
-                      height: "50px",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      cursor: "pointer",
-                      userSelect: "none",
-                      borderRadius: "15px",
-                    }}>
-                    {day.label}
-                  </div>
-                );
-              })}
-            </div>
+            {selectedTeacher !== "" && (
+              <>
+                <span>Seleccione los dias donde el profesor puede dar clases</span>
+                <div style={{ display: "flex", gap: "5px", justifyContent: "center", margin: "10px 0px" }}>
+                  {days.map((day) => {
+                    return (
+                      <div
+                        onClick={() => toggleRestrictedDay(day.value)}
+                        style={{
+                          backgroundColor: restrictedDays.includes(day.value) ? "white" : "rgb(84, 122, 226)",
+                          color: restrictedDays.includes(day.value) ? "gray" : "white",
+                          width: "80px",
+                          height: "50px",
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          cursor: "pointer",
+                          userSelect: "none",
+                          borderRadius: "15px",
+                        }}>
+                        {day.label}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </Modal>

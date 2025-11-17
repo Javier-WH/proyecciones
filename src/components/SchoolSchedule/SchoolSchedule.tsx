@@ -13,6 +13,8 @@ import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Even
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
+import { FaRegSave, FaRegFolderOpen } from "react-icons/fa";
+import styles from "./modal.module.css";
 
 export interface teacherRestriction {
   teacherId: string;
@@ -39,6 +41,7 @@ const SchoolSchedule: React.FC = () => {
   const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
   const lastHour = turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
 
+  console.log(events);
   const loadInitialData = async (): Promise<void> => {
     const classroomsData = await getClassrooms();
     if (classroomsData.error) {
@@ -159,6 +162,7 @@ const SchoolSchedule: React.FC = () => {
 
   return (
     <>
+      <h2>Nuevo Horario</h2>
       <div className="schedule-select-main-container">
         <div className="schedule-select-container">
           <div className="schedule-select">
@@ -233,7 +237,9 @@ const SchoolSchedule: React.FC = () => {
               ]}
             />
           </div>
-          <div style={{ display: "flex", gap: "10px", width: "120px" }}>
+          <div style={{ display: "flex", gap: "10px", width: "180px" }}>
+            <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} />
+            <FaRegSave title="Guardar Horario" className={styles.icon} />
             <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
             <SubjectRestrictionModal putSubjectRestriction={putSubjectRestriction} classrooms={classrooms} />
             <ScheduleErrorsModal errors={errors} />

@@ -15,7 +15,9 @@ const SubjectRestrictionModal: React.FC<{
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string>("");
 
-  const [restrictedClassrooms, setRestrictedClassrooms] = useState<string[]>([]);
+  const [restrictedClassrooms, setRestrictedClassrooms] = useState<string[]>(
+    classrooms.map((room) => room.id)
+  );
 
   const showModal = () => {
     setIsModalOpen(true);
@@ -71,7 +73,7 @@ const SubjectRestrictionModal: React.FC<{
               style={{ width: "100%" }}
               onChange={setSelectedSubject}
               options={subjects?.map((subject) => ({
-                value: subject.innerId,
+                value: subject.id,
                 label: subject.subject,
               }))}
               filterOption={(input, option) =>
@@ -98,10 +100,10 @@ const SubjectRestrictionModal: React.FC<{
                   key={classroom.id}
                   onClick={() => toggleRestrictedClassroom(classroom)}
                   style={{
-                    backgroundColor: restrictedClassrooms.includes(classroom.id)
+                    backgroundColor: !restrictedClassrooms.includes(classroom.id)
                       ? "white"
                       : "rgb(84, 122, 226)",
-                    color: restrictedClassrooms.includes(classroom.id) ? "gray" : "white",
+                    color: !restrictedClassrooms.includes(classroom.id) ? "gray" : "white",
                     width: "100%",
                     height: "50px",
                     display: "flex",
