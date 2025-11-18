@@ -7,13 +7,18 @@ import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { Subject } from "../../interfaces/subject";
 import "./SchoolSchedule.css";
-import { getClassrooms } from "../../fetch/schedule/scheduleFetch";
-import { Select } from "antd";
+import {
+  getClassrooms,
+  insertOrUpdateSchedule,
+  type ScheduleDataBase,
+} from "../../fetch/schedule/scheduleFetch";
+import { Select, Modal, message } from "antd";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
 import { FaRegSave, FaRegFolderOpen } from "react-icons/fa";
+
 import styles from "./modal.module.css";
 
 export interface teacherRestriction {
@@ -26,7 +31,7 @@ export interface subjectRestriction {
 }
 
 const SchoolSchedule: React.FC = () => {
-  const { subjects, teachers, trayectosList } = useContext(MainContext) as MainContextValues;
+  const { subjects, teachers, trayectosList, proyectionId } = useContext(MainContext) as MainContextValues;
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [eventData, setEventData] = useState<Event[]>([]);
   const [events, setEvents] = useState<EventInput[]>([]);
@@ -41,7 +46,6 @@ const SchoolSchedule: React.FC = () => {
   const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
   const lastHour = turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
 
-  console.log(events);
   const loadInitialData = async (): Promise<void> => {
     const classroomsData = await getClassrooms();
     if (classroomsData.error) {
@@ -100,6 +104,63 @@ const SchoolSchedule: React.FC = () => {
     setTeacherRestrictions(currentRestrictions);
   };
 
+  const saveSchedule = async () => {
+    if (!proyectionId) {
+      message.error("Error: ID de proyección no disponible. No se puede guardar el horario.");
+      return;
+    }
+
+    // Usar Modal.confirm o Modal.prompt de Ant Design para pedir el nombre
+    Modal.confirm({
+      title: "Guardar Horario",
+      content: (
+        <div>
+          <p>Por favor, introduce un nombre para el horario:</p>
+          <input
+            id="schedule-name-input"
+            type="text"
+            placeholder="Nombre del Horario"
+            defaultValue={`Horario ${new Date().toLocaleDateString()}`}
+            style={{ width: "100%", padding: "8px", marginTop: "10px" }}
+          />
+        </div>
+      ),
+      okText: "Guardar",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        const nameInput = document.getElementById("schedule-name-input") as HTMLInputElement;
+        const scheduleName = nameInput.value.trim();
+
+        if (!scheduleName) {
+          message.error("El nombre del horario no puede estar vacío.");
+          return Promise.reject(new Error("Nombre vacío")); // Evita que el modal se cierre si hay error
+        }
+
+        const newSchedule: ScheduleDataBase = {
+          name: scheduleName,
+          schedule: JSON.stringify(events),
+          proyection_id: proyectionId,
+        };
+
+        const { error, message: msg } = await insertOrUpdateSchedule(newSchedule);
+
+        if (error) {
+          // Muestra un mensaje de error si la inserción/actualización falla
+          message.error(`Error al guardar el horario: ${msg || "Error desconocido."}`);
+          // Evita que el modal se cierre si la acción asíncrona falla
+          return Promise.reject(new Error("Error de guardado"));
+        } else {
+          // Muestra un mensaje de éxito
+          message.success(`Horario "${scheduleName}" guardado con éxito.`);
+        }
+      },
+      onCancel() {
+        // El usuario canceló la operación
+        console.log("Guardado de horario cancelado");
+      },
+    });
+  };
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -108,31 +169,6 @@ const SchoolSchedule: React.FC = () => {
   useEffect(() => {
     if (!classrooms || classrooms.length === 0 || !subjects || subjects.length === 0) return;
     setErrors([]);
-    /*const restrictions = [
-      {
-        teacherId: "86d72bb0-9a93-4c15-ab26-220977a909d3",
-        days: [1, 3],
-      },
-      {
-        teacherId: "ce7d1039-7656-41ae-ae55-b14d315303ac",
-        days: [1, 3],
-      },
-    ];*/
-
-    /*const classroomRestrictions = [
-      {
-        subjectId: "66c36779-98ee-48d2-8653-590026606ffb",
-        classroomIds: [
-          "986d550a-e81b-4baf-96a6-ef2898dd2492",
-          "0df11e0c-9a7d-47c7-8070-ea39586158e5",
-          "7945c41b-88b1-4cdc-8b3a-430888017a01",
-        ],
-      },
-      {
-        subjectId: "f5171975-35be-4511-9ac8-0763721105a4",
-        classroomIds: ["4b8c9d1a-6e5f-4a3b-8c2d-1e0f9b4a7c6d"],
-      },
-    ];*/
 
     const eventsdata = generateScheduleEvents({
       subjects: subjects as Subject[], // la lista de materias
@@ -239,7 +275,7 @@ const SchoolSchedule: React.FC = () => {
           </div>
           <div style={{ display: "flex", gap: "10px", width: "180px" }}>
             <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} />
-            <FaRegSave title="Guardar Horario" className={styles.icon} />
+            <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
             <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
             <SubjectRestrictionModal putSubjectRestriction={putSubjectRestriction} classrooms={classrooms} />
             <ScheduleErrorsModal errors={errors} />
