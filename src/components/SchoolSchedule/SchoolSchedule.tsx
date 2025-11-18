@@ -418,18 +418,15 @@ const SchoolSchedule: React.FC = () => {
         cancelText="Cancelar">
         <p>Selecciona un horario de la lista para cargarlo:</p>
 
-        {/* Contenedor con Altura Máxima y Scroll */}
         <div style={{ maxHeight: "400px", overflowY: "auto" }}>
           <List
             size="small"
             bordered
-            // 1. Clonar e invertir la lista (el más reciente de primero)
             dataSource={[...scheduleList].reverse()}
             renderItem={(schedule: ScheduleDataBase) => (
               <List.Item
                 style={{
                   cursor: "pointer",
-                  // Resaltar el elemento seleccionado
                   backgroundColor: selectedSchedule?.id === schedule.id ? "#e6f7ff" : "transparent",
                 }}
                 onClick={() => setSelectedSchedule(schedule || null)}>
