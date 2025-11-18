@@ -49,7 +49,6 @@ const SchoolSchedule: React.FC = () => {
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
-  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
 
   const loadInitialData = async (): Promise<void> => {
     const classroomsData = await getClassrooms();
@@ -175,7 +174,7 @@ const SchoolSchedule: React.FC = () => {
 
     // Reiniciar estados y empezar a cargar
     setScheduleList([]);
-    setSelectedScheduleId(null);
+    setSelectedSchedule(null);
 
     // (Opcional): Si tienes un estado de `isLoading` lo puedes usar aquí.
     // setIsFetchingSchedules(true);
@@ -200,30 +199,30 @@ const SchoolSchedule: React.FC = () => {
 
   // Función que se ejecuta al presionar "Abrir" dentro del Modal
   const handleOpenScheduleOk = () => {
-    if (!selectedScheduleId) {
+    if (!selectedSchedule?.id) {
       message.warning("Por favor, selecciona un horario para abrir.");
       return; // El Modal no se cerrará
     }
 
     // 1. Encontrar el objeto completo del horario seleccionado
-    const selectedSchedule = scheduleList.find((s) => s.id === selectedScheduleId);
+    const _selectedSchedule = scheduleList.find((s) => s.id === selectedSchedule.id);
 
-    if (!selectedSchedule) {
+    if (!_selectedSchedule) {
       message.error("Error: Horario seleccionado no encontrado en la lista.");
       return;
     }
 
     try {
       // 2. Parsear el JSON string y cargar los eventos
-      const loadedEvents: EventInput[] = JSON.parse(selectedSchedule.schedule);
+      const loadedEvents: EventInput[] = JSON.parse(_selectedSchedule.schedule);
       setEvents(loadedEvents);
 
       // 3. Cerrar el modal y notificar éxito
       setIsScheduleModalOpen(false);
-      message.success(`Horario "${selectedSchedule.name}" cargado con éxito.`);
+      message.success(`Horario "${_selectedSchedule.name}" cargado con éxito.`);
     } catch (error) {
       console.error("Error parsing schedule data:", error);
-      message.error(`Error al procesar los datos del horario "${selectedSchedule.name}".`);
+      message.error(`Error al procesar los datos del horario "${_selectedSchedule.name}".`);
     }
   };
 
@@ -413,7 +412,7 @@ const SchoolSchedule: React.FC = () => {
         onOk={handleOpenScheduleOk}
         onCancel={() => {
           setIsScheduleModalOpen(false);
-          setSelectedScheduleId(null);
+          setSelectedSchedule(null);
         }}
         okText="Abrir Horario"
         cancelText="Cancelar">
@@ -431,9 +430,9 @@ const SchoolSchedule: React.FC = () => {
                 style={{
                   cursor: "pointer",
                   // Resaltar el elemento seleccionado
-                  backgroundColor: selectedScheduleId === schedule.id ? "#e6f7ff" : "transparent",
+                  backgroundColor: selectedSchedule?.id === schedule.id ? "#e6f7ff" : "transparent",
                 }}
-                onClick={() => setSelectedScheduleId(schedule?.id || null)}>
+                onClick={() => setSelectedSchedule(schedule || null)}>
                 {schedule.name}
               </List.Item>
             )}
