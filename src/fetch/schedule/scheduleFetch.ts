@@ -54,7 +54,7 @@ export async function insertOrUpdateSchedule({
   return response.json();
 }
 
-export async function getSchedule({ id }: { id: string | undefined }) {
+export async function getSchedule({ id }: { id?: string | undefined }) {
   let headersList = {
     Accept: "*/*",
   };

@@ -11,6 +11,7 @@ import {
   getClassrooms,
   insertOrUpdateSchedule,
   type ScheduleDataBase,
+  getSchedule,
 } from "../../fetch/schedule/scheduleFetch";
 import { Select, Modal, message } from "antd";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
@@ -161,6 +162,37 @@ const SchoolSchedule: React.FC = () => {
     });
   };
 
+  const openSchedule = async () => {
+    if (!proyectionId) {
+      message.error("Error: ID de proyección no disponible. No se puede guardar el horario.");
+      return;
+    }
+
+    const scheduleList = await getSchedule({});
+
+    // Usar Modal.confirm o Modal.prompt de Ant Design para pedir el nombre
+    Modal.confirm({
+      title: "Guardar Horario",
+      content: (
+        <div>
+          <p>Horarios disponibles</p>
+          {scheduleList.map((schedule: ScheduleDataBase) => (
+            <div key={schedule.id}>
+              <p>{schedule.name}</p>
+            </div>
+          ))}
+        </div>
+      ),
+      okText: "Abrir",
+      cancelText: "Cancelar",
+      onOk: async () => {},
+      onCancel() {
+        // El usuario canceló la operación
+        console.log("Guardado de horario cancelado");
+      },
+    });
+  };
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -274,7 +306,7 @@ const SchoolSchedule: React.FC = () => {
             />
           </div>
           <div style={{ display: "flex", gap: "10px", width: "180px" }}>
-            <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} />
+            <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
             <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
             <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
             <SubjectRestrictionModal putSubjectRestriction={putSubjectRestriction} classrooms={classrooms} />
