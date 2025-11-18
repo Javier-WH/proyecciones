@@ -13,7 +13,7 @@ import {
   type ScheduleDataBase,
   getSchedule,
 } from "../../fetch/schedule/scheduleFetch";
-import { Select, Modal, message } from "antd";
+import { Select, Modal, message, List } from "antd";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
@@ -46,6 +46,10 @@ const SchoolSchedule: React.FC = () => {
   const [errors, setErrors] = useState<scheduleError[]>([]);
   const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
   const lastHour = turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
+  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
 
   const loadInitialData = async (): Promise<void> => {
     const classroomsData = await getClassrooms();
@@ -162,35 +166,65 @@ const SchoolSchedule: React.FC = () => {
     });
   };
 
+  // Función para abrir el modal (se conecta al click del icono FaRegFolderOpen)
   const openSchedule = async () => {
     if (!proyectionId) {
-      message.error("Error: ID de proyección no disponible. No se puede guardar el horario.");
+      message.error("Error: ID de proyección no disponible. No se puede cargar la lista de horarios.");
       return;
     }
 
-    const scheduleList = await getSchedule({});
+    // Reiniciar estados y empezar a cargar
+    setScheduleList([]);
+    setSelectedScheduleId(null);
 
-    // Usar Modal.confirm o Modal.prompt de Ant Design para pedir el nombre
-    Modal.confirm({
-      title: "Guardar Horario",
-      content: (
-        <div>
-          <p>Horarios disponibles</p>
-          {scheduleList.map((schedule: ScheduleDataBase) => (
-            <div key={schedule.id}>
-              <p>{schedule.name}</p>
-            </div>
-          ))}
-        </div>
-      ),
-      okText: "Abrir",
-      cancelText: "Cancelar",
-      onOk: async () => {},
-      onCancel() {
-        // El usuario canceló la operación
-        console.log("Guardado de horario cancelado");
-      },
-    });
+    // (Opcional): Si tienes un estado de `isLoading` lo puedes usar aquí.
+    // setIsFetchingSchedules(true);
+
+    try {
+      const result = await getSchedule({});
+
+      // Asumiendo que getSchedule devuelve una lista o un objeto con error/lista.
+      if (result.error || result.length === 0) {
+        message.info("No se encontraron horarios guardados.");
+        return;
+      }
+
+      setScheduleList(result);
+      setIsScheduleModalOpen(true); // Abrir el modal solo si hay datos
+    } catch (error) {
+      console.error("Error fetching schedules:", error);
+      message.error("Ocurrió un error inesperado al cargar los horarios.");
+    }
+    // finally { setIsFetchingSchedules(false); }
+  };
+
+  // Función que se ejecuta al presionar "Abrir" dentro del Modal
+  const handleOpenScheduleOk = () => {
+    if (!selectedScheduleId) {
+      message.warning("Por favor, selecciona un horario para abrir.");
+      return; // El Modal no se cerrará
+    }
+
+    // 1. Encontrar el objeto completo del horario seleccionado
+    const selectedSchedule = scheduleList.find((s) => s.id === selectedScheduleId);
+
+    if (!selectedSchedule) {
+      message.error("Error: Horario seleccionado no encontrado en la lista.");
+      return;
+    }
+
+    try {
+      // 2. Parsear el JSON string y cargar los eventos
+      const loadedEvents: EventInput[] = JSON.parse(selectedSchedule.schedule);
+      setEvents(loadedEvents);
+
+      // 3. Cerrar el modal y notificar éxito
+      setIsScheduleModalOpen(false);
+      message.success(`Horario "${selectedSchedule.name}" cargado con éxito.`);
+    } catch (error) {
+      console.error("Error parsing schedule data:", error);
+      message.error(`Error al procesar los datos del horario "${selectedSchedule.name}".`);
+    }
   };
 
   useEffect(() => {
@@ -372,6 +406,35 @@ const SchoolSchedule: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <Modal
+        title="Abrir Horario Guardado"
+        open={isScheduleModalOpen}
+        onOk={handleOpenScheduleOk}
+        onCancel={() => {
+          setIsScheduleModalOpen(false);
+          setSelectedScheduleId(null);
+        }}
+        okText="Abrir Horario"
+        cancelText="Cancelar">
+        <p>Selecciona un horario de la lista para cargarlo:</p>
+        <List
+          size="small"
+          bordered
+          dataSource={scheduleList}
+          renderItem={(schedule: ScheduleDataBase) => (
+            <List.Item
+              style={{
+                cursor: "pointer",
+                // Resaltar el elemento seleccionado
+                backgroundColor: selectedScheduleId === schedule.id ? "#e6f7ff" : "transparent",
+              }}
+              onClick={() => setSelectedScheduleId(schedule?.id || null)}>
+              {schedule.name}
+            </List.Item>
+          )}
+        />
+      </Modal>
     </>
   );
 };
