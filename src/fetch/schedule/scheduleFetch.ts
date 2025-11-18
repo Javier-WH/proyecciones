@@ -54,3 +54,23 @@ export async function insertOrUpdateSchedule({
   return response.json();
 }
 
+export async function getSchedule({ id }: { id: string | undefined }) {
+  let headersList = {
+    Accept: "*/*",
+  };
+  const url =
+    import.meta.env.MODE === "development"
+      ? `http://localhost:3000/schedule${id ? `?id=${id}` : ""}`
+      : `/schedule${id ? `?id=${id}` : ""}`;
+
+  let response = await fetch(url, {
+    method: "GET",
+    headers: headersList,
+  });
+
+  if (!response.ok) {
+    return { error: true, message: await response.json() };
+  }
+  return response.json();
+}
+
