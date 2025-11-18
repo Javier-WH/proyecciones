@@ -418,22 +418,27 @@ const SchoolSchedule: React.FC = () => {
         okText="Abrir Horario"
         cancelText="Cancelar">
         <p>Selecciona un horario de la lista para cargarlo:</p>
-        <List
-          size="small"
-          bordered
-          dataSource={scheduleList}
-          renderItem={(schedule: ScheduleDataBase) => (
-            <List.Item
-              style={{
-                cursor: "pointer",
-                // Resaltar el elemento seleccionado
-                backgroundColor: selectedScheduleId === schedule.id ? "#e6f7ff" : "transparent",
-              }}
-              onClick={() => setSelectedScheduleId(schedule?.id || null)}>
-              {schedule.name}
-            </List.Item>
-          )}
-        />
+
+        {/* Contenedor con Altura Máxima y Scroll */}
+        <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+          <List
+            size="small"
+            bordered
+            // 1. Clonar e invertir la lista (el más reciente de primero)
+            dataSource={[...scheduleList].reverse()}
+            renderItem={(schedule: ScheduleDataBase) => (
+              <List.Item
+                style={{
+                  cursor: "pointer",
+                  // Resaltar el elemento seleccionado
+                  backgroundColor: selectedScheduleId === schedule.id ? "#e6f7ff" : "transparent",
+                }}
+                onClick={() => setSelectedScheduleId(schedule?.id || null)}>
+                {schedule.name}
+              </List.Item>
+            )}
+          />
+        </div>
       </Modal>
     </>
   );
