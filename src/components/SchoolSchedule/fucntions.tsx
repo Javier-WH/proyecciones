@@ -111,27 +111,60 @@ export function generateScheduleEvents({
   const globalUsedSlots = new Set<string>();
   const sectionUsedSlots = new Set<string>();
 
+  // Precargar conflictos existentes y filtrar materias ya agendadas
+  const existingSubjectIds = new Set<string>();
+  const existingSubjectKeys = new Set<string>(); // Clave compuesta para mayor seguridad
+
+  if (existingEvents?.length) {
+    for (const event of existingEvents) {
+      if (!event?.extendedProps || !event?.daysOfWeek?.length) continue;
+
+      const day = event.daysOfWeek[0];
+      const start = event.startTime;
+      const { professorId, classroomId, trayectoId, seccion, pnfId, subjectId } = event.extendedProps;
+      const title = event.title;
+
+      if (subjectId) {
+        existingSubjectIds.add(subjectId);
+      }
+
+      // Crear clave compuesta: NombreMateria-Seccion-PNF-Trayecto
+      if (title && seccion && pnfId && trayectoId) {
+        const compositeKey = `${title.trim().toLowerCase()}-${seccion}-${pnfId}-${trayectoId}`;
+        existingSubjectKeys.add(compositeKey);
+      }
+
+      if (professorId) {
+        globalUsedSlots.add(`PROF-${day}-${start}-${professorId}`);
+      }
+      if (classroomId) {
+        globalUsedSlots.add(`ROOM-${day}-${start}-${classroomId}`);
+      }
+      sectionUsedSlots.add(`SEC-${day}-${start}-${pnfId}-${trayectoId}-${seccion}`);
+    }
+  }
+
+  // Filtrar materias que ya están en los eventos existentes
   const cleanSubject = subjects.filter(
-    (sub) =>
-      Object.keys(sub.quarter).includes(trimestre) && sub?.hours?.[trimestre] && sub?.hours?.[trimestre] > 0
+    (sub) => {
+      const isQuarterMatch = Object.keys(sub.quarter).includes(trimestre) &&
+        sub?.hours?.[trimestre] &&
+        sub?.hours?.[trimestre] > 0;
+
+      if (!isQuarterMatch) return false;
+
+      // Verificar por ID (usando innerId que es lo que guardamos)
+      const hasIdConflict = existingSubjectIds.has(sub.innerId) || existingSubjectIds.has(sub.id);
+
+      // Verificar por clave compuesta
+      const compositeKey = `${sub.subject.trim().toLowerCase()}-${sub.seccion}-${sub.pnfId}-${sub.trayectoId}`;
+      const hasKeyConflict = existingSubjectKeys.has(compositeKey);
+
+      return !hasIdConflict && !hasKeyConflict;
+    }
   );
 
   subjects = cleanSubject;
-
-  // Precargar conflictos existentes
-  if (existingEvents?.length) {
-    for (const event of existingEvents) {
-      const day = event.daysOfWeek[0];
-      const start = event.startTime;
-      const { professorId, classroomId, trayectoId, seccion, pnfId } = event.extendedProps;
-
-      if (professorId) {
-        globalUsedSlots.add(`${day}-${start}-${professorId}`);
-      }
-      globalUsedSlots.add(`${day}-${start}-${trayectoId}-${classroomId}`);
-      sectionUsedSlots.add(`${day}-${start}-${pnfId}-${trayectoId}-${seccion}`);
-    }
-  }
 
   // Fase 1: profesores con restricciones
   const withRestrictions = subjects.filter((subject) =>
@@ -162,9 +195,8 @@ export function generateScheduleEvents({
     const timeSlots = preferConfig?.preferLastSlot ? [...turnos[turno]].reverse() : turnos[turno];
 
     if (!hours || !professorId || !timeSlots) {
-      const reason = `Datos incompletos: ${!hours ? "Horas no definidas" : ""}${
-        !professorId ? ", Profesor no asignado" : ""
-      }${!timeSlots ? ", Turno no válido" : ""}`;
+      const reason = `Datos incompletos: ${!hours ? "Horas no definidas" : ""}${!professorId ? ", Profesor no asignado" : ""
+        }${!timeSlots ? ", Turno no válido" : ""}`;
       return { success: false, reason, assignedHours: 0 };
     }
 
@@ -178,8 +210,8 @@ export function generateScheduleEvents({
     if (availableDays.length === 0) {
       const reason = ignoreRestrictions
         ? `Profesor sin días disponibles incluso ignorando restricciones (días restringidos: ${restrictedDays.join(
-            ", "
-          )})`
+          ", "
+        )})`
         : `Profesor sin días disponibles (días restringidos: ${restrictedDays.join(", ")})`;
       return { success: false, reason, assignedHours: 0 };
     }
@@ -189,9 +221,8 @@ export function generateScheduleEvents({
       : classrooms;
 
     if (candidateClassrooms.length === 0) {
-      const reason = `No hay aulas disponibles para esta materia${
-        preferConfig ? " (aulas preferidas no disponibles)" : ""
-      }`;
+      const reason = `No hay aulas disponibles para esta materia${preferConfig ? " (aulas preferidas no disponibles)" : ""
+        }`;
       return { success: false, reason, assignedHours: 0 };
     }
 
@@ -238,9 +269,9 @@ export function generateScheduleEvents({
         let assignmentFailureReason = "";
 
         for (const classroom of candidateClassrooms) {
-          const conflictKeyProf = `${day}-${start}-${professorId}`;
-          const conflictKeyRoom = `${day}-${start}-${subject.trayectoId}-${classroom.id}`;
-          const conflictKeySection = `${day}-${start}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
+          const conflictKeyProf = `PROF-${day}-${start}-${professorId}`;
+          const conflictKeyRoom = `ROOM-${day}-${start}-${classroom.id}`;
+          const conflictKeySection = `SEC-${day}-${start}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
 
           const hasProfConflict = globalUsedSlots.has(conflictKeyProf);
           const hasRoomConflict = globalUsedSlots.has(conflictKeyRoom);

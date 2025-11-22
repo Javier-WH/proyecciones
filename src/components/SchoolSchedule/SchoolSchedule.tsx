@@ -18,7 +18,7 @@ import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Even
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
-import { FaRegSave, FaRegFolderOpen } from "react-icons/fa";
+import { FaRegSave, FaRegFolderOpen, FaPlus } from "react-icons/fa";
 
 import styles from "./modal.module.css";
 
@@ -49,6 +49,7 @@ const SchoolSchedule: React.FC = () => {
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
+  const [loadedScheduleEvents, setLoadedScheduleEvents] = useState<Event[]>([]); // Eventos del horario cargado
 
   const loadInitialData = async (): Promise<void> => {
     const classroomsData = await getClassrooms();
@@ -58,6 +59,8 @@ const SchoolSchedule: React.FC = () => {
     }
     setClassrooms(classroomsData);
   };
+
+
 
   const addError = (err: scheduleError) => {
     setErrors((prevErrors) => [...prevErrors, err]);
@@ -197,6 +200,12 @@ const SchoolSchedule: React.FC = () => {
     // finally { setIsFetchingSchedules(false); }
   };
 
+  // Función para crear un nuevo horario (limpiar eventos cargados)
+  const newSchedule = () => {
+    setLoadedScheduleEvents([]);
+    message.info("Creando nuevo horario. Los eventos cargados han sido limpiados.");
+  };
+
   // Función que se ejecuta al presionar "Abrir" dentro del Modal
   const handleOpenScheduleOk = () => {
     if (!selectedSchedule?.id) {
@@ -213,11 +222,16 @@ const SchoolSchedule: React.FC = () => {
     }
 
     try {
-      // 2. Parsear el JSON string y cargar los eventos
-      const loadedEvents: EventInput[] = JSON.parse(_selectedSchedule.schedule);
-      setEvents(loadedEvents);
+      // 2. Parsear el JSON string
+      const loadedEvents: Event[] = JSON.parse(_selectedSchedule.schedule);
 
-      // 3. Cerrar el modal y notificar éxito
+      // 3. IMPORTANTE: Limpiar eventos generados previamente
+      setEventData([]);
+
+      // 4. Cargar los eventos del horario
+      setLoadedScheduleEvents(loadedEvents);
+
+      // 5. Cerrar el modal y notificar éxito
       setIsScheduleModalOpen(false);
       message.success(`Horario "${_selectedSchedule.name}" cargado con éxito.`);
     } catch (error) {
@@ -234,7 +248,6 @@ const SchoolSchedule: React.FC = () => {
   useEffect(() => {
     if (!classrooms || classrooms.length === 0 || !subjects || subjects.length === 0) return;
     setErrors([]);
-
     const eventsdata = generateScheduleEvents({
       subjects: subjects as Subject[], // la lista de materias
       classrooms: classrooms, // la lista de aulas
@@ -242,24 +255,41 @@ const SchoolSchedule: React.FC = () => {
       preferredClassrooms: subjectRestriction, //las restricciones de materias por aulas de clase
       unavailableDays: teacherRestrictions, // restricciones de dias donde el profesor no puede dar clases
       conserveSlots: 3, // el numero maximo de horas consecutivas que una materia puede ser vista en un dia
+      existingEvents: loadedScheduleEvents, // Pasar eventos cargados para respetar esos slots
       setErrors: addError,
     });
 
     setEventData(eventsdata);
-  }, [classrooms, subjects, teacherRestrictions, trimestre, subjectRestriction]);
+  }, [classrooms, subjects, teacherRestrictions, trimestre, subjectRestriction, loadedScheduleEvents]); // Incluir para forzar regeneración al cargar
 
+  console.log("eventsdata", eventData);
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {
-    if (!eventData || eventData.length === 0) return;
-    const filteredByPnf = eventData.filter(
+    // Filtrar eventos cargados con los criterios actuales
+    const filteredLoaded = loadedScheduleEvents.filter(
       (event) =>
         event.extendedProps.pnfId === pnf &&
         event.extendedProps.seccion === seccion &&
         event.extendedProps.trayectoId === trayectoId &&
         event.extendedProps.turnName.toLowerCase() === turn
     );
-    setEvents(mergeConsecutiveEvents(filteredByPnf));
-  }, [eventData, turn, seccion, pnf, trayectoId]);
+
+    // Filtrar eventos generados con los mismos criterios
+    const filteredGenerated = eventData.filter(
+      (event) =>
+        event.extendedProps.pnfId === pnf &&
+        event.extendedProps.seccion === seccion &&
+        event.extendedProps.trayectoId === trayectoId &&
+        event.extendedProps.turnName.toLowerCase() === turn
+    );
+
+    // Mergear solo los eventos generados (los cargados ya están mergeados)
+    const mergedGenerated = mergeConsecutiveEvents(filteredGenerated);
+
+    // Combinar: eventos cargados (ya mergeados) + eventos generados (recién mergeados)
+    const combinedEvents = [...filteredLoaded, ...mergedGenerated];
+    setEvents(combinedEvents);
+  }, [eventData, loadedScheduleEvents, turn, seccion, pnf, trayectoId]);
 
   return (
     <>
@@ -338,7 +368,8 @@ const SchoolSchedule: React.FC = () => {
               ]}
             />
           </div>
-          <div style={{ display: "flex", gap: "10px", width: "180px" }}>
+          <div style={{ display: "flex", gap: "10px", width: "220px" }}>
+            <FaPlus title="Nuevo Horario" className={styles.icon} onClick={newSchedule} />
             <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
             <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
             <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
@@ -388,9 +419,8 @@ const SchoolSchedule: React.FC = () => {
                 const title = event.title;
                 const professorId = event.extendedProps?.professorId;
                 const classroomName = event.extendedProps?.classroomName;
-                const teacherName = `${teachers?.find((teacher) => teacher.id === professorId)?.lastName} ${
-                  teachers?.find((teacher) => teacher.id === professorId)?.name
-                }`;
+                const teacherName = `${teachers?.find((teacher) => teacher.id === professorId)?.lastName} ${teachers?.find((teacher) => teacher.id === professorId)?.name
+                  }`;
                 return (
                   <div className="fc-event-custom">
                     <div>
