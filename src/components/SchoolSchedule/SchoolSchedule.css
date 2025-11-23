@@ -194,6 +194,18 @@ body,
   color: #555;
 }
 
+/* Header for Print */
+.schedule-print-header {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  padding: 10px;
+  color: #000;
+  text-transform: uppercase;
+  border-bottom: 2px solid #000;
+}
+
 /* Print Specifics */
 @media print {
 

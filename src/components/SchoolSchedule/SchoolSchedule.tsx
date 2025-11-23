@@ -18,7 +18,9 @@ import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Even
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
-import { FaRegSave, FaRegFolderOpen, FaPlus } from "react-icons/fa";
+import { FaRegSave, FaRegFolderOpen, FaPlus, FaPrint } from "react-icons/fa";
+import printJS from "print-js";
+import PrintableSchedule from "./PrintableSchedule";
 
 import styles from "./modal.module.css";
 
@@ -55,6 +57,15 @@ const SchoolSchedule: React.FC = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
   const [loadedScheduleEvents, setLoadedScheduleEvents] = useState<Event[]>([]); // Eventos del horario cargado
+
+  const handlePrint = () => {
+    printJS({
+      printable: "printable-content", // ID of the element to print (inside PrintableSchedule)
+      type: "html",
+      targetStyles: ["*"], // Keep all styles
+      style: "@page { size: landscape; margin: 5mm 10mm 5mm 5mm; }", // Reduced right margin (top right bottom left)
+    });
+  };
 
   const loadInitialData = async (): Promise<void> => {
     const classroomsData = await getClassrooms();
@@ -313,6 +324,21 @@ const SchoolSchedule: React.FC = () => {
     setEvents(combinedEvents);
   }, [eventData, loadedScheduleEvents, turn, seccion, pnf, trayectoId, viewMode, selectedProfessorId]);
 
+  // Helper to get names for the header
+  const getHeaderInfo = () => {
+    const trimestreLabel = trimestre === "q1" ? "Trimestre 1" : trimestre === "q2" ? "Trimestre 2" : "Trimestre 3";
+
+    if (viewMode === "professor") {
+      const teacher = teachers?.find((t) => t.id === selectedProfessorId);
+      const teacherName = teacher ? `${teacher.name} ${teacher.lastName}` : "Profesor no seleccionado";
+      return `Horario para el profesor ${teacherName}, ${trimestreLabel}`;
+    } else {
+      const pnfNameFound = eventData.find(e => e.extendedProps.pnfId === pnf)?.extendedProps.pnfName || "PNF";
+      const trayectoName = trayectosList?.find((t) => t.id === trayectoId)?.name || "Trayecto";
+      return `Horario de ${pnfNameFound}, ${trayectoName}, ${trimestreLabel}, Turno ${turn}`;
+    }
+  };
+
   return (
     <>
       <h2>Nuevo Horario</h2>
@@ -448,6 +474,7 @@ const SchoolSchedule: React.FC = () => {
             <FaPlus title="Nuevo Horario" className={styles.icon} onClick={newSchedule} />
             <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
             <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
+            <FaPrint title="Imprimir Horario" className={styles.icon} onClick={handlePrint} />
             <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
             <SubjectRestrictionModal putSubjectRestriction={putSubjectRestriction} classrooms={classrooms} />
             <ScheduleErrorsModal errors={errors} />
@@ -462,8 +489,16 @@ const SchoolSchedule: React.FC = () => {
             // maxHeight removed to allow full height
             margin: "0 auto",
             flex: 1, // Take remaining space
-            overflow: "hidden"
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column"
           }}>
+
+          {/* Header for Print / Display */}
+          <div className="schedule-print-header">
+            {getHeaderInfo()}
+          </div>
+
           <div className={`calendar-container view-${viewMode}`}>
             <FullCalendar
               key={viewMode === "professor" ? "professor-view" : turn}
@@ -511,6 +546,14 @@ const SchoolSchedule: React.FC = () => {
               }}
             />
           </div>
+
+          {/* Hidden Printable Schedule */}
+          <PrintableSchedule
+            events={events}
+            viewMode={viewMode}
+            turn={turn}
+            headerInfo={getHeaderInfo()}
+          />
         </div>
       </div>
 
