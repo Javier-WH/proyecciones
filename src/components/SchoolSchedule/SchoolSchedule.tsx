@@ -44,8 +44,13 @@ const SchoolSchedule: React.FC = () => {
   const [subjectRestriction, setSubjectRestriction] = useState<subjectRestriction[]>([]);
   const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">("q1");
   const [errors, setErrors] = useState<scheduleError[]>([]);
-  const firstHour = turnos?.[turn]?.[0]?.[0] ?? "07:00";
-  const lastHour = turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
+
+  // New state for view mode and selected professor
+  const [viewMode, setViewMode] = useState<"pnf" | "professor">("pnf");
+  const [selectedProfessorId, setSelectedProfessorId] = useState<string | null>(null);
+
+  const firstHour = viewMode === "professor" ? "07:00" : (turnos?.[turn]?.[0]?.[0] ?? "07:00");
+  const lastHour = viewMode === "professor" ? "21:15" : (turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30");
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
@@ -61,7 +66,7 @@ const SchoolSchedule: React.FC = () => {
   };
 
 
-
+  console.log(eventData);
   const addError = (err: scheduleError) => {
     setErrors((prevErrors) => [...prevErrors, err]);
   };
@@ -262,26 +267,43 @@ const SchoolSchedule: React.FC = () => {
     setEventData(eventsdata);
   }, [classrooms, subjects, teacherRestrictions, trimestre, subjectRestriction, loadedScheduleEvents]); // Incluir para forzar regeneración al cargar
 
-  console.log("eventsdata", eventData);
+
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {
-    // Filtrar eventos cargados con los criterios actuales
-    const filteredLoaded = loadedScheduleEvents.filter(
-      (event) =>
-        event.extendedProps.pnfId === pnf &&
-        event.extendedProps.seccion === seccion &&
-        event.extendedProps.trayectoId === trayectoId &&
-        event.extendedProps.turnName.toLowerCase() === turn
-    );
+    let filteredLoaded: Event[] = [];
+    let filteredGenerated: Event[] = [];
 
-    // Filtrar eventos generados con los mismos criterios
-    const filteredGenerated = eventData.filter(
-      (event) =>
-        event.extendedProps.pnfId === pnf &&
-        event.extendedProps.seccion === seccion &&
-        event.extendedProps.trayectoId === trayectoId &&
-        event.extendedProps.turnName.toLowerCase() === turn
-    );
+    if (viewMode === "pnf") {
+      // Filtrar eventos cargados con los criterios actuales
+      filteredLoaded = loadedScheduleEvents.filter(
+        (event) =>
+          event.extendedProps.pnfId === pnf &&
+          event.extendedProps.seccion === seccion &&
+          event.extendedProps.trayectoId === trayectoId &&
+          event.extendedProps.turnName.toLowerCase() === turn
+      );
+
+      // Filtrar eventos generados con los mismos criterios
+      filteredGenerated = eventData.filter(
+        (event) =>
+          event.extendedProps.pnfId === pnf &&
+          event.extendedProps.seccion === seccion &&
+          event.extendedProps.trayectoId === trayectoId &&
+          event.extendedProps.turnName.toLowerCase() === turn
+      );
+    } else if (viewMode === "professor") {
+      if (!selectedProfessorId) {
+        setEvents([]);
+        return;
+      }
+      // Filtrar por profesor
+      filteredLoaded = loadedScheduleEvents.filter(
+        (event) => event.extendedProps.professorId === selectedProfessorId
+      );
+      filteredGenerated = eventData.filter(
+        (event) => event.extendedProps.professorId === selectedProfessorId
+      );
+    }
 
     // Mergear solo los eventos generados (los cargados ya están mergeados)
     const mergedGenerated = mergeConsecutiveEvents(filteredGenerated);
@@ -289,69 +311,123 @@ const SchoolSchedule: React.FC = () => {
     // Combinar: eventos cargados (ya mergeados) + eventos generados (recién mergeados)
     const combinedEvents = [...filteredLoaded, ...mergedGenerated];
     setEvents(combinedEvents);
-  }, [eventData, loadedScheduleEvents, turn, seccion, pnf, trayectoId]);
+  }, [eventData, loadedScheduleEvents, turn, seccion, pnf, trayectoId, viewMode, selectedProfessorId]);
 
   return (
     <>
       <h2>Nuevo Horario</h2>
       <div className="schedule-select-main-container">
         <div className="schedule-select-container">
-          <div className="schedule-select">
-            <span>Turno:</span>
-            <Select
-              defaultValue={Object.keys(turnos)[0]}
-              style={{ width: 150 }}
-              onChange={setTurn}
-              options={Object.keys(turnos).map((turn) => ({ value: turn, label: turn }))}
-            />
+          {/* TABS FOR VIEW MODE */}
+          <div style={{ marginBottom: "10px", width: "100%" }}>
+            <div style={{ display: "flex", borderBottom: "1px solid #ccc" }}>
+              <div
+                style={{
+                  padding: "10px 20px",
+                  cursor: "pointer",
+                  borderBottom: viewMode === "pnf" ? "2px solid #1890ff" : "none",
+                  color: viewMode === "pnf" ? "#1890ff" : "inherit",
+                  fontWeight: viewMode === "pnf" ? "bold" : "normal"
+                }}
+                onClick={() => setViewMode("pnf")}
+              >
+                Por PNF
+              </div>
+              <div
+                style={{
+                  padding: "10px 20px",
+                  cursor: "pointer",
+                  borderBottom: viewMode === "professor" ? "2px solid #1890ff" : "none",
+                  color: viewMode === "professor" ? "#1890ff" : "inherit",
+                  fontWeight: viewMode === "professor" ? "bold" : "normal"
+                }}
+                onClick={() => setViewMode("professor")}
+              >
+                Por Profesor
+              </div>
+            </div>
           </div>
 
-          <div className="schedule-select">
-            <span>Sección:</span>
-            <Select
-              defaultValue={eventData[0]?.extendedProps?.seccion}
-              style={{ width: 150 }}
-              onChange={setSeccion}
-              options={Array.from(new Set(eventData.map((event) => event?.extendedProps?.seccion)))
-                .filter(Boolean)
-                .map((seccion) => ({
-                  value: seccion,
-                  label: `Sección ${seccion}`,
+          {viewMode === "pnf" && (
+            <>
+              <div className="schedule-select">
+                <span>Turno:</span>
+                <Select
+                  defaultValue={Object.keys(turnos)[0]}
+                  style={{ width: 150 }}
+                  onChange={setTurn}
+                  options={Object.keys(turnos).map((turn) => ({ value: turn, label: turn }))}
+                />
+              </div>
+
+              <div className="schedule-select">
+                <span>Sección:</span>
+                <Select
+                  defaultValue={eventData[0]?.extendedProps?.seccion}
+                  style={{ width: 150 }}
+                  onChange={setSeccion}
+                  options={Array.from(new Set(eventData.map((event) => event?.extendedProps?.seccion)))
+                    .filter(Boolean)
+                    .map((seccion) => ({
+                      value: seccion,
+                      label: `Sección ${seccion}`,
+                    }))}
+                />
+              </div>
+
+              <div className="schedule-select">
+                <span>PNF:</span>
+                <Select
+                  value={pnf}
+                  style={{ width: 300 }}
+                  onChange={setPnf}
+                  options={Array.from(
+                    new Map(
+                      eventData
+                        .filter((event) => event?.extendedProps?.pnfId && event?.extendedProps?.pnfName)
+                        .map((event) => [event.extendedProps.pnfId, event.extendedProps.pnfName])
+                    )
+                  ).map(([value, label]) => ({
+                    value,
+                    label,
+                  }))}
+                />
+              </div>
+
+              <div className="schedule-select">
+                <span>Trayecto:</span>
+                <Select
+                  value={trayectoId}
+                  style={{ width: 200 }}
+                  onChange={setTrayectoId}
+                  options={trayectosList?.map((trayecto) => ({
+                    value: trayecto.id,
+                    label: trayecto.name,
+                  }))}
+                />
+              </div>
+            </>
+          )}
+
+          {viewMode === "professor" && (
+            <div className="schedule-select">
+              <span>Profesor:</span>
+              <Select
+                showSearch
+                placeholder="Seleccione un profesor"
+                optionFilterProp="children"
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+                style={{ width: 300 }}
+                onChange={setSelectedProfessorId}
+                options={teachers?.map((teacher) => ({
+                  value: teacher.id,
+                  label: `${teacher.name} ${teacher.lastName}`,
                 }))}
-            />
-          </div>
-
-          <div className="schedule-select">
-            <span>PNF:</span>
-            <Select
-              value={pnf}
-              style={{ width: 300 }}
-              onChange={setPnf}
-              options={Array.from(
-                new Map(
-                  eventData
-                    .filter((event) => event?.extendedProps?.pnfId && event?.extendedProps?.pnfName)
-                    .map((event) => [event.extendedProps.pnfId, event.extendedProps.pnfName])
-                )
-              ).map(([value, label]) => ({
-                value,
-                label,
-              }))}
-            />
-          </div>
-
-          <div className="schedule-select">
-            <span>Trayecto:</span>
-            <Select
-              value={trayectoId}
-              style={{ width: 200 }}
-              onChange={setTrayectoId}
-              options={trayectosList?.map((trayecto) => ({
-                value: trayecto.id,
-                label: trayecto.name,
-              }))}
-            />
-          </div>
+              />
+            </div>
+          )}
           <div className="schedule-select">
             <span>Trimestre:</span>
             <Select
@@ -383,12 +459,14 @@ const SchoolSchedule: React.FC = () => {
             height: "100%",
             width: "100%",
             maxWidth: "1200px",
-            maxHeight: `${turnos?.[turn]?.length * 80}px`,
+            // maxHeight removed to allow full height
             margin: "0 auto",
+            flex: 1, // Take remaining space
+            overflow: "hidden"
           }}>
-          <div className="calendar-container">
+          <div className={`calendar-container view-${viewMode}`}>
             <FullCalendar
-              key={turn}
+              key={viewMode === "professor" ? "professor-view" : turn}
               plugins={[timeGridPlugin]}
               initialView="timeGridWeek"
               locale={esLocale}
@@ -413,7 +491,7 @@ const SchoolSchedule: React.FC = () => {
               events={events}
               height="100%"
               expandRows={true}
-              contentHeight={1400}
+              contentHeight={viewMode === "professor" ? 2200 : 1100}
               eventContent={(arg) => {
                 const { event } = arg;
                 const title = event.title;

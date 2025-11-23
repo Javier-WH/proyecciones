@@ -423,12 +423,12 @@ export function generateScheduleEvents({
     return total + (subject?.hours[trimestre] || 0);
   }, 0);
 
-  const totalHours = subjects.reduce((total, subject) => total + (subject.hours[trimestre] || 0), 0);
+  /*const totalHours = subjects.reduce((total, subject) => total + (subject.hours[trimestre] || 0), 0);
 
-  console.log("=== RESUMEN FINAL ===");
+ console.log("=== RESUMEN FINAL ===");
   console.log(`Total materias: ${subjects.length}`);
   console.log(`Materias no asignadas completamente: ${stillUnassigned.length}`);
-  console.log(`Horas asignadas: ${assignedHours}/${totalHours}`);
+  console.log(`Horas asignadas: ${assignedHours}/${totalHours}`);*/
 
   if (stillUnassigned.length > 0) {
     console.log("=== MATERIAS NO ASIGNADAS ===");
