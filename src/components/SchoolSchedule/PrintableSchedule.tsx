@@ -359,7 +359,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                   if (cell === 'occupied') return null;
 
                   const gridColumn = day + 1; // +1 because column 1 is HORA
-                  console.log(cell)
+
                   if (cell) {
                     const gridRowEnd = gridRowNum + cell.span;
                     return (

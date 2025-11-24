@@ -340,6 +340,44 @@ const SchoolSchedule: React.FC = () => {
     setEvents(combinedEvents);
   }, [eventData, loadedScheduleEvents, turn, seccion, pnf, trayectoId, viewMode, selectedProfessorId]);
 
+  // Set default values when data loads
+  useEffect(() => {
+    if (viewMode === "pnf") {
+      if (!pnf && eventData.length > 0) {
+        const firstPnf = eventData.find(e => e.extendedProps?.pnfId)?.extendedProps.pnfId;
+        if (firstPnf) setPnf(firstPnf);
+      }
+      if (!trayectoId && trayectosList && trayectosList.length > 0) {
+        setTrayectoId(trayectosList[0].id);
+      }
+      if (!seccion && eventData.length > 0) {
+        const sections = Array.from(new Set(eventData.map((event) => event?.extendedProps?.seccion))).filter(Boolean);
+        if (sections.length > 0) setSeccion(sections[0] as string);
+      }
+    } else if (viewMode === "professor") {
+      if (!selectedProfessorId && teachers && teachers.length > 0) {
+        setSelectedProfessorId(teachers[0].id);
+      }
+    }
+  }, [eventData, trayectosList, teachers, viewMode, pnf, trayectoId, seccion, selectedProfessorId]);
+
+  const handleViewModeChange = (mode: "pnf" | "professor") => {
+    setViewMode(mode);
+    // Reset states when switching views
+    if (mode === "pnf") {
+      setSelectedProfessorId(null);
+      // Trigger re-evaluation of defaults
+      setPnf("");
+      setTrayectoId("");
+      setSeccion("");
+    } else {
+      setPnf("");
+      setTrayectoId("");
+      setSeccion("");
+      setSelectedProfessorId(null);
+    }
+  };
+
 
 
   return (
@@ -350,13 +388,13 @@ const SchoolSchedule: React.FC = () => {
           <div className="view-mode-tabs">
             <div
               className={`view-mode-tab ${viewMode === "pnf" ? "active" : ""}`}
-              onClick={() => setViewMode("pnf")}
+              onClick={() => handleViewModeChange("pnf")}
             >
               Por PNF
             </div>
             <div
               className={`view-mode-tab ${viewMode === "professor" ? "active" : ""}`}
-              onClick={() => setViewMode("professor")}
+              onClick={() => handleViewModeChange("professor")}
             >
               Por Profesor
             </div>
@@ -368,7 +406,7 @@ const SchoolSchedule: React.FC = () => {
                 <span>Turno:</span>
                 <Select
                   size="small"
-                  defaultValue={Object.keys(turnos)[0]}
+                  value={turn}
                   style={{ width: 120 }}
                   onChange={setTurn}
                   options={Object.keys(turnos).map((turn) => ({ value: turn, label: turn }))}
@@ -379,7 +417,7 @@ const SchoolSchedule: React.FC = () => {
                 <span>Sección:</span>
                 <Select
                   size="small"
-                  defaultValue={eventData[0]?.extendedProps?.seccion}
+                  value={seccion}
                   style={{ width: 120 }}
                   onChange={setSeccion}
                   options={Array.from(new Set(eventData.map((event) => event?.extendedProps?.seccion)))
@@ -450,6 +488,7 @@ const SchoolSchedule: React.FC = () => {
               <Select
                 size="small"
                 showSearch
+                value={selectedProfessorId}
                 placeholder="Seleccione un profesor"
                 optionFilterProp="children"
                 filterOption={(input, option) =>
@@ -528,6 +567,8 @@ const SchoolSchedule: React.FC = () => {
                 const title = event.title;
                 const professorId = event.extendedProps?.professorId;
                 const classroomName = event.extendedProps?.classroomName;
+                const seccion = event.extendedProps?.seccion;
+                const pnf = event.extendedProps?.pnfName;
                 const teacherName = `${teachers?.find((teacher) => teacher.id === professorId)?.lastName} ${teachers?.find((teacher) => teacher.id === professorId)?.name
                   }`;
                 return (
@@ -535,7 +576,12 @@ const SchoolSchedule: React.FC = () => {
                     <div>
                       <strong>{title}</strong>
                     </div>
-                    <div style={{ fontSize: "0.75em", color: "#555" }}>Profesor: {teacherName}</div>
+                    {
+                      viewMode === "professor"
+                        ? <> <div style={{ fontSize: "0.75em", color: "#555" }}>{pnf}</div> <div style={{ fontSize: "0.75em", color: "#555" }}>Sección: {seccion}</div> </>
+                        : <div style={{ fontSize: "0.75em", color: "#555" }}>Profesor: {teacherName}</div>
+
+                    }
                     <div style={{ fontSize: "0.75em", color: "#777" }}>{classroomName}</div>
                   </div>
                 );
