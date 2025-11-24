@@ -6,7 +6,7 @@ import uptllLogo from "../../assets/uptllLogo.jpeg";
 
 interface PrintableScheduleProps {
   events: any[];
-  viewMode: "pnf" | "professor";
+  viewMode: "pnf" | "professor" | "classroom";
   turn: string;
   headerInfo: string;
   seccion: string;
@@ -17,7 +17,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
   let timeSlots: string[] = [];
   const { teachers } = useContext(MainContext) as MainContextValues;
 
-  if (viewMode === "professor") {
+  if (viewMode === "professor" || viewMode === "classroom") {
     // Generate slots from 07:00 to 21:15 in 45 min intervals
     const startHour = 7;
     const endHour = 21;
@@ -73,6 +73,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
   // Parse headerInfo - Format: "PNF Name, TRAYECTO X, Trimestre Y, Turno Z"
   const headerParts = headerInfo.split(',').map(p => p.trim());
   const pnfName = headerParts[0] || "PROGRAMA NACIONAL DE FORMACIÓN";
+
   const trayecto = headerParts[1] || "TRAYECTO I";
   const trimestre = headerParts[2] || "";
   const turno = headerParts[3]?.replace('Turno', '').trim().toUpperCase() || "MAÑANA";
@@ -118,7 +119,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
   });
 
   // Generate grid template rows: 8mm for header + variable height for each time slot
-  const rowHeight = viewMode === "professor" ? "8mm" : "22mm";
+  const rowHeight = (viewMode === "professor" || viewMode === "classroom") ? "8mm" : "22mm";
   const gridTemplateRows = `8mm repeat(${timeSlots.length}, ${rowHeight})`;
   // Generate grid template columns: 40mm for HORA + 46.6mm for each day
   const gridTemplateColumns = "40mm repeat(5, 46.6mm)";
@@ -191,7 +192,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
 
           {/* Title section */}
           <div style={{ flex: 1, textAlign: "center" }}>
-            {viewMode !== "professor" && <>
+            {(viewMode !== "professor" && viewMode !== "classroom") && <>
               <div style={{
                 fontSize: "4mm",
                 fontWeight: "bold",
@@ -226,7 +227,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
           </div>
 
           {/* Section info */}
-          {viewMode !== "professor" && <div style={{
+          {(viewMode !== "professor" && viewMode !== "classroom") && <div style={{
             width: "40mm",
             textAlign: "right",
             fontSize: "3.5mm",
@@ -369,7 +370,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                           gridColumn: `${gridColumn}`,
                           gridRow: `${gridRowNum} / ${gridRowEnd}`,
                           border: "0.4mm solid #000",
-                          padding: viewMode === "professor" ? "0.5mm" : "1.5mm",
+                          padding: (viewMode === "professor" || viewMode === "classroom") ? "0.5mm" : "1.5mm",
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
@@ -382,13 +383,25 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                           className="subject-title"
                           style={{
                             fontWeight: "bold",
-                            fontSize: viewMode === "professor" ? "2mm" : "3mm",
+                            fontSize: (viewMode === "professor" || viewMode === "classroom") ? "2mm" : "3mm",
                             lineHeight: "3mm",
                             marginBottom: "0.4mm"
                           }}
                         >{cell.title}</div>
 
-                        {viewMode !== "professor" && (
+                        {viewMode === "classroom" ? (
+                          <>
+                            <div className="professor-name" style={{ fontSize: "2mm", lineHeight: "2mm" }}>
+                              {getTeacherName(cell.extendedProps?.professorId)}
+                            </div>
+                            <div style={{ fontSize: "2mm", lineHeight: "2mm" }}>
+                              {cell.extendedProps?.pnfName}
+                            </div>
+                            <div style={{ fontSize: "2mm", lineHeight: "2mm" }}>
+                              Sec. {cell.extendedProps?.seccion}
+                            </div>
+                          </>
+                        ) : viewMode !== "professor" ? (
                           <div
                             className="professor-name"
                             style={{
@@ -398,7 +411,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                           >
                             {getTeacherName(cell.extendedProps?.professorId)}
                           </div>
-                        )}
+                        ) : null}
 
                         {viewMode == "professor" && (
                           <div
