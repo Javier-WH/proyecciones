@@ -19,6 +19,7 @@ import EditContracts from "../components/editContracts/EditContracts";
 import CreateUserPanel from "../components/createUser/createUserPanel";
 import CreateProyectionPanel from "../components/createProyectionPanel/createProyectionPanel";
 import AdminPanel from "../components/adminPanel/adminPanel";
+import SchoolSchedule from "../components/SchoolSchedule/SchoolSchedule";
 
 const router = createBrowserRouter([
   {
@@ -94,6 +95,10 @@ const router = createBrowserRouter([
       {
         path: "/app/info",
         element: <AboutView />,
+      },
+      {
+        path: "/app/horarios/create",
+        element: <SchoolSchedule />,
       },
       {
         path: "*",

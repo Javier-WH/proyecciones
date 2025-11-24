@@ -69,20 +69,20 @@ const EditProyeccionesSubjectModal: React.FC<{
     )
       return;
 
-
-
     //edita el array de materias
     const _subjects = JSON.parse(JSON.stringify(subjects));
     const updatedSubjects = _subjects.map((sub: Subject) => {
-    
       if (sub.pensum_id === subject.pensum_id) {
         // esto es para conservar los valores de los profesores que ya han sido asignados a la materia
-        const newQuarters = mergeQuarters(trimestreValue as { [key: string]: string | null }, sub.quarter as { [key: string]: string | null });        
+        const newQuarters = mergeQuarters(
+          trimestreValue as { [key: string]: string | null },
+          sub.quarter as { [key: string]: string | null }
+        );
         sub.hours = hourValue;
         sub.pnf = pnfValue;
         sub.subject = subjectValue;
         sub.quarter = newQuarters;
-        sub.seccion = seccionValue;
+        //sub.seccion = seccionValue;
       }
       return sub;
     });
@@ -237,8 +237,10 @@ const EditProyeccionesSubjectModal: React.FC<{
 
 export default EditProyeccionesSubjectModal;
 
-
-function mergeQuarters(availableQuarters: { [key: string]: string | null }, quarter: { [key: string]: string | null }): { [key: string]: string | null } {
+function mergeQuarters(
+  availableQuarters: { [key: string]: string | null },
+  quarter: { [key: string]: string | null }
+): { [key: string]: string | null } {
   const result: { [key: string]: string | null } = {};
   const availableKeys = Object.keys(availableQuarters);
   for (const key of availableKeys) {

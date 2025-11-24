@@ -28,14 +28,14 @@ function getItem(
   key: React.Key,
   icon?: React.ReactNode,
   children?: MenuItem[],
-  disabled?: boolean 
+  disabled?: boolean
 ): MenuItem {
   return {
     key,
     icon,
     children,
     label,
-    disabled, 
+    disabled,
   } as MenuItem;
 }
 
@@ -56,9 +56,9 @@ const MainLayout: React.FC = () => {
 
     handleResize();
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
@@ -89,13 +89,7 @@ const MainLayout: React.FC = () => {
           getItem("Administrador", "/app/admin", <MdAdminPanelSettings />),
         ]
       : []),
-    getItem(
-      "Horarios",
-      "/app/horarios",
-      <GrSchedules />,
-      [getItem("Crear Horario", "6"), getItem("Editar Horario", "8")],
-      true
-    ),
+    getItem("Horarios", "/app/horarios/create", <GrSchedules />),
     getItem("Información", "/app/info", <TiInfoLargeOutline />),
     getItem("Logout", "logout", <RiLogoutBoxFill />),
   ];

@@ -12,6 +12,7 @@ export interface Subject {
   trayectoName: string;
   trayecto_saga_id: string;
   turnoName: string;
+  turnoId?: string;
   teacherName?: string;
   teacherCi?: string;
   key?: string;

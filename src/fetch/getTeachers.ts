@@ -1,17 +1,15 @@
 export default async function getTeachers() {
-
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/teachers" : "/teachers";
+  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/teachers" : "/teachers";
   const headersList = {
-    "Accept": "*/*"
-  }
+    Accept: "*/*",
+  };
 
   const response = await fetch(url, {
     method: "GET",
     headers: headersList,
-
   });
 
   const data = await response.json();
-  return data
-
+  return data;
 }
+

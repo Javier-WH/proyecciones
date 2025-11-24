@@ -1,0 +1,22 @@
+:root{
+    --iconSize: 30px;
+    --iconColor: rgb(55, 174, 221);
+}
+
+.icon{
+    width: var(--iconSize);
+    height: var(--iconSize);
+    color: var(--iconColor);
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+}
+
+.icon:hover{
+    filter: brightness(0.9);
+    scale: 1.2;
+}
+
+.selectorContainer{
+    display: flex;
+    flex-direction: column;
+}

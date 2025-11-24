@@ -101,6 +101,8 @@ export default function RegisterTeacher() {
       contractTypes_id: typeId,
       title,
       perfil_name_id: perfilId.join(","),
+      active: "1",
+      PNF: null,
     };
 
     const response = await postTeacher(requestData);
@@ -115,15 +117,15 @@ export default function RegisterTeacher() {
 
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
-      <div
-        style={{ display: "flex", alignItems: "center", justifyContent: "start", columnGap: "3rem" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "start", columnGap: "3rem" }}>
         <h1>Registro de profesor</h1>
       </div>
 
       <div className="register-teacher-form-container">
-        <div style={{display: "flex", columnGap: "1rem" }}>
-          <div style={{ pointerEvents: ci===null ? "none" : "all"}}>
-            <ImageUploader filename={ci?.toString()} gender={genderId || "1"} /> {/* la imagen es el retrato del profesor */}
+        <div style={{ display: "flex", columnGap: "1rem" }}>
+          <div style={{ pointerEvents: ci === null ? "none" : "all" }}>
+            <ImageUploader filename={ci?.toString()} gender={genderId || "1"} />{" "}
+            {/* la imagen es el retrato del profesor */}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", rowGap: "1rem", width: "100%" }}>
@@ -196,24 +198,24 @@ export default function RegisterTeacher() {
             />
           </div>
         </div>
-          <div className="register-teacher-form-input">
-            <label>Perfil</label>
-            <Select
-              style={{ width: "100%" }}
-              mode="multiple"
-              allowClear
-              showSearch
-              placeholder="Selecciona un perfil"
-              filterOption={(input, option) =>
-                String(option?.label ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-              options={profileOptions}
-              value={perfilId}
-              onChange={(value) => setPerfilId(value)}
-            />
-          </div>
+        <div className="register-teacher-form-input">
+          <label>Perfil</label>
+          <Select
+            style={{ width: "100%" }}
+            mode="multiple"
+            allowClear
+            showSearch
+            placeholder="Selecciona un perfil"
+            filterOption={(input, option) =>
+              String(option?.label ?? "")
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
+            options={profileOptions}
+            value={perfilId}
+            onChange={(value) => setPerfilId(value)}
+          />
+        </div>
 
         <div style={{ display: "flex", justifyContent: "end", columnGap: "1rem", marginTop: "3rem" }}>
           <Button type="dashed" onClick={cleanForm}>
@@ -227,3 +229,4 @@ export default function RegisterTeacher() {
     </div>
   );
 }
+

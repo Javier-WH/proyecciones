@@ -17,8 +17,8 @@ export interface Teacher {
   genderId: string;
   contractTypeId: string;
   active: boolean;
+  PNF?: string | undefined;
 }
-
 
 export interface TeacherContract {
   id: string;
@@ -26,3 +26,4 @@ export interface TeacherContract {
   hours: number;
   active: boolean;
 }
+
