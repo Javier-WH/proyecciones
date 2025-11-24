@@ -1,16 +1,21 @@
-import React from "react";
+import React, { useContext, forwardRef } from "react";
 import { turnos } from "./fucntions";
+import { MainContext } from "../../context/mainContext";
+import { MainContextValues } from "../../interfaces/contextInterfaces";
+import uptllLogo from "../../assets/uptllLogo.jpeg";
 
 interface PrintableScheduleProps {
   events: any[];
   viewMode: "pnf" | "professor";
   turn: string;
   headerInfo: string;
+  seccion: string;
 }
 
-const PrintableSchedule: React.FC<PrintableScheduleProps> = ({ events, viewMode, turn, headerInfo }) => {
+const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ events, viewMode, turn, headerInfo, seccion }, ref) => {
   // Generate time slots based on view mode
   let timeSlots: string[] = [];
+  const { teachers } = useContext(MainContext) as MainContextValues;
 
   if (viewMode === "professor") {
     // Generate slots from 07:00 to 21:15 in 45 min intervals
@@ -57,8 +62,22 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({ events, viewMode,
     return `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`;
   };
 
+  // Helper to get teacher's full name
+  const getTeacherName = (professorId: string | null | undefined) => {
+    if (!professorId || !teachers) return "Profesor";
+    const teacher = teachers.find(t => t.id === professorId);
+    if (!teacher) return "Profesor";
+    return `${teacher.name} ${teacher.lastName}`;
+  };
+
+  // Parse headerInfo - Format: "PNF Name, TRAYECTO X, Trimestre Y, Turno Z"
+  const headerParts = headerInfo.split(',').map(p => p.trim());
+  const pnfName = headerParts[0] || "PROGRAMA NACIONAL DE FORMACIÓN";
+  const trayecto = headerParts[1] || "TRAYECTO I";
+  const trimestre = headerParts[2] || "";
+  const turno = headerParts[3]?.replace('Turno', '').trim().toUpperCase() || "MAÑANA";
+
   // Map events to a grid for easier rendering
-  // Grid: [timeSlotIndex][dayIndex] -> Event | null | 'occupied'
   const days = [1, 2, 3, 4, 5]; // Lunes to Viernes
   const grid: (any | null | 'occupied')[][] = Array(timeSlots.length).fill(null).map(() => Array(6).fill(null)); // 0 is unused, 1-5 are days
 
@@ -98,68 +117,336 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({ events, viewMode,
     }
   });
 
-  return (
-    <div id="printable-schedule-container" style={{ display: "none" }}>
-      <div id="printable-content" style={{ padding: "10px", fontFamily: "Arial, sans-serif", color: "#000" }}>
-        <h2 style={{ textAlign: "center", textTransform: "uppercase", marginBottom: "5px", borderBottom: "2px solid #000", paddingBottom: "3px", fontSize: "0.85rem" }}>
-          {headerInfo}
-        </h2>
+  // Generate grid template rows: 8mm for header + variable height for each time slot
+  const rowHeight = viewMode === "professor" ? "8mm" : "22mm";
+  const gridTemplateRows = `8mm repeat(${timeSlots.length}, ${rowHeight})`;
+  // Generate grid template columns: 40mm for HORA + 46.6mm for each day
+  const gridTemplateColumns = "40mm repeat(5, 46.6mm)";
 
-        <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #000", fontSize: "0.55rem" }}>
-          <thead>
-            <tr>
-              <th style={{ border: "1px solid #000", padding: "1px", width: "60px", fontSize: "0.6rem" }}>HORA</th>
-              <th style={{ border: "1px solid #000", padding: "1px", fontSize: "0.6rem" }}>LUNES</th>
-              <th style={{ border: "1px solid #000", padding: "1px", fontSize: "0.6rem" }}>MARTES</th>
-              <th style={{ border: "1px solid #000", padding: "1px", fontSize: "0.6rem" }}>MIÉRCOLES</th>
-              <th style={{ border: "1px solid #000", padding: "1px", fontSize: "0.6rem" }}>JUEVES</th>
-              <th style={{ border: "1px solid #000", padding: "1px", fontSize: "0.6rem" }}>VIERNES</th>
-            </tr>
-          </thead>
-          <tbody>
-            {timeSlots.map((time, index) => (
-              <tr key={time}>
-                <td style={{ border: "1px solid #000", padding: "1px", textAlign: "center", fontSize: "0.55rem" }}>
+  return (
+    <div ref={ref} id="printable-schedule-container" style={{ display: "block" }}>
+      <style>{`
+        @media print {
+          @page {
+            size: letter landscape;
+            margin: 3mm;
+          }
+          
+          body {
+            margin: 0;
+            padding: 0;
+          }
+          
+          #printable-content {
+            width: 273mm;
+            height: 209mm;
+            margin: 0;
+            padding: 0;
+          }
+          
+          /* Force font sizes in print */
+          .subject-title {
+            font-size: 2mm !important;
+            font-weight: bold !important;
+            line-height: 1.3 !important;
+            margin-bottom: 0.4mm !important;
+          }
+          
+          .professor-name {
+            font-size: 2mm !important;
+            line-height: 2mm !important;
+          }
+          
+          .classroom-name {
+            font-size: 2mm !important;
+            line-height:2mm !important;
+            font-style: italic !important;
+          }
+        }
+      `}</style>
+
+      <div id="printable-content" style={{
+        padding: "0",
+        fontFamily: "Arial, sans-serif",
+        color: "#000",
+        width: "273mm",
+        margin: "0",
+        boxSizing: "border-box"
+      }}>
+        {/* Header section with logo and title */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          marginBottom: "3mm",
+          padding: "2mm 0"
+        }}>
+          {/* Logo */}
+          <div style={{ width: "35mm", marginRight: "5mm" }}>
+            <img
+              src={uptllLogo}
+              alt="UPTLL Logo"
+              style={{ width: "100%", height: "auto" }}
+            />
+          </div>
+
+          {/* Title section */}
+          <div style={{ flex: 1, textAlign: "center" }}>
+            {viewMode !== "professor" && <>
+              <div style={{
+                fontSize: "4mm",
+                fontWeight: "bold",
+                marginBottom: "1mm",
+                textTransform: "uppercase"
+              }}>
+                HORARIO DE CLASES
+              </div>
+              <div style={{
+                fontSize: "3.5mm",
+                fontWeight: "bold",
+                marginBottom: "0.5mm"
+              }}>
+                PROGRAMA NACIONAL DE FORMACIÓN
+              </div>
+            </>
+            }
+            <div style={{
+              fontSize: "3.5mm",
+              fontWeight: "bold",
+              marginBottom: "1mm"
+            }}>
+              {pnfName.replace("Horario de P.N.F. en ", "").toUpperCase()}
+            </div>
+            <div style={{
+              fontSize: "3.5mm",
+              fontWeight: "bold",
+              marginBottom: "1mm"
+            }}>
+              {trayecto.toUpperCase()} {trimestre.toUpperCase()}
+            </div>
+          </div>
+
+          {/* Section info */}
+          {viewMode !== "professor" && <div style={{
+            width: "40mm",
+            textAlign: "right",
+            fontSize: "3.5mm",
+            fontWeight: "bold"
+          }}>
+            SECCIÓN {seccion}
+          </div>}
+
+        </div>
+
+        {/* Turn indicator */}
+        <div style={{
+          textAlign: "center",
+          fontSize: "3.5mm",
+          fontWeight: "bold",
+          marginBottom: "3mm",
+          textTransform: "uppercase"
+        }}>
+          {turno}
+        </div>
+
+        {/* CSS Grid Schedule */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: gridTemplateColumns,
+          gridTemplateRows: gridTemplateRows,
+          border: "0.4mm solid #000",
+          width: "273mm"
+        }}>
+          {/* Header Row */}
+          <div style={{
+            gridColumn: "1",
+            gridRow: "1",
+            border: "0.4mm solid #000",
+            padding: "2mm",
+            fontWeight: "bold",
+            fontSize: "3.5mm",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#fff"
+          }}>HORA</div>
+          <div style={{
+            gridColumn: "2",
+            gridRow: "1",
+            border: "0.4mm solid #000",
+            padding: "2mm",
+            fontWeight: "bold",
+            fontSize: "3.5mm",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#fff"
+          }}>LUNES</div>
+          <div style={{
+            gridColumn: "3",
+            gridRow: "1",
+            border: "0.4mm solid #000",
+            padding: "2mm",
+            fontWeight: "bold",
+            fontSize: "3.5mm",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#fff"
+          }}>MARTES</div>
+          <div style={{
+            gridColumn: "4",
+            gridRow: "1",
+            border: "0.4mm solid #000",
+            padding: "2mm",
+            fontWeight: "bold",
+            fontSize: "3.5mm",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#fff"
+          }}>MIÉRCOLES</div>
+          <div style={{
+            gridColumn: "5",
+            gridRow: "1",
+            border: "0.4mm solid #000",
+            padding: "2mm",
+            fontWeight: "bold",
+            fontSize: "3.5mm",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#fff"
+          }}>JUEVES</div>
+          <div style={{
+            gridColumn: "6",
+            gridRow: "1",
+            border: "0.4mm solid #000",
+            padding: "2mm",
+            fontWeight: "bold",
+            fontSize: "3.5mm",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#fff"
+          }}>VIERNES</div>
+
+          {/* Time slots and content */}
+          {timeSlots.map((time, rowIndex) => {
+            const gridRowNum = rowIndex + 2; // +2 because row 1 is header, rows start at 1
+
+            return (
+              <React.Fragment key={time}>
+                {/* Time column */}
+                <div style={{
+                  gridColumn: "1",
+                  gridRow: `${gridRowNum}`,
+                  border: "0.4mm solid #000",
+                  padding: "1mm",
+                  fontSize: "2.8mm",
+                  lineHeight: "1.2",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  backgroundColor: "#fff"
+                }}>
                   {formatTime(time)} - {formatTime(getSlotEndTime(time))}
-                </td>
+                </div>
+
+                {/* Day columns */}
                 {days.map(day => {
-                  const cell = grid[index][day];
+                  const cell = grid[rowIndex][day];
                   if (cell === 'occupied') return null;
 
+                  const gridColumn = day + 1; // +1 because column 1 is HORA
+                  console.log(cell)
                   if (cell) {
+                    const gridRowEnd = gridRowNum + cell.span;
                     return (
-                      <td
+                      <div
                         key={day}
-                        rowSpan={cell.span}
                         style={{
-                          border: "1px solid #000",
-                          padding: "1px",
+                          gridColumn: `${gridColumn}`,
+                          gridRow: `${gridRowNum} / ${gridRowEnd}`,
+                          border: "0.4mm solid #000",
+                          padding: viewMode === "professor" ? "0.5mm" : "1.5mm",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
                           textAlign: "center",
-                          verticalAlign: "middle",
-                          backgroundColor: "#fff",
-                          fontSize: "0.55rem"
+                          backgroundColor: "#fff"
                         }}
                       >
-                        <div style={{ fontWeight: "bold", fontSize: "0.6rem", marginBottom: "1px" }}>{cell.title}</div>
-                        <div style={{ fontSize: "0.5rem" }}>
-                          {cell.extendedProps?.professorName || cell.extendedProps?.teacherName || "Profesor"}
-                        </div>
-                        <div style={{ fontSize: "0.5rem", fontStyle: "italic" }}>
+                        <div
+                          className="subject-title"
+                          style={{
+                            fontWeight: "bold",
+                            fontSize: viewMode === "professor" ? "2mm" : "3mm",
+                            lineHeight: "3mm",
+                            marginBottom: "0.4mm"
+                          }}
+                        >{cell.title}</div>
+
+                        {viewMode !== "professor" && (
+                          <div
+                            className="professor-name"
+                            style={{
+                              fontSize: "2mm",
+                              lineHeight: "2mm"
+                            }}
+                          >
+                            {getTeacherName(cell.extendedProps?.professorId)}
+                          </div>
+                        )}
+
+                        {viewMode == "professor" && (
+                          <div
+                            className="professor-name"
+                            style={{
+                              fontSize: "2mm",
+                              lineHeight: "2mm"
+                            }}
+                          >
+                            {cell.extendedProps?.pnfName}
+                          </div>
+                        )}
+
+                        <div
+                          className="classroom-name"
+                          style={{
+                            fontSize: "2mm",
+                            lineHeight: "2mm",
+                            fontStyle: "italic"
+                          }}
+                        >
                           {cell.extendedProps?.classroomName}
                         </div>
-                      </td>
+                      </div>
                     );
                   } else {
-                    return <td key={day} style={{ border: "1px solid #000", padding: "1px" }}></td>;
+                    return (
+                      <div
+                        key={day}
+                        style={{
+                          gridColumn: `${gridColumn}`,
+                          gridRow: `${gridRowNum}`,
+                          border: "0.4mm solid #000",
+                          backgroundColor: "#fff"
+                        }}
+                      ></div>
+                    );
                   }
                 })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
-};
+});
+
+PrintableSchedule.displayName = 'PrintableSchedule';
 
 export default PrintableSchedule;

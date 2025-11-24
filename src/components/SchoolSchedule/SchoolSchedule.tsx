@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import esLocale from "@fullcalendar/core/locales/es";
@@ -19,7 +19,7 @@ import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
 import { FaRegSave, FaRegFolderOpen, FaPlus, FaPrint } from "react-icons/fa";
-import printJS from "print-js";
+import { useReactToPrint } from "react-to-print";
 import PrintableSchedule from "./PrintableSchedule";
 
 import styles from "./modal.module.css";
@@ -58,14 +58,30 @@ const SchoolSchedule: React.FC = () => {
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
   const [loadedScheduleEvents, setLoadedScheduleEvents] = useState<Event[]>([]); // Eventos del horario cargado
 
-  const handlePrint = () => {
-    printJS({
-      printable: "printable-content", // ID of the element to print (inside PrintableSchedule)
-      type: "html",
-      targetStyles: ["*"], // Keep all styles
-      style: "@page { size: landscape; margin: 5mm 10mm 5mm 5mm; }", // Reduced right margin (top right bottom left)
-    });
+  // Ref for the printable component
+  const printableRef = useRef<HTMLDivElement>(null);
+
+  // Helper to get names for the header
+  const getHeaderInfo = () => {
+    const trimestreLabel = trimestre === "q1" ? "Trimestre 1" : trimestre === "q2" ? "Trimestre 2" : "Trimestre 3";
+
+    if (viewMode === "professor") {
+      const teacher = teachers?.find((t) => t.id === selectedProfessorId);
+      const teacherName = teacher ? `${teacher.name} ${teacher.lastName}` : "Profesor no seleccionado";
+      return `Horario para el profesor ${teacherName}, ${trimestreLabel}`;
+    } else {
+      const pnfNameFound = eventData.find(e => e.extendedProps.pnfId === pnf)?.extendedProps.pnfName || "PNF";
+      const trayectoName = trayectosList?.find((t) => t.id === trayectoId)?.name || "Trayecto";
+      return `Horario de ${pnfNameFound}, ${trayectoName}, ${trimestreLabel}, Turno ${turn}`;
+    }
   };
+
+
+  // react-to-print hook
+  const handlePrint = useReactToPrint({
+    contentRef: printableRef,
+    documentTitle: getHeaderInfo(),
+  });
 
   const loadInitialData = async (): Promise<void> => {
     const classroomsData = await getClassrooms();
@@ -77,7 +93,7 @@ const SchoolSchedule: React.FC = () => {
   };
 
 
-  console.log(eventData);
+
   const addError = (err: scheduleError) => {
     setErrors((prevErrors) => [...prevErrors, err]);
   };
@@ -324,53 +340,25 @@ const SchoolSchedule: React.FC = () => {
     setEvents(combinedEvents);
   }, [eventData, loadedScheduleEvents, turn, seccion, pnf, trayectoId, viewMode, selectedProfessorId]);
 
-  // Helper to get names for the header
-  const getHeaderInfo = () => {
-    const trimestreLabel = trimestre === "q1" ? "Trimestre 1" : trimestre === "q2" ? "Trimestre 2" : "Trimestre 3";
 
-    if (viewMode === "professor") {
-      const teacher = teachers?.find((t) => t.id === selectedProfessorId);
-      const teacherName = teacher ? `${teacher.name} ${teacher.lastName}` : "Profesor no seleccionado";
-      return `Horario para el profesor ${teacherName}, ${trimestreLabel}`;
-    } else {
-      const pnfNameFound = eventData.find(e => e.extendedProps.pnfId === pnf)?.extendedProps.pnfName || "PNF";
-      const trayectoName = trayectosList?.find((t) => t.id === trayectoId)?.name || "Trayecto";
-      return `Horario de ${pnfNameFound}, ${trayectoName}, ${trimestreLabel}, Turno ${turn}`;
-    }
-  };
 
   return (
     <>
-      <h2>Nuevo Horario</h2>
       <div className="schedule-select-main-container">
         <div className="schedule-select-container">
           {/* TABS FOR VIEW MODE */}
-          <div style={{ marginBottom: "10px", width: "100%" }}>
-            <div style={{ display: "flex", borderBottom: "1px solid #ccc" }}>
-              <div
-                style={{
-                  padding: "10px 20px",
-                  cursor: "pointer",
-                  borderBottom: viewMode === "pnf" ? "2px solid #1890ff" : "none",
-                  color: viewMode === "pnf" ? "#1890ff" : "inherit",
-                  fontWeight: viewMode === "pnf" ? "bold" : "normal"
-                }}
-                onClick={() => setViewMode("pnf")}
-              >
-                Por PNF
-              </div>
-              <div
-                style={{
-                  padding: "10px 20px",
-                  cursor: "pointer",
-                  borderBottom: viewMode === "professor" ? "2px solid #1890ff" : "none",
-                  color: viewMode === "professor" ? "#1890ff" : "inherit",
-                  fontWeight: viewMode === "professor" ? "bold" : "normal"
-                }}
-                onClick={() => setViewMode("professor")}
-              >
-                Por Profesor
-              </div>
+          <div className="view-mode-tabs">
+            <div
+              className={`view-mode-tab ${viewMode === "pnf" ? "active" : ""}`}
+              onClick={() => setViewMode("pnf")}
+            >
+              Por PNF
+            </div>
+            <div
+              className={`view-mode-tab ${viewMode === "professor" ? "active" : ""}`}
+              onClick={() => setViewMode("professor")}
+            >
+              Por Profesor
             </div>
           </div>
 
@@ -379,8 +367,9 @@ const SchoolSchedule: React.FC = () => {
               <div className="schedule-select">
                 <span>Turno:</span>
                 <Select
+                  size="small"
                   defaultValue={Object.keys(turnos)[0]}
-                  style={{ width: 150 }}
+                  style={{ width: 120 }}
                   onChange={setTurn}
                   options={Object.keys(turnos).map((turn) => ({ value: turn, label: turn }))}
                 />
@@ -389,8 +378,9 @@ const SchoolSchedule: React.FC = () => {
               <div className="schedule-select">
                 <span>Sección:</span>
                 <Select
+                  size="small"
                   defaultValue={eventData[0]?.extendedProps?.seccion}
-                  style={{ width: 150 }}
+                  style={{ width: 120 }}
                   onChange={setSeccion}
                   options={Array.from(new Set(eventData.map((event) => event?.extendedProps?.seccion)))
                     .filter(Boolean)
@@ -404,8 +394,9 @@ const SchoolSchedule: React.FC = () => {
               <div className="schedule-select">
                 <span>PNF:</span>
                 <Select
+                  size="small"
                   value={pnf}
-                  style={{ width: 300 }}
+                  style={{ width: 250 }}
                   onChange={setPnf}
                   options={Array.from(
                     new Map(
@@ -423,13 +414,31 @@ const SchoolSchedule: React.FC = () => {
               <div className="schedule-select">
                 <span>Trayecto:</span>
                 <Select
+                  size="small"
                   value={trayectoId}
-                  style={{ width: 200 }}
+                  style={{ width: 180 }}
                   onChange={setTrayectoId}
                   options={trayectosList?.map((trayecto) => ({
                     value: trayecto.id,
                     label: trayecto.name,
                   }))}
+                />
+              </div>
+              <div className="schedule-select">
+                <span>Trimestre:</span>
+                <Select
+                  size="small"
+                  value={trimestre}
+                  style={{ width: 150 }}
+                  onChange={(e) => {
+                    setErrors([]);
+                    setTrimestre(e);
+                  }}
+                  options={[
+                    { value: "q1", label: "Trimestre 1" },
+                    { value: "q2", label: "Trimestre 2" },
+                    { value: "q3", label: "Trimestre 3" },
+                  ]}
                 />
               </div>
             </>
@@ -439,13 +448,14 @@ const SchoolSchedule: React.FC = () => {
             <div className="schedule-select">
               <span>Profesor:</span>
               <Select
+                size="small"
                 showSearch
                 placeholder="Seleccione un profesor"
                 optionFilterProp="children"
                 filterOption={(input, option) =>
                   (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                 }
-                style={{ width: 300 }}
+                style={{ width: 250 }}
                 onChange={setSelectedProfessorId}
                 options={teachers?.map((teacher) => ({
                   value: teacher.id,
@@ -454,11 +464,13 @@ const SchoolSchedule: React.FC = () => {
               />
             </div>
           )}
+
           <div className="schedule-select">
             <span>Trimestre:</span>
             <Select
+              size="small"
               value={trimestre}
-              style={{ width: 200 }}
+              style={{ width: 150 }}
               onChange={(e) => {
                 setErrors([]);
                 setTrimestre(e);
@@ -470,7 +482,8 @@ const SchoolSchedule: React.FC = () => {
               ]}
             />
           </div>
-          <div style={{ display: "flex", gap: "10px", width: "220px" }}>
+
+          <div className="schedule-actions">
             <FaPlus title="Nuevo Horario" className={styles.icon} onClick={newSchedule} />
             <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
             <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
@@ -481,24 +494,7 @@ const SchoolSchedule: React.FC = () => {
           </div>
         </div>
 
-        <div
-          style={{
-            height: "100%",
-            width: "100%",
-            maxWidth: "1200px",
-            // maxHeight removed to allow full height
-            margin: "0 auto",
-            flex: 1, // Take remaining space
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column"
-          }}>
-
-          {/* Header for Print / Display */}
-          <div className="schedule-print-header">
-            {getHeaderInfo()}
-          </div>
-
+        <div className="schedule-content-wrapper">
           <div className={`calendar-container view-${viewMode}`}>
             <FullCalendar
               key={viewMode === "professor" ? "professor-view" : turn}
@@ -548,12 +544,17 @@ const SchoolSchedule: React.FC = () => {
           </div>
 
           {/* Hidden Printable Schedule */}
-          <PrintableSchedule
-            events={events}
-            viewMode={viewMode}
-            turn={turn}
-            headerInfo={getHeaderInfo()}
-          />
+          <div style={{ display: "block", position: "absolute", left: "-10000px", width: "0px", height: "0px" }}>
+            <div ref={printableRef}>
+              <PrintableSchedule
+                events={events}
+                viewMode={viewMode}
+                turn={turn}
+                headerInfo={getHeaderInfo()}
+                seccion={seccion}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
