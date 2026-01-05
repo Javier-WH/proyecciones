@@ -58,7 +58,8 @@ export default function ProyeccionesSubjects() {
       !selectedSeccion ||
       !selectedTurno ||
       !selectedModalPnf ||
-      !selectedModalTrayecto
+      !selectedModalTrayecto ||
+      !selectedModalMaya
     ) {
       return;
     }
@@ -248,7 +249,7 @@ export default function ProyeccionesSubjects() {
 
           return {
             innerId: uuidv4(),
-            id: subject.subject_id.toString(),
+            id: uuidv4(),
             subject: subject.subject,
             hours: hours,
             pnf: pnfName,

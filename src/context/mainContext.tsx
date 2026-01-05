@@ -92,7 +92,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
 
   useEffect(() => {
-    if(!isAuthenticated) return
+    if (!isAuthenticated) return
     console.log("cargando datos iniciales");
     loadInitialData();
   }, [isAuthenticated, userPNF, userData, userPerfil]);
@@ -174,7 +174,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   useEffect(() => {
     if (!socket) return;
     const handleDisconnect = () => {
- 
+
       // Configurar timeout para mostrar el mensaje después de 5 segundos
       timeoutRef.current = window.setTimeout(() => {
         setShowDisconnected(true);
@@ -182,7 +182,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     };
 
     const handleConnect = () => {
- 
+
       setShowDisconnected(false);
       // Limpiar timeout si existe
       if (timeoutRef.current !== null) {
@@ -193,17 +193,17 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     // Escuchar eventos de actualización de los profesores
     socket.on("updateTeachers", (newTeachers) => {
       setTeachers(newTeachers);
-     
+
     });
     socket.on("updateSubjects", (newSubjects) => {
       setSubjects(newSubjects);
-    
+
     });
- 
+
     socket.on("proyectionData", (proyectionData) => {
       setProyectionName(proyectionData.proyectionName);
       setProyectionId(proyectionData.proyectionId);
-      
+
     });
 
     socket.on("connect_error", (err) => {
@@ -230,7 +230,16 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   };
   const handleSubjectChange = (data: Subject[]) => {
     if (!socket) return;
-    socket.emit("updateSubjects", data);
+    const sanitizedData = data.map((subject) => ({
+      ...subject,
+      id: String(subject.id),
+      innerId: String(subject.innerId),
+      pnfId: String(subject.pnfId),
+      pensum_id: String(subject.pensum_id),
+      trayectoId: String(subject.trayectoId),
+      trayecto_saga_id: String(subject.trayecto_saga_id),
+    }));
+    socket.emit("updateSubjects", sanitizedData);
   };
 
 
