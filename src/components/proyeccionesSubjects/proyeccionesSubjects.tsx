@@ -248,16 +248,16 @@ export default function ProyeccionesSubjects() {
 
           return {
             innerId: uuidv4(),
-            id: subject.subject_id,
+            id: subject.subject_id.toString(),
             subject: subject.subject,
             hours: hours,
             pnf: pnfName,
-            pnfId: pnfId,
+            pnfId: pnfId.toString(),
             seccion: selectedSeccion,
             quarter: quarter,
-            pensum_id: subject.id,
+            pensum_id: subject.id.toString(),
             turnoName: selectedTurno,
-            trayectoId: trayectoId,
+            trayectoId: trayectoId.toString(),
             trayectoName: trayectoName,
             trayecto_saga_id: subject.trayecto_saga_id.toString(),
           };
@@ -521,7 +521,7 @@ export default function ProyeccionesSubjects() {
         className="add-subject-modal"
         maskClosable={false}
         onCancel={handleCancelSubjectModal}>
-        <div style={{ display: "flex", flexDirection: "row", gap: "20px", alignItems: "end" }}>
+        <div style={{ display: "flex", flexDirection: "row", gap: "20px", alignItems: "end", flexWrap: "wrap", rowGap: "15px" }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ color: "gray", fontSize: "10px" }}>Programa</span>
             <Select
