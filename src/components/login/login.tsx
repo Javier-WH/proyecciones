@@ -8,6 +8,7 @@ import login, { logout } from "../../fetch/login";
 import logo from "./proyeccionesLogo.png";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
+import "./login.css";
 
 export default function Login() {
   const { setIsAuthenticated, setUserPerfil, setUserPNF, setUserData } = useContext(
@@ -69,43 +70,41 @@ export default function Login() {
       handleLogin();
     }
   };
-  return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        rowGap: "40px",
-      }}>
-      <img src={logo} alt="logo" style={{ width: "280px" }} />
 
-      <div style={{ width: "300px", display: "flex", flexDirection: "column", rowGap: "5px" }}>
-        <Input
-          placeholder="Usuario"
-          value={user}
-          onChange={(e) => setUser(e.target.value)}
-          onKeyDown={onPressEnter}
-        />
-        <Input.Password
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Contraseña"
-          iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
-          style={{ textAlign: "center" }}
-          onKeyDown={onPressEnter}
-        />
-        <Button onClick={handleLogin} style={{ width: "100%" }}>
-          Ingresar
-        </Button>
+  return (
+    <div className="login-container">
+      <div className="login-card">
+        <img src={logo} alt="logo" className="login-logo" />
+        <h1 className="login-title">Iniciar Sesión</h1>
+
+        <div className="login-form">
+          <Input
+            className="login-input"
+            placeholder="Usuario"
+            value={user}
+            onChange={(e) => setUser(e.target.value)}
+            onKeyDown={onPressEnter}
+          />
+          <Input.Password
+            className="login-input"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Contraseña"
+            iconRender={(visible) => (visible ? <EyeTwoTone twoToneColor="#ffffff" /> : <EyeInvisibleOutlined />)}
+            onKeyDown={onPressEnter}
+          />
+          <Button
+            className="login-button"
+            onClick={handleLogin}
+            type="primary"
+          >
+            Ingresar
+          </Button>
+        </div>
       </div>
-      <div style={{ display: "flex", gap: "10px", justifyContent: "center", width: "100%" }}>
-        <span style={{ fontSize: "10px", color: "gray" }}>
-          {" "}
-          © 2025 Proyecciones. Todos los derechos reservados
-        </span>
+
+      <div className="login-footer">
+        <span>© 2025 Proyecciones. Todos los derechos reservados</span>
       </div>
     </div>
   );
