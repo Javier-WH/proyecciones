@@ -44,7 +44,6 @@ export const turnos: Record<string, [string, string][]> = {
     ["09:15", "10:00"],
     ["10:00", "10:45"],
     ["10:45", "11:30"],
-    ["11:30", "12:15"],
   ],
   tarde: [
     ["12:15", "13:00"],
@@ -53,14 +52,14 @@ export const turnos: Record<string, [string, string][]> = {
     ["14:30", "15:15"],
     ["15:15", "16:00"],
     ["16:00", "16:45"],
-    ["16:45", "17:30"],
   ],
   nocturno: [
+    ["16:00", "16:45"],
+    ["16:45", "17:30"],
     ["17:30", "18:15"],
     ["18:15", "19:00"],
     ["19:00", "19:45"],
     ["19:45", "20:30"],
-    ["20:30", "21:15"],
   ],
   diurno: [
     ["07:00", "07:45"],
@@ -76,7 +75,6 @@ export const turnos: Record<string, [string, string][]> = {
     ["14:30", "15:15"],
     ["15:15", "16:00"],
     ["16:00", "16:45"],
-    ["16:45", "17:30"],
   ],
 };
 
@@ -145,24 +143,21 @@ export function generateScheduleEvents({
   }
 
   // Filtrar materias que ya están en los eventos existentes
-  const cleanSubject = subjects.filter(
-    (sub) => {
-      const isQuarterMatch = Object.keys(sub.quarter).includes(trimestre) &&
-        sub?.hours?.[trimestre] &&
-        sub?.hours?.[trimestre] > 0;
+  const cleanSubject = subjects.filter((sub) => {
+    const isQuarterMatch =
+      Object.keys(sub.quarter).includes(trimestre) && sub?.hours?.[trimestre] && sub?.hours?.[trimestre] > 0;
 
-      if (!isQuarterMatch) return false;
+    if (!isQuarterMatch) return false;
 
-      // Verificar por ID (usando innerId que es lo que guardamos)
-      const hasIdConflict = existingSubjectIds.has(sub.innerId) || existingSubjectIds.has(sub.id);
+    // Verificar por ID (usando innerId que es lo que guardamos)
+    const hasIdConflict = existingSubjectIds.has(sub.innerId) || existingSubjectIds.has(sub.id);
 
-      // Verificar por clave compuesta
-      const compositeKey = `${sub.subject.trim().toLowerCase()}-${sub.seccion}-${sub.pnfId}-${sub.trayectoId}`;
-      const hasKeyConflict = existingSubjectKeys.has(compositeKey);
+    // Verificar por clave compuesta
+    const compositeKey = `${sub.subject.trim().toLowerCase()}-${sub.seccion}-${sub.pnfId}-${sub.trayectoId}`;
+    const hasKeyConflict = existingSubjectKeys.has(compositeKey);
 
-      return !hasIdConflict && !hasKeyConflict;
-    }
-  );
+    return !hasIdConflict && !hasKeyConflict;
+  });
 
   subjects = cleanSubject;
 
@@ -195,8 +190,9 @@ export function generateScheduleEvents({
     const timeSlots = preferConfig?.preferLastSlot ? [...turnos[turno]].reverse() : turnos[turno];
 
     if (!hours || !professorId || !timeSlots) {
-      const reason = `Datos incompletos: ${!hours ? "Horas no definidas" : ""}${!professorId ? ", Profesor no asignado" : ""
-        }${!timeSlots ? ", Turno no válido" : ""}`;
+      const reason = `Datos incompletos: ${!hours ? "Horas no definidas" : ""}${
+        !professorId ? ", Profesor no asignado" : ""
+      }${!timeSlots ? ", Turno no válido" : ""}`;
       return { success: false, reason, assignedHours: 0 };
     }
 
@@ -210,8 +206,8 @@ export function generateScheduleEvents({
     if (availableDays.length === 0) {
       const reason = ignoreRestrictions
         ? `Profesor sin días disponibles incluso ignorando restricciones (días restringidos: ${restrictedDays.join(
-          ", "
-        )})`
+            ", "
+          )})`
         : `Profesor sin días disponibles (días restringidos: ${restrictedDays.join(", ")})`;
       return { success: false, reason, assignedHours: 0 };
     }
@@ -221,8 +217,9 @@ export function generateScheduleEvents({
       : classrooms;
 
     if (candidateClassrooms.length === 0) {
-      const reason = `No hay aulas disponibles para esta materia${preferConfig ? " (aulas preferidas no disponibles)" : ""
-        }`;
+      const reason = `No hay aulas disponibles para esta materia${
+        preferConfig ? " (aulas preferidas no disponibles)" : ""
+      }`;
       return { success: false, reason, assignedHours: 0 };
     }
 

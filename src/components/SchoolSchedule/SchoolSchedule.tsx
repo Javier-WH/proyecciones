@@ -52,8 +52,12 @@ const SchoolSchedule: React.FC = () => {
   const [selectedProfessorId, setSelectedProfessorId] = useState<string | null>(null);
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(null);
 
-  const firstHour = (viewMode === "professor" || viewMode === "classroom") ? "07:00" : (turnos?.[turn]?.[0]?.[0] ?? "07:00");
-  const lastHour = (viewMode === "professor" || viewMode === "classroom") ? "21:15" : (turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30");
+  const firstHour =
+    viewMode === "professor" || viewMode === "classroom" ? "07:00" : turnos?.[turn]?.[0]?.[0] ?? "07:00";
+  const lastHour =
+    viewMode === "professor" || viewMode === "classroom"
+      ? "21:15"
+      : turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
@@ -64,7 +68,8 @@ const SchoolSchedule: React.FC = () => {
 
   // Helper to get names for the header
   const getHeaderInfo = () => {
-    const trimestreLabel = trimestre === "q1" ? "Trimestre 1" : trimestre === "q2" ? "Trimestre 2" : "Trimestre 3";
+    const trimestreLabel =
+      trimestre === "q1" ? "Trimestre 1" : trimestre === "q2" ? "Trimestre 2" : "Trimestre 3";
 
     if (viewMode === "professor") {
       const teacher = teachers?.find((t) => t.id === selectedProfessorId);
@@ -75,12 +80,12 @@ const SchoolSchedule: React.FC = () => {
       const classroomName = classroom ? classroom.classroom : "Aula no seleccionada";
       return `Horario del Aula ${classroomName.replace("Aula ", "")}, ${trimestreLabel}`;
     } else {
-      const pnfNameFound = eventData.find(e => e.extendedProps.pnfId === pnf)?.extendedProps.pnfName || "PNF";
+      const pnfNameFound =
+        eventData.find((e) => e.extendedProps.pnfId === pnf)?.extendedProps.pnfName || "PNF";
       const trayectoName = trayectosList?.find((t) => t.id === trayectoId)?.name || "Trayecto";
       return `Horario de ${pnfNameFound}, ${trayectoName}, ${trimestreLabel}, Turno ${turn}`;
     }
   };
-
 
   // react-to-print hook
   const handlePrint = useReactToPrint({
@@ -96,8 +101,6 @@ const SchoolSchedule: React.FC = () => {
     }
     setClassrooms(classroomsData);
   };
-
-
 
   const addError = (err: scheduleError) => {
     setErrors((prevErrors) => [...prevErrors, err]);
@@ -299,7 +302,6 @@ const SchoolSchedule: React.FC = () => {
     setEventData(eventsdata);
   }, [classrooms, subjects, teacherRestrictions, trimestre, subjectRestriction, loadedScheduleEvents]); // Incluir para forzar regeneración al cargar
 
-
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {
     let filteredLoaded: Event[] = [];
@@ -355,20 +357,32 @@ const SchoolSchedule: React.FC = () => {
     // Combinar: eventos cargados (ya mergeados) + eventos generados (recién mergeados)
     const combinedEvents = [...filteredLoaded, ...mergedGenerated];
     setEvents(combinedEvents);
-  }, [eventData, loadedScheduleEvents, turn, seccion, pnf, trayectoId, viewMode, selectedProfessorId, selectedClassroomId]);
+  }, [
+    eventData,
+    loadedScheduleEvents,
+    turn,
+    seccion,
+    pnf,
+    trayectoId,
+    viewMode,
+    selectedProfessorId,
+    selectedClassroomId,
+  ]);
 
   // Set default values when data loads
   useEffect(() => {
     if (viewMode === "pnf") {
       if (!pnf && eventData.length > 0) {
-        const firstPnf = eventData.find(e => e.extendedProps?.pnfId)?.extendedProps.pnfId;
+        const firstPnf = eventData.find((e) => e.extendedProps?.pnfId)?.extendedProps.pnfId;
         if (firstPnf) setPnf(firstPnf);
       }
       if (!trayectoId && trayectosList && trayectosList.length > 0) {
         setTrayectoId(trayectosList[0].id);
       }
       if (!seccion && eventData.length > 0) {
-        const sections = Array.from(new Set(eventData.map((event) => event?.extendedProps?.seccion))).filter(Boolean);
+        const sections = Array.from(new Set(eventData.map((event) => event?.extendedProps?.seccion))).filter(
+          Boolean
+        );
         if (sections.length > 0) setSeccion(sections[0] as string);
       }
     } else if (viewMode === "professor") {
@@ -380,7 +394,18 @@ const SchoolSchedule: React.FC = () => {
         setSelectedClassroomId(classrooms[0].id);
       }
     }
-  }, [eventData, trayectosList, teachers, classrooms, viewMode, pnf, trayectoId, seccion, selectedProfessorId, selectedClassroomId]);
+  }, [
+    eventData,
+    trayectosList,
+    teachers,
+    classrooms,
+    viewMode,
+    pnf,
+    trayectoId,
+    seccion,
+    selectedProfessorId,
+    selectedClassroomId,
+  ]);
 
   const handleViewModeChange = (mode: "pnf" | "professor" | "classroom") => {
     setViewMode(mode);
@@ -408,8 +433,6 @@ const SchoolSchedule: React.FC = () => {
     }
   };
 
-
-
   return (
     <>
       <div className="schedule-select-main-container">
@@ -418,20 +441,17 @@ const SchoolSchedule: React.FC = () => {
           <div className="view-mode-tabs">
             <div
               className={`view-mode-tab ${viewMode === "pnf" ? "active" : ""}`}
-              onClick={() => handleViewModeChange("pnf")}
-            >
+              onClick={() => handleViewModeChange("pnf")}>
               Por PNF
             </div>
             <div
               className={`view-mode-tab ${viewMode === "professor" ? "active" : ""}`}
-              onClick={() => handleViewModeChange("professor")}
-            >
+              onClick={() => handleViewModeChange("professor")}>
               Por Profesor
             </div>
             <div
               className={`view-mode-tab ${viewMode === "classroom" ? "active" : ""}`}
-              onClick={() => handleViewModeChange("classroom")}
-            >
+              onClick={() => handleViewModeChange("classroom")}>
               Por Aula
             </div>
           </div>
@@ -528,7 +548,7 @@ const SchoolSchedule: React.FC = () => {
                 placeholder="Seleccione un profesor"
                 optionFilterProp="children"
                 filterOption={(input, option) =>
-                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                 }
                 style={{ width: 250 }}
                 onChange={setSelectedProfessorId}
@@ -541,44 +561,46 @@ const SchoolSchedule: React.FC = () => {
           )}
 
           {viewMode === "classroom" && (
-            <div className="schedule-select">
-              <span>Aula:</span>
-              <Select
-                size="small"
-                showSearch
-                value={selectedClassroomId}
-                placeholder="Seleccione un aula"
-                optionFilterProp="children"
-                filterOption={(input, option) =>
-                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                }
-                style={{ width: 250 }}
-                onChange={setSelectedClassroomId}
-                options={classrooms?.map((classroom) => ({
-                  value: classroom.id,
-                  label: classroom.classroom,
-                }))}
-              />
-            </div>
-          )}
+            <>
+              <div className="schedule-select">
+                <span>Aula:</span>
+                <Select
+                  size="small"
+                  showSearch
+                  value={selectedClassroomId}
+                  placeholder="Seleccione un aula"
+                  optionFilterProp="children"
+                  filterOption={(input, option) =>
+                    (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                  }
+                  style={{ width: 250 }}
+                  onChange={setSelectedClassroomId}
+                  options={classrooms?.map((classroom) => ({
+                    value: classroom.id,
+                    label: classroom.classroom,
+                  }))}
+                />
+              </div>
 
-          <div className="schedule-select">
-            <span>Trimestre:</span>
-            <Select
-              size="small"
-              value={trimestre}
-              style={{ width: 150 }}
-              onChange={(e) => {
-                setErrors([]);
-                setTrimestre(e);
-              }}
-              options={[
-                { value: "q1", label: "Trimestre 1" },
-                { value: "q2", label: "Trimestre 2" },
-                { value: "q3", label: "Trimestre 3" },
-              ]}
-            />
-          </div>
+              <div className="schedule-select">
+                <span>Trimestre:</span>
+                <Select
+                  size="small"
+                  value={trimestre}
+                  style={{ width: 150 }}
+                  onChange={(e) => {
+                    setErrors([]);
+                    setTrimestre(e);
+                  }}
+                  options={[
+                    { value: "q1", label: "Trimestre 1" },
+                    { value: "q2", label: "Trimestre 2" },
+                    { value: "q3", label: "Trimestre 3" },
+                  ]}
+                />
+              </div>
+            </>
+          )}
 
           <div className="schedule-actions">
             <FaPlus title="Nuevo Horario" className={styles.icon} onClick={newSchedule} />
@@ -627,21 +649,31 @@ const SchoolSchedule: React.FC = () => {
                 const classroomName = event.extendedProps?.classroomName;
                 const seccion = event.extendedProps?.seccion;
                 const pnf = event.extendedProps?.pnfName;
-                const teacherName = `${teachers?.find((teacher) => teacher.id === professorId)?.lastName} ${teachers?.find((teacher) => teacher.id === professorId)?.name
-                  }`;
+                const teacherName = `${teachers?.find((teacher) => teacher.id === professorId)?.lastName} ${
+                  teachers?.find((teacher) => teacher.id === professorId)?.name
+                }`;
                 return (
                   <div className="fc-event-custom">
                     <div>
-                      <strong style={{ fontSize: viewMode === "classroom" ? "0.7em" : "0.9em" }}>{title}</strong>
+                      <strong style={{ fontSize: viewMode === "classroom" ? "0.7em" : "0.9em" }}>
+                        {title}
+                      </strong>
                     </div>
-                    {
-                      viewMode === "professor" || viewMode === "classroom"
-                        ? <> <div style={{ fontSize: "0.7em", color: "#555" }}>{pnf}</div> <div style={{ fontSize: "0.7em", color: "#555" }}>Sección: {seccion}</div> </>
-                        : <div style={{ fontSize: "0.75em", color: "#555" }}>Profesor: {teacherName}</div>
-
-                    }
-                    {viewMode !== "classroom" && <div style={{ fontSize: "0.75em", color: "#777" }}>{classroomName}</div>}
-                    {viewMode === "classroom" && <div style={{ fontSize: "0.75em", color: "#555" }}>Profesor: {teacherName}</div>}
+                    {viewMode === "professor" || viewMode === "classroom" ? (
+                      <>
+                        {" "}
+                        <div style={{ fontSize: "0.7em", color: "#555" }}>{pnf}</div>{" "}
+                        <div style={{ fontSize: "0.7em", color: "#555" }}>Sección: {seccion}</div>{" "}
+                      </>
+                    ) : (
+                      <div style={{ fontSize: "0.75em", color: "#555" }}>Profesor: {teacherName}</div>
+                    )}
+                    {viewMode !== "classroom" && (
+                      <div style={{ fontSize: "0.75em", color: "#777" }}>{classroomName}</div>
+                    )}
+                    {viewMode === "classroom" && (
+                      <div style={{ fontSize: "0.75em", color: "#555" }}>Profesor: {teacherName}</div>
+                    )}
                   </div>
                 );
               }}
@@ -649,7 +681,8 @@ const SchoolSchedule: React.FC = () => {
           </div>
 
           {/* Hidden Printable Schedule */}
-          <div style={{ display: "block", position: "absolute", left: "-10000px", width: "0px", height: "0px" }}>
+          <div
+            style={{ display: "block", position: "absolute", left: "-10000px", width: "0px", height: "0px" }}>
             <div ref={printableRef}>
               <PrintableSchedule
                 events={events}

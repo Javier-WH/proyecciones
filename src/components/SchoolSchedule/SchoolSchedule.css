@@ -125,8 +125,7 @@ body,
 }
 
 
-/* SchoolSchedule.css */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
 
 html,
 body,
@@ -308,10 +307,10 @@ body,
 
 .schedule-select {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   /* Inline label and input */
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+ 
 }
 
 .schedule-select span {
