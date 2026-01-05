@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { InlineHours, InlineQuarter, Subject } from "../../interfaces/subject";
 import { normalizeText } from "../../utils/textFilter";
 import getPensum from "../../fetch/getPensum";
+import getMaya from "../../fetch/getMaya";
 import { v4 as uuidv4 } from "uuid";
 
 interface SelectOption {
@@ -20,7 +21,7 @@ interface SelectOption {
 }
 
 export default function ProyeccionesSubjects() {
-  const { subjects, handleSubjectChange, userData, userPNF } = useContext(
+  const { subjects, handleSubjectChange, userData, userPNF, pnfList } = useContext(
     MainContext
   ) as MainContextValues;
   const navigate = useNavigate();
@@ -42,6 +43,9 @@ export default function ProyeccionesSubjects() {
   const [aviableModalSubjects, setAviableModalSubjects] = useState<Subject[]>([]);
   const [modalSelectedSubject, setModalSelectedSubject] = useState<Subject | null>(null);
   const [seccionExist, setSeccionExist] = useState<boolean>(false);
+  const [modalMayaOptions, setModalMayaOptions] = useState<SelectOption[]>([]);
+  const [selectedModalMaya, setSelectedModalMaya] = useState<string | undefined>(undefined);
+  const [loadingMaya, setLoadingMaya] = useState<boolean>(false);
 
   const showAddSubjectModal = () => {
     setIsAddSubjectModalOpen(true);
@@ -75,6 +79,8 @@ export default function ProyeccionesSubjects() {
     setSelectedTurno(undefined);
     setSelectedSeccion(undefined);
     setModalSelectedSubject(null);
+    setSelectedModalMaya(undefined);
+    setModalMayaOptions([]);
     setIsAddSubjectModalOpen(false);
     setSeccionExist(false);
   };
@@ -183,9 +189,42 @@ export default function ProyeccionesSubjects() {
   // obtiene las materias para el modal
 
   useEffect(() => {
-    if (!selectedModalPnf || !selectedModalTrayecto || !selectedTurno || !selectedSeccion) return;
+    if (!selectedModalPnf) return;
+    const sagaPNFID = pnfList?.find((pnf) => pnf.id.toString() === selectedModalPnf)?.saga_id?.toString();
+    if (!sagaPNFID) return;
 
-    getPensum({ programaId: selectedModalPnf, trayectoId: selectedModalTrayecto })
+    setLoadingMaya(true);
+    setSelectedModalMaya(undefined);
+    setModalMayaOptions([]);
+
+    getMaya({ sagaPNFID }).then((data) => {
+      const mayadata = data?.data?.mayas;
+      if (!mayadata) return;
+
+      const sortedMayas = mayadata.sort((a: any, b: any) => Number(b.id) - Number(a.id));
+
+      const filteredMayas = sortedMayas.filter((maya: any) => maya.tipopensum_id === 1); // solo las que no son de prosecicion
+
+      const mayaOpt = filteredMayas.map((maya: any) => ({
+        value: maya.id.toString(),
+        label: maya.descripcion.toString(),
+      }));
+
+
+      setModalMayaOptions(mayaOpt);
+      if (mayaOpt.length > 0) {
+        setSelectedModalMaya(mayaOpt[0].value);
+      }
+    }).finally(() => {
+      setLoadingMaya(false);
+    });
+  }, [selectedModalPnf, pnfList]);
+
+
+  useEffect(() => {
+    if (!selectedModalPnf || !selectedModalTrayecto || !selectedTurno || !selectedSeccion || !selectedModalMaya) return;
+
+    getPensum({ programaId: selectedModalPnf, trayectoId: selectedModalTrayecto, mayaId: selectedModalMaya })
       .then((data) => {
         if (data.error) {
           message.error(data.message);
@@ -228,7 +267,7 @@ export default function ProyeccionesSubjects() {
       .catch((error) => {
         console.log(error);
       });
-  }, [selectedModalPnf, selectedModalTrayecto, selectedTurno, selectedSeccion]);
+  }, [selectedModalPnf, selectedModalTrayecto, selectedTurno, selectedSeccion, selectedModalMaya]);
 
   useEffect(() => {
     setModalSelectedSubject(null);
@@ -237,7 +276,8 @@ export default function ProyeccionesSubjects() {
       !selectedTurno ||
       !selectedSeccion ||
       !selectedModalPnf ||
-      !selectedModalTrayecto
+      !selectedModalTrayecto ||
+      !selectedModalMaya
     ) {
       setModalSelectedSubject(null);
       setAviableModalSubjects([]);
@@ -277,7 +317,7 @@ export default function ProyeccionesSubjects() {
     const missingSubjects = getMissingSubjects(modalPensumList, currentSubjects);
 
     setAviableModalSubjects(missingSubjects);
-  }, [modalPensumList, selectedTurno, selectedSeccion, selectedModalPnf, selectedModalTrayecto, subjects]);
+  }, [modalPensumList, selectedTurno, selectedSeccion, selectedModalPnf, selectedModalTrayecto, subjects, selectedModalMaya]);
 
   const handleDeleteSeccion = () => {
     if (!selectedTurno || !selectedSeccion || !selectedModalPnf || !selectedModalTrayecto) {
@@ -334,11 +374,11 @@ export default function ProyeccionesSubjects() {
       height: "400px",
       overflow: "auto",
     };
-    if (!selectedModalPnf || !selectedModalTrayecto || !selectedTurno || !selectedSeccion) {
+    if (!selectedModalPnf || !selectedModalTrayecto || !selectedTurno || !selectedSeccion || !selectedModalMaya) {
       return (
         <>
           <span style={{ color: "gray", fontSize: "14px" }}>
-            Seleccione un PNF, Trayecto, Turno y Sección
+            Seleccione un PNF, Trayecto, Maya, Turno y Sección
           </span>
           ;<div style={styles}></div>
         </>
@@ -522,6 +562,26 @@ export default function ProyeccionesSubjects() {
                 setSelectedModalTrayecto(value);
               }}
               value={selectedModalTrayecto}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ color: "gray", fontSize: "10px" }}>Maya</span>
+            <Select
+              allowClear
+              showSearch
+              style={{ width: 200 }}
+              placeholder="Seleccione maya"
+              optionFilterProp="label"
+              loading={loadingMaya}
+              disabled={loadingMaya}
+              filterOption={(input, option) =>
+                normalizeText(option?.label ?? "").includes(normalizeText(input))
+              }
+              options={modalMayaOptions}
+              onChange={(value) => {
+                setSelectedModalMaya(value);
+              }}
+              value={selectedModalMaya}
             />
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
