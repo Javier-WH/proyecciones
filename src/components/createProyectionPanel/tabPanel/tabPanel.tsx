@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 interface TabPanelProps {
   selectedPnf: string | null;
   selectedTrayecto: string | null;
+  selectedMaya: string | null;
 }
 
 export interface Student {
@@ -33,7 +34,7 @@ export interface StudentList {
   fail: Student[];
 }
 
-export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProps) {
+export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }: TabPanelProps) {
   const { turnosList: defaultTurnos, subjects, handleSubjectChange, userData } = useContext(MainContext) as MainContextValues;
   const [subjectList, setSubjectList] = useState<Subject[]>([]);
   const [studentList, setStudentList] = useState<StudentList | null>(null);
@@ -43,14 +44,14 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
   const [isActiveProyection, setIsActiveProyection] = useState<boolean | null>(null);
   const navigate = useNavigate();
   // obtener la proyeccion activa
-  useEffect(()=>{
-        getConfig()
-        .then((config) => setIsActiveProyection(config.active_proyection))
-        .catch((error) => {
-          console.error(error);
-          setIsActiveProyection(null)
-        });
-  },[]);
+  useEffect(() => {
+    getConfig()
+      .then((config) => setIsActiveProyection(config.active_proyection))
+      .catch((error) => {
+        console.error(error);
+        setIsActiveProyection(null)
+      });
+  }, []);
 
   //  llena los turnos que son utilizados en la pestana de proyeccion
   useEffect(() => {
@@ -75,7 +76,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
       try {
         // Ejecutamos ambas peticiones en paralelo
         const [pensumData, inscriptionData] = await Promise.all([
-          getPensum({ programaId: selectedPnf, trayectoId: selectedTrayecto }),
+          getPensum({ programaId: selectedPnf, trayectoId: selectedTrayecto, mayaId: selectedMaya }),
           getInscriptionData({ programId: selectedPnf, trayectoId: selectedTrayecto })
         ]);
 
@@ -85,7 +86,6 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
           setSubjectList([]);
         } else {
           const { pnfId, pnfName, trayectoId, trayectoName, pensums } = pensumData.data;
-
           const pensumList: Subject[] = pensums.map((subject: any) => {
             const quarter: InlineQuarter = {};
             const hours: InlineHours = { q1: 0, q2: 0, q3: 0 };
@@ -100,7 +100,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
 
             return {
               innerId: uuidv4(),
-              id: subject.subject_id,
+              id: uuidv4(),
               subject: subject.subject,
               hours: hours,
               pnf: pnfName,
@@ -114,6 +114,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
               trayecto_saga_id: subject.trayecto_saga_id.toString(),
             };
           });
+
           setSubjectList(pensumList);
         }
 
@@ -146,7 +147,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
     };
 
     fetchAllData();
-  }, [selectedPnf, selectedTrayecto]);
+  }, [selectedPnf, selectedTrayecto, selectedMaya]);
 
   // funcion que se encarga revisar si una proyeccion ya existe
   const checkIfProyected = () => {
@@ -169,14 +170,14 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
     handleSubjectChange(filteredSubjects);
   }
 
-  if(!isActiveProyection){
+  if (!isActiveProyection) {
     return <div>
       <h2 style={{ color: 'red' }}>No hay ninguna proyección activa</h2>
       <Divider />
       {
         userData?.su ? <Button type="primary" onClick={() => navigate("/app/active")}>Crear proyección</Button> : <p>Solo los administradores del sistema pueden crear una proyección, habla con uno de ellos</p>
       }
-      
+
     </div>
   }
 
@@ -199,7 +200,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
       </Popconfirm>
     </div>
   }
-  
+
   if (loading) {
     return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", columnGap: "20px" }}>
       <Spin size="large" />
@@ -216,7 +217,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto }: TabPanelProp
 
   if (subjectList.length === 0 || subjectList === null) {
     return <div>
-      <h2 style={{ color: "gray" }}>No hay materias registradas para este programa y trayecto</h2>
+      <h2 style={{ color: "gray" }}>No hay materias registradas para este programa y trayecto en esta maya</h2>
     </div>
   }
 

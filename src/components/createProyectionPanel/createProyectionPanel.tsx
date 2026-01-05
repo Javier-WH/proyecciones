@@ -1,8 +1,9 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import {  Select, SelectProps } from "antd";
+import { Select, SelectProps } from "antd";
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
+import getMaya from "../../fetch/getMaya";
 import TabPanel from "./tabPanel/tabPanel";
 
 export default function CreateProyectionPanel() {
@@ -11,6 +12,10 @@ export default function CreateProyectionPanel() {
   const [selectedPnf, setSelectedPnf] = useState<string | null>(userPNF);
   const [trayectoOptions, setTrayectoOptions] = useState<SelectProps["options"] | []>([]);
   const [selectedTrayecto, setSelectedTrayecto] = useState<string | null>(null);
+  const [mayaOptions, setMayaOptions] = useState<NonNullable<SelectProps["options"]>>([]);
+  const [selectedMaya, setSelectedMaya] = useState<string | null>(null);
+  const [loadingMaya, setLoadingMaya] = useState<boolean>(false);
+
 
   // llena las opciones de pnf y trayecto
   useEffect(() => {
@@ -29,6 +34,43 @@ export default function CreateProyectionPanel() {
     setPnfOptions(pnfOpt);
     setTrayectoOptions(trayectoOpt.sort((a, b) => a.order - b.order));
   }, [pnfList, trayectosList]);
+
+
+  useEffect(() => {
+    if (!selectedPnf) return;
+    const sagaPNFID = pnfList?.find((pnf) => pnf.id.toString() === selectedPnf)?.saga_id?.toString();
+    if (!sagaPNFID) return;
+
+    setLoadingMaya(true);
+    setSelectedMaya(null);
+    setMayaOptions([]);
+
+    getMaya({ sagaPNFID }).then((data) => {
+      const mayadata = data?.data?.mayas;
+      if (!mayadata) return;
+
+      const sortedMayas = mayadata.sort((a: any, b: any) => Number(b.id) - Number(a.id));
+
+      const filteredMayas = sortedMayas.filter((maya: any) => maya.tipopensum_id === 1); // solo las que no son de prosecicion
+
+      const mayaOpt = filteredMayas.map((maya: { id: { toString: () => any; }; descripcion: { toString: () => any; }; }) => ({
+        value: maya.id.toString(),
+        label: maya.descripcion.toString(),
+      }));
+
+
+      setMayaOptions(mayaOpt);
+      if (mayaOpt.length > 0) {
+        setSelectedMaya(mayaOpt[0].value);
+      }
+    }).finally(() => {
+      setLoadingMaya(false);
+    });
+  }, [selectedPnf]);
+
+  const handleMayaChange = (value: string) => {
+    setSelectedMaya(value);
+  };
 
   const handlePnfChange = (value: string) => {
     setSelectedPnf(value);
@@ -71,8 +113,31 @@ export default function CreateProyectionPanel() {
             options={trayectoOptions}
           />
         </div>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+          }}>
+          <label style={{ color: "gray", fontSize: "12px" }}>Maya</label>
+          <Select
+            placeholder="Selecciona una maya"
+            style={{ width: 300 }}
+            value={selectedMaya}
+            loading={loadingMaya}
+            disabled={loadingMaya}
+            onChange={handleMayaChange}
+            options={mayaOptions}
+          />
+        </div>
       </div>
-      <TabPanel selectedPnf={selectedPnf} selectedTrayecto={selectedTrayecto} />
+
+      {
+        mayaOptions?.length > 0 && (
+          <TabPanel selectedPnf={selectedPnf} selectedTrayecto={selectedTrayecto} selectedMaya={selectedMaya} />
+        )
+      }
+
     </div>
   );
 }

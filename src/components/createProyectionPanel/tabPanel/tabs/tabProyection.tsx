@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { Subject } from "../../../../interfaces/subject";
-import { Button, Divider, message} from "antd";
+import { Button, Divider, message } from "antd";
 import { MainContext } from "../../../../context/mainContext";
 import { MainContextValues } from "../../../../interfaces/contextInterfaces";
 import { v4 as uuidv4 } from "uuid";
@@ -13,8 +13,8 @@ interface SeccionContentItem {
 
 export default function TabProyection({ subjectList, turnos }: { subjectList: Subject[], turnos: string[] }) {
 
-  const { handleSubjectChange, subjects} = useContext(MainContext) as MainContextValues;
-  
+  const { handleSubjectChange, subjects } = useContext(MainContext) as MainContextValues;
+
   const [secciones, setSecciones] = useState<SeccionContentItem[]>([]);
 
   // llena el array de secciones con los valores de turnos
@@ -50,11 +50,12 @@ export default function TabProyection({ subjectList, turnos }: { subjectList: Su
     }
     let morningSections = 1;
     const proyectedSubjects: Subject[] = [];
+
     for (const seccion of secciones) {
       const { turnoName, sectionCount } = seccion;
       for (let i = 1; i <= sectionCount!; i++) {
         const subjectListCopy = JSON.parse(JSON.stringify(subjectList));
-   
+
 
         for (const subject of subjectListCopy) {
           subject.innerId = uuidv4();
@@ -62,16 +63,16 @@ export default function TabProyection({ subjectList, turnos }: { subjectList: Su
           proyectedSubjects.push(subject);
           if (turnoName === "Mañana" || turnoName === "Tarde") {
             subject.seccion = morningSections.toString();
-          }else {
+          } else {
             subject.seccion = i.toString();
           }
-          
+
         }
 
         if (turnoName === "Mañana" || turnoName === "Tarde") {
           morningSections++;
         }
-     
+
       }
     }
 
@@ -84,12 +85,12 @@ export default function TabProyection({ subjectList, turnos }: { subjectList: Su
   return (
     <div>
       <Button disabled={secciones.length === 0} type="primary" onClick={handleProyectar}>Proyectar</Button>
-      <Divider type="horizontal"/>
+      <Divider type="horizontal" />
       <h3 style={{ color: "gray" }}>{secciones.length === 0 ? "No hay turnos para proyectar" : "Numero de secciones por turno"}</h3>
       <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap" }}>
         {
           secciones.map((seccion) => (
-            <div 
+            <div
               key={seccion.turnoName}
               style={{
                 display: "flex",
