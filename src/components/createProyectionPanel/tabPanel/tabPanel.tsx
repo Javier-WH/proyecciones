@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
-import { Button, Tabs, message, Divider, Popconfirm, Spin, Tag } from "antd";
+import { Button, Tabs, message, Divider, Popconfirm, Spin, Tag, Modal, Select } from "antd";
 import getPensum from "../../../fetch/getPensum";
 import getInscriptionData from "../../../fetch/getInscriptionData";
 import { useContext, useEffect, useState } from "react";
@@ -11,9 +11,10 @@ import TabSubject from "./tabs/tabSubject";
 import TabStudent from "./tabs/tabStudent";
 import TabProyection from "./tabs/tabProyection";
 import TabConf from "./tabs/tabConf";
-import { ExclamationCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { ExclamationCircleOutlined, QuestionCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import getConfig from "../../../fetch/getConfig";
 import { useNavigate } from "react-router-dom";
+import getMaya from "../../../fetch/getMaya";
 
 interface TabPanelProps {
   selectedPnf: string | null;
@@ -35,7 +36,7 @@ export interface StudentList {
 }
 
 export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }: TabPanelProps) {
-  const { turnosList: defaultTurnos, subjects, handleSubjectChange, userData } = useContext(MainContext) as MainContextValues;
+  const { turnosList: defaultTurnos, subjects, handleSubjectChange, userData, pnfList } = useContext(MainContext) as MainContextValues;
   const [subjectList, setSubjectList] = useState<Subject[]>([]);
   const [studentList, setStudentList] = useState<StudentList | null>(null);
   const [turnosList, setTurnosList] = useState<string[]>([]);
@@ -43,6 +44,115 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
   const [loading, setLoading] = useState<boolean>(false);
   const [isActiveProyection, setIsActiveProyection] = useState<boolean | null>(null);
   const navigate = useNavigate();
+
+  // Modal States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMayaOptions, setModalMayaOptions] = useState<any[]>([]);
+  const [modalSelectedMaya, setModalSelectedMaya] = useState<string | null>(null);
+  const [modalSelectedTurno, setModalSelectedTurno] = useState<string | null>(null);
+  const [modalLoadingMaya, setModalLoadingMaya] = useState(false);
+  const [addingSection, setAddingSection] = useState(false);
+
+  // Helper function to format subjects
+  const formatSubjects = (pensums: any[], pnfName: string, pnfId: string, trayectoId: string, trayectoName: string, turnoName: string = "undefined") => {
+    return pensums.map((subject: any) => {
+      const quarter: InlineQuarter = {};
+      const hours: InlineHours = { q1: 0, q2: 0, q3: 0 };
+      const subjectedQuarter = JSON.parse(subject.quarter.toString());
+
+      [1, 2, 3].forEach((q) => {
+        if (subjectedQuarter.includes(q)) {
+          quarter[`q${q}` as keyof InlineQuarter] = null;
+          hours[`q${q}` as keyof InlineHours] = Number(subject.hours) || 0;
+        }
+      });
+
+      return {
+        innerId: uuidv4(),
+        id: uuidv4(),
+        subject: subject.subject,
+        hours: hours,
+        pnf: pnfName,
+        pnfId: pnfId.toString(),
+        seccion: "undefined",
+        quarter: quarter,
+        pensum_id: subject.id.toString(),
+        turnoName: turnoName,
+        trayectoId: trayectoId.toString(),
+        trayectoName: trayectoName,
+        trayecto_saga_id: subject.trayecto_saga_id.toString(),
+      };
+    });
+  };
+
+  // Fetch Mayas for Modal
+  useEffect(() => {
+    if (isModalOpen && selectedPnf && pnfList) {
+      const sagaPNFID = pnfList?.find((pnf) => pnf.id.toString() === selectedPnf)?.saga_id?.toString();
+      if (!sagaPNFID) return;
+
+      setModalLoadingMaya(true);
+      setModalMayaOptions([]);
+      setModalSelectedMaya(null);
+
+      getMaya({ sagaPNFID }).then((data) => {
+        const mayadata = data?.data?.mayas;
+        if (!mayadata) return;
+
+        const sortedMayas = mayadata.sort((a: any, b: any) => Number(b.id) - Number(a.id));
+        const filteredMayas = sortedMayas.filter((maya: any) => maya.tipopensum_id === 1);
+
+        const mayaOpt = filteredMayas.map((maya: { id: { toString: () => any; }; descripcion: { toString: () => any; }; }) => ({
+          value: maya.id.toString(),
+          label: maya.descripcion.toString(),
+        }));
+
+        setModalMayaOptions(mayaOpt);
+        if (mayaOpt.length > 0) {
+          setModalSelectedMaya(mayaOpt[0].value);
+        }
+      }).finally(() => {
+        setModalLoadingMaya(false);
+      });
+    }
+  }, [isModalOpen, selectedPnf, pnfList]);
+
+  const handleAddSection = async () => {
+    if (!modalSelectedMaya || !modalSelectedTurno || !selectedPnf || !selectedTrayecto) {
+      message.warning("Debe seleccionar una maya y un turno.");
+      return;
+    }
+
+    setAddingSection(true);
+    try {
+      const pensumData = await getPensum({
+        programaId: selectedPnf,
+        trayectoId: selectedTrayecto,
+        mayaId: modalSelectedMaya
+      });
+
+      if (pensumData.error) {
+        message.error("Error al obtener las materias para la maya seleccionada.");
+      } else {
+        const { pnfId, pnfName, trayectoId, trayectoName, pensums } = pensumData.data;
+        const newSubjects = formatSubjects(pensums, pnfName, pnfId, trayectoId, trayectoName, modalSelectedTurno);
+
+        if (subjects) {
+          handleSubjectChange([...subjects, ...newSubjects]);
+          message.success("Sección agregada exitosamente.");
+          setIsModalOpen(false);
+          setModalSelectedMaya(null);
+          setModalSelectedTurno(null);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      message.error("Ocurrió un error al agregar la sección.");
+    } finally {
+      setAddingSection(false);
+    }
+  };
+
   // obtener la proyeccion activa
   useEffect(() => {
     getConfig()
@@ -86,35 +196,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
           setSubjectList([]);
         } else {
           const { pnfId, pnfName, trayectoId, trayectoName, pensums } = pensumData.data;
-          const pensumList: Subject[] = pensums.map((subject: any) => {
-            const quarter: InlineQuarter = {};
-            const hours: InlineHours = { q1: 0, q2: 0, q3: 0 };
-            const subjectedQuarter = JSON.parse(subject.quarter.toString());
-
-            [1, 2, 3].forEach((q) => {
-              if (subjectedQuarter.includes(q)) {
-                quarter[`q${q}` as keyof InlineQuarter] = null;
-                hours[`q${q}` as keyof InlineHours] = Number(subject.hours) || 0;
-              }
-            });
-
-            return {
-              innerId: uuidv4(),
-              id: uuidv4(),
-              subject: subject.subject,
-              hours: hours,
-              pnf: pnfName,
-              pnfId: pnfId.toString(),
-              seccion: "undefined",
-              quarter: quarter,
-              pensum_id: subject.id.toString(),
-              turnoName: "undefined",
-              trayectoId: trayectoId.toString(),
-              trayectoName: trayectoName,
-              trayecto_saga_id: subject.trayecto_saga_id.toString(),
-            };
-          });
-
+          const pensumList: Subject[] = formatSubjects(pensums, pnfName, pnfId, trayectoId, trayectoName);
           setSubjectList(pensumList);
         }
 
@@ -186,18 +268,56 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
       <h2>Esta proyección ya ha sido creada</h2>
       <p>Si desea crear una nueva proyección para este programa y trayecto, elimine la proyección existente.</p>
       <Divider />
-      <Popconfirm
-        placement="bottom"
-        title={"¿Deseas eliminar esta proyección?"}
-        description={"Esta accion no se puede deshacer, se perderán todos los cambios realizados en la proyección de manera permanente."}
-        icon={<QuestionCircleOutlined style={{ color: 'red' }} />}
-        okText="Eliminar"
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <Popconfirm
+          placement="bottom"
+          title={"¿Deseas eliminar esta proyección?"}
+          description={"Esta accion no se puede deshacer, se perderán todos los cambios realizados en la proyección de manera permanente."}
+          icon={<QuestionCircleOutlined style={{ color: 'red' }} />}
+          okText="Eliminar"
+          cancelText="Cancelar"
+          okType="danger"
+          onCancel={() => message.info("No se ha eliminado la proyección")}
+          onConfirm={handleDeleteProyected}>
+          <Button type="primary" danger>Eliminar proyección</Button>
+        </Popconfirm>
+        <Button onClick={() => setIsModalOpen(true)} icon={<PlusOutlined />}>Agregar Sección</Button>
+      </div>
+
+      <Modal
+        title="Agregar Nueva Sección"
+        open={isModalOpen}
+        onOk={handleAddSection}
+        onCancel={() => setIsModalOpen(false)}
+        confirmLoading={addingSection}
+        okText="Agregar"
         cancelText="Cancelar"
-        okType="danger"
-        onCancel={() => message.info("No se ha eliminado la proyección")}
-        onConfirm={handleDeleteProyected}>
-        <Button type="primary" danger>Eliminar proyección</Button>
-      </Popconfirm>
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '10px 0' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', color: 'gray', fontSize: '12px' }}>Maya</label>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="Seleccione la maya"
+              options={modalMayaOptions}
+              loading={modalLoadingMaya}
+              disabled={modalLoadingMaya}
+              value={modalSelectedMaya}
+              onChange={setModalSelectedMaya}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', color: 'gray', fontSize: '12px' }}>Turno</label>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="Seleccione el turno"
+              value={modalSelectedTurno}
+              onChange={setModalSelectedTurno}
+              options={defaultTurnos?.map((t: any) => ({ value: t.name, label: t.name }))}
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   }
 
