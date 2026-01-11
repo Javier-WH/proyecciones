@@ -1,5 +1,5 @@
 import React, { useContext, useState } from "react";
-import { DeleteOutlined, EditOutlined, CloseCircleOutlined, QuestionCircleOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, CloseCircleOutlined, QuestionCircleOutlined, DisconnectOutlined } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
 import { Button, Table, Tag, message, Popconfirm } from "antd";
 import { Subject } from "../../../interfaces/subject";
@@ -40,6 +40,20 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
   const onEdit = (record: Subject) => {
     setSelectedSubject(record);
     setOpenEditModal(true);
+  };
+
+  const onUnlink = (record: Subject) => {
+    if (!allSubjects) return;
+    const updatedSubjects = allSubjects.map((subject) => {
+      if (subject.innerId === record.innerId) {
+        // Remove the linkedToSection property
+        const { linkedToSection, ...rest } = subject;
+        return rest;
+      }
+      return subject;
+    });
+    handleSubjectChange(updatedSubjects);
+    message.success("La asignatura ha sido desvinculada exitosamente.");
   };
 
   const columns: TableColumnsType<Subject> = [
@@ -147,7 +161,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
     {
       title: "Acciones",
       dataIndex: "seccion",
-      width: "1%",
+      width: "10%",
       key: "seccion",
       align: "center",
       render: (_value, record) => {
@@ -157,7 +171,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
               title="¿Deseas borrar esta materia?"
               description="Esta operación no se puede deshacer"
               onConfirm={() => onDelete(record)}
-              onCancel={() => {}}
+              onCancel={() => { }}
               okText="Borrar"
               cancelText="Cancelar"
               icon={<QuestionCircleOutlined style={{ color: "red" }} />}
@@ -166,6 +180,20 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
             </Popconfirm>
 
             <Button type="link" shape="circle" icon={<EditOutlined />} onClick={() => onEdit(record)} />
+
+            {record.linkedToSection && (
+              <Popconfirm
+                title="¿Deseas desvincular esta materia?"
+                description="La materia dejará de estar sincronizada con la sección original."
+                onConfirm={() => onUnlink(record)}
+                onCancel={() => { }}
+                okText="Desvincular"
+                cancelText="Cancelar"
+                icon={<QuestionCircleOutlined style={{ color: "orange" }} />}
+              >
+                <Button type="link" shape="circle" icon={<DisconnectOutlined style={{ color: "orange" }} />} title="Desvincular" />
+              </Popconfirm>
+            )}
           </div>
         );
       },

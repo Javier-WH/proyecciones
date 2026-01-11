@@ -4,10 +4,10 @@ import "./proyeccionesSubjects.css";
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
-import { Button, Divider, message, Modal, Select, Popconfirm } from "antd";
+import { Button, Divider, message, Modal, Select, Popconfirm, List } from "antd";
 import TablePensum from "./table/table";
 import { GiAutoRepair } from "react-icons/gi";
-import { QuestionCircleOutlined } from "@ant-design/icons";
+import { QuestionCircleOutlined, DisconnectOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { InlineHours, InlineQuarter, Subject } from "../../interfaces/subject";
 import { normalizeText } from "../../utils/textFilter";
@@ -46,6 +46,7 @@ export default function ProyeccionesSubjects() {
   const [modalMayaOptions, setModalMayaOptions] = useState<SelectOption[]>([]);
   const [selectedModalMaya, setSelectedModalMaya] = useState<string | undefined>(undefined);
   const [loadingMaya, setLoadingMaya] = useState<boolean>(false);
+  const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
 
   const showAddSubjectModal = () => {
     setIsAddSubjectModalOpen(true);
@@ -181,6 +182,13 @@ export default function ProyeccionesSubjects() {
     if (selectedTrayecto) {
       filteredSubjectsCopy = filteredSubjectsCopy?.filter(
         (subject) => subject.trayectoId === selectedTrayecto
+      );
+    }
+
+    // filtrado por seccion
+    if (selectedSeccion) {
+      filteredSubjectsCopy = filteredSubjectsCopy?.filter(
+        (subject) => subject.seccion === selectedSeccion
       );
     }
 
@@ -338,6 +346,30 @@ export default function ProyeccionesSubjects() {
 
     handleSubjectChange(newSubjects);
     message.success("Se ha eliminado la sección de la proyección");
+  };
+
+  const handleUnlinkSubject = (subjectId: string) => {
+    if (!subjects) return;
+    const updatedSubjects = subjects.map((subject) => {
+      if (subject.innerId === subjectId) {
+        const { linkedToSection, ...rest } = subject;
+        return rest;
+      }
+      return subject;
+    });
+    handleSubjectChange(updatedSubjects);
+    message.success("Materia desvinculada exitosamente");
+  };
+
+  const getLinkedSubjects = () => {
+    if (!subjects || !selectedPnf || !selectedTrayecto || !selectedSeccion) return [];
+    return subjects.filter(
+      (s) =>
+        s.pnfId === selectedPnf &&
+        s.trayectoId === selectedTrayecto &&
+        s.seccion === selectedSeccion &&
+        s.linkedToSection
+    );
   };
 
   const iconStyle = { color: "white", fontSize: "2rem" };
@@ -504,10 +536,70 @@ export default function ProyeccionesSubjects() {
           value={selectedTrayecto}
         />
 
+        <Select
+          allowClear
+          showSearch
+          style={{ width: 100 }}
+          placeholder="Sección"
+          optionFilterProp="label"
+          options={seccionOptions}
+          onChange={(value) => {
+            setSelectedSeccion(value);
+          }}
+          value={selectedSeccion}
+        />
+
         <Button type="primary" onClick={showAddSubjectModal}>
           Modificar
         </Button>
+
+        <Button
+          type="dashed"
+          onClick={() => setIsUnlinkModalOpen(true)}
+          disabled={!selectedPnf || !selectedTrayecto || !selectedSeccion}
+          icon={<DisconnectOutlined />}
+        >
+          Desvincular Materias
+        </Button>
       </div>
+
+      <Modal
+        title="Desvincular Materias"
+        open={isUnlinkModalOpen}
+        onCancel={() => setIsUnlinkModalOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setIsUnlinkModalOpen(false)}>
+            Cerrar
+          </Button>
+        ]}
+      >
+        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          <List
+            dataSource={getLinkedSubjects()}
+            locale={{ emptyText: "No hay materias vinculadas en esta selección." }}
+            renderItem={(item) => (
+              <List.Item
+                actions={[
+                  <Popconfirm
+                    title="¿Desvincular?"
+                    description="Esta materia dejará de estar sincronizada."
+                    onConfirm={() => handleUnlinkSubject(item.innerId)}
+                    okText="Sí"
+                    cancelText="No"
+                  >
+                    <Button size="small" type="primary" danger>Desvincular</Button>
+                  </Popconfirm>
+                ]}
+              >
+                <List.Item.Meta
+                  title={item.subject}
+                  description={`Vinculada a: ${item.linkedToSection}`}
+                />
+              </List.Item>
+            )}
+          />
+        </div>
+      </Modal>
 
       <Modal
         title="Modificar Materias en la Proyección"
