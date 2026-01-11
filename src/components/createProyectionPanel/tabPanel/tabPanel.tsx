@@ -15,6 +15,7 @@ import { ExclamationCircleOutlined, QuestionCircleOutlined, PlusOutlined } from 
 import getConfig from "../../../fetch/getConfig";
 import { useNavigate } from "react-router-dom";
 import getMaya from "../../../fetch/getMaya";
+import { normalizeText } from "../../../utils/textFilter";
 
 interface TabPanelProps {
   selectedPnf: string | null;
@@ -59,7 +60,8 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
   const [linkableSections, setLinkableSections] = useState<any[]>([]);
 
   // Helper function to format subjects
-  const formatSubjects = (pensums: any[], pnfName: string, pnfId: string, trayectoId: string, trayectoName: string, turnoName: string = "undefined", linkedToSection?: string, seccion: string = "undefined") => {
+  // Helper function to format subjects
+  const formatSubjects = (pensums: any[], pnfName: string, pnfId: string, trayectoId: string, trayectoName: string, turnoName: string = "undefined", linkedToSection?: string, seccion: string = "undefined", targetSubjects: Subject[] = []) => {
     return pensums.map((subject: any) => {
       const quarter: InlineQuarter = {};
       const hours: InlineHours = { q1: 0, q2: 0, q3: 0 };
@@ -72,6 +74,22 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
         }
       });
 
+      // Calculate the pensum_id for the current subject being processed
+      const currentPensumId = subject.pensum_id ? subject.pensum_id.toString() : subject.id.toString();
+
+      // Check if this subject exists in the target section to establish a valid link
+      let effectiveLink = undefined;
+      if (linkedToSection && targetSubjects.length > 0) {
+        // Match strictly by Subject Name as requested
+        const match = targetSubjects.find(t =>
+          normalizeText(t.subject) === normalizeText(subject.subject)
+        );
+
+        if (match) {
+          effectiveLink = linkedToSection;
+        }
+      }
+
       return {
         innerId: uuidv4(),
         id: uuidv4(),
@@ -81,12 +99,12 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
         pnfId: pnfId.toString(),
         seccion: seccion,
         quarter: quarter,
-        pensum_id: subject.id.toString(),
+        pensum_id: currentPensumId,
         turnoName: turnoName,
         trayectoId: trayectoId.toString(),
         trayectoName: trayectoName,
         trayecto_saga_id: subject.trayecto_saga_id.toString(),
-        linkedToSection: linkedToSection,
+        linkedToSection: effectiveLink,
       };
     });
   };
@@ -109,7 +127,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
           // Filter by current context if needed, though subjects might already be filtered contextually?
           // The context 'subjects' usually contains ALL subjects for the active projection (or filtered by PNF/Trayecto if the context handles it)
           // But let's be safe and check PNF/Trayecto
-          if (s.pnfId === selectedPnf && s.trayectoId === selectedTrayecto && s.seccion !== "undefined" && s.seccion) {
+          if (String(s.pnfId) === String(selectedPnf) && String(s.trayectoId) === String(selectedTrayecto) && s.seccion !== "undefined" && s.seccion) {
             const key = `${s.seccion} - ${s.turnoName}`;
             if (!unique.has(key)) {
               unique.add(key);
@@ -169,13 +187,13 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
       if (pensumData.error) {
         message.error("Error al obtener las materias para la maya seleccionada.");
       } else {
-        const { pnfId, pnfName, trayectoId, trayectoName, pensums } = pensumData.data;
+        const { pnfName, trayectoName, pensums } = pensumData.data;
 
         // Calculate next section number
         let nextSection = "1";
         if (subjects && subjects.length > 0) {
           const currentSections = subjects
-            .filter(s => s.pnfId === selectedPnf && s.trayectoId === selectedTrayecto)
+            .filter(s => String(s.pnfId) === String(selectedPnf) && String(s.trayectoId) === String(selectedTrayecto))
             .map(s => s.seccion)
             .filter(s => s && s !== "undefined");
 
@@ -192,25 +210,38 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
           }
         }
 
+        let targetSubjects: Subject[] = [];
+        if (isLinked && selectedLinkSection && subjects) {
+          targetSubjects = subjects.filter(s => {
+            const key = `${s.seccion} - ${s.turnoName}`;
+            return key === selectedLinkSection && String(s.pnfId) === String(selectedPnf) && String(s.trayectoId) === String(selectedTrayecto);
+          });
+        }
+
         const newSubjects = formatSubjects(
           pensums,
           pnfName,
-          pnfId,
-          trayectoId,
+          selectedPnf,
+          selectedTrayecto,
           trayectoName,
           modalSelectedTurno,
           isLinked && selectedLinkSection ? selectedLinkSection : undefined,
-          nextSection
+          nextSection,
+          targetSubjects
         );
 
         if (subjects) {
-          handleSubjectChange([...subjects, ...newSubjects]);
-          message.success("Sección agregada exitosamente.");
-          setIsModalOpen(false);
-          setModalSelectedMaya(null);
-          setModalSelectedTurno(null);
-          setIsLinked(false);
-          setSelectedLinkSection(null);
+          if (newSubjects.length === 0) {
+            message.warning("No se encontraron materias en la maya seleccionada.");
+          } else {
+            handleSubjectChange([...subjects, ...newSubjects]);
+            message.success(`Sección agregada exitosamente con ${newSubjects.length} materias.`);
+            setIsModalOpen(false);
+            setModalSelectedMaya(null);
+            setModalSelectedTurno(null);
+            setIsLinked(false);
+            setSelectedLinkSection(null);
+          }
         }
       }
     } catch (e) {
@@ -302,7 +333,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
   // funcion que se encarga revisar si una proyeccion ya existe
   const checkIfProyected = () => {
     const isProyected = subjects?.some((subject) => {
-      if (subject.pnfId === selectedPnf && subject.trayectoId === selectedTrayecto) {
+      if (String(subject.pnfId) === String(selectedPnf) && String(subject.trayectoId) === String(selectedTrayecto)) {
         return true;
       }
     })

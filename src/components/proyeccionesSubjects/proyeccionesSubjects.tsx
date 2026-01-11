@@ -47,6 +47,10 @@ export default function ProyeccionesSubjects() {
   const [selectedModalMaya, setSelectedModalMaya] = useState<string | undefined>(undefined);
   const [loadingMaya, setLoadingMaya] = useState<boolean>(false);
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
+  const [targetLinkOptions, setTargetLinkOptions] = useState<SelectOption[]>([]);
+  const [selectedTargetLink, setSelectedTargetLink] = useState<string | undefined>(undefined);
+  const [modalSourceSection, setModalSourceSection] = useState<string | undefined>(undefined);
+  const [availableSections, setAvailableSections] = useState<SelectOption[]>([]);
 
   const showAddSubjectModal = () => {
     setIsAddSubjectModalOpen(true);
@@ -361,16 +365,88 @@ export default function ProyeccionesSubjects() {
     message.success("Materia desvinculada exitosamente");
   };
 
-  const getLinkedSubjects = () => {
-    if (!subjects || !selectedPnf || !selectedTrayecto || !selectedSeccion) return [];
+  const handleLinkSubject = (subjectId: string, targetSubjectId: string) => {
+    if (!subjects || !selectedTargetLink) return;
+
+    // Find target subject details
+    const targetSubject = subjects.find(s => s.innerId === targetSubjectId);
+    if (!targetSubject) return;
+
+    const linkKey = `${targetSubject.seccion} - ${targetSubject.turnoName}`;
+
+    const updatedSubjects = subjects.map((subject) => {
+      if (subject.innerId === subjectId) {
+        return {
+          ...subject,
+          linkedToSection: linkKey,
+          pensum_id: targetSubject.pensum_id // Sync ID for scheduler
+        };
+      }
+      return subject;
+    });
+
+    handleSubjectChange(updatedSubjects);
+    message.success("Materia vinculada exitosamente");
+  };
+
+  const getTargetSubjects = () => {
+    if (!subjects || !selectedTargetLink || !selectedPnf || !selectedTrayecto) return [];
+    return subjects.filter(s => {
+      const key = `${s.seccion} - ${s.turnoName}`;
+      return key === selectedTargetLink &&
+        String(s.pnfId) === String(selectedPnf) &&
+        String(s.trayectoId) === String(selectedTrayecto);
+    });
+  };
+
+  const getModalSourceSubjects = () => {
+    if (!subjects || !selectedPnf || !selectedTrayecto || !modalSourceSection) return [];
     return subjects.filter(
       (s) =>
-        s.pnfId === selectedPnf &&
-        s.trayectoId === selectedTrayecto &&
-        s.seccion === selectedSeccion &&
-        s.linkedToSection
+        String(s.pnfId) === String(selectedPnf) &&
+        String(s.trayectoId) === String(selectedTrayecto) &&
+        `${s.seccion} - ${s.turnoName}` === modalSourceSection
     );
   };
+
+  // Initialize modal state
+  useEffect(() => {
+    if (isUnlinkModalOpen && subjects) {
+      const unique = new Set();
+      const opts: SelectOption[] = [];
+
+      // Build list of all available sections in this PNF/Trayecto
+      subjects.forEach(s => {
+        if (String(s.pnfId) === String(selectedPnf) &&
+          String(s.trayectoId) === String(selectedTrayecto) &&
+          s.seccion) {
+          const key = `${s.seccion} - ${s.turnoName}`;
+          if (!unique.has(key)) {
+            unique.add(key);
+            opts.push({ value: key, label: `Sección ${s.seccion} (${s.turnoName})` });
+          }
+        }
+      });
+      setAvailableSections(opts);
+
+      // Seed Source Section from main filter if available
+      if (selectedSeccion && !modalSourceSection) {
+        const match = opts.find(o => o.value.startsWith(`${selectedSeccion} -`));
+        if (match) {
+          setModalSourceSection(match.value);
+
+          // Try to auto-detect target if source is linked
+          const sourceSubs = subjects.filter(s =>
+            String(s.pnfId) === String(selectedPnf) &&
+            String(s.trayectoId) === String(selectedTrayecto) &&
+            `${s.seccion} - ${s.turnoName}` === match.value
+          );
+          const existingLink = sourceSubs.find(s => s.linkedToSection)?.linkedToSection;
+          if (existingLink) setSelectedTargetLink(existingLink);
+        }
+      }
+    }
+  }, [isUnlinkModalOpen, subjects, selectedPnf, selectedTrayecto, selectedSeccion]);
 
   const iconStyle = { color: "white", fontSize: "2rem" };
   // si no hay proyecciones
@@ -559,45 +635,105 @@ export default function ProyeccionesSubjects() {
           disabled={!selectedPnf || !selectedTrayecto || !selectedSeccion}
           icon={<DisconnectOutlined />}
         >
-          Desvincular Materias
+          Gestionar Vinculaciones
         </Button>
       </div>
 
       <Modal
-        title="Desvincular Materias"
+        title="Gestionar Vinculaciones"
         open={isUnlinkModalOpen}
         onCancel={() => setIsUnlinkModalOpen(false)}
+        width={800}
         footer={[
           <Button key="close" onClick={() => setIsUnlinkModalOpen(false)}>
             Cerrar
           </Button>
         ]}
       >
-        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-          <List
-            dataSource={getLinkedSubjects()}
-            locale={{ emptyText: "No hay materias vinculadas en esta selección." }}
-            renderItem={(item) => (
-              <List.Item
-                actions={[
-                  <Popconfirm
-                    title="¿Desvincular?"
-                    description="Esta materia dejará de estar sincronizada."
-                    onConfirm={() => handleUnlinkSubject(item.innerId)}
-                    okText="Sí"
-                    cancelText="No"
-                  >
-                    <Button size="small" type="primary" danger>Desvincular</Button>
-                  </Popconfirm>
-                ]}
-              >
-                <List.Item.Meta
-                  title={item.subject}
-                  description={`Vinculada a: ${item.linkedToSection}`}
-                />
-              </List.Item>
-            )}
-          />
+        <div style={{ display: 'flex', gap: '20px', paddingBottom: '15px', alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}>
+            <span style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>1. Mis Materias (Origen):</span>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="Seleccione Sección a configurar"
+              options={availableSections}
+              value={modalSourceSection}
+              onChange={(val) => {
+                setModalSourceSection(val);
+                if (val === selectedTargetLink) setSelectedTargetLink(undefined);
+              }}
+            />
+          </div>
+          <div style={{ flex: 0.1, textAlign: 'center', paddingBottom: '5px' }}>
+            <span style={{ fontSize: '20px' }}>👉</span>
+          </div>
+          <div style={{ flex: 1 }}>
+            <span style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>2. Vincular con (Destino):</span>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="Seleccione Sección para vincular"
+              options={availableSections.filter(opt => opt.value !== modalSourceSection)}
+              value={selectedTargetLink}
+              onChange={setSelectedTargetLink}
+              disabled={!modalSourceSection}
+            />
+          </div>
+        </div>
+
+        <Divider style={{ margin: '10px 0' }} />
+
+        <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+          {!modalSourceSection ? (
+            <div style={{ textAlign: 'center', color: 'gray', padding: '20px' }}>Seleccione una sección de origen para comenzar.</div>
+          ) : (
+            <List
+              dataSource={getModalSourceSubjects()}
+              locale={{ emptyText: "No hay materias en esta sección." }}
+              renderItem={(item) => {
+                const targetSubs = getTargetSubjects();
+                // Auto-match logic for suggestion
+                const suggestedMatch = targetSubs.find(t => normalizeText(t.subject) === normalizeText(item.subject));
+
+                return (
+                  <List.Item>
+                    <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>
+                        <strong>{item.subject}</strong>
+                        {item.linkedToSection && <div style={{ fontSize: '12px', color: 'green' }}>✅ Vinculada a: {item.linkedToSection}</div>}
+                      </div>
+
+                      <div style={{ flex: 1, display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                        {item.linkedToSection ? (
+                          <Popconfirm
+                            title="¿Desvincular?"
+                            description="Esta materia dejará de estar sincronizada."
+                            onConfirm={() => handleUnlinkSubject(item.innerId)}
+                            okText="Sí"
+                            cancelText="No"
+                          >
+                            <Button danger size="small">Desvincular</Button>
+                          </Popconfirm>
+                        ) : (
+                          <>
+                            <Select
+                              style={{ width: 250 }}
+                              placeholder={selectedTargetLink ? "Seleccionar par..." : "Seleccione destino arriba"}
+                              showSearch
+                              optionFilterProp="label"
+                              defaultValue={suggestedMatch?.innerId}
+                              onChange={(val) => handleLinkSubject(item.innerId, val)}
+                              options={targetSubs.map(t => ({ value: t.innerId, label: t.subject }))}
+                              disabled={!selectedTargetLink}
+                            />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </List.Item>
+                )
+              }}
+            />
+          )}
         </div>
       </Modal>
 
