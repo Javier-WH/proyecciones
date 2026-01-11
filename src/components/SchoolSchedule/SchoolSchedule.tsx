@@ -476,8 +476,16 @@ const SchoolSchedule: React.FC = () => {
                   value={seccion}
                   style={{ width: 120 }}
                   onChange={setSeccion}
-                  options={Array.from(new Set(eventData.map((event) => event?.extendedProps?.seccion)))
-                    .filter(Boolean)
+                  options={Array.from(new Set(
+                    (subjects || [])
+                      .filter(s =>
+                        (!pnf || s.pnfId === pnf) &&
+                        (!trayectoId || s.trayectoId === trayectoId) &&
+                        (!turn || s.turnoName?.toLowerCase() === turn)
+                      )
+                      .map(s => s.seccion)
+                  ))
+                    .sort()
                     .map((seccion) => ({
                       value: seccion,
                       label: `Sección ${seccion}`,
@@ -494,9 +502,9 @@ const SchoolSchedule: React.FC = () => {
                   onChange={setPnf}
                   options={Array.from(
                     new Map(
-                      eventData
-                        .filter((event) => event?.extendedProps?.pnfId && event?.extendedProps?.pnfName)
-                        .map((event) => [event.extendedProps.pnfId, event.extendedProps.pnfName])
+                      (subjects || [])
+                        .filter((subject) => subject.pnfId && subject.pnf)
+                        .map((subject) => [subject.pnfId, subject.pnf])
                     )
                   ).map(([value, label]) => ({
                     value,
@@ -649,9 +657,8 @@ const SchoolSchedule: React.FC = () => {
                 const classroomName = event.extendedProps?.classroomName;
                 const seccion = event.extendedProps?.seccion;
                 const pnf = event.extendedProps?.pnfName;
-                const teacherName = `${teachers?.find((teacher) => teacher.id === professorId)?.lastName} ${
-                  teachers?.find((teacher) => teacher.id === professorId)?.name
-                }`;
+                const teacherName = `${teachers?.find((teacher) => teacher.id === professorId)?.lastName} ${teachers?.find((teacher) => teacher.id === professorId)?.name
+                  }`;
                 return (
                   <div className="fc-event-custom">
                     <div>

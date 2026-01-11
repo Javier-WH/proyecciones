@@ -59,7 +59,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
   const [linkableSections, setLinkableSections] = useState<any[]>([]);
 
   // Helper function to format subjects
-  const formatSubjects = (pensums: any[], pnfName: string, pnfId: string, trayectoId: string, trayectoName: string, turnoName: string = "undefined", linkedToSection?: string) => {
+  const formatSubjects = (pensums: any[], pnfName: string, pnfId: string, trayectoId: string, trayectoName: string, turnoName: string = "undefined", linkedToSection?: string, seccion: string = "undefined") => {
     return pensums.map((subject: any) => {
       const quarter: InlineQuarter = {};
       const hours: InlineHours = { q1: 0, q2: 0, q3: 0 };
@@ -79,7 +79,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
         hours: hours,
         pnf: pnfName,
         pnfId: pnfId.toString(),
-        seccion: "undefined",
+        seccion: seccion,
         quarter: quarter,
         pensum_id: subject.id.toString(),
         turnoName: turnoName,
@@ -170,6 +170,28 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
         message.error("Error al obtener las materias para la maya seleccionada.");
       } else {
         const { pnfId, pnfName, trayectoId, trayectoName, pensums } = pensumData.data;
+
+        // Calculate next section number
+        let nextSection = "1";
+        if (subjects && subjects.length > 0) {
+          const currentSections = subjects
+            .filter(s => s.pnfId === selectedPnf && s.trayectoId === selectedTrayecto)
+            .map(s => s.seccion)
+            .filter(s => s && s !== "undefined");
+
+          const numericSections = currentSections
+            .map(s => parseInt(s, 10))
+            .filter(n => !isNaN(n));
+
+          if (numericSections.length > 0) {
+            const maxSection = Math.max(...numericSections);
+            nextSection = (maxSection + 1).toString();
+          } else if (currentSections.length > 0) {
+            // Fallback if there are sections but none are simple integers (unlikely case)
+            nextSection = (currentSections.length + 1).toString();
+          }
+        }
+
         const newSubjects = formatSubjects(
           pensums,
           pnfName,
@@ -177,7 +199,8 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
           trayectoId,
           trayectoName,
           modalSelectedTurno,
-          isLinked && selectedLinkSection ? selectedLinkSection : undefined
+          isLinked && selectedLinkSection ? selectedLinkSection : undefined,
+          nextSection
         );
 
         if (subjects) {
