@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
-import { Button, Tabs, message, Divider, Popconfirm, Spin, Tag, Modal, Select } from "antd";
+import { Button, Tabs, message, Divider, Popconfirm, Spin, Tag, Modal, Select, Checkbox } from "antd";
 import getPensum from "../../../fetch/getPensum";
 import getInscriptionData from "../../../fetch/getInscriptionData";
 import { useContext, useEffect, useState } from "react";
@@ -53,8 +53,13 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
   const [modalLoadingMaya, setModalLoadingMaya] = useState(false);
   const [addingSection, setAddingSection] = useState(false);
 
+  // Linking States
+  const [isLinked, setIsLinked] = useState(false);
+  const [selectedLinkSection, setSelectedLinkSection] = useState<string | null>(null);
+  const [linkableSections, setLinkableSections] = useState<any[]>([]);
+
   // Helper function to format subjects
-  const formatSubjects = (pensums: any[], pnfName: string, pnfId: string, trayectoId: string, trayectoName: string, turnoName: string = "undefined") => {
+  const formatSubjects = (pensums: any[], pnfName: string, pnfId: string, trayectoId: string, trayectoName: string, turnoName: string = "undefined", linkedToSection?: string) => {
     return pensums.map((subject: any) => {
       const quarter: InlineQuarter = {};
       const hours: InlineHours = { q1: 0, q2: 0, q3: 0 };
@@ -81,6 +86,7 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
         trayectoId: trayectoId.toString(),
         trayectoName: trayectoName,
         trayecto_saga_id: subject.trayecto_saga_id.toString(),
+        linkedToSection: linkedToSection,
       };
     });
   };
@@ -94,6 +100,30 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
       setModalLoadingMaya(true);
       setModalMayaOptions([]);
       setModalSelectedMaya(null);
+
+      // Calculate linkable sections
+      if (subjects && subjects.length > 0) {
+        const unique = new Set();
+        const opts: any[] = [];
+        subjects.forEach(s => {
+          // Filter by current context if needed, though subjects might already be filtered contextually?
+          // The context 'subjects' usually contains ALL subjects for the active projection (or filtered by PNF/Trayecto if the context handles it)
+          // But let's be safe and check PNF/Trayecto
+          if (s.pnfId === selectedPnf && s.trayectoId === selectedTrayecto && s.seccion !== "undefined" && s.seccion) {
+            const key = `${s.seccion} - ${s.turnoName}`;
+            if (!unique.has(key)) {
+              unique.add(key);
+              opts.push({ value: key, label: `Sección ${s.seccion} (${s.turnoName})` });
+            }
+          }
+        });
+        setLinkableSections(opts);
+      } else {
+        setLinkableSections([]);
+      }
+
+      setIsLinked(false);
+      setSelectedLinkSection(null);
 
       getMaya({ sagaPNFID }).then((data) => {
         const mayadata = data?.data?.mayas;
@@ -115,11 +145,16 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
         setModalLoadingMaya(false);
       });
     }
-  }, [isModalOpen, selectedPnf, pnfList]);
+  }, [isModalOpen, selectedPnf, pnfList, subjects, selectedTrayecto]);
 
   const handleAddSection = async () => {
     if (!modalSelectedMaya || !modalSelectedTurno || !selectedPnf || !selectedTrayecto) {
       message.warning("Debe seleccionar una maya y un turno.");
+      return;
+    }
+
+    if (isLinked && !selectedLinkSection) {
+      message.warning("Debe seleccionar una sección para vincular.");
       return;
     }
 
@@ -135,7 +170,15 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
         message.error("Error al obtener las materias para la maya seleccionada.");
       } else {
         const { pnfId, pnfName, trayectoId, trayectoName, pensums } = pensumData.data;
-        const newSubjects = formatSubjects(pensums, pnfName, pnfId, trayectoId, trayectoName, modalSelectedTurno);
+        const newSubjects = formatSubjects(
+          pensums,
+          pnfName,
+          pnfId,
+          trayectoId,
+          trayectoName,
+          modalSelectedTurno,
+          isLinked && selectedLinkSection ? selectedLinkSection : undefined
+        );
 
         if (subjects) {
           handleSubjectChange([...subjects, ...newSubjects]);
@@ -143,6 +186,8 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
           setIsModalOpen(false);
           setModalSelectedMaya(null);
           setModalSelectedTurno(null);
+          setIsLinked(false);
+          setSelectedLinkSection(null);
         }
       }
     } catch (e) {
@@ -316,6 +361,27 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
               options={defaultTurnos?.map((t: any) => ({ value: t.name, label: t.name }))}
             />
           </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Checkbox checked={isLinked} onChange={(e) => setIsLinked(e.target.checked)}>
+              Vincular a otra sección
+            </Checkbox>
+          </div>
+
+          {isLinked && (
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', color: 'gray', fontSize: '12px' }}>Sección a vincular</label>
+              <Select
+                style={{ width: '100%' }}
+                placeholder="Seleccione la sección"
+                value={selectedLinkSection}
+                onChange={setSelectedLinkSection}
+                options={linkableSections}
+                disabled={linkableSections.length === 0}
+              />
+              {linkableSections.length === 0 && <span style={{ color: 'orange', fontSize: '11px' }}>No hay secciones disponibles para vincular en este trayecto.</span>}
+            </div>
+          )}
         </div>
       </Modal>
     </div>

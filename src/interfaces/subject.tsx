@@ -16,7 +16,9 @@ export interface Subject {
   teacherName?: string;
   teacherCi?: string;
   key?: string;
+  linkedToSection?: string;
 }
+
 
 export interface SimpleSubject {
   id: string;

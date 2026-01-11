@@ -78,6 +78,9 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       });
     }
 
+    // Hide linked subjects
+    filteredSubjects = filteredSubjects.filter(student => !student.linkedToSection);
+
     setSubjectList(filteredSubjects);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -303,9 +306,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                     <Tag>{subject.pnf}</Tag>
                     <Tag>{`${subject?.trayectoName}`}</Tag>
                     <Tag>{`Sección: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
-                    <Tag>{`Horas: ${subject?.hours?.q1 || 0} / ${subject?.hours?.q2 || 0} / ${
-                      subject?.hours?.q3 || 0
-                    }`}</Tag>
+                    <Tag>{`Horas: ${subject?.hours?.q1 || 0} / ${subject?.hours?.q2 || 0} / ${subject?.hours?.q3 || 0
+                      }`}</Tag>
                   </div>
                   <div
                     style={{
@@ -333,27 +335,27 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                   {(subject?.quarter?.q1 != null ||
                     subject?.quarter?.q2 != null ||
                     subject?.quarter?.q3 != null) && (
-                    <Button
-                      onClick={() => {
-                        if (!userData?.su && userPNF !== subject.pnfId) {
-                          message.error("No puede modificar materias asignadas de otros programas");
-                          return;
-                        }
-                        setEditSubjectQuarter(subject);
-                      }}
-                      className="subject-tab-button"
-                      shape="circle"
-                      style={{
-                        position: "absolute",
-                        right: "50px",
-                        top: "0",
-                        bottom: "0",
-                        marginTop: "auto",
-                        marginBottom: "auto",
-                      }}>
-                      <TbTopologyStar3 />
-                    </Button>
-                  )}
+                      <Button
+                        onClick={() => {
+                          if (!userData?.su && userPNF !== subject.pnfId) {
+                            message.error("No puede modificar materias asignadas de otros programas");
+                            return;
+                          }
+                          setEditSubjectQuarter(subject);
+                        }}
+                        className="subject-tab-button"
+                        shape="circle"
+                        style={{
+                          position: "absolute",
+                          right: "50px",
+                          top: "0",
+                          bottom: "0",
+                          marginTop: "auto",
+                          marginBottom: "auto",
+                        }}>
+                        <TbTopologyStar3 />
+                      </Button>
+                    )}
                 </div>
               </div>
             );

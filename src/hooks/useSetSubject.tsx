@@ -49,18 +49,35 @@ export default function useSetSubject(SubjectArray: Subject[]) {
     }
 
     const subjectIndex = subjectList.findIndex((subject) => subject.innerId === subjectId);
-    // se obtienen los trimestres donde se da la materia
-    const subjectQuarter = Object.keys(subjectList[subjectIndex].quarter) as Array<
-      keyof (typeof subjectList)[number]["quarter"]
-    >;
-    // a cada trimestre que se de la materia se agrega el profesor
-    for (let quarter of subjectQuarter) {
-      subjectList[subjectIndex].quarter[quarter] = teacherId;
+    if (subjectIndex === -1) {
+      return { error: true, message: "Materia no encontrada", data: null };
     }
+
+    const targetSubject = subjectList[subjectIndex];
+    const linkKey = `${targetSubject.seccion} - ${targetSubject.turnoName}`;
+
+    // Find all subjects to update: the target one + any linked ones (same subject in child sections)
+    const indexesToUpdate = [subjectIndex];
+
+    subjectList.forEach((s, index) => {
+      if (index !== subjectIndex && s.linkedToSection === linkKey && s.pensum_id === targetSubject.pensum_id && s.trayectoId === targetSubject.trayectoId) {
+        indexesToUpdate.push(index);
+      }
+    });
+
+    indexesToUpdate.forEach(idx => {
+      const currentSubject = subjectList[idx];
+      const subjectQuarter = Object.keys(currentSubject.quarter) as Array<
+        keyof (typeof currentSubject)["quarter"]
+      >;
+      for (let quarter of subjectQuarter) {
+        currentSubject.quarter[quarter] = teacherId;
+      }
+    });
 
     return {
       error: false,
-      message: "Se ha asignado la materia al profesor correctamente",
+      message: "Se ha asignado la materia al profesor correctamente (incluyendo secciones vinculadas)",
       data: subjectList,
     };
   };
@@ -81,20 +98,39 @@ export default function useSetSubject(SubjectArray: Subject[]) {
     }
 
     const subjectIndex = subjectList.findIndex((subject) => subject.innerId === subjectId);
-    // se obtienen los trimestres donde se da la materia
-    const subjectQuarter = Object.keys(subjectList[subjectIndex].quarter) as Array<
-      keyof (typeof subjectList)[number]["quarter"]
-    >;
-    // a cada trimestre que se de la materia se  elimina el profesor si es que da la materia
-    for (let quarter of subjectQuarter) {
-      if (subjectList[subjectIndex].quarter[quarter] === teacherId) {
-        subjectList[subjectIndex].quarter[quarter] = null;
-      }
+    if (subjectIndex === -1) {
+      return { error: true, message: "Materia no encontrada", data: null };
     }
+
+    const targetSubject = subjectList[subjectIndex];
+    const linkKey = `${targetSubject.seccion} - ${targetSubject.turnoName}`;
+
+    // Find all subjects to update: the target one + any linked ones
+    const indexesToUpdate = [subjectIndex];
+
+    subjectList.forEach((s, index) => {
+      if (index !== subjectIndex && s.linkedToSection === linkKey && s.pensum_id === targetSubject.pensum_id && s.trayectoId === targetSubject.trayectoId) {
+        indexesToUpdate.push(index);
+      }
+    });
+
+    indexesToUpdate.forEach(idx => {
+      const currentSubject = subjectList[idx];
+      // se obtienen los trimestres donde se da la materia
+      const subjectQuarter = Object.keys(currentSubject.quarter) as Array<
+        keyof (typeof currentSubject)["quarter"]
+      >;
+      // a cada trimestre que se de la materia se  elimina el profesor si es que da la materia
+      for (let quarter of subjectQuarter) {
+        if (currentSubject.quarter[quarter] === teacherId) {
+          currentSubject.quarter[quarter] = null;
+        }
+      }
+    });
 
     return {
       error: false,
-      message: "Se ha removido la materia al profesor correctamente",
+      message: "Se ha removido la materia al profesor correctamente (incluyendo secciones vinculadas)",
       data: subjectList,
     };
   };
