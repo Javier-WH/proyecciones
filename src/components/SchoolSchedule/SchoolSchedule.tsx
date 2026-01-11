@@ -27,6 +27,7 @@ import styles from "./modal.module.css";
 export interface teacherRestriction {
   teacherId: string;
   days: number[];
+  hours: { day: number; start: string; end: string }[];
 }
 export interface subjectRestriction {
   subjectId: string;
@@ -129,12 +130,16 @@ const SchoolSchedule: React.FC = () => {
     setSubjectRestriction(currentRestrictions);
   };
 
-  const putTeacherRestriction = (id: string, restricions: number[]) => {
-    if (!id || id.length === 0 || !restricions) return;
+  const putTeacherRestriction = (
+    id: string,
+    restricions: number[],
+    hours: { day: number; start: string; end: string }[] = []
+  ) => {
+    if (!id || id.length === 0) return;
     const currentRestrictions: teacherRestriction[] = JSON.parse(JSON.stringify(teacherRestrictions));
 
     // si no hay restricciones, se elimina el profesor de la lista de restricciones
-    if (restricions.length === 0) {
+    if (restricions.length === 0 && hours.length === 0) {
       const filteredRestrictions = currentRestrictions.filter(
         (rest: teacherRestriction) => rest.teacherId !== id
       );
@@ -145,8 +150,9 @@ const SchoolSchedule: React.FC = () => {
     const currentRestriction = currentRestrictions.find((rest: teacherRestriction) => rest.teacherId === id);
     if (currentRestriction) {
       currentRestriction.days = restricions;
+      currentRestriction.hours = hours;
     } else {
-      currentRestrictions.push({ teacherId: id, days: restricions });
+      currentRestrictions.push({ teacherId: id, days: restricions, hours: hours });
     }
     setTeacherRestrictions(currentRestrictions);
   };

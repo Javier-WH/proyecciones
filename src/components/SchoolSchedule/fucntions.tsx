@@ -29,7 +29,7 @@ export interface generateScheduleParams {
   subjects: Subject[];
   classrooms: Classroom[];
   trimestre: "q1" | "q2" | "q3";
-  unavailableDays?: { teacherId: string; days: number[] }[];
+  unavailableDays?: { teacherId: string; days: number[]; hours?: { day: number; start: string; end: string }[] }[];
   preferredClassrooms?: { subjectId: string; classroomIds: string[]; preferLastSlot?: boolean }[];
   existingEvents?: Event[];
   conserveSlots?: number;
@@ -190,24 +190,25 @@ export function generateScheduleEvents({
     const timeSlots = preferConfig?.preferLastSlot ? [...turnos[turno]].reverse() : turnos[turno];
 
     if (!hours || !professorId || !timeSlots) {
-      const reason = `Datos incompletos: ${!hours ? "Horas no definidas" : ""}${
-        !professorId ? ", Profesor no asignado" : ""
-      }${!timeSlots ? ", Turno no válido" : ""}`;
+      const reason = `Datos incompletos: ${!hours ? "Horas no definidas" : ""}${!professorId ? ", Profesor no asignado" : ""
+        }${!timeSlots ? ", Turno no válido" : ""}`;
       return { success: false, reason, assignedHours: 0 };
     }
 
     let remainingHours = hours;
     let totalAssignedInThisCall = 0;
 
-    const restrictedDays = unavailableDays?.find((r) => r.teacherId === professorId)?.days ?? [];
+    const teacherRest = unavailableDays?.find((r) => r.teacherId === professorId);
+    const restrictedDays = teacherRest?.days ?? [];
+    const restrictedHours = teacherRest?.hours ?? [];
     const availableDays = ignoreRestrictions ? days : days.filter((day) => !restrictedDays.includes(day));
 
     // Verificar disponibilidad básica
     if (availableDays.length === 0) {
       const reason = ignoreRestrictions
         ? `Profesor sin días disponibles incluso ignorando restricciones (días restringidos: ${restrictedDays.join(
-            ", "
-          )})`
+          ", "
+        )})`
         : `Profesor sin días disponibles (días restringidos: ${restrictedDays.join(", ")})`;
       return { success: false, reason, assignedHours: 0 };
     }
@@ -217,9 +218,8 @@ export function generateScheduleEvents({
       : classrooms;
 
     if (candidateClassrooms.length === 0) {
-      const reason = `No hay aulas disponibles para esta materia${
-        preferConfig ? " (aulas preferidas no disponibles)" : ""
-      }`;
+      const reason = `No hay aulas disponibles para esta materia${preferConfig ? " (aulas preferidas no disponibles)" : ""
+        }`;
       return { success: false, reason, assignedHours: 0 };
     }
 
@@ -242,6 +242,14 @@ export function generateScheduleEvents({
 
       for (let i = 0; i < timeSlots.length && blocksAssigned < conserveSlots && remainingHours > 0; i++) {
         const [start, end] = timeSlots[i];
+
+        // CHECK HOUR RESTRICTIONS
+        if (!ignoreRestrictions) {
+          const isRestrictedHour = restrictedHours.some(
+            (rh) => rh.day === day && rh.start === start
+          );
+          if (isRestrictedHour) continue;
+        }
 
         // VERIFICACIÓN DE CONSECUTIVIDAD
         if (currentAssignedCount > 0) {
@@ -338,8 +346,8 @@ export function generateScheduleEvents({
         if (candidateClassrooms.length === 0) {
           reasons.push("sin aulas disponibles");
         }
-        if (restrictedDays.length > 0 && !ignoreRestrictions) {
-          reasons.push(`profesor con ${restrictedDays.length} días restringidos`);
+        if ((restrictedDays.length > 0 || restrictedHours.length > 0) && !ignoreRestrictions) {
+          reasons.push("restricciones de horario/días");
         }
 
         reason += reasons.length > 0 ? reasons.join(", ") : "horarios y aulas ocupados";
