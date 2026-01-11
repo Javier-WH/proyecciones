@@ -24,9 +24,11 @@ interface subjet {
 export default function EditPensumTable({
   programaId,
   trayectoId,
+  mayaId,
 }: {
   programaId: string | null | undefined;
   trayectoId: string | null | undefined;
+  mayaId: string | null | undefined;
 }) {
   const [list, setList] = useState<DataType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -34,7 +36,7 @@ export default function EditPensumTable({
 
   async function fetchPensum() {
     setLoading(true);
-    const response = await getPensum({ programaId, trayectoId });
+    const response = await getPensum({ programaId, trayectoId, mayaId });
     setLoading(false);
     if (response.error) {
       setList([]);
@@ -54,11 +56,11 @@ export default function EditPensumTable({
   }
 
   useEffect(() => {
-    if (!programaId || !trayectoId) return;
+    if (!programaId || !trayectoId || !mayaId) return;
 
     fetchPensum();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [programaId, trayectoId]);
+  }, [programaId, trayectoId, mayaId]);
 
   const columns: TableProps<DataType>["columns"] = [
     {

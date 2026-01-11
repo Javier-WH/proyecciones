@@ -47,7 +47,6 @@ export default function ProyeccionesSubjects() {
   const [selectedModalMaya, setSelectedModalMaya] = useState<string | undefined>(undefined);
   const [loadingMaya, setLoadingMaya] = useState<boolean>(false);
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
-  const [targetLinkOptions, setTargetLinkOptions] = useState<SelectOption[]>([]);
   const [selectedTargetLink, setSelectedTargetLink] = useState<string | undefined>(undefined);
   const [modalSourceSection, setModalSourceSection] = useState<string | undefined>(undefined);
   const [availableSections, setAvailableSections] = useState<SelectOption[]>([]);

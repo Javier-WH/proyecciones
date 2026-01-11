@@ -1,4 +1,5 @@
 import getInscriptionData from "../../../fetch/getInscriptionData";
+import getMaya from "../../../fetch/getMaya";
 import { useEffect, useState, useContext } from "react";
 import { InscriptionData, InscripionTurno } from "../../../interfaces/inscriptionData";
 import { Tag, Slider, message, Card, Button, Popconfirm } from "antd";
@@ -36,7 +37,8 @@ export default function NewProyectionContainer({
     trayecto_saga_id: number;
   }
 
-  const { subjects, handleSubjectChange } = useContext(
+
+  const { subjects, handleSubjectChange, pnfList } = useContext(
     MainContext
   ) as MainContextValues;
   const [inscriptionData, setInscriptionData] = useState<InscriptionData | null>(null);
@@ -54,8 +56,25 @@ export default function NewProyectionContainer({
   const [errorShown, setErrorShown] = useState(false);
   const [pensum, setPensum] = useState<Pensum[] | null>(null);
   const [pensumTrayectoName, setPensumTrayectoName] = useState("");
+  const [mayaId, setMayaId] = useState<string | null>(null);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!programaId || !pnfList) return;
+    const pnf = pnfList.find((p) => p.id.toString() === programaId.toString());
+    if (!pnf) return;
+
+    getMaya({ sagaPNFID: pnf.saga_id.toString() }).then((data: any) => {
+      const mayadata = data?.data?.mayas;
+      if (!mayadata) return;
+      const sortedMayas = mayadata.sort((a: any, b: any) => Number(b.id) - Number(a.id));
+      const filteredMayas = sortedMayas.filter((maya: any) => maya.tipopensum_id === 1);
+      if (filteredMayas.length > 0) {
+        setMayaId(filteredMayas[0].id.toString());
+      }
+    });
+  }, [programaId, pnfList]);
 
   useEffect(() => {
     if (!programaId || !trayectoId) return;
@@ -68,8 +87,12 @@ export default function NewProyectionContainer({
     })
       .then((data) => setInscriptionData(data))
       .catch((error) => console.log(error));
+  }, [programaId, trayectoId, trayectoDataValue]);
 
-    getPensum({ programaId, trayectoId })
+  useEffect(() => {
+    if (!programaId || !trayectoId || !mayaId) return;
+
+    getPensum({ programaId, trayectoId, mayaId })
       .then((data) => {
         if (data.error) {
           setPensumTrayectoName("no hay pensum");
@@ -83,7 +106,7 @@ export default function NewProyectionContainer({
       })
       .catch((error) => console.log(error));
     //.finally(() => setLoading(false));
-  }, [programaId, trayectoId, trayectoDataValue]);
+  }, [programaId, trayectoId, mayaId]);
 
   useEffect(() => {
     if (!inscriptionData) {
@@ -273,7 +296,7 @@ export default function NewProyectionContainer({
 
     handleSubjectChange([...(subjects ?? []), ...(list ?? [])]);
 
-    
+
     message.success("Proyección generada con exito");
     navigate("/app/proyecciones");
   };
@@ -391,8 +414,8 @@ export default function NewProyectionContainer({
                       turno?.turnoName.toLocaleLowerCase() === "mañana"
                         ? morningSeccions
                         : turno?.turnoName.toLocaleLowerCase() === "tarde"
-                        ? morningSeccions + 1 + j
-                        : j + 1;
+                          ? morningSeccions + 1 + j
+                          : j + 1;
                     return (
                       <Card key={j} title={`Sección ${seccion}`} size="small" style={{ width: 300 }}>
                         <p>{`Número de Estudiantes: ${estudiantesEnEstaSeccion}`}</p>

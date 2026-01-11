@@ -423,10 +423,10 @@ export function generateScheduleEvents({
   }
 
   // Resumen final
-  const assignedHours = events.reduce((total, event) => {
+  /*const assignedHours = events.reduce((total, event) => {
     const subject = subjects.find((s) => s.innerId === event.extendedProps.subjectId);
     return total + (subject?.hours[trimestre] || 0);
-  }, 0);
+  }, 0);*/
 
   /*const totalHours = subjects.reduce((total, subject) => total + (subject.hours[trimestre] || 0), 0);
 
