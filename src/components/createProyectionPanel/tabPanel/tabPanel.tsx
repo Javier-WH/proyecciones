@@ -215,22 +215,34 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
         // Calculate next section number
         let nextSection = "1";
         if (subjects && subjects.length > 0) {
-          const currentSections = subjects
-            .filter(
-              (s) =>
-                String(s.pnfId) === String(selectedPnf) && String(s.trayectoId) === String(selectedTrayecto)
-            )
-            .map((s) => s.seccion)
-            .filter((s) => s && s !== "undefined");
+          let relevantSections: number[] = [];
+          if (modalSelectedTurno === "noche") {
+            // Para noche, solo considerar secciones de noche
+            relevantSections = subjects
+              .filter(
+                (s) =>
+                  String(s.pnfId) === String(selectedPnf) &&
+                  String(s.trayectoId) === String(selectedTrayecto) &&
+                  s.turnoName === "noche"
+              )
+              .map((s) => parseInt(s.seccion, 10))
+              .filter((n) => !isNaN(n));
+          } else {
+            // Para mañana y tarde, considerar ambas como continuas
+            relevantSections = subjects
+              .filter(
+                (s) =>
+                  String(s.pnfId) === String(selectedPnf) &&
+                  String(s.trayectoId) === String(selectedTrayecto) &&
+                  (s.turnoName === "mañana" || s.turnoName === "tarde")
+              )
+              .map((s) => parseInt(s.seccion, 10))
+              .filter((n) => !isNaN(n));
+          }
 
-          const numericSections = currentSections.map((s) => parseInt(s, 10)).filter((n) => !isNaN(n));
-
-          if (numericSections.length > 0) {
-            const maxSection = Math.max(...numericSections);
+          if (relevantSections.length > 0) {
+            const maxSection = Math.max(...relevantSections);
             nextSection = (maxSection + 1).toString();
-          } else if (currentSections.length > 0) {
-            // Fallback if there are sections but none are simple integers (unlikely case)
-            nextSection = (currentSections.length + 1).toString();
           }
         }
 
