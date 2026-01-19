@@ -20,3 +20,86 @@
     display: flex;
     flex-direction: column;
 }
+
+.modalSectionTitle {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #1f2937;
+    margin-bottom: 4px;
+}
+
+.helperText {
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+.classroomToolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.summaryRow {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.summaryPill {
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    font-size: 0.85rem;
+    color: #1f2937;
+}
+
+.classroomGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+}
+
+.classroomChip {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #fff;
+    min-height: 82px;
+}
+
+.classroomChip:hover {
+    border-color: #4f46e5;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.12);
+}
+
+.classroomChipActive {
+    border-color: #4c6ef5;
+    background: linear-gradient(135deg, rgba(76, 110, 245, 0.12), rgba(76, 110, 245, 0.04));
+}
+
+.classroomName {
+    font-weight: 600;
+    color: #111827;
+}
+
+.classroomStatus {
+    font-size: 0.78rem;
+    font-weight: 500;
+}
+
+.emptyState {
+    border: 1px dashed #cbd5f5;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    color: #64748b;
+    background: #f8fafc;
+}

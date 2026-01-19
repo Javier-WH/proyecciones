@@ -1,5 +1,5 @@
-import { useContext, useState, useMemo } from "react";
-import { Modal, Select, Input, Button, message } from "antd";
+import { useContext, useState, useMemo, useEffect } from "react";
+import { Modal, Select, Input, Button, message, Spin } from "antd";
 import { BiSolidSchool } from "react-icons/bi";
 import styles from "./modal.module.css";
 import { MainContext } from "../../context/mainContext";
@@ -13,7 +13,15 @@ const SubjectRestrictionModal: React.FC<{
   putSubjectRestriction: (subjectName: string, classroomIds: string[]) => void;
   classrooms: Classroom[];
   onClassroomCreated?: () => Promise<void> | void;
-}> = ({ putSubjectRestriction, classrooms, onClassroomCreated }) => {
+  subjectRestrictions: { subjectKey: string; subjectName: string; classroomIds: string[] }[];
+  loadingSubjectRestrictions?: boolean;
+}> = ({
+  putSubjectRestriction,
+  classrooms,
+  onClassroomCreated,
+  subjectRestrictions,
+  loadingSubjectRestrictions = false,
+}) => {
   const { subjects } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string>("");
@@ -50,6 +58,27 @@ const SubjectRestrictionModal: React.FC<{
     setSelectedSubject("");
     setIsModalOpen(true);
   };
+
+  const selectedSubjectKey = selectedSubject ? normalizeText(selectedSubject) : "";
+
+  const syncRestrictionsWithSelection = () => {
+    if (!selectedSubjectKey) {
+      setRestrictedClassrooms(classrooms.map((room) => room.id));
+      return;
+    }
+
+    const existing = subjectRestrictions?.find((rest) => rest.subjectKey === selectedSubjectKey);
+    if (existing) {
+      setRestrictedClassrooms(existing.classroomIds);
+    } else {
+      setRestrictedClassrooms(classrooms.map((room) => room.id));
+    }
+  };
+
+  useEffect(() => {
+    syncRestrictionsWithSelection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSubjectKey, subjectRestrictions, classrooms]);
 
   const handleCancel = () => {
     setIsModalOpen(false);
@@ -110,6 +139,18 @@ const SubjectRestrictionModal: React.FC<{
     pushRestricteClassroom(room.id);
   };
 
+  const selectAllClassrooms = () => {
+    setRestrictedClassrooms(classrooms.map((room) => room.id));
+  };
+
+  const clearClassrooms = () => {
+    setRestrictedClassrooms([]);
+  };
+
+  const selectedCount = restrictedClassrooms.length;
+  const totalClassrooms = classrooms.length;
+  const unselectedCount = Math.max(totalClassrooms - selectedCount, 0);
+
   return (
     <>
       <BiSolidSchool title="Restriccion por materias" className={styles.icon} onClick={showModal} />
@@ -119,13 +160,13 @@ const SubjectRestrictionModal: React.FC<{
         open={isModalOpen}
         okText="Guardar"
         cancelText="Cancelar"
-        width={600}
+        width={720}
         height={600}
         onOk={handleOk}
         onCancel={handleCancel}>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <div className={styles.selectorContainer}>
-            <span>Agregar un nuevo salón</span>
+            <span className={styles.modalSectionTitle}>Agregar un nuevo salón</span>
             <div style={{ display: "flex", gap: "8px" }}>
               <Input
                 placeholder="Ej: LAB A-101"
@@ -140,7 +181,7 @@ const SubjectRestrictionModal: React.FC<{
           </div>
 
           <div className={styles.selectorContainer}>
-            <span>Seleccione la materia</span>
+            <span className={styles.modalSectionTitle}>Seleccione la materia</span>
             <Select
               allowClear
               showSearch
@@ -156,40 +197,56 @@ const SubjectRestrictionModal: React.FC<{
         </div>
         <br />
         <div className={styles.selectorContainer}>
-          <span>Seleccione las aulas preferidas para dar esta materia</span>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "5px",
-              width: "100%",
-              height: "300px",
-              overflowY: "scroll",
-            }}>
-            {classrooms.map((classroom) => {
-              return (
-                <div
-                  key={classroom.id}
-                  onClick={() => toggleRestrictedClassroom(classroom)}
-                  style={{
-                    backgroundColor: !restrictedClassrooms.includes(classroom.id)
-                      ? "white"
-                      : "rgb(84, 122, 226)",
-                    color: !restrictedClassrooms.includes(classroom.id) ? "gray" : "white",
-                    width: "100%",
-                    height: "50px",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    cursor: "pointer",
-                    userSelect: "none",
-                    borderRadius: "15px",
-                  }}>
-                  {classroom.classroom}
+          <span className={styles.modalSectionTitle}>Seleccione las aulas preferidas</span>
+          <span className={styles.helperText}>
+            Define en cuáles salones se permitirá dictar la materia seleccionada. Si no seleccionas ninguna, se
+            interpretará que la materia no tiene restricciones.
+          </span>
+
+          {!selectedSubject ? (
+            <div className={styles.emptyState}>
+              Selecciona una materia para gestionar sus aulas disponibles.
+            </div>
+          ) : loadingSubjectRestrictions ? (
+            <div className={styles.emptyState}>
+              <Spin size="small" />
+              <div>Cargando restricciones...</div>
+            </div>
+          ) : (
+            <>
+              <div className={styles.classroomToolbar}>
+                <div className={styles.summaryRow}>
+                  <span className={styles.summaryPill}>{selectedCount} aulas permitidas</span>
+                  <span className={styles.summaryPill}>{unselectedCount} sin seleccionar</span>
                 </div>
-              );
-            })}
-          </div>
+                <Button size="small" onClick={selectAllClassrooms} disabled={selectedCount === totalClassrooms}>
+                  Seleccionar todas
+                </Button>
+                <Button size="small" onClick={clearClassrooms} disabled={selectedCount === 0}>
+                  Limpiar selección
+                </Button>
+              </div>
+
+              <div className={styles.classroomGrid}>
+                {classrooms.map((classroom) => {
+                  const isSelected = restrictedClassrooms.includes(classroom.id);
+                  return (
+                    <div
+                      key={classroom.id}
+                      className={`${styles.classroomChip} ${isSelected ? styles.classroomChipActive : ""}`}
+                      onClick={() => toggleRestrictedClassroom(classroom)}>
+                      <span className={styles.classroomName}>{classroom.classroom}</span>
+                      <span
+                        className={styles.classroomStatus}
+                        style={{ color: isSelected ? "#2563eb" : "#9ca3af" }}>
+                        {isSelected ? "Incluida" : "No incluida"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </Modal>
     </>

@@ -760,6 +760,8 @@ const SchoolSchedule: React.FC = () => {
               putSubjectRestriction={putSubjectRestriction}
               classrooms={classrooms}
               onClassroomCreated={loadClassrooms}
+              subjectRestrictions={subjectRestriction}
+              loadingSubjectRestrictions={!subjectRestrictionsReady}
             />
             <ScheduleErrorsModal errors={errors} />
           </div>
