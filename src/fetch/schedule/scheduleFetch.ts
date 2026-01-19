@@ -26,6 +26,75 @@ export async function createClassroom(classroom: string) {
   return response.json();
 }
 
+export async function saveSubjectRestrictions(payload: {
+  proyection_id: string;
+  restrictions: {
+    subject_key: string;
+    subject_name: string;
+    classroom_ids: string[];
+  }[];
+}) {
+  const headersList = {
+    Accept: "*/*",
+    "Content-Type": "application/json",
+  };
+
+  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/subject-restrictions" : "/subject-restrictions";
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: headersList,
+    body: JSON.stringify(payload),
+  });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const parseBody = async () => {
+    if (contentType.includes("application/json")) {
+      return response.json();
+    }
+    return { message: await response.text() };
+  };
+
+  const body = await parseBody().catch(() => ({ message: "Respuesta inesperada del servidor" }));
+
+  if (!response.ok) {
+    return { error: true, status: response.status, message: body };
+  }
+
+  return body;
+}
+
+export async function getSubjectRestrictions(proyectionId: string) {
+  const headersList = {
+    Accept: "*/*",
+  };
+
+  const url = import.meta.env.MODE === "development"
+    ? `http://localhost:3000/subject-restrictions/${proyectionId}`
+    : `/subject-restrictions/${proyectionId}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: headersList,
+  });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const parseBody = async () => {
+    if (contentType.includes("application/json")) {
+      return response.json();
+    }
+    return { message: await response.text() };
+  };
+
+  const body = await parseBody().catch(() => ({ message: "Respuesta inesperada del servidor" }));
+
+  if (!response.ok) {
+    return { error: true, status: response.status, message: body };
+  }
+
+  return body;
+}
+
 export async function getClassrooms() {
   const headersList = {
     Accept: "*/*",

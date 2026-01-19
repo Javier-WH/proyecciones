@@ -12,6 +12,8 @@ import {
   insertOrUpdateSchedule,
   type ScheduleDataBase,
   getSchedule,
+  saveSubjectRestrictions,
+  getSubjectRestrictions,
 } from "../../fetch/schedule/scheduleFetch";
 import { Select, Modal, message, List } from "antd";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
@@ -36,6 +38,15 @@ export interface subjectRestriction {
   classroomIds: string[];
 }
 
+type RawSubjectRestriction = {
+  subject_name?: string;
+  subjectName?: string;
+  subject_key?: string;
+  subjectKey?: string;
+  classroom_ids?: string[];
+  classroomIds?: string[];
+};
+
 const SchoolSchedule: React.FC = () => {
   const { subjects, teachers, trayectosList, proyectionId } = useContext(MainContext) as MainContextValues;
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
@@ -47,6 +58,7 @@ const SchoolSchedule: React.FC = () => {
   const [trayectoId, setTrayectoId] = useState("");
   const [teacherRestrictions, setTeacherRestrictions] = useState<teacherRestriction[]>([]);
   const [subjectRestriction, setSubjectRestriction] = useState<subjectRestriction[]>([]);
+  const [subjectRestrictionsReady, setSubjectRestrictionsReady] = useState(false);
   const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">("q1");
   const [errors, setErrors] = useState<scheduleError[]>([]);
 
@@ -110,33 +122,138 @@ const SchoolSchedule: React.FC = () => {
     setClassrooms(classroomsData);
   }, []);
 
+  const loadSubjectRestrictionsFromApi = useCallback(async () => {
+    if (!proyectionId) {
+      setSubjectRestriction([]);
+      setSubjectRestrictionsReady(true);
+      return;
+    }
+
+    try {
+      const response = await getSubjectRestrictions(proyectionId);
+      if (response?.error) {
+        if (response.status === 404) {
+          setSubjectRestriction([]);
+          setSubjectRestrictionsReady(true);
+          return;
+        }
+        const msg = response?.message?.message || response?.message || "No se pudieron cargar las restricciones de materias";
+        throw new Error(msg);
+      }
+
+      const rawRestrictions = Array.isArray(response?.restrictions)
+        ? response.restrictions
+        : Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response)
+        ? response
+        : [];
+
+      const formatted: subjectRestriction[] = rawRestrictions
+        .map((item: RawSubjectRestriction) => {
+          const subjectName = item?.subject_name ?? item?.subjectName;
+          const fallbackName = subjectName ?? "";
+          const subjectKey = item?.subject_key ?? item?.subjectKey ?? normalizeText(fallbackName);
+          const classroomIds = item?.classroom_ids ?? item?.classroomIds ?? [];
+          if (!subjectName || !subjectKey) return null;
+          return {
+            subjectKey,
+            subjectName,
+            classroomIds,
+          };
+        })
+        .filter(Boolean) as subjectRestriction[];
+
+      setSubjectRestriction(formatted);
+      setSubjectRestrictionsReady(true);
+    } catch (error) {
+      console.error(error);
+      message.error(
+        error instanceof Error ? error.message : "No se pudieron cargar las restricciones de materias"
+      );
+      setSubjectRestrictionsReady(true);
+    }
+  }, [proyectionId]);
+
+  const persistSubjectRestrictions = useCallback(
+    async (restrictions: subjectRestriction[]) => {
+      if (!proyectionId) {
+        throw new Error("No se pudo identificar la proyección para guardar las restricciones");
+      }
+
+      const payload = {
+        proyection_id: proyectionId,
+        restrictions: restrictions.map((rest) => ({
+          subject_key: rest.subjectKey,
+          subject_name: rest.subjectName,
+          classroom_ids: rest.classroomIds,
+        })),
+      };
+
+      const response = await saveSubjectRestrictions(payload);
+
+      if (response?.error) {
+        const msg = response?.message?.message || response?.message || "No se pudieron guardar las restricciones de materias";
+        const error = new Error(msg);
+        (error as Error & { status?: number }).status = response.status;
+        throw error;
+      }
+    },
+    [proyectionId]
+  );
+
   const addError = (err: scheduleError) => {
     setErrors((prevErrors) => [...prevErrors, err]);
   };
 
-  const putSubjectRestriction = (subjectName: string, classroomIds: string[]) => {
+  const putSubjectRestriction = async (subjectName: string, classroomIds: string[]) => {
+    if (!subjectRestrictionsReady) {
+      throw new Error("Las restricciones aún se están cargando. Intente nuevamente en unos segundos");
+    }
+
+    if (!subjectName || !classroomIds) {
+      throw new Error("Debe seleccionar una materia y al menos un salón");
+    }
+
     const normalizedName = normalizeText(subjectName);
-    if (!normalizedName || classroomIds == null) return;
-    const currentRestrictions: subjectRestriction[] = JSON.parse(JSON.stringify(subjectRestriction));
+    if (!normalizedName) {
+      throw new Error("El nombre de la materia no es válido");
+    }
+
+    const previousRestrictions = subjectRestriction;
+    let updatedRestrictions: subjectRestriction[] = JSON.parse(JSON.stringify(subjectRestriction));
 
     if (classroomIds.length === 0) {
-      const filteredRestrictions = currentRestrictions.filter(
+      updatedRestrictions = updatedRestrictions.filter(
         (rest: subjectRestriction) => rest.subjectKey !== normalizedName
       );
-      setSubjectRestriction(filteredRestrictions);
-      return;
+    } else {
+      const currentRestriction = updatedRestrictions.find(
+        (rest: subjectRestriction) => rest.subjectKey === normalizedName
+      );
+      if (currentRestriction) {
+        currentRestriction.classroomIds = classroomIds;
+        currentRestriction.subjectName = subjectName;
+      } else {
+        updatedRestrictions.push({ subjectKey: normalizedName, subjectName, classroomIds });
+      }
     }
 
-    const currentRestriction = currentRestrictions.find(
-      (rest: subjectRestriction) => rest.subjectKey === normalizedName
-    );
-    if (currentRestriction) {
-      currentRestriction.classroomIds = classroomIds;
-      currentRestriction.subjectName = subjectName;
-    } else {
-      currentRestrictions.push({ subjectKey: normalizedName, subjectName, classroomIds });
+    setSubjectRestriction(updatedRestrictions);
+
+    try {
+      await persistSubjectRestrictions(updatedRestrictions);
+    } catch (error) {
+      const status = (error as Error & { status?: number })?.status;
+      if (status === 404) {
+        message.warning(
+          "El backend todavía no expone /subject-restrictions, se mantendrán localmente hasta que esté disponible."
+        );
+        return;
+      }
+      setSubjectRestriction(previousRestrictions);
+      throw error;
     }
-    setSubjectRestriction(currentRestrictions);
   };
 
   const putTeacherRestriction = (
@@ -298,6 +415,11 @@ const SchoolSchedule: React.FC = () => {
   useEffect(() => {
     loadClassrooms();
   }, [loadClassrooms]);
+
+  useEffect(() => {
+    setSubjectRestrictionsReady(false);
+    loadSubjectRestrictionsFromApi();
+  }, [loadSubjectRestrictionsFromApi]);
 
   // genera lops eventos del horario
   useEffect(() => {
