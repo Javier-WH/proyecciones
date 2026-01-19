@@ -9,7 +9,7 @@ import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInf
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { normalizeText } from "../../../utils/textFilter";
-import { teacherCanTeachSubject } from "../../../utils/subjectProfile";
+import { generateSubjectProfileId, teacherCanTeachSubject } from "../../../utils/subjectProfile";
 
 interface AddSubjectToTeacherModalParams {
   subject: Subject | null;
@@ -21,6 +21,7 @@ interface Options {
   value: string;
   teacher: Teacher;
   hours: useSubjectResponseTeacherHours;
+  normalizedPerfilEntries: string[];
 }
 
 interface asignedTeacherProps {
@@ -33,6 +34,20 @@ const optionsWithDisabled = [
   { label: "Perfil", value: "perfil" },
   { label: "Todas", value: "todas" },
 ];
+
+const buildTeacherPerfilEntries = (teacher: Teacher | null | undefined): string[] => {
+  if (!teacher) return [];
+  const rawEntries =
+    (Array.isArray(teacher.perfil) && teacher.perfil.length > 0
+      ? teacher.perfil
+      : teacher.perfil_name_id?.split(",")) || [];
+
+  return rawEntries
+    .map((entry) => entry?.trim())
+    .filter(Boolean)
+    .map((entry) => generateSubjectProfileId(entry) ?? normalizeText(entry))
+    .filter((entry) => Boolean(entry)) as string[];
+};
 
 const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
   subject,
@@ -107,12 +122,14 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
 
     let filteredTeachers = activeTeachers.map((teacher) => {
       const hours = getTeacherHoursData(teacher);
+      const normalizedPerfilEntries = buildTeacherPerfilEntries(teacher);
       return {
         label: `${teacher.lastName} ${teacher.name}`.toUpperCase(),
         value: teacher.id,
         teacher: teacher,
         hours: hours,
         active: teacher.active,
+        normalizedPerfilEntries,
       };
     });
 
@@ -124,7 +141,11 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
     if (perfilOption === "perfil") {
       filteredTeachers = filteredTeachers.filter((teacher) => {
         if (!subject) return false;
-        return teacherCanTeachSubject(teacher.teacher.perfil, subject.id, subject.subject);
+        const perfilEntries =
+          teacher.normalizedPerfilEntries.length > 0
+            ? teacher.normalizedPerfilEntries
+            : buildTeacherPerfilEntries(teacher.teacher);
+        return teacherCanTeachSubject(perfilEntries, subject.id, subject.subject);
       });
     }
 
