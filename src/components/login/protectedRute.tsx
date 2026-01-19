@@ -4,17 +4,22 @@ import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { useContext, useEffect } from "react";
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-
   const navigate = useNavigate();
-  const { isAuthenticated } = useContext(MainContext) as MainContextValues
+  const context = useContext(MainContext);
+  const isAuthenticated = (context as MainContextValues | null)?.isAuthenticated ?? false;
 
   useEffect(() => {
+    if (!context) return;
     if (!isAuthenticated) {
       navigate("/")
     }
     
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated])
+  }, [context, isAuthenticated])
+
+  if (!context) {
+    return null;
+  }
 
   return <>{children}</>
 }

@@ -20,6 +20,7 @@ interface optionsInterface {
   turno?: string;
   seccion?: string;
   trayecto?: string;
+  linkedToSection?: string;
   hours?: {
     q1?: number | null;
     q2?: number | null;
@@ -150,6 +151,7 @@ const AddSubjectToTeacherModal: React.FC<{
         turno: subject.turnoName,
         seccion: subject.seccion,
         trayecto: subject.trayectoName,
+        linkedToSection: subject.linkedToSection,
         subjectId: subject.id,
         quarters: Object.keys(subject.quarter),
         asigned: asigned,
@@ -165,6 +167,9 @@ const AddSubjectToTeacherModal: React.FC<{
     setTeacherIndex(t_index);
 
     const teacherPerfil = new Set(teachers[t_index]?.perfil ?? []);
+
+    // excluir materias vinculadas (solo se muestran las secciones principales)
+    subjectsData = subjectsData.filter((subject) => !subject.linkedToSection);
 
     // solo se muestran las materias del PNF del docente si no es superusuario
     if (!userData?.su) {
@@ -187,6 +192,11 @@ const AddSubjectToTeacherModal: React.FC<{
         subjectsData = [];
       }
     }
+
+    subjectsData = subjectsData.filter((subject) => {
+      const quarterValue = subject.asigned?.[selectedQuarter];
+      return quarterValue === null || quarterValue === undefined;
+    });
 
     if (showUnasigned) {
       subjectsData = subjectsData.filter((subject) => {
