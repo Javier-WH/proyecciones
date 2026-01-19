@@ -15,6 +15,7 @@ import {
   saveSubjectRestrictions,
   getSubjectRestrictions,
 } from "../../fetch/schedule/scheduleFetch";
+import { getTeacherRestrictionsList } from "../../fetch/schedule/teacherRestrictions";
 import { Select, Modal, message, List } from "antd";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
@@ -47,6 +48,15 @@ type RawSubjectRestriction = {
   classroomIds?: string[];
 };
 
+type RawTeacherRestriction = {
+  teacher_id?: string;
+  teacherId?: string;
+  restricted_days?: number[];
+  days?: number[];
+  restricted_hours?: { day: number; start: string; end: string }[];
+  hours?: { day: number; start: string; end: string }[];
+};
+
 const SchoolSchedule: React.FC = () => {
   const { subjects, teachers, trayectosList, proyectionId } = useContext(MainContext) as MainContextValues;
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
@@ -57,6 +67,7 @@ const SchoolSchedule: React.FC = () => {
   const [pnf, setPnf] = useState("");
   const [trayectoId, setTrayectoId] = useState("");
   const [teacherRestrictions, setTeacherRestrictions] = useState<teacherRestriction[]>([]);
+  const [teacherRestrictionsReady, setTeacherRestrictionsReady] = useState(false);
   const [subjectRestriction, setSubjectRestriction] = useState<subjectRestriction[]>([]);
   const [subjectRestrictionsReady, setSubjectRestrictionsReady] = useState(false);
   const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">("q1");
@@ -120,6 +131,47 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
     setClassrooms(classroomsData);
+  }, []);
+
+  const loadTeacherRestrictionsFromApi = useCallback(async () => {
+    setTeacherRestrictionsReady(false);
+    try {
+      const response = await getTeacherRestrictionsList();
+      if (response?.error) {
+        const msg = response?.message?.message || response?.message || "No se pudieron cargar las restricciones de profesores";
+        throw new Error(msg);
+      }
+
+      const raw = Array.isArray(response?.restrictions)
+        ? response.restrictions
+        : Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response)
+        ? response
+        : [];
+
+      const formatted: teacherRestriction[] = raw
+        .map((item: RawTeacherRestriction) => {
+          const teacherId = item?.teacher_id ?? item?.teacherId;
+          if (!teacherId) return null;
+          return {
+            teacherId,
+            days: item?.restricted_days ?? item?.days ?? [],
+            hours: item?.restricted_hours ?? item?.hours ?? [],
+          };
+        })
+        .filter(Boolean) as teacherRestriction[];
+
+      setTeacherRestrictions(formatted);
+    } catch (error) {
+      console.error(error);
+      message.error(
+        error instanceof Error ? error.message : "No se pudieron cargar las restricciones de profesores"
+      );
+      setTeacherRestrictions([]);
+    } finally {
+      setTeacherRestrictionsReady(true);
+    }
   }, []);
 
   const loadSubjectRestrictionsFromApi = useCallback(async () => {
@@ -281,6 +333,7 @@ const SchoolSchedule: React.FC = () => {
       currentRestrictions.push({ teacherId: id, days: restricions, hours: hours });
     }
     setTeacherRestrictions(currentRestrictions);
+    setTeacherRestrictionsReady(true);
   };
 
   const saveSchedule = async () => {
@@ -414,7 +467,8 @@ const SchoolSchedule: React.FC = () => {
 
   useEffect(() => {
     loadClassrooms();
-  }, [loadClassrooms]);
+    loadTeacherRestrictionsFromApi();
+  }, [loadClassrooms, loadTeacherRestrictionsFromApi]);
 
   useEffect(() => {
     setSubjectRestrictionsReady(false);
@@ -423,7 +477,15 @@ const SchoolSchedule: React.FC = () => {
 
   // genera lops eventos del horario
   useEffect(() => {
-    if (!classrooms || classrooms.length === 0 || schedulableSubjects.length === 0) return;
+    if (
+      !classrooms ||
+      classrooms.length === 0 ||
+      schedulableSubjects.length === 0 ||
+      !teacherRestrictionsReady ||
+      !subjectRestrictionsReady
+    ) {
+      return;
+    }
     setErrors([]);
     const eventsdata = generateScheduleEvents({
       subjects: schedulableSubjects, // la lista de materias (sin materias vinculadas)
@@ -437,7 +499,16 @@ const SchoolSchedule: React.FC = () => {
     });
 
     setEventData(eventsdata);
-  }, [classrooms, schedulableSubjects, teacherRestrictions, trimestre, subjectRestriction, loadedScheduleEvents]); // Incluir para forzar regeneración al cargar
+  }, [
+    classrooms,
+    schedulableSubjects,
+    teacherRestrictions,
+    trimestre,
+    subjectRestriction,
+    loadedScheduleEvents,
+    teacherRestrictionsReady,
+    subjectRestrictionsReady,
+  ]); // Incluir para forzar regeneración al cargar
 
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {
