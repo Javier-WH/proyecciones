@@ -26,8 +26,13 @@ const SubjectRestrictionModal: React.FC<{
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string>("");
 
+  const sortedClassrooms = useMemo(() => {
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+    return [...classrooms].sort((a, b) => collator.compare(a.classroom, b.classroom));
+  }, [classrooms]);
+
   const [restrictedClassrooms, setRestrictedClassrooms] = useState<string[]>(
-    classrooms.map((room) => room.id)
+    sortedClassrooms.map((room) => room.id)
   );
   const [newClassroomName, setNewClassroomName] = useState("");
   const [isCreatingClassroom, setIsCreatingClassroom] = useState(false);
@@ -54,7 +59,7 @@ const SubjectRestrictionModal: React.FC<{
   }, [subjects]);
 
   const showModal = () => {
-    setRestrictedClassrooms(classrooms.map((room) => room.id));
+    setRestrictedClassrooms(sortedClassrooms.map((room) => room.id));
     setSelectedSubject("");
     setIsModalOpen(true);
   };
@@ -63,7 +68,7 @@ const SubjectRestrictionModal: React.FC<{
 
   const syncRestrictionsWithSelection = () => {
     if (!selectedSubjectKey) {
-      setRestrictedClassrooms(classrooms.map((room) => room.id));
+      setRestrictedClassrooms(sortedClassrooms.map((room) => room.id));
       return;
     }
 
@@ -71,14 +76,14 @@ const SubjectRestrictionModal: React.FC<{
     if (existing) {
       setRestrictedClassrooms(existing.classroomIds);
     } else {
-      setRestrictedClassrooms(classrooms.map((room) => room.id));
+      setRestrictedClassrooms(sortedClassrooms.map((room) => room.id));
     }
   };
 
   useEffect(() => {
     syncRestrictionsWithSelection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSubjectKey, subjectRestrictions, classrooms]);
+  }, [selectedSubjectKey, subjectRestrictions, sortedClassrooms]);
 
   const handleCancel = () => {
     setIsModalOpen(false);
@@ -140,7 +145,7 @@ const SubjectRestrictionModal: React.FC<{
   };
 
   const selectAllClassrooms = () => {
-    setRestrictedClassrooms(classrooms.map((room) => room.id));
+    setRestrictedClassrooms(sortedClassrooms.map((room) => room.id));
   };
 
   const clearClassrooms = () => {
@@ -148,7 +153,7 @@ const SubjectRestrictionModal: React.FC<{
   };
 
   const selectedCount = restrictedClassrooms.length;
-  const totalClassrooms = classrooms.length;
+  const totalClassrooms = sortedClassrooms.length;
   const unselectedCount = Math.max(totalClassrooms - selectedCount, 0);
 
   return (
@@ -228,7 +233,7 @@ const SubjectRestrictionModal: React.FC<{
               </div>
 
               <div className={styles.classroomGrid}>
-                {classrooms.map((classroom) => {
+                {sortedClassrooms.map((classroom) => {
                   const isSelected = restrictedClassrooms.includes(classroom.id);
                   return (
                     <div
