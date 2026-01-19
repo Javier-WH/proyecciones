@@ -934,13 +934,17 @@ const SchoolSchedule: React.FC = () => {
                 const durationMinutes = Math.max((end - start) / 60000, 0);
                 const isCompact = durationMinutes <= 55;
 
+                const classroomChipLabel = classroomName
+                  ? classroomName.trim().toLowerCase().startsWith("aula")
+                    ? classroomName.trim()
+                    : `Aula ${classroomName}`
+                  : null;
+
                 const chips: string[] = [];
                 if (!isCompact) {
                   if (pnfName) chips.push(`${pnfName}`);
-                  if (seccion) chips.push(`${seccion}`);
-                  if (viewMode === "pnf" && classroomName) chips.push(classroomName);
-                  if (viewMode === "professor" && classroomName) chips.push(`Aula ${classroomName}`);
-                  if (viewMode === "classroom" && classroomName) chips.push(`Aula ${classroomName}`);
+                  if (seccion) chips.push(`Sección ${seccion}`);
+                  if (classroomChipLabel) chips.push(classroomChipLabel);
                 }
 
                 return (
@@ -952,13 +956,16 @@ const SchoolSchedule: React.FC = () => {
                     <div className="schedule-event__title">{title}</div>
                     {isCompact ? (
                       <>
-                        {(pnfName || seccion) && (
+                        {(pnfName || seccion || classroomChipLabel) && (
                           <div className="schedule-event__meta">
                             {pnfName && (
                               <span className="schedule-event__chip">{pnfName}</span>
                             )}
                             {seccion && (
                               <span className="schedule-event__chip">Sección {seccion}</span>
+                            )}
+                            {classroomChipLabel && (
+                              <span className="schedule-event__chip">{classroomChipLabel}</span>
                             )}
                           </div>
                         )}
