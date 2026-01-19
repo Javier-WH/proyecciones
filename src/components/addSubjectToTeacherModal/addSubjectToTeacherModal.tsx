@@ -316,191 +316,242 @@ const AddSubjectToTeacherModal: React.FC<{
   return (
     <>
       <Modal
-        width={1000}
-        style={{
-          maxWidth: "1200px",
-          minWidth: "800px",
-          width: "100vw",
-        }}
+        width={1080}
+        style={{ maxWidth: "1300px", minWidth: "800px", width: "100vw" }}
         open={open}
-        title="Materias disponibles para el docente"
-        onOk={handleOk}
-        onCancel={handleCancel}
         footer={[
           <Button key="back" onClick={handleCancel} type="dashed">
             Cancelar
           </Button>,
-          <Button
-            key="submit"
-            type="primary"
-            //loading={loading}
-            onClick={handleOk}
-            disabled={selectedOption === null}>
+          <Button key="submit" type="primary" onClick={handleOk} disabled={selectedOption === null}>
             Agregar
           </Button>,
-        ]}>
-        <div style={{ display: "flex", alignItems: "center" }}>
-         <div style={{width: "120px", height: "120px", position: "relative"}}>
-           <Photo teacher={selectedTeacher} />
-         </div>
-          <div style={{ display: "flex", flexDirection: "column", marginLeft: "20px" }}>
-            <span style={{ fontWeight: "bold" }}>
-              {`${teachers?.[teacherIndex ?? 0]?.name ?? ""} 
-            ${teachers?.[teacherIndex ?? 0]?.lastName ?? ""}`}
-            </span>
-            <span>{`C.I.: ${teachers?.[teacherIndex ?? 0]?.ci ?? ""}`}</span>
-            <span>{`Carga horaria: ${teachers?.[teacherIndex ?? 0]?.partTime ?? ""}`}</span>
-            <span>
-              <span>{`Horas asignadas: `}</span>
-              <>
-                <span style={overloadStyle(overloadedQ1)}>{usedHoursQ1}</span>/
-                <span style={overloadStyle(overloadedQ2)}>{usedHoursQ2}</span>/
-                <span style={overloadStyle(overloadedQ3)}>{usedHoursQ3}</span>
-              </>
-            </span>
-            <span>
-              <span>{`Hora disponibles: `}</span>
-              <>
-                <span>{aviableHoursQ1}</span>/<span>{aviableHoursQ2}</span>/<span>{aviableHoursQ3}</span>
-              </>
-            </span>
-          </div>
-        </div>
-
-        <br />
-        <div style={{ display: "flex", columnGap: "5px" }}>
-          <Button
-            style={{ width: "150px" }}
-            type={filterByQuarter ? "primary" : "default"}
-            onClick={() => {
-              setFilterByQuarter(!filterByQuarter);
-              setOverLoad(false);
-            }}>
-            {filterByQuarter ? "Mostrar todas" : "Filtrar por trimestre"}
-          </Button>
-          {filterByQuarter && (
-            <div style={{ display: "flex", columnGap: "5px" }}>
-              <Select
-                value={selectedQuarter}
-                style={{ width: 300 }}
-                options={[
-                  { value: "q1", label: "Primer Trimestre" },
-                  { value: "q2", label: "Segundo Trimestre" },
-                  { value: "q3", label: "Tercer Trimestre" },
-                ]}
-                onChange={handleChangeQuarterSelector}
-              />
-              <div>
-                <Switch onChange={() => setOverLoad(!overLoad)} value={overLoad} />
-                <span style={{ marginLeft: "10px" }}>Sobrecarga de horas</span>
-              </div>
-            </div>
-          )}
-        </div>
-
+        ]}
+        title={null}
+        closeIcon={false}>
         <div
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: "1px",
-            alignItems: "end",
-            marginBottom: "5px",
-            marginTop: "30px",
+            gap: "24px",
+            padding: "8px 4px",
           }}>
           <div
             style={{
-              width: "100%",
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "end",
+              alignItems: "center",
+              gap: "24px",
             }}>
-            <div>
-              <Switch onChange={() => setShowUnasigned(!showUnasigned)} value={showUnasigned} />
-              <span style={{ marginLeft: "10px" }}>Mostrar solo materias no asignadas</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div
+                style={{
+                  width: "110px",
+                  height: "110px",
+                  position: "relative",
+                  borderRadius: "12px",
+                  overflow: "hidden",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+                }}>
+                <Photo teacher={selectedTeacher} />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div style={{ fontSize: "1.2rem", fontWeight: 700, textTransform: "uppercase" }}>
+                  {`${teachers?.[teacherIndex ?? 0]?.lastName ?? ""} ${
+                    teachers?.[teacherIndex ?? 0]?.name ?? ""
+                  }`}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "4px 16px" }}>
+                  <span style={{ color: "#475467" }}>{`C.I.: ${teachers?.[teacherIndex ?? 0]?.ci ?? ""}`}</span>
+                  <span style={{ color: "#475467" }}>{`Carga horaria: ${
+                    teachers?.[teacherIndex ?? 0]?.partTime ?? ""
+                  }`}</span>
+                  <span style={{ color: "#475467" }}>
+                    Horas asignadas:
+                    <strong style={{ marginLeft: 4 }}>
+                      <span style={overloadStyle(overloadedQ1)}>{usedHoursQ1}</span> /
+                      <span style={overloadStyle(overloadedQ2)}>{usedHoursQ2}</span> /
+                      <span style={overloadStyle(overloadedQ3)}>{usedHoursQ3}</span>
+                    </strong>
+                  </span>
+                  <span style={{ color: "#475467" }}>
+                    Horas disponibles:
+                    <strong style={{ marginLeft: 4 }}>
+                      {aviableHoursQ1} / {aviableHoursQ2} / {aviableHoursQ3}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px" }}>
+              <div style={{ fontSize: "0.85rem", color: "#98a2b3" }}>Modo de selección</div>
+              <Radio.Group
+                options={optionsWithDisabled}
+                onChange={onChangeRadio}
+                value={perfilOption}
+                optionType="button"
+                buttonStyle="solid"
+              />
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: "16px",
+              background: "#f8fafc",
+              padding: "16px",
+              borderRadius: "12px",
+            }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <span style={{ fontSize: "0.85rem", color: "#475467" }}>Buscar por trimestre</span>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <Button
+                  block
+                  type={filterByQuarter ? "primary" : "default"}
+                  onClick={() => {
+                    setFilterByQuarter(!filterByQuarter);
+                    setOverLoad(false);
+                  }}>
+                  {filterByQuarter ? "Mostrar todos" : "Filtrar por trimestre"}
+                </Button>
+                {filterByQuarter && (
+                  <Select
+                    value={selectedQuarter}
+                    style={{ width: "100%" }}
+                    options={[
+                      { value: "q1", label: "1er Trimestre" },
+                      { value: "q2", label: "2do Trimestre" },
+                      { value: "q3", label: "3er Trimestre" },
+                    ]}
+                    onChange={handleChangeQuarterSelector}
+                  />
+                )}
+              </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <label style={{ fontSize: "12px", color: "gray" }}>Filtrar por trayecto</label>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <span style={{ fontSize: "0.85rem", color: "#475467" }}>Disponibilidad</span>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  background: "#fff",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                  padding: "8px 12px",
+                }}>
+                <Switch onChange={() => setShowUnasigned(!showUnasigned)} checked={showUnasigned} />
+                <span style={{ color: "#475467" }}>Mostrar sólo materias no asignadas</span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <span style={{ fontSize: "0.85rem", color: "#475467" }}>Trayecto</span>
               <Select
-                style={{ width: 300 }}
+                allowClear
+                placeholder="Selecciona un trayecto"
+                style={{ width: "100%" }}
                 options={trayectoOptions}
                 value={selectedTrayecto}
-                placeholder="Selecciona un trayecto"
                 disabled={trayectoOptions.length === 0}
-                allowClear
                 onChange={(e) => setSelectedTrayecto(e)}
               />
             </div>
 
-            <Radio.Group
-              options={optionsWithDisabled}
-              onChange={onChangeRadio}
-              value={perfilOption}
-              optionType="button"
-              buttonStyle="solid"
-            />
-          </div>
-
-          <Divider />
-
-          <Select
-            optionFilterProp="label"
-            placeholder="Selecciona una materia"
-            size="large"
-            onChange={handleChange}
-            style={{ width: "100%" }}
-            options={options}
-            value={selectedOption}
-            showSearch
-            filterOption={(input, option) =>
-              //(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
-              normalizeText(option?.label ?? "").includes(normalizeText(input))
-            }
-            disabled={options.length === 0 || selectedTeacerId === null}
-            optionRender={(option) => {
-              const data = option.data;
-              const pnfid = option.data.pnfId;
-              const color = pnfid ? subjectColors?.[pnfid] ?? "#001529" : "#001529";
-              return (
+            {filterByQuarter && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <span style={{ fontSize: "0.85rem", color: "#475467" }}>Sobrecarga de horas</span>
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "10px auto",
-                    width: "100%",
-                    columnGap: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    background: "#fff",
+                    borderRadius: "8px",
+                    border: "1px solid #e2e8f0",
+                    padding: "8px 12px",
                   }}>
-                  <div style={{ backgroundColor: color }}></div>
+                  <Switch onChange={() => setOverLoad(!overLoad)} checked={overLoad} />
+                  <span style={{ color: "#475467" }}>Incluir profesores con horas extra</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: "0.9rem", fontWeight: 600 }}>Materias disponibles</div>
+                <div style={{ fontSize: "0.8rem", color: "#98a2b3" }}>
+                  Filtra o busca por nombre, sección o trayecto
+                </div>
+              </div>
+              <Tag color={options.length === 0 ? "error" : "blue"}>{`${options.length} resultados`}</Tag>
+            </div>
+
+            <Select
+              optionFilterProp="label"
+              placeholder="Selecciona una materia"
+              size="large"
+              onChange={handleChange}
+              style={{ width: "100%" }}
+              options={options}
+              value={selectedOption}
+              showSearch
+              filterOption={(input, option) => normalizeText(option?.label ?? "").includes(normalizeText(input))}
+              disabled={options.length === 0 || selectedTeacerId === null}
+              optionRender={(option) => {
+                const data = option.data;
+                const pnfid = option.data.pnfId;
+                const color = pnfid ? subjectColors?.[pnfid] ?? "#2563eb" : "#2563eb";
+                return (
                   <div
                     style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      borderBottom: "1px solid rgba(189, 223, 230, 0.47)",
-                      paddingBottom: "10px",
+                      display: "grid",
+                      gridTemplateColumns: "8px auto",
+                      width: "100%",
+                      columnGap: "12px",
                     }}>
-                    <h4 style={{ margin: 0 }}>{data.label}</h4>
-                    <div>
-                      <Tag>{data.pnf}</Tag>
-                      <Tag>{`sección: ${data.turno ? data.turno[0] : ""}-0${data.seccion}`}</Tag>
-                      <Tag>{`horas: ${data.hours?.q1} / ${data.hours?.q2} / ${data.hours?.q3}`}</Tag>
+                    <div style={{ backgroundColor: color, borderRadius: "999px" }}></div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        borderBottom: "1px solid rgba(226, 232, 240, 0.8)",
+                        paddingBottom: "12px",
+                        gap: "6px",
+                      }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <h4 style={{ margin: 0, fontSize: "1rem" }}>{data.label}</h4>
+                        <Tag>{`Horas ${data.hours?.q1} / ${data.hours?.q2} / ${data.hours?.q3}`}</Tag>
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                        <Tag>{data.pnf}</Tag>
+                        <Tag>{`Sección: ${data.turno ? data.turno[0] : ""}-0${data.seccion}`}</Tag>
+                        {data.trayecto && <Tag>{data.trayecto}</Tag>}
+                      </div>
+                      <SubjectTeacherInfo teacher={data.teacher || {}} />
                     </div>
-
-                    <SubjectTeacherInfo teacher={data.teacher || {}} />
                   </div>
-                </div>
-              );
-            }}
-          />
+                );
+              }}
+            />
 
-          <div style={{ width: "100%", paddingLeft: "20px", visibility: erroMessage ? "visible" : "hidden" }}>
-            <Tag icon={<CloseCircleOutlined />} color="error">
-              {erroMessage}
-            </Tag>
+            <div style={{ width: "100%", visibility: erroMessage ? "visible" : "hidden" }}>
+              <Tag icon={<CloseCircleOutlined />} color="error">
+                {erroMessage}
+              </Tag>
+            </div>
           </div>
         </div>
       </Modal>
     </>
   );
-};
+}
 
 export default AddSubjectToTeacherModal;
 
