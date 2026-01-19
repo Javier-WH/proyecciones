@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useRef, useMemo } from "react";
+import React, { useState, useContext, useEffect, useRef, useMemo, useCallback } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import esLocale from "@fullcalendar/core/locales/es";
@@ -99,14 +99,14 @@ const SchoolSchedule: React.FC = () => {
     documentTitle: getHeaderInfo(),
   });
 
-  const loadInitialData = async (): Promise<void> => {
+  const loadClassrooms = useCallback(async (): Promise<void> => {
     const classroomsData = await getClassrooms();
     if (classroomsData.error) {
       console.error(classroomsData.message);
       return;
     }
     setClassrooms(classroomsData);
-  };
+  }, []);
 
   const addError = (err: scheduleError) => {
     setErrors((prevErrors) => [...prevErrors, err]);
@@ -292,8 +292,8 @@ const SchoolSchedule: React.FC = () => {
   };
 
   useEffect(() => {
-    loadInitialData();
-  }, []);
+    loadClassrooms();
+  }, [loadClassrooms]);
 
   // genera lops eventos del horario
   useEffect(() => {
@@ -630,7 +630,11 @@ const SchoolSchedule: React.FC = () => {
             <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
             <FaPrint title="Imprimir Horario" className={styles.icon} onClick={handlePrint} />
             <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
-            <SubjectRestrictionModal putSubjectRestriction={putSubjectRestriction} classrooms={classrooms} />
+            <SubjectRestrictionModal
+              putSubjectRestriction={putSubjectRestriction}
+              classrooms={classrooms}
+              onClassroomCreated={loadClassrooms}
+            />
             <ScheduleErrorsModal errors={errors} />
           </div>
         </div>

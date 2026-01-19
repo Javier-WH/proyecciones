@@ -5,6 +5,27 @@ export interface ScheduleDataBase {
   proyection_id: string;
 }
 
+export async function createClassroom(classroom: string) {
+  const headersList = {
+    Accept: "*/*",
+    "Content-Type": "application/json",
+  };
+
+  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/classroom" : "/classroom";
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: headersList,
+    body: JSON.stringify({ classroom }),
+  });
+
+  if (!response.ok) {
+    return { error: true, status: response.status, message: await response.json() };
+  }
+
+  return response.json();
+}
+
 export async function getClassrooms() {
   const headersList = {
     Accept: "*/*",
@@ -29,11 +50,11 @@ export async function insertOrUpdateSchedule({
   schedule,
   proyection_id,
 }: ScheduleDataBase) {
-  let headersList = {
+  const headersList = {
     Accept: "*/*",
     "Content-Type": "application/json",
   };
-  let bodyContent = JSON.stringify({
+  const bodyContent = JSON.stringify({
     ...(id && { id }),
     name,
     schedule,
@@ -42,7 +63,7 @@ export async function insertOrUpdateSchedule({
 
   const url = import.meta.env.MODE === "development" ? "http://localhost:3000/schedule" : "/schedule";
 
-  let response = await fetch(url, {
+  const response = await fetch(url, {
     method: "POST",
     body: bodyContent,
     headers: headersList,
@@ -55,7 +76,7 @@ export async function insertOrUpdateSchedule({
 }
 
 export async function getSchedule({ id }: { id?: string | undefined }) {
-  let headersList = {
+  const headersList = {
     Accept: "*/*",
   };
   const url =
@@ -63,7 +84,7 @@ export async function getSchedule({ id }: { id?: string | undefined }) {
       ? `http://localhost:3000/schedule${id ? `?id=${id}` : ""}`
       : `/schedule${id ? `?id=${id}` : ""}`;
 
-  let response = await fetch(url, {
+  const response = await fetch(url, {
     method: "GET",
     headers: headersList,
   });
