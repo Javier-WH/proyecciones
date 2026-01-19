@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useRef } from "react";
+import React, { useState, useContext, useEffect, useRef, useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import esLocale from "@fullcalendar/core/locales/es";
@@ -66,6 +66,11 @@ const SchoolSchedule: React.FC = () => {
 
   // Ref for the printable component
   const printableRef = useRef<HTMLDivElement>(null);
+
+  const schedulableSubjects = useMemo(() => {
+    if (!subjects || subjects.length === 0) return [];
+    return (subjects as Subject[]).filter((subject) => !subject.linkedToSection);
+  }, [subjects]);
 
   // Helper to get names for the header
   const getHeaderInfo = () => {
@@ -292,10 +297,10 @@ const SchoolSchedule: React.FC = () => {
 
   // genera lops eventos del horario
   useEffect(() => {
-    if (!classrooms || classrooms.length === 0 || !subjects || subjects.length === 0) return;
+    if (!classrooms || classrooms.length === 0 || schedulableSubjects.length === 0) return;
     setErrors([]);
     const eventsdata = generateScheduleEvents({
-      subjects: subjects as Subject[], // la lista de materias
+      subjects: schedulableSubjects, // la lista de materias (sin materias vinculadas)
       classrooms: classrooms, // la lista de aulas
       trimestre: trimestre, // el trimeste a generar el horario
       preferredClassrooms: subjectRestriction, //las restricciones de materias por aulas de clase
@@ -306,7 +311,7 @@ const SchoolSchedule: React.FC = () => {
     });
 
     setEventData(eventsdata);
-  }, [classrooms, subjects, teacherRestrictions, trimestre, subjectRestriction, loadedScheduleEvents]); // Incluir para forzar regeneración al cargar
+  }, [classrooms, schedulableSubjects, teacherRestrictions, trimestre, subjectRestriction, loadedScheduleEvents]); // Incluir para forzar regeneración al cargar
 
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {
