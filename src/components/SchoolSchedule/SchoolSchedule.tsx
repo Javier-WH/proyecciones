@@ -57,8 +57,32 @@ type RawTeacherRestriction = {
   hours?: { day: number; start: string; end: string }[];
 };
 
+const hexToRgba = (hexColor: string, alpha = 0.15): string => {
+  if (!hexColor) return hexColor;
+  let sanitized = hexColor.trim();
+  if (sanitized.startsWith("#")) sanitized = sanitized.slice(1);
+  if (sanitized.length !== 3 && sanitized.length !== 6) return hexColor;
+  if (sanitized.length === 3) {
+    sanitized = sanitized
+      .split("")
+      .map((char) => char + char)
+      .join("");
+  }
+  const numericColor = Number.parseInt(sanitized, 16);
+  const r = (numericColor >> 16) & 255;
+  const g = (numericColor >> 8) & 255;
+  const b = numericColor & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+type ScheduleEventStyle = React.CSSProperties & {
+  "--schedule-event-color"?: string;
+  "--schedule-event-chip-bg"?: string;
+};
+
 const SchoolSchedule: React.FC = () => {
-  const { subjects, teachers, trayectosList, proyectionId } = useContext(MainContext) as MainContextValues;
+  const { subjects, teachers, trayectosList, proyectionId, subjectColors } =
+    useContext(MainContext) as MainContextValues;
   const consecutiveConfig = useMemo(
     () => ({
       minSlots: 2,
@@ -884,34 +908,101 @@ const SchoolSchedule: React.FC = () => {
               eventContent={(arg) => {
                 const { event } = arg;
                 const title = event.title;
-                const professorId = event.extendedProps?.professorId;
-                const classroomName = event.extendedProps?.classroomName;
-                const seccion = event.extendedProps?.seccion;
-                const pnf = event.extendedProps?.pnfName;
-                const teacherName = `${teachers?.find((teacher) => teacher.id === professorId)?.lastName} ${
-                  teachers?.find((teacher) => teacher.id === professorId)?.name
-                }`;
+                const {
+                  professorId,
+                  classroomName,
+                  seccion,
+                  pnfName,
+                }: {
+                  professorId?: string;
+                  classroomName?: string;
+                  seccion?: string;
+                  pnfName?: string;
+                } = event.extendedProps;
+
+                const teacher = teachers?.find((teacher) => teacher.id === professorId);
+                const teacherName = teacher ? `${teacher.lastName} ${teacher.name}` : "Profesor no asignado";
+                const pnfId = event.extendedProps?.pnfId as string | undefined;
+                const baseColor = (pnfId && subjectColors?.[pnfId]) || "#1a73e8";
+                const eventStyle: ScheduleEventStyle = {
+                  "--schedule-event-color": baseColor,
+                  "--schedule-event-chip-bg": hexToRgba(baseColor, 0.16),
+                };
+
+                const start = event.start?.getTime() ?? 0;
+                const end = event.end?.getTime() ?? start;
+                const durationMinutes = Math.max((end - start) / 60000, 0);
+                const isCompact = durationMinutes <= 55;
+
+                const chips: string[] = [];
+                if (!isCompact) {
+                  if (pnfName) chips.push(`${pnfName}`);
+                  if (seccion) chips.push(`${seccion}`);
+                  if (viewMode === "pnf" && classroomName) chips.push(classroomName);
+                  if (viewMode === "professor" && classroomName) chips.push(`Aula ${classroomName}`);
+                  if (viewMode === "classroom" && classroomName) chips.push(`Aula ${classroomName}`);
+                }
+
                 return (
-                  <div className="fc-event-custom">
-                    <div>
-                      <strong style={{ fontSize: viewMode === "classroom" ? "0.7em" : "0.9em" }}>
-                        {title}
-                      </strong>
-                    </div>
-                    {viewMode === "professor" || viewMode === "classroom" ? (
+                  <div
+                    className={`fc-event-custom ${
+                      viewMode === "classroom" ? "fc-event-custom--classroom" : ""
+                    } ${isCompact ? "fc-event-custom--compact" : ""}`.trim()}
+                    style={eventStyle}>
+                    <div className="schedule-event__title">{title}</div>
+                    {isCompact ? (
                       <>
-                        {" "}
-                        <div style={{ fontSize: "0.7em", color: "#555" }}>{pnf}</div>{" "}
-                        <div style={{ fontSize: "0.7em", color: "#555" }}>Sección: {seccion}</div>{" "}
+                        {(pnfName || seccion) && (
+                          <div className="schedule-event__meta">
+                            {pnfName && (
+                              <span className="schedule-event__chip">{pnfName}</span>
+                            )}
+                            {seccion && (
+                              <span className="schedule-event__chip">Sección {seccion}</span>
+                            )}
+                          </div>
+                        )}
+                        {viewMode !== "professor" && (
+                          <div className="schedule-event__meta-line">
+                            Prof.: <span className="schedule-event__label--muted">{teacherName}</span>
+                          </div>
+                        )}
+                        {viewMode === "professor" && classroomName && (
+                          <div className="schedule-event__meta-line">
+                            Aula <span className="schedule-event__label--muted">{classroomName}</span>
+                          </div>
+                        )}
+                        {viewMode !== "classroom" && classroomName && (
+                          <div className="schedule-event__meta-line schedule-event__label--muted">
+                            {classroomName}
+                          </div>
+                        )}
                       </>
                     ) : (
-                      <div style={{ fontSize: "0.75em", color: "#555" }}>Profesor: {teacherName}</div>
-                    )}
-                    {viewMode !== "classroom" && (
-                      <div style={{ fontSize: "0.75em", color: "#777" }}>{classroomName}</div>
-                    )}
-                    {viewMode === "classroom" && (
-                      <div style={{ fontSize: "0.75em", color: "#555" }}>Profesor: {teacherName}</div>
+                      <>
+                        {chips.length > 0 && (
+                          <div className="schedule-event__meta">
+                            {chips.map((chip) => (
+                              <span key={chip} className="schedule-event__chip">
+                                {chip}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {viewMode !== "professor" && (
+                          <div className="schedule-event__label">
+                            Profesor: <span className="schedule-event__label--muted">{teacherName}</span>
+                          </div>
+                        )}
+                        {viewMode === "professor" && classroomName && (
+                          <div className="schedule-event__label">
+                            Aula: <span className="schedule-event__label--muted">{classroomName}</span>
+                          </div>
+                        )}
+                        {viewMode !== "classroom" && pnfName && (
+                          <div className="schedule-event__label schedule-event__label--muted">{pnfName}</div>
+                        )}
+                      </>
                     )}
                   </div>
                 );
