@@ -23,6 +23,7 @@ import { useReactToPrint } from "react-to-print";
 import PrintableSchedule from "./PrintableSchedule";
 
 import styles from "./modal.module.css";
+import { normalizeText } from "../../utils/textFilter";
 
 export interface teacherRestriction {
   teacherId: string;
@@ -30,7 +31,8 @@ export interface teacherRestriction {
   hours: { day: number; start: string; end: string }[];
 }
 export interface subjectRestriction {
-  subjectId: string;
+  subjectKey: string;
+  subjectName: string;
   classroomIds: string[];
 }
 
@@ -112,25 +114,27 @@ const SchoolSchedule: React.FC = () => {
     setErrors((prevErrors) => [...prevErrors, err]);
   };
 
-  const putSubjectRestriction = (subjectId: string, classroomIds: string[]) => {
-    if (!subjectId || subjectId.length === 0 || !classroomIds) return;
+  const putSubjectRestriction = (subjectName: string, classroomIds: string[]) => {
+    const normalizedName = normalizeText(subjectName);
+    if (!normalizedName || classroomIds == null) return;
     const currentRestrictions: subjectRestriction[] = JSON.parse(JSON.stringify(subjectRestriction));
 
     if (classroomIds.length === 0) {
       const filteredRestrictions = currentRestrictions.filter(
-        (rest: subjectRestriction) => rest.subjectId !== subjectId
+        (rest: subjectRestriction) => rest.subjectKey !== normalizedName
       );
       setSubjectRestriction(filteredRestrictions);
       return;
     }
 
     const currentRestriction = currentRestrictions.find(
-      (rest: subjectRestriction) => rest.subjectId === subjectId
+      (rest: subjectRestriction) => rest.subjectKey === normalizedName
     );
     if (currentRestriction) {
       currentRestriction.classroomIds = classroomIds;
+      currentRestriction.subjectName = subjectName;
     } else {
-      currentRestrictions.push({ subjectId: subjectId, classroomIds: classroomIds });
+      currentRestrictions.push({ subjectKey: normalizedName, subjectName, classroomIds });
     }
     setSubjectRestriction(currentRestrictions);
   };

@@ -1,5 +1,6 @@
 import { Subject } from "../../interfaces/subject";
 import { scheduleError } from "./ErrorsModal";
+import { normalizeText } from "../../utils/textFilter";
 
 export interface Classroom {
   id: string;
@@ -30,7 +31,7 @@ export interface generateScheduleParams {
   classrooms: Classroom[];
   trimestre: "q1" | "q2" | "q3";
   unavailableDays?: { teacherId: string; days: number[]; hours?: { day: number; start: string; end: string }[] }[];
-  preferredClassrooms?: { subjectId: string; classroomIds: string[]; preferLastSlot?: boolean }[];
+  preferredClassrooms?: { subjectKey: string; classroomIds: string[]; subjectName?: string; preferLastSlot?: boolean }[];
   existingEvents?: Event[];
   conserveSlots?: number;
   setErrors?: (err: scheduleError) => void;
@@ -185,8 +186,9 @@ export function generateScheduleEvents({
   ): { success: boolean; reason?: string; assignedHours: number } => {
     const hours = subject.hours[trimestre];
     const professorId = subject.quarter[trimestre];
+    const subjectKey = normalizeText(subject.subject);
     const turno = subject.turnoName?.toLowerCase();
-    const preferConfig = preferredClassrooms?.find((p) => p.subjectId === subject.id);
+    const preferConfig = preferredClassrooms?.find((p) => p.subjectKey === subjectKey);
     const timeSlots = preferConfig?.preferLastSlot ? [...turnos[turno]].reverse() : turnos[turno];
 
     if (!hours || !professorId || !timeSlots) {

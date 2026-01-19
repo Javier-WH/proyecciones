@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useMemo } from "react";
 import { Modal, Select, Input, Button, message } from "antd";
 import { BiSolidSchool } from "react-icons/bi";
 import styles from "./modal.module.css";
@@ -7,9 +7,10 @@ import { MainContextValues } from "../../interfaces/contextInterfaces";
 
 import { Classroom } from "./fucntions";
 import { createClassroom } from "../../fetch/schedule/scheduleFetch";
+import { normalizeText } from "../../utils/textFilter";
 
 const SubjectRestrictionModal: React.FC<{
-  putSubjectRestriction: (subjectId: string, classroomIds: string[]) => void;
+  putSubjectRestriction: (subjectName: string, classroomIds: string[]) => void;
   classrooms: Classroom[];
   onClassroomCreated?: () => Promise<void> | void;
 }> = ({ putSubjectRestriction, classrooms, onClassroomCreated }) => {
@@ -23,6 +24,27 @@ const SubjectRestrictionModal: React.FC<{
   const [newClassroomName, setNewClassroomName] = useState("");
   const [isCreatingClassroom, setIsCreatingClassroom] = useState(false);
 
+  const subjectOptions = useMemo(() => {
+    if (!subjects) return [];
+    const uniqueSubjects = new Map<string, string>();
+
+    subjects.forEach((subject) => {
+      if (subject.linkedToSection) return;
+      const label = subject.subject?.trim();
+      if (!label) return;
+      const key = normalizeText(label);
+      if (!key) return;
+      if (!uniqueSubjects.has(key)) {
+        uniqueSubjects.set(key, label);
+      }
+    });
+
+    return Array.from(uniqueSubjects.values()).map((label) => ({
+      value: label,
+      label,
+    }));
+  }, [subjects]);
+
   const showModal = () => {
     setRestrictedClassrooms(classrooms.map((room) => room.id));
     setSelectedSubject("");
@@ -34,6 +56,10 @@ const SubjectRestrictionModal: React.FC<{
   };
 
   const handleOk = () => {
+    if (!selectedSubject) {
+      message.warning("Debe seleccionar una materia");
+      return;
+    }
     putSubjectRestriction(selectedSubject, restrictedClassrooms);
   };
 
@@ -118,13 +144,10 @@ const SubjectRestrictionModal: React.FC<{
             <Select
               allowClear
               showSearch
-              defaultValue=""
+              value={selectedSubject || undefined}
               style={{ width: "100%" }}
-              onChange={setSelectedSubject}
-              options={subjects?.map((subject) => ({
-                value: subject.id,
-                label: subject.subject,
-              }))}
+              onChange={(value) => setSelectedSubject(value ?? "")}
+              options={subjectOptions}
               filterOption={(input, option) =>
                 !!option?.label?.toString()?.toLowerCase()?.includes(input.toLowerCase())
               }
