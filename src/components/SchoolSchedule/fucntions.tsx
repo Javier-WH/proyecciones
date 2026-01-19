@@ -34,6 +34,7 @@ export interface generateScheduleParams {
   preferredClassrooms?: { subjectKey: string; classroomIds: string[]; subjectName?: string; preferLastSlot?: boolean }[];
   existingEvents?: Event[];
   conserveSlots?: number;
+  minConsecutiveSlots?: number;
   setErrors?: (err: scheduleError) => void;
 }
 
@@ -102,6 +103,7 @@ export function generateScheduleEvents({
   existingEvents,
   preferredClassrooms,
   conserveSlots = 3,
+  minConsecutiveSlots = 2,
   setErrors = (err) => console.log(err),
 }: generateScheduleParams): Event[] {
   const events: Event[] = [];
@@ -220,29 +222,132 @@ export function generateScheduleEvents({
       : classrooms;
 
     if (candidateClassrooms.length === 0) {
-      const reason = `No hay aulas disponibles para esta materia${preferConfig ? " (aulas preferidas no disponibles)" : ""
-        }`;
+      const reason = `No hay aulas disponibles para esta materia${preferConfig ? " (aulas preferidas no disponibles)" : ""}`;
       return { success: false, reason, assignedHours: 0 };
     }
 
     for (const day of availableDays) {
       if (remainingHours <= 0) break;
 
-      // Obtener todas las asignaciones existentes de esta materia en este día
-      const existingAssignments = events.filter(
+      const assignedEventsForDay = events.filter(
         (event) => event.daysOfWeek[0] === day && event.extendedProps.subjectId === subject.innerId
       );
 
-      const currentAssignedCount = existingAssignments.length;
+      let assignedCount = assignedEventsForDay.length;
 
-      // Si ya hay asignaciones y alcanzó el límite, saltar este día
-      if (currentAssignedCount >= conserveSlots) {
+      if (assignedCount >= conserveSlots) {
         continue;
       }
 
-      let blocksAssigned = 0;
+      const tryAssignInitialRun = (startIndex: number, runLength: number): boolean => {
+        if (runLength <= 1) return false;
+        if (assignedCount + runLength > conserveSlots) return false;
 
-      for (let i = 0; i < timeSlots.length && blocksAssigned < conserveSlots && remainingHours > 0; i++) {
+        for (const classroom of candidateClassrooms) {
+          const plannedSlots: {
+            start: string;
+            end: string;
+            conflictKeyProf: string;
+            conflictKeyRoom: string;
+            conflictKeySection: string;
+          }[] = [];
+          let feasible = true;
+
+          for (let offset = 0; offset < runLength; offset++) {
+            const slotIndex = startIndex + offset;
+            if (slotIndex >= timeSlots.length) {
+              feasible = false;
+              break;
+            }
+
+            const [slotStart, slotEnd] = timeSlots[slotIndex];
+
+            if (!ignoreRestrictions) {
+              const isRestrictedHour = restrictedHours.some(
+                (rh) => rh.day === day && rh.start === slotStart
+              );
+              if (isRestrictedHour) {
+                feasible = false;
+                break;
+              }
+            }
+
+            const conflictKeyProf = `PROF-${day}-${slotStart}-${professorId}`;
+            const conflictKeyRoom = `ROOM-${day}-${slotStart}-${classroom.id}`;
+            const conflictKeySection = `SEC-${day}-${slotStart}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
+
+            if (
+              globalUsedSlots.has(conflictKeyProf) ||
+              globalUsedSlots.has(conflictKeyRoom) ||
+              sectionUsedSlots.has(conflictKeySection)
+            ) {
+              feasible = false;
+              break;
+            }
+
+            plannedSlots.push({
+              start: slotStart,
+              end: slotEnd,
+              conflictKeyProf,
+              conflictKeyRoom,
+              conflictKeySection,
+            });
+          }
+
+          if (feasible && plannedSlots.length === runLength) {
+            for (const plan of plannedSlots) {
+              const newEvent: Event = {
+                title: subject.subject,
+                daysOfWeek: [day],
+                startTime: plan.start,
+                endTime: plan.end,
+                extendedProps: {
+                  subjectId: subject.innerId,
+                  professorId,
+                  classroomId: classroom.id,
+                  classroomName: classroom.classroom,
+                  pnfId: subject.pnfId,
+                  trayectoId: subject.trayectoId,
+                  seccion: subject.seccion,
+                  pnfName: subject.pnf,
+                  turnName: subject.turnoName,
+                  blockId: `${day}-${subject.innerId}`,
+                },
+              };
+
+              events.push(newEvent);
+              assignedEventsForDay.push(newEvent);
+              globalUsedSlots.add(plan.conflictKeyProf);
+              globalUsedSlots.add(plan.conflictKeyRoom);
+              sectionUsedSlots.add(plan.conflictKeySection);
+              assignedCount++;
+              remainingHours--;
+              totalAssignedInThisCall++;
+            }
+            return true;
+          }
+        }
+
+        return false;
+      };
+
+      for (let i = 0; i < timeSlots.length && assignedCount < conserveSlots && remainingHours > 0; i++) {
+        const currentAssignedCount = assignedEventsForDay.length;
+        const maxAssignableThisDay = conserveSlots - assignedCount;
+        const canAttemptInitialRun =
+          currentAssignedCount === 0 &&
+          minConsecutiveSlots > 1 &&
+          remainingHours >= minConsecutiveSlots &&
+          maxAssignableThisDay >= Math.min(minConsecutiveSlots, remainingHours);
+
+        if (canAttemptInitialRun) {
+          const runLength = Math.min(minConsecutiveSlots, maxAssignableThisDay, remainingHours);
+          if (runLength > 1 && tryAssignInitialRun(i, runLength)) {
+            i += runLength - 1;
+            continue;
+          }
+        }
+
         const [start, end] = timeSlots[i];
 
         // CHECK HOUR RESTRICTIONS
@@ -255,7 +360,7 @@ export function generateScheduleEvents({
 
         // VERIFICACIÓN DE CONSECUTIVIDAD
         if (currentAssignedCount > 0) {
-          const assignedStartTimes = existingAssignments.map((e) => e.startTime);
+          const assignedStartTimes = assignedEventsForDay.map((e) => e.startTime);
           let isConsecutive = false;
 
           for (const assignedStart of assignedStartTimes) {
@@ -299,7 +404,7 @@ export function generateScheduleEvents({
           }
 
           // ASIGNACIÓN EXITOSA
-          events.push({
+          const newEvent: Event = {
             title: subject.subject,
             daysOfWeek: [day],
             startTime: start,
@@ -316,12 +421,14 @@ export function generateScheduleEvents({
               turnName: subject.turnoName,
               blockId: `${day}-${subject.innerId}`,
             },
-          });
+          };
 
+          events.push(newEvent);
+          assignedEventsForDay.push(newEvent);
           globalUsedSlots.add(conflictKeyProf);
           globalUsedSlots.add(conflictKeyRoom);
           sectionUsedSlots.add(conflictKeySection);
-          blocksAssigned++;
+          assignedCount++;
           remainingHours--;
           totalAssignedInThisCall++;
           assigned = true;

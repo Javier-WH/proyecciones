@@ -59,6 +59,13 @@ type RawTeacherRestriction = {
 
 const SchoolSchedule: React.FC = () => {
   const { subjects, teachers, trayectosList, proyectionId } = useContext(MainContext) as MainContextValues;
+  const consecutiveConfig = useMemo(
+    () => ({
+      minSlots: 2,
+      maxSlots: 3,
+    }),
+    []
+  );
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [eventData, setEventData] = useState<Event[]>([]);
   const [events, setEvents] = useState<EventInput[]>([]);
@@ -493,7 +500,8 @@ const SchoolSchedule: React.FC = () => {
       trimestre: trimestre, // el trimeste a generar el horario
       preferredClassrooms: subjectRestriction, //las restricciones de materias por aulas de clase
       unavailableDays: teacherRestrictions, // restricciones de dias donde el profesor no puede dar clases
-      conserveSlots: 3, // el numero maximo de horas consecutivas que una materia puede ser vista en un dia
+      conserveSlots: consecutiveConfig.maxSlots, // el numero maximo de horas consecutivas que una materia puede ser vista en un dia
+      minConsecutiveSlots: consecutiveConfig.minSlots, // el minimo de bloques consecutivos requerido al arrancar
       existingEvents: loadedScheduleEvents, // Pasar eventos cargados para respetar esos slots
       setErrors: addError,
     });
@@ -508,6 +516,8 @@ const SchoolSchedule: React.FC = () => {
     loadedScheduleEvents,
     teacherRestrictionsReady,
     subjectRestrictionsReady,
+    consecutiveConfig.maxSlots,
+    consecutiveConfig.minSlots,
   ]); // Incluir para forzar regeneración al cargar
 
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
