@@ -35,6 +35,7 @@ export interface generateScheduleParams {
   existingEvents?: Event[];
   conserveSlots?: number;
   minConsecutiveSlots?: number;
+  preferredConsecutiveSlots?: number;
   setErrors?: (err: scheduleError) => void;
 }
 
@@ -104,6 +105,7 @@ export function generateScheduleEvents({
   preferredClassrooms,
   conserveSlots = 3,
   minConsecutiveSlots = 2,
+  preferredConsecutiveSlots = conserveSlots,
   setErrors = (err) => console.log(err),
 }: generateScheduleParams): Event[] {
   const events: Event[] = [];
@@ -226,12 +228,42 @@ export function generateScheduleEvents({
       return { success: false, reason, assignedHours: 0 };
     }
 
-    for (const day of availableDays) {
-      if (remainingHours <= 0) break;
+    const dayContexts = availableDays
+      .map((day) => {
+        const assignedEventsForDay = events.filter(
+          (event) => event.daysOfWeek[0] === day && event.extendedProps.subjectId === subject.innerId
+        );
 
-      const assignedEventsForDay = events.filter(
-        (event) => event.daysOfWeek[0] === day && event.extendedProps.subjectId === subject.innerId
-      );
+        const assignedIndices = assignedEventsForDay
+          .map((e) => timeSlots.findIndex((slot) => slot[0] === e.startTime))
+          .filter((idx) => idx !== -1);
+
+        let maxChain = 0;
+        let currentChain = 0;
+        for (let idx = 0; idx < timeSlots.length; idx++) {
+          const slotStart = timeSlots[idx][0];
+          const isAssignedSlot = assignedIndices.includes(idx);
+          const isRestrictedHour = !ignoreRestrictions && restrictedHours.some((rh) => rh.day === day && rh.start === slotStart);
+
+          if (isAssignedSlot || isRestrictedHour) {
+            currentChain = 0;
+            continue;
+          }
+
+          currentChain++;
+          maxChain = Math.max(maxChain, currentChain);
+        }
+
+        return {
+          day,
+          assignedEventsForDay,
+          maxChain,
+        };
+      })
+      .sort((a, b) => b.maxChain - a.maxChain);
+
+    for (const { day, assignedEventsForDay } of dayContexts) {
+      if (remainingHours <= 0) break;
 
       let assignedCount = assignedEventsForDay.length;
 
@@ -239,7 +271,7 @@ export function generateScheduleEvents({
         continue;
       }
 
-      const tryAssignInitialRun = (startIndex: number, runLength: number): boolean => {
+      const tryAssignRun = (startIndex: number, runLength: number): boolean => {
         if (runLength <= 1) return false;
         if (assignedCount + runLength > conserveSlots) return false;
 
@@ -334,16 +366,21 @@ export function generateScheduleEvents({
       for (let i = 0; i < timeSlots.length && assignedCount < conserveSlots && remainingHours > 0; i++) {
         const currentAssignedCount = assignedEventsForDay.length;
         const maxAssignableThisDay = conserveSlots - assignedCount;
-        const canAttemptInitialRun =
-          currentAssignedCount === 0 &&
-          minConsecutiveSlots > 1 &&
-          remainingHours >= minConsecutiveSlots &&
-          maxAssignableThisDay >= Math.min(minConsecutiveSlots, remainingHours);
+        const canAttemptInitialRun = currentAssignedCount === 0 && minConsecutiveSlots > 1;
 
         if (canAttemptInitialRun) {
-          const runLength = Math.min(minConsecutiveSlots, maxAssignableThisDay, remainingHours);
-          if (runLength > 1 && tryAssignInitialRun(i, runLength)) {
-            i += runLength - 1;
+          let initialAssigned = false;
+          const maxDesiredRun = Math.min(preferredConsecutiveSlots, maxAssignableThisDay, remainingHours);
+          for (let runLength = maxDesiredRun; runLength >= minConsecutiveSlots; runLength--) {
+            if (runLength <= 1) break;
+            if (tryAssignRun(i, runLength)) {
+              i += runLength - 1;
+              initialAssigned = true;
+              break;
+            }
+          }
+
+          if (initialAssigned) {
             continue;
           }
         }
