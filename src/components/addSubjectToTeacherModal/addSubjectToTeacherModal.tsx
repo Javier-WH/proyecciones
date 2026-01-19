@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Button, Modal, Select, Radio, Tag, Switch, message, Divider } from "antd";
+import { Button, Modal, Select, Radio, Tag, Switch, message } from "antd";
 import type { RadioChangeEvent } from "antd";
 import { Subject } from "../../interfaces/subject";
 import { CloseCircleOutlined } from "@ant-design/icons";
