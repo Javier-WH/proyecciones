@@ -118,6 +118,18 @@ export default function Profiles() {
       message.error("Debe seleccionar un perfil y una materia");
       return;
     }
+
+    const alreadyInProfile = subjectsINperfil.some((subject) => {
+      if (subject.subject_id === selectedSubject) return true;
+      const normalizedId = generateSubjectProfileId(subject.subject_name);
+      return normalizedId === selectedSubject;
+    });
+
+    if (alreadyInProfile) {
+      message.warning("Esta materia ya se encuentra en el perfil seleccionado");
+      return;
+    }
+
     const request = await postSubjectToPerfil({
       perfil_name_id: selectedPerfil,
       subject_id: selectedSubject,

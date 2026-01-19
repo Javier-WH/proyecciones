@@ -1,10 +1,9 @@
 import { useContext, useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit, FaThList } from "react-icons/fa";
+import { FaCalendarAlt, FaChalkboardTeacher, FaUserEdit } from "react-icons/fa";
 import { LiaFileContractSolid } from "react-icons/lia";
-import { MdSubject, MdEditRoad, MdEditLocation, MdAdminPanelSettings } from "react-icons/md";
+import { MdSubject, MdEditRoad, MdAdminPanelSettings } from "react-icons/md";
 import { IoMdPlanet, IoIosCreate } from "react-icons/io";
-import { LiaSchoolSolid } from "react-icons/lia";
 import { GrSchedules } from "react-icons/gr";
 import { FaPersonMilitaryPointing } from "react-icons/fa6";
 import { TiInfoLargeOutline } from "react-icons/ti";
@@ -71,17 +70,13 @@ const MainLayout: React.FC = () => {
       getItem("Proyeccion", "/app/proyecciones", <FaCalendarAlt />),
     ]),
     getItem("Profesores", "/app/profesores", <FaChalkboardTeacher />, [
-      ...(userData?.su ? [getItem("Registrar", "/app/registerTeacher", <IoPersonAddSharp />)] : []),
+      //...(userData?.su ? [getItem("Registrar", "/app/registerTeacher", <IoPersonAddSharp />)] : []),
       getItem("Editar", "/app/editTeacher", <FaUserEdit />),
       getItem("Perfiles", "/app/teacherProfiles", <FaUsers />),
       ...(userData?.su ? [getItem("Contratos", "/app/contracts", <LiaFileContractSolid />)] : []),
     ]),
     ...(userData?.su
       ? [
-          getItem("Pensum", "/app/pensum", <LiaSchoolSolid />, [
-            getItem("Editar Materias", "/app/editSubject", <MdEditLocation />),
-            getItem("Editar Pensum", "/app/pensum/edit", <FaThList />),
-          ]),
           getItem("Trayectos Y PNF", "/app/trayectos", <PiStepsDuotone />, [
             getItem("Editar Trayectos", "/app/editTrayectos", <MdEditRoad />),
             getItem("Editar PNF", "/app/editPNF", <IoMdPlanet />),
