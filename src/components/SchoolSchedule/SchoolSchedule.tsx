@@ -826,7 +826,11 @@ const SchoolSchedule: React.FC = () => {
             <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
             <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
             <FaPrint title="Imprimir Horario" className={styles.icon} onClick={handlePrint} />
-            <TeacherRestrictionModal putTeacherRestriction={putTeacherRestriction} />
+            <TeacherRestrictionModal
+              putTeacherRestriction={putTeacherRestriction}
+              teacherRestrictions={teacherRestrictions}
+              loadingTeacherRestrictions={!teacherRestrictionsReady}
+            />
             <SubjectRestrictionModal
               putSubjectRestriction={putSubjectRestriction}
               classrooms={classrooms}

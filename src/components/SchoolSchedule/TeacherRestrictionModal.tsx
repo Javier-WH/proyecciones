@@ -5,11 +5,7 @@ import styles from "./modal.module.css";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { turnos } from "./fucntions";
-import {
-  getTeacherRestriction,
-  saveTeacherRestriction,
-  type TeacherRestrictionPayload,
-} from "../../fetch/schedule/teacherRestrictions";
+import { saveTeacherRestriction, type TeacherRestrictionPayload } from "../../fetch/schedule/teacherRestrictions";
 
 interface day {
   value: number;
@@ -33,23 +29,27 @@ const TeacherRestrictionModal: React.FC<{
     restricions: number[],
     hours: HourRestriction[]
   ) => void;
-}> = ({ putTeacherRestriction }) => {
+  teacherRestrictions: { teacherId: string; days: number[]; hours: HourRestriction[] }[];
+  loadingTeacherRestrictions?: boolean;
+}> = ({ putTeacherRestriction, teacherRestrictions, loadingTeacherRestrictions = false }) => {
   const { teachers } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [restrictedDays, setIsRestrictedDays] = useState<number[]>([]);
   const [restrictedHours, setRestrictedHours] = useState<HourRestriction[]>([]);
   const [activeDayTab, setActiveDayTab] = useState<string>("1");
-  const [loadingRestrictions, setLoadingRestrictions] = useState(false);
   const [savingRestrictions, setSavingRestrictions] = useState(false);
 
-  const days: day[] = [
-    { value: 1, label: "Lunes" },
-    { value: 2, label: "Martes" },
-    { value: 3, label: "Miercoles" },
-    { value: 4, label: "Jueves" },
-    { value: 5, label: "Viernes" },
-  ];
+  const days: day[] = useMemo(
+    () => [
+      { value: 1, label: "Lunes" },
+      { value: 2, label: "Martes" },
+      { value: 3, label: "Miercoles" },
+      { value: 4, label: "Jueves" },
+      { value: 5, label: "Viernes" },
+    ],
+    []
+  );
 
   // Calculate all unique time slots sorted by time
   const allSlots = useMemo(() => {
@@ -72,7 +72,6 @@ const TeacherRestrictionModal: React.FC<{
     setIsRestrictedDays([]);
     setRestrictedHours([]);
     setActiveDayTab("1");
-    setLoadingRestrictions(false);
     setSavingRestrictions(false);
   };
 
@@ -96,6 +95,14 @@ const TeacherRestrictionModal: React.FC<{
     }
   };
 
+  useEffect(() => {
+    const activeDayNumber = Number(activeDayTab);
+    if (restrictedDays.includes(activeDayNumber)) {
+      const fallback = days.find((day) => !restrictedDays.includes(day.value))?.value ?? days[0].value;
+      setActiveDayTab(String(fallback));
+    }
+  }, [restrictedDays, activeDayTab, days]);
+
   const toggleRestrictedHour = (day: number, start: string, end: string) => {
     const exists = restrictedHours.some(
       (h) => h.day === day && h.start === start && h.end === end
@@ -113,33 +120,25 @@ const TeacherRestrictionModal: React.FC<{
   };
 
   useEffect(() => {
-    const fetchRestrictions = async () => {
-      if (!selectedTeacher) return;
-      setLoadingRestrictions(true);
-      try {
-        const data = await getTeacherRestriction(selectedTeacher);
-        setIsRestrictedDays(data?.restricted_days ?? []);
-        setRestrictedHours(data?.restricted_hours ?? []);
-        if ((data?.restricted_days?.length ?? 0) === 0) {
-          setActiveDayTab("1");
-        }
-      } catch (error) {
-        console.error(error);
-        message.error("No se pudieron cargar las restricciones del profesor");
-        setIsRestrictedDays([]);
-        setRestrictedHours([]);
-      } finally {
-        setLoadingRestrictions(false);
-      }
-    };
+    if (!selectedTeacher) {
+      setIsRestrictedDays([]);
+      setRestrictedHours([]);
+      return;
+    }
 
-    if (selectedTeacher) {
-      fetchRestrictions();
+    const existing = teacherRestrictions.find((rest) => rest.teacherId === selectedTeacher);
+    if (existing) {
+      setIsRestrictedDays(existing.days ?? []);
+      setRestrictedHours(existing.hours ?? []);
+      if ((existing.days?.length ?? 0) === 0) {
+        setActiveDayTab("1");
+      }
     } else {
       setIsRestrictedDays([]);
       setRestrictedHours([]);
+      setActiveDayTab("1");
     }
-  }, [selectedTeacher]);
+  }, [selectedTeacher, teacherRestrictions]);
 
   const handleSaveRestrictions = async () => {
     if (!selectedTeacher) {
@@ -210,7 +209,7 @@ const TeacherRestrictionModal: React.FC<{
 
           {selectedTeacher && (
             <>
-              {loadingRestrictions ? (
+              {loadingTeacherRestrictions ? (
                 <div style={{ display: "flex", justifyContent: "center", marginTop: "2rem" }}>
                   <Spin tip="Cargando restricciones" />
                 </div>
