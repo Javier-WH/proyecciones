@@ -5,13 +5,13 @@ const SUBJECT_PROFILE_NAMESPACE = "14923a76-bfe8-4f7a-aa67-0a492adefaf3";
 const SUBJECT_PROFILE_MAX_LENGTH = 36;
 const SUBJECT_PROFILE_HASH_CHARS = 6;
 
-const normalizeProfileEntry = (value: string | null | undefined): string => {
+const normalizeRawText = (value: string | null | undefined): string => {
   return normalizeText(value ?? "");
 };
 
 export const generateSubjectProfileId = (subjectName: string | null | undefined): string | null => {
   if (!subjectName) return null;
-  const normalizedName = normalizeProfileEntry(subjectName);
+  const normalizedName = normalizeRawText(subjectName);
   if (!normalizedName) return null;
 
   if (normalizedName.length <= SUBJECT_PROFILE_MAX_LENGTH) {
@@ -22,6 +22,13 @@ export const generateSubjectProfileId = (subjectName: string | null | undefined)
     .replace(/-/g, "")
     .slice(0, SUBJECT_PROFILE_HASH_CHARS);
   return `${normalizedName.slice(0, SUBJECT_PROFILE_MAX_LENGTH - SUBJECT_PROFILE_HASH_CHARS)}${hash}`;
+};
+
+const normalizeProfileEntry = (value: string | null | undefined): string => {
+  if (!value) return "";
+  const generatedId = generateSubjectProfileId(value);
+  if (generatedId) return generatedId;
+  return normalizeRawText(value);
 };
 
 export const teacherCanTeachSubject = (

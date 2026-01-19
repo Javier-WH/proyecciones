@@ -39,6 +39,7 @@ export default function Login() {
         setIsAuthenticated(false);
         return;
       }
+  
       setUserData(data.userData);
       setUserPNF(data?.pnf_id || "");
       setUserPerfil(data?.perfil);

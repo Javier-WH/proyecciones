@@ -7,6 +7,7 @@ import { Teacher } from "../../../interfaces/teacher";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import useSetSubject, { useSubjectResponseTeacherHours } from "../../../hooks/useSetSubject";
 import { normalizeText } from "../../../utils/textFilter";
+import { shareProfileSubjects } from "../../../utils/subjectProfile";
 import es_ES from "antd/es/locale/es_ES";
 
 interface TeacherTableProps {
@@ -19,6 +20,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
   const [data, setData] = useState<Teacher[] | null>([]);
   const [searchText, setSearchText] = useState("");
 
+
   useEffect(() => {
     if (!teachers) return;
 
@@ -30,24 +32,12 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
     if (!teachers) return;
     let filteredTeachers = [];
 
-    function canTeach(array1: string[], array2: string[]) {
-      for (let i = 0; i < array1.length; i++) {
-        for (let j = 0; j < array2.length; j++) {
-          if (array1[i] === array2[j]) {
-            return true;
-          }
-        }
-      }
-      return false;
-    }
+    const shouldFilterByPerfil = searchByUserPerfil && Boolean(userPerfil?.length);
 
-    if (searchByUserPerfil) {
-      filteredTeachers = teachers?.filter((teacher) => {
-        if (canTeach(teacher.perfil || [], userPerfil || [])) {
-          return true;
-        }
-        return false;
-      });
+    if (shouldFilterByPerfil) {
+      filteredTeachers = teachers?.filter((teacher) =>
+        shareProfileSubjects(teacher.perfil, userPerfil)
+      );
     } else {
       filteredTeachers = teachers;
     }
@@ -64,9 +54,9 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
       });
     }
 
-    //filtra los profesores inactivos
+    //filtra los profesores inactivos (los que no tengan flag se consideran activos)
     filteredTeachers = filteredTeachers.filter((teacher) => {
-      return teacher.active;
+      return teacher.active ?? true;
     });
 
     // filtra los profesores sin contrato
