@@ -9,6 +9,7 @@ import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInf
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { normalizeText } from "../../../utils/textFilter";
+import { teacherCanTeachSubject } from "../../../utils/subjectProfile";
 
 interface AddSubjectToTeacherModalParams {
   subject: Subject | null;
@@ -122,9 +123,8 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
 
     if (perfilOption === "perfil") {
       filteredTeachers = filteredTeachers.filter((teacher) => {
-        if (teacher.teacher.perfil.includes(subject?.id)) {
-          return teacher;
-        }
+        if (!subject) return false;
+        return teacherCanTeachSubject(teacher.teacher.perfil, subject.id, subject.subject);
       });
     }
 

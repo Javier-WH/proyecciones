@@ -10,6 +10,7 @@ import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { normalizeText } from "../../utils/textFilter";
 import Photo from "../photo/photo";
+import { teacherCanTeachSubject } from "../../utils/subjectProfile";
 
 interface optionsInterface {
   value: string;
@@ -166,7 +167,7 @@ const AddSubjectToTeacherModal: React.FC<{
     const t_index = teachers.findIndex((teacher) => teacher.id === selectedTeacerId);
     setTeacherIndex(t_index);
 
-    const teacherPerfil = new Set(teachers[t_index]?.perfil ?? []);
+    const teacherPerfil = teachers[t_index]?.perfil ?? [];
 
     // excluir materias vinculadas (solo se muestran las secciones principales)
     subjectsData = subjectsData.filter((subject) => !subject.linkedToSection);
@@ -178,7 +179,9 @@ const AddSubjectToTeacherModal: React.FC<{
 
     if (perfilOption === "perfil") {
       subjectsData = subjectsData.filter(
-        (subject) => teacherPerfil.has(subject.subjectId) && subject.pnfId === userPNF
+        (subject) =>
+          teacherCanTeachSubject(teacherPerfil, subject.subjectId, subject.label) &&
+          subject.pnfId === userPNF
       );
     }
 

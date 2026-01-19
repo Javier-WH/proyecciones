@@ -8,6 +8,7 @@ import { FaTrashCan, FaPlus } from "react-icons/fa6";
 import deleteSubjectInProfile from "../../../fetch/deleteSubjectInPerfil";
 import postSubjectToPerfil from "../../../fetch/postSubjectToPerfil";
 import DeleteProfileModal from "./profileModal/deleteProfileModal";
+import { generateSubjectProfileId } from "../../../utils/subjectProfile";
 
 interface basicSubject {
   id: string;
@@ -56,8 +57,15 @@ export default function Profiles() {
       return subject.active === 1;
     });
 
-    const subjectInputData = cleanSubjectData.map((subject: { id: string; name: string }) => {
-      return { value: subject.id, label: subject.name };
+    const subjectInputData: SubjectOption[] = [];
+
+    cleanSubjectData.forEach((subject: { id: string; name: string }) => {
+      const profileId = generateSubjectProfileId(subject.name);
+      if (!profileId) {
+        console.warn(`No se pudo generar un identificador estable para la materia "${subject.name}"`);
+        return;
+      }
+      subjectInputData.push({ value: profileId, label: subject.name });
     });
 
     setSubjectList(subjectInputData);
