@@ -1,8 +1,13 @@
 import { Button, message, Select, SelectProps } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
+import { MainContext } from "../../../context/mainContext";
+import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import getProfileNames from "../../../fetch/getProfileNames";
 import getProfile from "../../../fetch/getProfile";
 import getSubjects from "../../../fetch/getSubjects";
+import getPnf from "../../../fetch/getPnf";
+import getTrayectos from "../../../fetch/getTrayectos";
+import getMaya from "../../../fetch/getMaya";
 import ProfileModal from "./profileModal/ProfileModal";
 import { FaTrashCan, FaPlus } from "react-icons/fa6";
 import deleteSubjectInProfile from "../../../fetch/deleteSubjectInPerfil";
@@ -26,9 +31,17 @@ export default function Profiles() {
   const [openDeleteProfileModal, setOpenDeleteProfileModal] = useState<boolean>(false);
   const [perfilList, setPerfilList] = useState<SelectProps["options"]>([]);
   const [subjectList, setSubjectList] = useState<SelectProps["options"]>([]);
+  const [pnfList, setPnfList] = useState<SelectProps["options"]>([]);
+  const [rawPnfList, setRawPnfList] = useState<any[] | null>(null);
+  const [trayectoList, setTrayectoList] = useState<SelectProps["options"]>([]);
+  const [mayaList, setMayaList] = useState<SelectProps["options"]>([]);
+  const [selectedPnf, setSelectedPnf] = useState<string | null>(null);
+  const [selectedTrayecto, setSelectedTrayecto] = useState<string | null>(null);
+  const [selectedMaya, setSelectedMaya] = useState<string | null>(null);
   const [subjectsINperfil, setSubjectsINperfil] = useState<basicSubject[]>([]);
   const [selectedPerfil, setSelectedPerfil] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const main = useContext(MainContext) as MainContextValues | null;
 
   const getPerfilList = async () => {
     const profileData = await getProfileNames();
@@ -46,38 +59,121 @@ export default function Profiles() {
   };
 
   const getSubjectList = async () => {
-    const subjectData = await getSubjects();
+    // Requerimos maya para la llamada; si no está seleccionada, no hacemos fetch
+    if (selectedMaya === null) return;
+    // Preferir subjects provistas por el contexto (llegan desde createProyectionPanel)
+    const contextSubjects = main?.subjects ?? [];
 
-    if (subjectData.error) {
-      message.error(subjectData.error);
+    let subjectInputData: SubjectOption[] = [];
+
+    if (Array.isArray(contextSubjects) && contextSubjects.length > 0) {
+      const filtered = contextSubjects.filter((s: any) => {
+        if (selectedPnf && String(s.pnfId) !== String(selectedPnf)) return false;
+        if (selectedTrayecto && String(s.trayectoId) !== String(selectedTrayecto)) return false;
+        return true;
+      });
+
+      // Mapear usando la propiedad `subject` que usa TabPanel/formatSubjects
+      filtered.forEach((s: any) => {
+        const name = s.subject || s.subject_name || s.name;
+        if (!name) return;
+        const backendId = String(
+          s.pensum_id ?? s.pensumId ?? s.subjectId ?? s.id ?? generateSubjectProfileId(name),
+        );
+        if (!backendId) return;
+        if (!subjectInputData.some((opt) => opt.value === backendId)) {
+          subjectInputData.push({ value: backendId, label: name });
+        }
+      });
+    }
+
+    // Si no hay datos en contexto, fallback a la API
+    if (subjectInputData.length === 0) {
+      const subjectData = await getSubjects({
+        pnfId: selectedPnf,
+        trayectoId: selectedTrayecto,
+        mayaId: selectedMaya,
+      });
+      if (Array.isArray(subjectData)) {
+        const cleanSubjectData = subjectData.filter((subject: { active: number }) => subject.active === 1);
+        cleanSubjectData.forEach((subject: { id: string; name: string }) => {
+          const backendId = String(subject.id ?? subject.pensum_id ?? generateSubjectProfileId(subject.name));
+          subjectInputData.push({ value: backendId, label: subject.name });
+        });
+      } else if ((subjectData as any)?.error) {
+        message.error((subjectData as any).error);
+      }
+    }
+
+    setSubjectList(subjectInputData);
+  };
+
+  const getPnfList = async () => {
+    const data = await getPnf();
+    if (!data) return;
+    setRawPnfList(data);
+    const options = data.map((p: any) => ({
+      value: String(p.id),
+      label: String(p.name || p.description || p.id),
+    }));
+    setPnfList(options);
+  };
+
+  const getTrayectoList = async () => {
+    const data = await getTrayectos();
+    if (!data) return;
+    const options = data.map((t: any) => ({ value: String(t.id ?? t.name), label: t.name || String(t.id) }));
+    setTrayectoList(options);
+  };
+
+  const getMayaList = async (pnfId: string | null) => {
+    if (!pnfId) {
+      setMayaList([]);
+      return;
+    }
+    // intentar resolver sagaPNFID desde el listado crudo de PNFs
+    const sagaPNFID =
+      rawPnfList?.find((p) => String(p.id) === String(pnfId))?.saga_id?.toString() ?? String(pnfId);
+    const data = await getMaya({ sagaPNFID });
+    const mayadata = data?.data?.mayas ?? data?.mayas ?? data;
+    if (!mayadata) {
+      setMayaList([]);
       return;
     }
 
-    const cleanSubjectData = subjectData.filter((subject: { active: number }) => {
-      return subject.active === 1;
-    });
+    const sortedMayas = mayadata.sort((a: any, b: any) => Number(b.id) - Number(a.id));
+    const filteredMayas = sortedMayas.filter((maya: any) => maya.tipopensum_id === 1);
 
-    const subjectInputData: SubjectOption[] = [];
+    const mayaOpt = filteredMayas.map((maya: any) => ({
+      value: String(maya.id),
+      label: String(maya.descripcion || maya.name || maya.id),
+    }));
 
-    cleanSubjectData.forEach((subject: { id: string; name: string }) => {
-      const profileId = generateSubjectProfileId(subject.name);
-      if (!profileId) {
-        console.warn(`No se pudo generar un identificador estable para la materia "${subject.name}"`);
-        return;
-      }
-      subjectInputData.push({ value: profileId, label: subject.name });
-    });
-
-    setSubjectList(subjectInputData);
+    setMayaList(mayaOpt);
+    if (mayaOpt.length > 0) setSelectedMaya(mayaOpt[0].value);
   };
 
   useEffect(() => {
     async function fetchData() {
       await getPerfilList();
-      await getSubjectList();
+      await getPnfList();
+      await getTrayectoList();
     }
     fetchData();
   }, []);
+
+  useEffect(() => {
+    // Cuando cambie el PNF, recargar mayas y limpiar selección de maya y subjects
+    getMayaList(selectedPnf);
+    setSelectedMaya(null);
+    setSubjectList([]);
+  }, [selectedPnf]);
+
+  useEffect(() => {
+    // Cuando se seleccione una maya válida, cargar materias
+    getSubjectList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMaya]);
 
   const handlePerfilChange = async (value: string) => {
     const profileData = await getProfile({ id: value });
@@ -120,7 +216,9 @@ export default function Profiles() {
     }
 
     const alreadyInProfile = subjectsINperfil.some((subject) => {
-      if (subject.subject_id === selectedSubject) return true;
+      if (String(subject.subject_id) === String(selectedSubject)) return true;
+      if (String(subject.id) === String(selectedSubject)) return true;
+      if (String(subject.pensum_id) === String(selectedSubject)) return true;
       const normalizedId = generateSubjectProfileId(subject.subject_name);
       return normalizedId === selectedSubject;
     });
@@ -206,6 +304,39 @@ export default function Profiles() {
             style={selectorStyle}
             onChange={handlePerfilChange}
             options={perfilList}
+          />
+        </div>
+
+        <div style={{ flex: 1 }}>
+          <label htmlFor="">PNF</label>
+          <Select
+            placeholder="Seleccione PNF"
+            style={selectorStyle}
+            onChange={(value: string) => setSelectedPnf(value)}
+            options={pnfList}
+            allowClear
+          />
+        </div>
+
+        <div style={{ flex: 1 }}>
+          <label htmlFor="">Trayecto</label>
+          <Select
+            placeholder="Seleccione Trayecto"
+            style={selectorStyle}
+            onChange={(value: string) => setSelectedTrayecto(value)}
+            options={trayectoList}
+            allowClear
+          />
+        </div>
+
+        <div style={{ flex: 1 }}>
+          <label htmlFor="">Maya</label>
+          <Select
+            placeholder="Seleccione Maya"
+            style={selectorStyle}
+            onChange={(value: string) => setSelectedMaya(value)}
+            options={mayaList}
+            allowClear
           />
         </div>
 
