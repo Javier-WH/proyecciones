@@ -6,10 +6,12 @@ export default function ProfileModal({
   isModalOpen,
   setIsModalOpen,
   getPerfilList,
+  perfilList,
 }: {
   isModalOpen: boolean;
   setIsModalOpen: (open: boolean) => void;
   getPerfilList: () => Promise<void>;
+  perfilList: { value: string; label: string }[];
 }) {
   const [nameValue, setNameValue] = useState<string>("");
   const [descriptionValue, setDescriptionValue] = useState<string>("");
@@ -20,8 +22,24 @@ export default function ProfileModal({
   }, [isModalOpen]);
 
   const handleOk = async () => {
+    const trimmedName = nameValue.trim();
+    if (!trimmedName) {
+      message.warning("El nombre no puede estar vacío");
+      return;
+    }
+
+    // Validación de duplicados (Frontend)
+    const exists = perfilList.some(
+      (p) => p.label.toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (exists) {
+      message.warning("Ya existe un perfil con ese nombre");
+      return;
+    }
+
     const response = await setProfile({
-      name: nameValue,
+      name: trimmedName,
       description: descriptionValue,
     });
     if (!response) {

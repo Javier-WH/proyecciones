@@ -268,6 +268,7 @@ export default function Profiles() {
         isModalOpen={openProfileModal}
         setIsModalOpen={setOpenProfileModal}
         getPerfilList={getPerfilList}
+        perfilList={perfilList as { value: string; label: string }[]}
       />
       <DeleteProfileModal
         isModalOpen={openDeleteProfileModal}
