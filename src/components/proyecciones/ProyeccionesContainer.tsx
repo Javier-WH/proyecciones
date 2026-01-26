@@ -149,7 +149,7 @@ export default function ProyeccionesContainer() {
       <div
         style={{
           position: "relative",
-          height: "calc(100vh - 50px)",
+          height: "calc(100vh - 80px)",
           overflow: "hidden",
         }}>
         {teacherTab ? (
@@ -157,9 +157,11 @@ export default function ProyeccionesContainer() {
             style={{
               display: "grid",
               gridTemplateColumns: "minmax(380px, 30%) 1fr",
+              gridTemplateRows: "1fr",
               gap: "16px",
               padding: "10px",
               height: "100%",
+              overflow: "hidden",
             }}>
             <TeacherTable searchByUserPerfil={searchByUserPerfil} />
             <SelectedTeacher />
@@ -170,7 +172,7 @@ export default function ProyeccionesContainer() {
           </>
         )}
       </div>
-    </div>
+    </div >
   );
 }
 

@@ -14,9 +14,23 @@
 }
 
 .teacher-subjects-body {
-  overflow-y: scroll;
+  overflow-y: auto;
   overflow-x: hidden;
-  height: calc(100vh - 350px);
+  /* flex: 1;  <-- Desactivado para permitir control manual de altura */
+  height: calc(100% - 280px);
+  /* Ajusta este valor si el encabezado cambia de tamaño */
+  width: 100%;
+  border-bottom: 1px solid transparent;
+  /* Ayuda visual para el margen */
+  /* Esto hace que ocupe todo el espacio disponible */
+  /* min-height: 0; */
+  /* Necesario para que el scroll funcione dentro de flex */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px;
+  margin-bottom: 5px;
+  /* Tu margen inferior */
   position: relative !important;
 }
 
@@ -43,9 +57,11 @@
   right: 0;
   top: 5px;
 }
+
 .teacher-subjects-buttons svg {
   filter: drop-shadow(0 0 1px black) drop-shadow(0 0 1px black);
 }
+
 .teacher-subjects-buttons svg:hover {
   scale: 1.3;
   filter: drop-shadow(0 0 5px white);

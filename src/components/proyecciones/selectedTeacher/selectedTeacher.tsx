@@ -136,9 +136,10 @@ export default function SelectedTeacher() {
   };
 
   return (
-    <div className="selected-teacher-container" style={{ padding: "0 10px" }}>
+    <div className="selected-teacher-container" style={{ padding: "0 10px", height: "100%", display: "flex", flexDirection: "column" }}>
       <div
         style={{
+          flexShrink: 0,
           backgroundColor: "white",
           borderRadius: "12px",
           padding: "20px",

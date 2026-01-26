@@ -12,10 +12,12 @@ import useSetSubject from "../../../../hooks/useSetSubject";
 
 import "./subjects.css";
 
-const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> = ({
-  data,
-  showAllSubjects,
-}) => {
+const Subjects: React.FC<{
+  data: Subject[] | null;
+  showAllSubjects: boolean;
+  overloaded: boolean;
+  emptyHours: boolean;
+}> = ({ data, showAllSubjects, overloaded, emptyHours }) => {
   const {
     setOpenAddSubjectToTeacherModal,
     selectedTeacerId,
@@ -62,10 +64,11 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
   return (
     <div
       style={{
-        overflow: "hidden",
-        height: "calc(100vh - 280px)",
+        flex: 1,
         display: "flex",
         flexDirection: "column",
+        minHeight: 0, // Critical for nested flex scrolling
+        overflow: "hidden",
       }}>
       <div
         className="teacher-subjects-header"
@@ -73,20 +76,32 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          padding: "0 4px 16px 4px",
+          padding: "0 4px 8px 4px",
           background: "transparent",
         }}>
-        <h2
-          style={{
-            fontSize: "1.1rem",
-            fontWeight: 600,
-            color: "#374151",
-            margin: 0,
-            textTransform: "uppercase",
-            letterSpacing: "0.5px",
-          }}>
-          Asignaturas Asignadas
-        </h2>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <h2
+            style={{
+              fontSize: "1.1rem",
+              fontWeight: 600,
+              color: "#374151",
+              margin: 0,
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}>
+            Asignaturas Asignadas
+          </h2>
+          {overloaded && (
+            <Tag color="error" icon={<ExclamationCircleOutlined />}>
+              Sobrecarga
+            </Tag>
+          )}
+          {emptyHours && (
+            <Tag color="warning" icon={<ExclamationCircleOutlined />}>
+              Sin Horas
+            </Tag>
+          )}
+        </div>
         <Button
           type="primary"
           shape="round"
@@ -98,14 +113,7 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
       </div>
 
       <div
-        className="teacher-subjects-body"
-        style={{
-          overflowY: "auto",
-          padding: "4px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-        }}>
+        className="teacher-subjects-body">
         {!data || data.length === 0 ? (
           <div
             style={{
@@ -139,7 +147,7 @@ const Subjects: React.FC<{ data: Subject[] | null; showAllSubjects: boolean }> =
                   boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
                   border: "1px solid #f0f0f0",
                   borderLeft: `5px solid ${highlightColor}`,
-                  padding: "16px",
+                  padding: "12px",
                   position: "relative",
                   transition: "all 0.2s ease",
                 }}>

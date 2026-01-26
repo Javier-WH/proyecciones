@@ -148,7 +148,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
     <div
       style={{
         width: "100%",
-        height: "calc(100vh - 70px)",
+        height: "100%",
         padding: "0 5px 0 10px",
       }}>
       <div
