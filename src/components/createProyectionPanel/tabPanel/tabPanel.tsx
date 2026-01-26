@@ -405,32 +405,94 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
 
   if (checkIfProyected()) {
     return (
-      <div>
-        <h2>Esta proyección ya ha sido creada</h2>
-        <p>
-          Si desea crear una nueva proyección para este programa y trayecto, elimine la proyección existente.
-        </p>
-        <Divider />
-        <div style={{ display: "flex", gap: "10px" }}>
-          <Popconfirm
-            placement="bottom"
-            title={"¿Deseas eliminar esta proyección?"}
-            description={
-              "Esta accion no se puede deshacer, se perderán todos los cambios realizados en la proyección de manera permanente."
-            }
-            icon={<QuestionCircleOutlined style={{ color: "red" }} />}
-            okText="Eliminar"
-            cancelText="Cancelar"
-            okType="danger"
-            onCancel={() => message.info("No se ha eliminado la proyección")}
-            onConfirm={handleDeleteProyected}>
-            <Button type="primary" danger>
-              Eliminar proyección
-            </Button>
-          </Popconfirm>
-          <Button onClick={() => setIsModalOpen(true)} icon={<PlusOutlined />}>
+      <div
+        style={{
+          backgroundColor: "white",
+          borderRadius: "12px",
+          padding: "32px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+          border: "1px solid #f0f0f0",
+          maxWidth: "800px",
+          margin: "20px auto",
+          textAlign: "center",
+          display: "flex",
+          flexDirection: "column",
+          gap: "24px",
+        }}>
+        <div>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "12px",
+              marginBottom: "16px",
+              padding: "8px 16px",
+              background: "#f6ffed",
+              border: "1px solid #b7eb8f",
+              borderRadius: "20px",
+            }}>
+            <span
+              style={{
+                width: "10px",
+                height: "10px",
+                borderRadius: "50%",
+                background: "#52c41a",
+                boxShadow: "0 0 0 4px rgba(82, 196, 26, 0.2)",
+              }}></span>
+            <span style={{ color: "#389e0d", fontWeight: 600 }}>Proyección Activa</span>
+          </div>
+          <h2 style={{ margin: 0, color: "#1f1f1f", fontSize: "1.8rem" }}>
+            Esta proyección ya está creada
+          </h2>
+          <p style={{ color: "#8c8c8c", marginTop: "12px", fontSize: "1rem", maxWidth: "600px", marginInline: "auto" }}>
+            Los datos para este programa y trayecto ya han sido generados. Puede agregar nuevas secciones o eliminar la proyección completa si desea comenzar de nuevo.
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: "16px",
+            marginTop: "12px",
+          }}>
+          <Button
+            size="large"
+            icon={<PlusOutlined />}
+            onClick={() => setIsModalOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              height: "44px",
+              padding: "0 24px",
+              borderRadius: "8px",
+            }}>
             Agregar Sección
           </Button>
+
+          <Popconfirm
+            placement="bottom"
+            title="¿Eliminar proyección permanentemente?"
+            description="Esta acción borrará todos los datos asociados y no se puede deshacer."
+            icon={<QuestionCircleOutlined style={{ color: "red" }} />}
+            okText="Sí, Eliminar"
+            cancelText="Cancelar"
+            okType="danger"
+            onConfirm={handleDeleteProyected}>
+            <Button
+              danger
+              size="large"
+              type="primary"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                height: "44px",
+                padding: "0 24px",
+                borderRadius: "8px",
+              }}>
+              Eliminar Proyección
+            </Button>
+          </Popconfirm>
         </div>
 
         <Modal
@@ -440,14 +502,23 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
           onCancel={() => setIsModalOpen(false)}
           confirmLoading={addingSection}
           okText="Agregar"
-          cancelText="Cancelar">
-          <div style={{ display: "flex", flexDirection: "column", gap: "15px", padding: "10px 0" }}>
+          cancelText="Cancelar"
+          centered>
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "10px 0" }}>
             <div>
-              <label style={{ display: "block", marginBottom: "5px", color: "gray", fontSize: "12px" }}>
-                Maya
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  color: "#595959",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                }}>
+                Maya Curricular
               </label>
               <Select
                 style={{ width: "100%" }}
+                size="large"
                 placeholder="Seleccione la maya"
                 options={modalMayaOptions}
                 loading={modalLoadingMaya}
@@ -457,11 +528,19 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
               />
             </div>
             <div>
-              <label style={{ display: "block", marginBottom: "5px", color: "gray", fontSize: "12px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  color: "#595959",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                }}>
                 Turno
               </label>
               <Select
                 style={{ width: "100%" }}
+                size="large"
                 placeholder="Seleccione el turno"
                 value={modalSelectedTurno}
                 onChange={setModalSelectedTurno}
@@ -469,32 +548,46 @@ export default function TabPanel({ selectedPnf, selectedTrayecto, selectedMaya }
               />
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div
+              style={{
+                backgroundColor: "#fafafa",
+                padding: "16px",
+                borderRadius: "8px",
+                border: "1px solid #f0f0f0",
+              }}>
               <Checkbox checked={isLinked} onChange={(e) => setIsLinked(e.target.checked)}>
-                Vincular a otra sección
+                Vincular a otra sección existente
               </Checkbox>
-            </div>
 
-            {isLinked && (
-              <div>
-                <label style={{ display: "block", marginBottom: "5px", color: "gray", fontSize: "12px" }}>
-                  Sección a vincular
-                </label>
-                <Select
-                  style={{ width: "100%" }}
-                  placeholder="Seleccione la sección"
-                  value={selectedLinkSection}
-                  onChange={setSelectedLinkSection}
-                  options={linkableSections}
-                  disabled={linkableSections.length === 0}
-                />
-                {linkableSections.length === 0 && (
-                  <span style={{ color: "orange", fontSize: "11px" }}>
-                    No hay secciones disponibles para vincular en este trayecto.
-                  </span>
-                )}
-              </div>
-            )}
+              {isLinked && (
+                <div style={{ marginTop: "12px" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: "8px",
+                      color: "#595959",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                    }}>
+                    Sección a vincular
+                  </label>
+                  <Select
+                    style={{ width: "100%" }}
+                    size="large"
+                    placeholder="Seleccione la sección"
+                    value={selectedLinkSection}
+                    onChange={setSelectedLinkSection}
+                    options={linkableSections}
+                    disabled={linkableSections.length === 0}
+                  />
+                  {linkableSections.length === 0 && (
+                    <span style={{ color: "#faad14", fontSize: "12px", display: "block", marginTop: "4px" }}>
+                      No hay secciones disponibles para vincular en este trayecto.
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </Modal>
       </div>
