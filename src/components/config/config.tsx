@@ -1,5 +1,5 @@
 import type { DatePickerProps, TableProps } from "antd";
-import { DatePicker, Input, Button, Table, message, Tag, Popconfirm, Card } from "antd";
+import { DatePicker, Input, Button, Table, message, Tag, Card, Modal } from "antd";
 import { useEffect, useState, useContext } from "react";
 import getProyections from "../../fetch/getProyections";
 import getConfig from "../../fetch/getConfig";
@@ -9,7 +9,7 @@ import deleteProyection from "../../fetch/deleteProyection";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { Forbidden } from "../../utils/messageComponents";
-import { CheckCircleOutlined, DeleteOutlined, ThunderboltOutlined, CalendarOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, DeleteOutlined, ThunderboltOutlined, CalendarOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 
 interface ProyectionDataType {
   id: string;
@@ -25,6 +25,12 @@ export default function Config() {
   const [activeProyection, setActiveProyection] = useState<string | null>(null);
   const [activeProyectionId, setActiveProyectionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Delete Modal States
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [projectionToDelete, setProjectionToDelete] = useState<ProyectionDataType | null>(null);
+  const [deleteInputName, setDeleteInputName] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const fetchProyections = async () => {
     const proyections = await getProyections();
@@ -57,17 +63,34 @@ export default function Config() {
     message.success("Proyección activada correctamente");
   };
 
-  const handleClickDelete = async (id: string) => {
-    if (id === activeProyectionId) {
+  const openDeleteModal = (record: ProyectionDataType) => {
+    if (record.id === activeProyectionId) {
       message.error("No se puede eliminar la proyección activa. Active otra primero.");
       return;
     }
+    setProjectionToDelete(record);
+    setDeleteInputName("");
+    setIsDeleteModalOpen(true);
+  };
 
-    const response = await deleteProyection(id);
+  const handleConfirmDelete = async () => {
+    if (!projectionToDelete) return;
+
+    if (deleteInputName !== projectionToDelete.name) {
+      message.error("El nombre ingresado no coincide");
+      return;
+    }
+
+    setDeleting(true);
+    const response = await deleteProyection(projectionToDelete.id);
+    setDeleting(false);
+
     if (response.error) {
       message.error(response.error);
     } else {
-      message.success("Proyección eliminada");
+      message.success("Proyección eliminada exitosamente");
+      setIsDeleteModalOpen(false);
+      setProjectionToDelete(null);
       fetchProyections();
     }
   };
@@ -132,22 +155,13 @@ export default function Config() {
               {isActive ? "Activa" : "Activar"}
             </Button>
 
-            <Popconfirm
-              title="¿Eliminar proyección?"
-              description="Esta acción eliminará la proyección y no se puede deshacer."
-              onConfirm={() => handleClickDelete(record.id)}
-              okText="Eliminar"
-              cancelText="Cancelar"
-              okType="danger"
+            <Button
+              danger
+              icon={<DeleteOutlined />}
               disabled={isActive}
-            >
-              <Button
-                danger
-                icon={<DeleteOutlined />}
-                disabled={isActive}
-                title={isActive ? "No se puede eliminar la proyección activa" : "Eliminar"}
-              />
-            </Popconfirm>
+              onClick={() => openDeleteModal(record)}
+              title={isActive ? "No se puede eliminar la proyección activa" : "Eliminar"}
+            />
           </div>
         );
       },
@@ -237,7 +251,41 @@ export default function Config() {
           pagination={{ pageSize: 8 }}
         />
       </Card>
+
+      <Modal
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#ff4d4f" }}>
+            <ExclamationCircleOutlined />
+            <span>Eliminar Proyección</span>
+          </div>
+        }
+        open={isDeleteModalOpen}
+        onOk={handleConfirmDelete}
+        onCancel={() => setIsDeleteModalOpen(false)}
+        okText="Eliminar"
+        okType="danger"
+        cancelText="Cancelar"
+        confirmLoading={deleting}
+        okButtonProps={{ disabled: deleteInputName !== projectionToDelete?.name }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "10px 0" }}>
+          <p style={{ margin: 0 }}>
+            Esta acción es irreversible. Se eliminarán todos los datos asociados a la proyección
+            <b> "{projectionToDelete?.name}"</b>.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <label style={{ fontSize: "12px", color: "#666" }}>
+              Por favor, escribe el nombre de la proyección para confirmar:
+            </label>
+            <Input
+              value={deleteInputName}
+              onChange={(e) => setDeleteInputName(e.target.value)}
+              placeholder={projectionToDelete?.name}
+              status={deleteInputName && deleteInputName !== projectionToDelete?.name ? "error" : ""}
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
-

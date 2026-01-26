@@ -17,7 +17,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   /* flex: 1;  <-- Desactivado para permitir control manual de altura */
-  height: calc(100% - 250px);
+  height: calc(100vh - 420px);
   /* Ajusta este valor si el encabezado cambia de tamaño */
   width: 100%;
   border-bottom: 1px solid transparent;
