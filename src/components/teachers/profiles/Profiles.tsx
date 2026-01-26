@@ -1,10 +1,8 @@
 import { Button, message, Select, SelectProps } from "antd";
-import { useEffect, useState, useContext } from "react";
-import { MainContext } from "../../../context/mainContext";
-import { MainContextValues } from "../../../interfaces/contextInterfaces";
+import { useEffect, useState } from "react";
 import getProfileNames from "../../../fetch/getProfileNames";
 import getProfile from "../../../fetch/getProfile";
-import getSubjects from "../../../fetch/getSubjects";
+import getPensum from "../../../fetch/getPensum";
 import getPnf from "../../../fetch/getPnf";
 import getTrayectos from "../../../fetch/getTrayectos";
 import getMaya from "../../../fetch/getMaya";
@@ -17,8 +15,9 @@ import { generateSubjectProfileId } from "../../../utils/subjectProfile";
 
 interface basicSubject {
   id: string;
-  subject_id: string;
-  subject_name: string;
+  subject_id?: string;
+  subject_name?: string;
+  pensum_id?: string;
 }
 
 interface SubjectOption {
@@ -41,7 +40,6 @@ export default function Profiles() {
   const [subjectsINperfil, setSubjectsINperfil] = useState<basicSubject[]>([]);
   const [selectedPerfil, setSelectedPerfil] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const main = useContext(MainContext) as MainContextValues | null;
 
   const getPerfilList = async () => {
     const profileData = await getProfileNames();
@@ -59,53 +57,37 @@ export default function Profiles() {
   };
 
   const getSubjectList = async () => {
-    // Requerimos maya para la llamada; si no está seleccionada, no hacemos fetch
-    if (selectedMaya === null) return;
-    // Preferir subjects provistas por el contexto (llegan desde createProyectionPanel)
-    const contextSubjects = main?.subjects ?? [];
-
-    let subjectInputData: SubjectOption[] = [];
-
-    if (Array.isArray(contextSubjects) && contextSubjects.length > 0) {
-      const filtered = contextSubjects.filter((s: any) => {
-        if (selectedPnf && String(s.pnfId) !== String(selectedPnf)) return false;
-        if (selectedTrayecto && String(s.trayectoId) !== String(selectedTrayecto)) return false;
-        return true;
-      });
-
-      // Mapear usando la propiedad `subject` que usa TabPanel/formatSubjects
-      filtered.forEach((s: any) => {
-        const name = s.subject || s.subject_name || s.name;
-        if (!name) return;
-        const backendId = String(
-          s.pensum_id ?? s.pensumId ?? s.subjectId ?? s.id ?? generateSubjectProfileId(name),
-        );
-        if (!backendId) return;
-        if (!subjectInputData.some((opt) => opt.value === backendId)) {
-          subjectInputData.push({ value: backendId, label: name });
-        }
-      });
+    // Requerimos PNF, trayecto y maya para obtener el pensum
+    if (!selectedPnf || !selectedTrayecto || !selectedMaya) {
+      setSubjectList([]);
+      return;
     }
 
-    // Si no hay datos en contexto, fallback a la API
-    if (subjectInputData.length === 0) {
-      const subjectData = await getSubjects({
-        pnfId: selectedPnf,
+    try {
+      const pensumData = await getPensum({
+        programaId: selectedPnf,
         trayectoId: selectedTrayecto,
         mayaId: selectedMaya,
       });
-      if (Array.isArray(subjectData)) {
-        const cleanSubjectData = subjectData.filter((subject: { active: number }) => subject.active === 1);
-        cleanSubjectData.forEach((subject: { id: string; name: string }) => {
-          const backendId = String(subject.id ?? subject.pensum_id ?? generateSubjectProfileId(subject.name));
-          subjectInputData.push({ value: backendId, label: subject.name });
-        });
-      } else if ((subjectData as any)?.error) {
-        message.error((subjectData as any).error);
-      }
-    }
 
-    setSubjectList(subjectInputData);
+      if ((pensumData as any)?.error) {
+        message.error("Error al obtener pensum");
+        setSubjectList([]);
+        return;
+      }
+
+      const pensums = pensumData?.data?.pensums ?? pensumData?.pensums ?? [];
+      const subjectInputData: SubjectOption[] = pensums.map((s: any) => {
+        const name = s.subject || s.name || s.subject_name || "";
+        const backendId = String(s.pensum_id ?? s.id ?? generateSubjectProfileId(name));
+        return { value: backendId, label: name };
+      });
+
+      setSubjectList(subjectInputData);
+    } catch (e) {
+      console.error(e);
+      setSubjectList([]);
+    }
   };
 
   const getPnfList = async () => {
@@ -170,10 +152,10 @@ export default function Profiles() {
   }, [selectedPnf]);
 
   useEffect(() => {
-    // Cuando se seleccione una maya válida, cargar materias
+    // Cuando cambie PNF, trayecto o maya, cargar materias
     getSubjectList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMaya]);
+  }, [selectedPnf, selectedTrayecto, selectedMaya]);
 
   const handlePerfilChange = async (value: string) => {
     const profileData = await getProfile({ id: value });

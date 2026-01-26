@@ -6,15 +6,12 @@ export default async function getSubjects({
   pnfId?: unknown;
   trayectoId?: unknown;
   mayaId?: unknown;
-}) {
-  // Validación mínima requerida
-  if (mayaId === undefined || mayaId === null) throw new Error("Se requiere mayaId");
-
-  const params = new URLSearchParams({
-    pnfId: String(pnfId ?? ""),
-    trayectoId: String(trayectoId ?? ""),
-    mayaId: String(mayaId),
-  });
+} = {}) {
+  // Construir params solo con valores definidos
+  const params = new URLSearchParams();
+  if (pnfId !== undefined && pnfId !== null) params.set("pnfId", String(pnfId));
+  if (trayectoId !== undefined && trayectoId !== null) params.set("trayectoId", String(trayectoId));
+  if (mayaId !== undefined && mayaId !== null) params.set("mayaId", String(mayaId));
 
   const base = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
   const url = `${base}/api/subjects/simple?${params.toString()}`;
@@ -23,7 +20,6 @@ export default async function getSubjects({
     const res = await fetch(url, {
       method: "GET",
       headers: { Accept: "application/json" },
-      credentials: "include",
     });
 
     if (!res.ok) {
@@ -45,3 +41,4 @@ export default async function getSubjects({
     return [];
   }
 }
+
