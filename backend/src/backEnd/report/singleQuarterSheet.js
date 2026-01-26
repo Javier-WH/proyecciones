@@ -145,7 +145,8 @@ export default function generateSingleQuarterSheet({
         if (teacher.load.length === 0) continue;
         const teacherHours = getTeacherHous(teacher.load, teacher.id);
 
-        sheet.cell(`A${row}`).value(`${teacher.last_name} ${teacher.name}`.toUpperCase());
+        const fullName = `${teacher.last_name || ""} ${teacher.name || ""}`.trim().toUpperCase();
+        sheet.cell(`A${row}`).value(fullName);
         sheet.cell(`A${row}`).style("wrapText", true);
         const initRange = row;
         for (const [subjectIndex, subject] of teacher.load.entries()) {
