@@ -275,7 +275,12 @@ function groupSubjectsByTeacher(subjects, quarter) {
     const load = profesor.load;
     const filteredLoad = load.filter((subject) => {
       const isAssignedToThisProfessor = subject.quarter?.[`q${quarter}`] === profesor.id
-      const isUnassigned = profesor.id === 'UNASIGNED' && !subject.quarter?.[`q${quarter}`]
+      // A subject is unassigned for this quarter if:
+      // 1. We are processing the 'UNASIGNED' list
+      // 2. The subject has no teacher assigned for this quarter (!subject.quarter.qN)
+      // 3. The subject DOES exist in this quarter (it has hours defined: subject.hours.qN)
+      const hasHoursForQuarter = subject.hours && subject.hours[`q${quarter}`]
+      const isUnassigned = profesor.id === 'UNASIGNED' && !subject.quarter?.[`q${quarter}`] && hasHoursForQuarter
       return isAssignedToThisProfessor || isUnassigned
     })
     profesor.load = filteredLoad;
