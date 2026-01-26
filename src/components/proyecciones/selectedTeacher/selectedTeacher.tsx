@@ -243,26 +243,6 @@ export default function SelectedTeacher() {
           </div>
         </div>
 
-        {/* Alerts Section */}
-        <div style={{ marginTop: "16px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          {(overloadedQ1 || overloadedQ2 || overloadedQ3) && (
-            <Tag color="error" icon={<ExclamationCircleOutlined />} style={{ padding: "4px 10px" }}>
-              Sobrecarga de Horas detectada
-            </Tag>
-          )}
-
-          {((usedHoursQ1 === "0" && selectedQuarter === "q1") ||
-            (usedHoursQ2 === "0" && selectedQuarter === "q2") ||
-            (usedHoursQ3 === "0" && selectedQuarter === "q3") ||
-            (usedHoursQ1 === "0" && usedHoursQ2 === "0" && usedHoursQ3 === "0")) &&
-            !showAllSubjects &&
-            haveConract && (
-              <Tag color="warning" icon={<ExclamationCircleOutlined />} style={{ padding: "4px 10px" }}>
-                Sin Horas Asignadas en este periodo
-              </Tag>
-            )}
-        </div>
-
         {/* Quarter Selector */}
         {haveConract && (
           <div
@@ -283,7 +263,20 @@ export default function SelectedTeacher() {
         )}
       </div>
 
-      {haveConract && <Subjects data={subjecData} showAllSubjects={showAllSubjects} />}
+      {haveConract && (
+        <Subjects
+          data={subjecData}
+          showAllSubjects={showAllSubjects}
+          overloaded={overloadedQ1 || overloadedQ2 || overloadedQ3}
+          emptyHours={
+            ((usedHoursQ1 === "0" && selectedQuarter === "q1") ||
+              (usedHoursQ2 === "0" && selectedQuarter === "q2") ||
+              (usedHoursQ3 === "0" && selectedQuarter === "q3") ||
+              (usedHoursQ1 === "0" && usedHoursQ2 === "0" && usedHoursQ3 === "0")) &&
+            !showAllSubjects
+          }
+        />
+      )}
     </div>
   );
 }
