@@ -136,83 +136,153 @@ export default function SelectedTeacher() {
   };
 
   return (
-    <div className="selected-teacher-container" style={{}}>
-      <div style={{ display: "flex", width: "100%", alignItems: "center" }}>
-        <div style={{ width: "170px", height: "170px", overflow: "hidden", position: "relative" }}>
-          <Photo teacher={selectedTeacher} />
-        </div>
-        <div className="teacher-info">
-          <span className="teacher-name">{`${selectedTeacher?.name} ${selectedTeacher?.lastName}`}</span>
-          <div style={{ display: "flex", alignItems: "center", gap: "30px" }}>
-            <span>{`CI: ${selectedTeacher?.ci}`} </span>
-          </div>
-          <span>{`Titulo: ${selectedTeacher?.title}`}</span>
-
-          {haveConract && (
-            <>
-              <span>{`Tipo de contrato: ${selectedTeacher?.type}`}</span>
-              <span>{`Carga Horaria: ${totalHours}`}</span>
-              <span>
-                <span>{`Horas asignadas: `}</span>
-                <span style={hourStyle("q1")}>{usedHoursQ1}</span>/
-                <span style={hourStyle("q2")}>{usedHoursQ2}</span>/
-                <span style={hourStyle("q3")}>{usedHoursQ3}</span>
-              </span>
-              <span>
-                <span>{`Horas disponibles: `}</span>
-                <span>{aviableHoursQ1}/</span>
-                <span>{aviableHoursQ2}/</span>
-                <span>{aviableHoursQ3}</span>
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-
+    <div className="selected-teacher-container" style={{ padding: "0 10px" }}>
       <div
-        style={{ width: "100%", height: "30px", marginLeft: "30px", display: "flex", alignItems: "center" }}>
-        {(overloadedQ1 || overloadedQ2 || overloadedQ3) && (
-          <Tag color="error" icon={<ExclamationCircleOutlined />}>{`Sobrecarga de Horas`}</Tag>
-        )}
+        style={{
+          backgroundColor: "white",
+          borderRadius: "12px",
+          padding: "20px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+          marginBottom: "16px",
+          border: "1px solid #f0f0f0",
+        }}>
+        <div style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
+          {/* Photo Section */}
+          <div
+            style={{
+              width: "140px",
+              height: "140px",
+              flexShrink: 0,
+              borderRadius: "12px",
+              overflow: "hidden",
+              border: "1px solid #e6e6e6",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              position: "relative",
+            }}>
+            <Photo teacher={selectedTeacher} />
+          </div>
 
-        {((usedHoursQ1 === "0" && selectedQuarter === "q1") ||
-          (usedHoursQ2 === "0" && selectedQuarter === "q2") ||
-          (usedHoursQ3 === "0" && selectedQuarter === "q3") ||
-          (usedHoursQ1 === "0" && usedHoursQ2 === "0" && usedHoursQ3 === "0")) &&
-          !showAllSubjects &&
-          haveConract && (
-            <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`Sin Horas Asignadas`}</Tag>
+          {/* Info Section */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: "#1f1f1f",
+                  lineHeight: 1.2,
+                  textTransform: "uppercase",
+                }}>
+                {`${selectedTeacher?.lastName} ${selectedTeacher?.name}`}
+              </h2>
+              <span style={{ color: "#8c8c8c", fontSize: "0.9rem", fontWeight: 500 }}>
+                {selectedTeacher?.title}
+              </span>
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "center" }}>
+              <Tag color="blue" style={{ margin: 0, padding: "4px 10px", fontSize: "0.85rem" }}>
+                CI: {selectedTeacher?.ci}
+              </Tag>
+              {haveConract ? (
+                <Tag color="cyan" style={{ margin: 0, padding: "4px 10px", fontSize: "0.85rem" }}>
+                  {selectedTeacher?.type}
+                </Tag>
+              ) : (
+                <Tag color="error">Sin Contrato</Tag>
+              )}
+            </div>
+
+            {/* Stats Area */}
+            {haveConract && (
+              <div
+                style={{
+                  marginTop: "8px",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, 1fr)",
+                  gap: "12px",
+                  backgroundColor: "#f9fafb",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "1px solid #f0f0f0",
+                }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 600 }}>CARGA TOTAL</span>
+                  <span style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827" }}>
+                    {totalHours}
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 600 }}>T1 (U/D)</span>
+                  <div style={{ fontSize: "1rem", fontWeight: 600 }}>
+                    <span style={hourStyle("q1")}>{usedHoursQ1}</span>
+                    <span style={{ color: "#d1d5db", margin: "0 2px" }}>/</span>
+                    <span style={{ color: "#374151" }}>{aviableHoursQ1}</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 600 }}>T2 (U/D)</span>
+                  <div style={{ fontSize: "1rem", fontWeight: 600 }}>
+                    <span style={hourStyle("q2")}>{usedHoursQ2}</span>
+                    <span style={{ color: "#d1d5db", margin: "0 2px" }}>/</span>
+                    <span style={{ color: "#374151" }}>{aviableHoursQ2}</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 600 }}>T3 (U/D)</span>
+                  <div style={{ fontSize: "1rem", fontWeight: 600 }}>
+                    <span style={hourStyle("q3")}>{usedHoursQ3}</span>
+                    <span style={{ color: "#d1d5db", margin: "0 2px" }}>/</span>
+                    <span style={{ color: "#374151" }}>{aviableHoursQ3}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Alerts Section */}
+        <div style={{ marginTop: "16px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          {(overloadedQ1 || overloadedQ2 || overloadedQ3) && (
+            <Tag color="error" icon={<ExclamationCircleOutlined />} style={{ padding: "4px 10px" }}>
+              Sobrecarga de Horas detectada
+            </Tag>
           )}
 
-        {!haveConract && (
-          <Tag
-            color="error"
-            icon={<ExclamationCircleOutlined />}
-            style={{ marginTop: "-100%" }}>{`El profesor no tiene un contrato`}</Tag>
+          {((usedHoursQ1 === "0" && selectedQuarter === "q1") ||
+            (usedHoursQ2 === "0" && selectedQuarter === "q2") ||
+            (usedHoursQ3 === "0" && selectedQuarter === "q3") ||
+            (usedHoursQ1 === "0" && usedHoursQ2 === "0" && usedHoursQ3 === "0")) &&
+            !showAllSubjects &&
+            haveConract && (
+              <Tag color="warning" icon={<ExclamationCircleOutlined />} style={{ padding: "4px 10px" }}>
+                Sin Horas Asignadas en este periodo
+              </Tag>
+            )}
+        </div>
+
+        {/* Quarter Selector */}
+        {haveConract && (
+          <div
+            style={{
+              marginTop: "20px",
+              display: "flex",
+              justifyContent: "center",
+              borderTop: "1px solid #f0f0f0",
+              paddingTop: "16px",
+            }}>
+            <Radio.Group onChange={onChangeQuarter} defaultValue="0" buttonStyle="solid">
+              <Radio.Button value="0">Todas</Radio.Button>
+              <Radio.Button value="1">Trimestre 1</Radio.Button>
+              <Radio.Button value="2">Trimestre 2</Radio.Button>
+              <Radio.Button value="3">Trimestre 3</Radio.Button>
+            </Radio.Group>
+          </div>
         )}
       </div>
 
-      {
-        // solo se muestra la lista de materias y el boton de agregar materia si el profesor tiene un contrato
-        haveConract && (
-          <>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}>
-              <Radio.Group onChange={onChangeQuarter} defaultValue="0" size="small">
-                <Radio.Button value="0">Todas</Radio.Button>
-                <Radio.Button value="1">Trimestre 1</Radio.Button>
-                <Radio.Button value="2">Trimestre 2</Radio.Button>
-                <Radio.Button value="3">Trimestre 3</Radio.Button>
-              </Radio.Group>
-            </div>
-            <Subjects data={subjecData} showAllSubjects={showAllSubjects} />
-          </>
-        )
-      }
+      {haveConract && <Subjects data={subjecData} showAllSubjects={showAllSubjects} />}
     </div>
   );
 }

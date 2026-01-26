@@ -40,7 +40,7 @@ export default function ProyeccionesContainer() {
     if (!subjects) return;
     setError(
       subjects.some((obj) => Object.values(obj).some((value) => value === null)) ||
-        subjects.some((subjec) => Number(subjec.hours) <= 0)
+      subjects.some((subjec) => Number(subjec.hours) <= 0)
     );
   }, [subjects]);
 
@@ -156,8 +156,10 @@ export default function ProyeccionesContainer() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(680px, 1fr) 1fr",
-              gap: "5px",
+              gridTemplateColumns: "minmax(380px, 30%) 1fr",
+              gap: "16px",
+              padding: "10px",
+              height: "100%",
             }}>
             <TeacherTable searchByUserPerfil={searchByUserPerfil} />
             <SelectedTeacher />

@@ -29,12 +29,12 @@
 
 }
 
-.teacher-subjects-body>div {
+/* .teacher-subjects-body>div {
   background-color: #001529;
   color: white;
   padding-bottom: 10px;
   margin-bottom: 5px ;
-}
+} */
 
 .teacher-subjects-buttons {
   display: flex;
