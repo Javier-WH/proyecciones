@@ -232,11 +232,20 @@ export default function Profiles() {
     }
 
     const alreadyInProfile = subjectsINperfil.some((subject) => {
+      // Check by ID
       if (String(subject.subject_id) === String(selectedSubject)) return true;
       if (String(subject.id) === String(selectedSubject)) return true;
       if (String(subject.pensum_id) === String(selectedSubject)) return true;
+
       const normalizedId = generateSubjectProfileId(subject.subject_name);
-      return normalizedId === selectedSubject;
+      if (normalizedId === selectedSubject) return true;
+
+      // Check by Name (Case Insensitive)
+      if (subject.subject_name?.trim().toLowerCase() === selectedSubjectName?.trim().toLowerCase()) {
+        return true;
+      }
+
+      return false;
     });
 
     if (alreadyInProfile) {
