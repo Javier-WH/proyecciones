@@ -2,14 +2,14 @@ import { v5 as uuidv5 } from 'uuid'
 import Subjects from '#models/subjects.js'
 
 const SUBJECT_PROFILE_NAMESPACE = '14923a76-bfe8-4f7a-aa67-0a492adefaf3'
-const SUBJECT_PROFILE_MAX_LENGTH = 36
+const SUBJECT_PROFILE_MAX_LENGTH = 255
 const SUBJECT_PROFILE_HASH_CHARS = 6
 const SUBJECT_PROFILE_CACHE_TTL_MS = 5 * 60 * 1000
 
 let cachedMaps = null
 let cachedMapsTimestamp = 0
 
-export function normalizeProfileEntry (value = '') {
+export function normalizeProfileEntry(value = '') {
   return value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -18,7 +18,7 @@ export function normalizeProfileEntry (value = '') {
     .replace(/\s/g, '')
 }
 
-export function generateSubjectProfileId (subjectName) {
+export function generateSubjectProfileId(subjectName) {
   if (!subjectName) return null
 
   const normalizedName = normalizeProfileEntry(subjectName)
@@ -35,7 +35,7 @@ export function generateSubjectProfileId (subjectName) {
   return `${normalizedName.slice(0, SUBJECT_PROFILE_MAX_LENGTH - SUBJECT_PROFILE_HASH_CHARS)}${hash}`
 }
 
-export async function buildSubjectProfileMaps () {
+export async function buildSubjectProfileMaps() {
   const subjects = await Subjects.findAll({ attributes: ['id', 'name'], raw: true })
   const byLegacyId = new Map()
   const byNormalizedId = new Map()
@@ -51,7 +51,7 @@ export async function buildSubjectProfileMaps () {
   return { byLegacyId, byNormalizedId }
 }
 
-export async function getSubjectProfileMaps ({ forceRefresh = false } = {}) {
+export async function getSubjectProfileMaps({ forceRefresh = false } = {}) {
   const isCacheExpired = Date.now() - cachedMapsTimestamp > SUBJECT_PROFILE_CACHE_TTL_MS
   if (!cachedMaps || forceRefresh || isCacheExpired) {
     cachedMaps = await buildSubjectProfileMaps()
@@ -60,7 +60,7 @@ export async function getSubjectProfileMaps ({ forceRefresh = false } = {}) {
   return cachedMaps
 }
 
-export function resolveSubjectMetadata (subjectIdentifier, maps) {
+export function resolveSubjectMetadata(subjectIdentifier, maps) {
   if (!subjectIdentifier) {
     return { normalizedId: null, subjectName: null, legacyId: null }
   }
@@ -90,7 +90,7 @@ export function resolveSubjectMetadata (subjectIdentifier, maps) {
   }
 }
 
-export function formatPerfilRecord (perfil, maps) {
+export function formatPerfilRecord(perfil, maps) {
   const metadata = resolveSubjectMetadata(perfil?.subject_id || perfil?.subject_name, maps)
   const normalizedId = metadata.normalizedId || perfil?.subject_id || null
   const subjectName = perfil?.subject_name || metadata.subjectName || perfil?.subject_id || null
@@ -103,7 +103,7 @@ export function formatPerfilRecord (perfil, maps) {
   }
 }
 
-export async function formatPerfilRecords (perfiles) {
+export async function formatPerfilRecords(perfiles) {
   const maps = await getSubjectProfileMaps()
   return perfiles.map((perfil) => formatPerfilRecord(perfil, maps))
 }

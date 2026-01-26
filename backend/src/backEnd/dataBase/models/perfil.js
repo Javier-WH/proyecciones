@@ -1,7 +1,7 @@
 import sequelize from '#dataBaseConnection'
 import { DataTypes, Model } from 'sequelize'
 
-class Perfil extends Model {}
+class Perfil extends Model { }
 Perfil.init(
   {
     id: {
@@ -18,7 +18,7 @@ Perfil.init(
       }
     },
     subject_id: {
-      type: DataTypes.STRING(36),
+      type: DataTypes.STRING(255),
       allowNull: false
     },
     subject_name: {
