@@ -195,13 +195,12 @@ const AddSubjectToTeacherModal: React.FC<{
         }
       }
 
-      subjectsData = subjectsData.filter((subject) => {
-        const quarterValue = subject.asigned?.[selectedQuarter];
-        return quarterValue === null || quarterValue === undefined;
-      });
-
       if (showUnasigned) {
         subjectsData = subjectsData.filter((subject) => {
+          if (filterByQuarter) {
+            const quarterValue = subject.asigned?.[selectedQuarter];
+            return quarterValue === null || quarterValue === undefined;
+          }
           const q1Value = subject.asigned.q1;
           const q2Value = subject.asigned.q2;
           const q3Value = subject.asigned.q3;
