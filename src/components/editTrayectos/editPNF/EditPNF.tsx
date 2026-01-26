@@ -33,7 +33,7 @@ export default function EditPNF() {
   };
 
   return (
-    <div>
+    <div style={{ padding: "20px", width: "100%", height: "100%", overflowY: "auto" }}>
       <EditPNFModal
         programa={activePNF}
         setprograma={setActivePNF}
@@ -47,59 +47,105 @@ export default function EditPNF() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          marginBottom: "24px",
         }}>
-        <h1>Editar Programas</h1>
+        <h1 style={{ margin: 0 }}>Editar Programas</h1>
+        <Button
+          type="primary"
+          size="large"
+          onClick={() => setIsModalOpen(true)}
+          style={{ display: "flex", alignItems: "center" }}
+        >
+          Agregar Programa
+        </Button>
       </div>
-      <div style={{ width: "80%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        {pnfList.map((PNF) => {
-          return (
-            <div
-              key={PNF.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "5px 10px",
-                margin: "5px 5px",
-                borderRadius: "5px",
-                cursor: "pointer",
-                fontSize: "1.1em",
-              }}
-              className="trayecto-card">
-              <span>{PNF.name}</span>
-              <div
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+        gap: "20px"
+      }}>
+        {pnfList.map((PNF) => (
+          <div
+            key={PNF.id}
+            style={{
+              backgroundColor: "white",
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+              border: "1px solid #f0f0f0",
+              borderLeft: `6px solid ${PNF.color || "#1890ff"}`,
+              padding: "24px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+              transition: "transform 0.2s, box-shadow 0.2s",
+              position: "relative",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-4px)";
+              e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)";
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <h3
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  columnGap: "10px",
-                }}>
-                <Button type="primary" shape="circle" icon={<FiEdit2 />} onClick={() => setActivePNF(PNF)} />
+                  margin: 0,
+                  fontSize: "1.1rem",
+                  color: "#262626",
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                  maxWidth: "75%",
+                }}
+              >
+                {PNF.name}
+              </h3>
+
+              <div style={{ display: "flex", gap: "8px" }}>
+                <Button
+                  type="primary"
+                  shape="circle"
+                  icon={<FiEdit2 />}
+                  onClick={() => setActivePNF(PNF)}
+                />
                 <Popconfirm
-                  title="¿Estas seguro que deseas eliminar este PNF?"
-                  description="Esta operacion NO se puede deshacer"
+                  title="¿Estás seguro que deseas eliminar este PNF?"
+                  description="Esta operación consiste en eliminar el programa y no se puede deshacer."
                   onConfirm={() => handleDeletePNF(PNF)}
-                  //onCancel={cancel}
-                  okText="Si"
-                  cancelText="No">
+                  okText="Sí, eliminar"
+                  okType="danger"
+                  cancelText="No"
+                >
                   <Button type="primary" shape="circle" icon={<FiTrash2 />} danger />
                 </Popconfirm>
               </div>
             </div>
-          );
-        })}
-      </div>
 
-      <div
-        style={{
-          width: "80%",
-          display: "flex",
-          justifyContent: "right",
-          marginTop: "20px",
-        }}>
-        <Button type="primary" onClick={() => setIsModalOpen(true)}>
-          Agregar Programa
-        </Button>
+            <div style={{
+              marginTop: "auto",
+              paddingTop: "12px",
+              borderTop: "1px solid #f5f5f5",
+              fontSize: "0.85rem",
+              color: "#8c8c8c",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}>
+              <div
+                style={{
+                  width: "12px",
+                  height: "12px",
+                  borderRadius: "50%",
+                  backgroundColor: PNF.color || "#1890ff"
+                }}
+              />
+              <span>ID: {PNF.id}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
