@@ -1,5 +1,5 @@
 import { Button, message, Select, SelectProps } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import getProfileNames from "../../../fetch/getProfileNames";
 import getProfile from "../../../fetch/getProfile";
 import getPensum from "../../../fetch/getPensum";
@@ -34,12 +34,15 @@ export default function Profiles() {
   const [rawPnfList, setRawPnfList] = useState<any[] | null>(null);
   const [trayectoList, setTrayectoList] = useState<SelectProps["options"]>([]);
   const [mayaList, setMayaList] = useState<SelectProps["options"]>([]);
+  const [mayaLoading, setMayaLoading] = useState<boolean>(false);
   const [selectedPnf, setSelectedPnf] = useState<string | null>(null);
   const [selectedTrayecto, setSelectedTrayecto] = useState<string | null>(null);
   const [selectedMaya, setSelectedMaya] = useState<string | null>(null);
   const [subjectsINperfil, setSubjectsINperfil] = useState<basicSubject[]>([]);
   const [selectedPerfil, setSelectedPerfil] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [isLoadingSubjects, setIsLoadingSubjects] = useState<boolean>(false);
+  const subjectsRequestId = useRef(0);
 
   const getPerfilList = async () => {
     const profileData = await getProfileNames();
@@ -62,6 +65,8 @@ export default function Profiles() {
       setSubjectList([]);
       return;
     }
+    const requestId = ++subjectsRequestId.current;
+    setIsLoadingSubjects(true);
 
     try {
       const pensumData = await getPensum({
@@ -70,9 +75,14 @@ export default function Profiles() {
         mayaId: selectedMaya,
       });
 
+      // Ignorar respuestas obsoletas
+      if (requestId !== subjectsRequestId.current) return;
+
       if ((pensumData as any)?.error) {
+        // Mostrar error solo para la última petición
         message.error("Error al obtener pensum");
         setSubjectList([]);
+        setIsLoadingSubjects(false);
         return;
       }
 
@@ -83,10 +93,17 @@ export default function Profiles() {
         return { value: backendId, label: name };
       });
 
+      // Ignorar si ya existe una petición más nueva
+      if (requestId !== subjectsRequestId.current) return;
+
       setSubjectList(subjectInputData);
     } catch (e) {
       console.error(e);
+      // Ignorar si ya existe una petición más nueva
+      if (requestId !== subjectsRequestId.current) return;
       setSubjectList([]);
+    } finally {
+      if (requestId === subjectsRequestId.current) setIsLoadingSubjects(false);
     }
   };
 
@@ -113,26 +130,38 @@ export default function Profiles() {
       setMayaList([]);
       return;
     }
+
     // intentar resolver sagaPNFID desde el listado crudo de PNFs
     const sagaPNFID =
       rawPnfList?.find((p) => String(p.id) === String(pnfId))?.saga_id?.toString() ?? String(pnfId);
-    const data = await getMaya({ sagaPNFID });
-    const mayadata = data?.data?.mayas ?? data?.mayas ?? data;
-    if (!mayadata) {
+
+    setMayaLoading(true);
+    setMayaList([]);
+    setSelectedMaya(null);
+
+    try {
+      const data = await getMaya({ sagaPNFID });
+      const mayadata = data?.data?.mayas;
+      if (!mayadata) {
+        setMayaList([]);
+        return;
+      }
+
+      const sortedMayas = mayadata.sort((a: any, b: any) => Number(b.id) - Number(a.id));
+      // No filtrar por tipopensum_id para mantener la misma lógica que en tabPanel
+      const mayaOpt = sortedMayas.map((maya: any) => ({
+        value: String(maya.id),
+        label: String(maya.descripcion || maya.name || maya.id),
+      }));
+
+      setMayaList(mayaOpt);
+      if (mayaOpt.length > 0) setSelectedMaya(mayaOpt[0].value);
+    } catch (e) {
+      console.error(e);
       setMayaList([]);
-      return;
+    } finally {
+      setMayaLoading(false);
     }
-
-    const sortedMayas = mayadata.sort((a: any, b: any) => Number(b.id) - Number(a.id));
-    const filteredMayas = sortedMayas.filter((maya: any) => maya.tipopensum_id === 1);
-
-    const mayaOpt = filteredMayas.map((maya: any) => ({
-      value: String(maya.id),
-      label: String(maya.descripcion || maya.name || maya.id),
-    }));
-
-    setMayaList(mayaOpt);
-    if (mayaOpt.length > 0) setSelectedMaya(mayaOpt[0].value);
   };
 
   useEffect(() => {
@@ -152,10 +181,11 @@ export default function Profiles() {
   }, [selectedPnf]);
 
   useEffect(() => {
-    // Cuando cambie PNF, trayecto o maya, cargar materias
+    // Cargar materias solo cuando cambie trayecto o maya.
+    // Evita ejecutar el fetch prematuramente al cambiar el PNF (cuando la maya aún es la anterior).
     getSubjectList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPnf, selectedTrayecto, selectedMaya]);
+  }, [selectedTrayecto, selectedMaya]);
 
   const handlePerfilChange = async (value: string) => {
     const profileData = await getProfile({ id: value });
@@ -319,6 +349,8 @@ export default function Profiles() {
             onChange={(value: string) => setSelectedMaya(value)}
             options={mayaList}
             allowClear
+            loading={mayaLoading}
+            disabled={mayaLoading}
           />
         </div>
 
@@ -330,6 +362,8 @@ export default function Profiles() {
             style={selectorStyle}
             onChange={handleSubjectChange}
             options={subjectList as SubjectOption[]}
+            loading={isLoadingSubjects}
+            disabled={isLoadingSubjects}
             filterOption={filterOption}
           />
         </div>
