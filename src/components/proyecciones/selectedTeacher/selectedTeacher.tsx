@@ -99,8 +99,51 @@ export default function SelectedTeacher() {
 
   if (!selectedTeacher) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <Tag color="warning" icon={<ExclamationCircleOutlined />}>{`No hay docente seleccionado`}</Tag>
+      <div
+        className="selected-teacher-container"
+        style={{
+          padding: "0 10px",
+          height: "100%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}>
+        <div
+          style={{
+            backgroundColor: "white",
+            borderRadius: "12px",
+            padding: "40px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+            border: "1px solid #f0f0f0",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "16px",
+            width: "100%",
+            maxWidth: "400px",
+          }}>
+          <div
+            style={{
+              width: "80px",
+              height: "80px",
+              borderRadius: "50%",
+              backgroundColor: "#f5f5f5",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}>
+            <ExclamationCircleOutlined style={{ fontSize: "32px", color: "#d9d9d9" }} />
+          </div>
+          <div>
+            <h3 style={{ margin: 0, color: "#595959", fontSize: "1.1rem" }}>
+              Ningún docente seleccionado
+            </h3>
+            <span style={{ color: "#8c8c8c", fontSize: "0.9rem" }}>
+              Seleccione un profesor de la lista para ver su información y gestionar su carga horaria.
+            </span>
+          </div>
+        </div>
       </div>
     );
   }
