@@ -7,7 +7,7 @@ import generateTriQuarterSheet from './triQuarterSheet copy.js'
 import Contracts from '#models/contractType.js'
 import { Op } from 'sequelize'
 
-export async function generateExcelReport (req, res) {
+export async function generateExcelReport(req, res) {
   const { pnfId, type } = req.body
   if (!pnfId) {
     return res.status(400).json({ message: 'El ID del PNF es requerido' })
@@ -52,7 +52,10 @@ export async function generateExcelReport (req, res) {
     const groupedSubjects = groupSubjectsByProfessor(filteredSubjects)
 
     // Obtener los datos de los profesores desde la base de datos
-    const teachersIDs = groupedSubjects.map((group) => group.professorId)
+    const teachersIDs = groupedSubjects
+      .map((group) => group.professorId)
+      .filter((id) => id !== 'UNASIGNED')
+
     const teachers = await Teachers.findAll({
       where: {
         [Op.or]: [{ id: teachersIDs }, { PNF: pnfId }]
@@ -80,7 +83,19 @@ export async function generateExcelReport (req, res) {
     }
 
     const reportData = groupedSubjects.map((group) => {
-      const teacher = teachers.find((t) => t.id === group.professorId)
+      let teacher = teachers.find((t) => t.id === group.professorId)
+
+      // Si no se encuentra el profesor o el ID es UNASIGNED, asignar datos por defecto
+      if (!teacher) {
+        teacher = {
+          id: group.professorId || 'UNASIGNED',
+          name: 'SIN PROFESOR ASIGNADO',
+          lastName: '',
+          ci: 'S/C',
+          contractTypes_id: 'S/C'
+        }
+      }
+
       return {
         ...group,
         teacherData: teacher
@@ -187,7 +202,7 @@ export async function generateExcelReport (req, res) {
   }
 }
 
-function groupSubjectsByProfessor (subjects) {
+function groupSubjectsByProfessor(subjects) {
   const professorsMap = {}
 
   subjects.forEach((subject) => {
@@ -197,20 +212,20 @@ function groupSubjectsByProfessor (subjects) {
       ...subject
     }
 
-    for (const quarterKey in quarters) {
-      if (Object.hasOwn(quarters, quarterKey)) {
-        const professorId = quarters[quarterKey]
+    const targetQuarters = ['q1', 'q2', 'q3']
 
-        if (professorId) {
-          // If the professorId doesn't exist in our map, create an entry
-          if (!professorsMap[professorId]) {
-            professorsMap[professorId] = {
-              professorId,
-              subjects: []
-            }
+    for (const quarterKey of targetQuarters) {
+      if (Object.prototype.hasOwnProperty.call(quarters, quarterKey)) {
+        const professorId = quarters[quarterKey] || 'UNASIGNED'
+
+        // If the professorId doesn't exist in our map, create an entry
+        if (!professorsMap[professorId]) {
+          professorsMap[professorId] = {
+            professorId,
+            subjects: []
           }
-          professorsMap[professorId].subjects.push(subjectWithoutQuarter)
         }
+        professorsMap[professorId].subjects.push(subjectWithoutQuarter)
       }
     }
   })
@@ -219,7 +234,7 @@ function groupSubjectsByProfessor (subjects) {
   return Object.values(professorsMap)
 }
 
-function groupSubjectsByPnfFromProfessorArray (professorsWithSubjects) {
+function groupSubjectsByPnfFromProfessorArray(professorsWithSubjects) {
   const pnfSubjectsMap = {} // Map to hold arrays of subjects, grouped by PNF
 
   // Iterate through each professor's data (which includes teacherData)
@@ -256,7 +271,7 @@ function groupSubjectsByPnfFromProfessorArray (professorsWithSubjects) {
   return Object.values(pnfSubjectsMap)
 }
 
-function formatQuarterDateRange (dateString) {
+function formatQuarterDateRange(dateString) {
   const date = new Date(dateString)
 
   // Check if the date is valid

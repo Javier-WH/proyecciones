@@ -152,8 +152,8 @@ export default function generateSingleQuarterSheet({
           const UCHours = subject.hours.q1
             ? subject.hours.q1
             : subject.hours.q2
-            ? subject.hours.q2
-            : subject.hours.q3;
+              ? subject.hours.q2
+              : subject.hours.q3;
 
           const teacherContractType =
             contracts.find((contract) => contract.id === teacher.contractTypes_id)?.contractType ||
@@ -272,7 +272,11 @@ function groupSubjectsByTeacher(subjects, quarter) {
 
   const filteredSubjectsByQuarter = cleanTeachersArray.map((profesor) => {
     const load = profesor.load;
-    const filteredLoad = load.filter((subject) => subject.quarter?.[`q${quarter}`] === profesor.id);
+    const filteredLoad = load.filter((subject) => {
+      const isAssignedToThisProfessor = subject.quarter?.[`q${quarter}`] === profesor.id
+      const isUnassigned = profesor.id === 'UNASIGNED' && !subject.quarter?.[`q${quarter}`]
+      return isAssignedToThisProfessor || isUnassigned
+    })
     profesor.load = filteredLoad;
     return profesor;
   });
