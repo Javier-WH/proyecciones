@@ -174,25 +174,38 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       <AddSubjectToTeacherModal subject={selectedSubject} setSelectedSubject={setSelectedSubject} />
       <div
         style={{
-          position: "absolute",
-          left: "5px",
-          right: "5px",
-          top: "5px",
-          bottom: 0,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          padding: "10px",
         }}>
-        <div style={{ display: "flex", gap: "5px" }}>
+        {/* Filters Header */}
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "16px",
+            borderRadius: "12px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "12px",
+            alignItems: "center",
+            border: "1px solid #f0f0f0",
+          }}>
           <Button
+            size="large"
+            type={showUnasignedSubject ? "primary" : "default"}
             onClick={() => setShowUnasignedSubject(!showUnasignedSubject)}
-            style={{
-              width: "140px",
-            }}>
+            style={{ width: "160px" }}>
             {showUnasignedSubject ? "Mostrar todas" : "Mostrar sin asignar"}
           </Button>
 
           <Select
             allowClear
             showSearch
-            style={{ width: 160 }}
+            size="large"
+            style={{ width: 220 }}
             placeholder="Filtrar por trayecto"
             optionFilterProp="label"
             filterOption={(input, option) =>
@@ -211,7 +224,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
           <Select
             allowClear
             showSearch
-            style={{ width: 400 }}
+            size="large"
+            style={{ flex: 1, minWidth: "280px" }}
             placeholder="Filtrar por materia"
             optionFilterProp="label"
             filterOption={(input, option) =>
@@ -230,7 +244,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
           <Select
             allowClear
             showSearch
-            style={{ width: 150 }}
+            size="large"
+            style={{ width: 180 }}
             placeholder="Filtrar por turno"
             optionFilterProp="label"
             filterOption={(input, option) =>
@@ -250,7 +265,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
             <Select
               allowClear
               showSearch
-              style={{ width: 200 }}
+              size="large"
+              style={{ width: 240 }}
               placeholder="Filtrar por PNF"
               optionFilterProp="label"
               filterOption={(input, option) =>
@@ -268,17 +284,19 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
           )}
         </div>
 
+        {/* List Container */}
         <div
           style={{
-            marginTop: "5px",
+            flex: 1,
             display: "flex",
             flexDirection: "column",
-            rowGap: "5px",
-            height: "calc(100vh - 120px)",
+            gap: "12px",
             overflowY: "auto",
+            minHeight: 0,
+            paddingBottom: "20px",
           }}>
           {subjectList?.map((subject) => {
-            const color = subjectColors?.[subject.pnfId];
+            const color = subjectColors?.[subject.pnfId] || "#1890ff";
 
             const teacher = {
               q1: teachers?.find((teacher) => teacher.id === subject.quarter.q1) || null,
@@ -289,49 +307,62 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
             return (
               <div
                 key={subject.innerId}
-                className="subject-tab"
                 style={{
-                  height: "80px",
-                  minHeight: "80px",
-                  width: "98%",
+                  backgroundColor: "white",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+                  border: "1px solid #f0f0f0",
+                  borderLeft: `5px solid ${color}`,
+                  padding: "16px 20px",
                   display: "flex",
-                  columnGap: "10px",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "16px",
+                  transition: "all 0.2s ease",
                   position: "relative",
-                  backgroundColor: "rgba(255, 255, 255, 0.5)",
+                  minHeight: "100px",
                 }}>
-                <div style={{ height: "100%", width: "15px", backgroundColor: color }}></div>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{subject.subject}</div>
-                  <div>
-                    <Tag>{subject.pnf}</Tag>
-                    <Tag>{`${subject?.trayectoName}`}</Tag>
-                    <Tag>{`Sección: ${subject.turnoName[0]}-${subject.seccion}`}</Tag>
-                    <Tag>{`Horas: ${subject?.hours?.q1 || 0} / ${subject?.hours?.q2 || 0} / ${subject?.hours?.q3 || 0
-                      }`}</Tag>
+                <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: "1.05rem",
+                        fontWeight: 700,
+                        color: "#1f1f1f",
+                        lineHeight: 1.2,
+                        textTransform: "uppercase",
+                      }}>
+                      {subject.subject}
+                    </h3>
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                      <Tag color="cyan" style={{ margin: 0 }}>
+                        {subject.pnf}
+                      </Tag>
+                      <Tag style={{ margin: 0 }}>{subject.trayectoName}</Tag>
+                      <Tag style={{ margin: 0 }}>Sec: {subject.turnoName[0]}-{subject.seccion}</Tag>
+                      <Tag color="purple" style={{ margin: 0 }}>
+                        Horas: {subject?.hours?.q1 || 0} / {subject?.hours?.q2 || 0} / {subject?.hours?.q3 || 0}
+                      </Tag>
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      position: "absolute",
-                      width: "100%",
-                      display: "flex",
-                    }}>
+
+                  <div style={{ marginTop: "4px" }}>
                     <SubjectTeacherInfo teacher={teacher} />
                   </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", justifyContent: "center" }}>
                   <Button
                     onClick={() => handleChangeTeacher(subject)}
-                    className="subject-tab-button"
                     type="primary"
                     shape="circle"
-                    style={{
-                      position: "absolute",
-                      right: "10px",
-                      top: "0",
-                      bottom: "0",
-                      marginTop: "auto",
-                      marginBottom: "auto",
-                    }}>
-                    <FaUserPen />
-                  </Button>
+                    size="large"
+                    icon={<FaUserPen />}
+                    title="Asignar Docente"
+                  />
+
                   {(subject?.quarter?.q1 != null ||
                     subject?.quarter?.q2 != null ||
                     subject?.quarter?.q3 != null) && (
@@ -343,18 +374,12 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                           }
                           setEditSubjectQuarter(subject);
                         }}
-                        className="subject-tab-button"
                         shape="circle"
-                        style={{
-                          position: "absolute",
-                          right: "50px",
-                          top: "0",
-                          bottom: "0",
-                          marginTop: "auto",
-                          marginBottom: "auto",
-                        }}>
-                        <TbTopologyStar3 />
-                      </Button>
+                        size="large"
+                        style={{ color: "#faad14", borderColor: "#faad14" }}
+                        icon={<TbTopologyStar3 />}
+                        title="Editar Asignación"
+                      />
                     )}
                 </div>
               </div>
