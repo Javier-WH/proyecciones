@@ -395,70 +395,71 @@ const AddSubjectToTeacherModal: React.FC<{
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gridTemplateColumns: "1fr 1fr",
                 gap: "16px",
                 background: "#f8fafc",
                 padding: "16px",
                 borderRadius: "12px",
               }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ fontSize: "0.85rem", color: "#475467" }}>Buscar por trimestre</span>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <Button
-                    block
-                    type={filterByQuarter ? "primary" : "default"}
-                    onClick={() => {
-                      setFilterByQuarter(!filterByQuarter);
-                      setOverLoad(false);
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <span style={{ fontSize: "0.85rem", color: "#475467" }}>Trimestre</span>
+                  <Radio.Group
+                    options={[
+                      { label: "Todas", value: "all" },
+                      { label: "Trimestre 1", value: "q1" },
+                      { label: "Trimestre 2", value: "q2" },
+                      { label: "Trimestre 3", value: "q3" },
+                    ]}
+                    onChange={({ target: { value } }) => {
+                      if (value === "all") {
+                        setFilterByQuarter(false);
+                        setOverLoad(false);
+                      } else {
+                        setFilterByQuarter(true);
+                        handleChangeQuarterSelector(value);
+                      }
+                    }}
+                    value={filterByQuarter ? selectedQuarter : "all"}
+                    optionType="button"
+                    buttonStyle="solid"
+                    style={{ width: "100%" }}
+                  />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <span style={{ fontSize: "0.85rem", color: "#475467" }}>Trayecto</span>
+                  <Select
+                    allowClear
+                    placeholder="Selecciona un trayecto"
+                    style={{ width: "100%" }}
+                    options={trayectoOptions}
+                    value={selectedTrayecto}
+                    disabled={trayectoOptions.length === 0}
+                    onChange={(e) => setSelectedTrayecto(e)}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <span style={{ fontSize: "0.85rem", color: "#475467" }}>Disponibilidad</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      background: "#fff",
+                      borderRadius: "8px",
+                      border: "1px solid #e2e8f0",
+                      padding: "8px 12px",
+                      height: "40px"
                     }}>
-                    {filterByQuarter ? "Mostrar todos" : "Filtrar por trimestre"}
-                  </Button>
-                  {filterByQuarter && (
-                    <Select
-                      value={selectedQuarter}
-                      style={{ width: "100%" }}
-                      options={[
-                        { value: "q1", label: "1er Trimestre" },
-                        { value: "q2", label: "2do Trimestre" },
-                        { value: "q3", label: "3er Trimestre" },
-                      ]}
-                      onChange={handleChangeQuarterSelector}
-                    />
-                  )}
+                    <Switch onChange={() => setShowUnasigned(!showUnasigned)} checked={showUnasigned} />
+                    <span style={{ color: "#475467" }}>Mostrar sólo materias no asignadas</span>
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ fontSize: "0.85rem", color: "#475467" }}>Disponibilidad</span>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    background: "#fff",
-                    borderRadius: "8px",
-                    border: "1px solid #e2e8f0",
-                    padding: "8px 12px",
-                  }}>
-                  <Switch onChange={() => setShowUnasigned(!showUnasigned)} checked={showUnasigned} />
-                  <span style={{ color: "#475467" }}>Mostrar sólo materias no asignadas</span>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ fontSize: "0.85rem", color: "#475467" }}>Trayecto</span>
-                <Select
-                  allowClear
-                  placeholder="Selecciona un trayecto"
-                  style={{ width: "100%" }}
-                  options={trayectoOptions}
-                  value={selectedTrayecto}
-                  disabled={trayectoOptions.length === 0}
-                  onChange={(e) => setSelectedTrayecto(e)}
-                />
-              </div>
-
-              {filterByQuarter && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   <span style={{ fontSize: "0.85rem", color: "#475467" }}>Sobrecarga de horas</span>
                   <div
@@ -470,12 +471,19 @@ const AddSubjectToTeacherModal: React.FC<{
                       borderRadius: "8px",
                       border: "1px solid #e2e8f0",
                       padding: "8px 12px",
+                      height: "40px"
                     }}>
-                    <Switch onChange={() => setOverLoad(!overLoad)} checked={overLoad} />
-                    <span style={{ color: "#475467" }}>Incluir profesores con horas extra</span>
+                    <Switch
+                      disabled={!filterByQuarter}
+                      onChange={() => setOverLoad(!overLoad)}
+                      checked={overLoad}
+                    />
+                    <span style={{ color: filterByQuarter ? "#475467" : "#98a2b3" }}>
+                      Incluir profesores con horas extra
+                    </span>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -493,6 +501,8 @@ const AddSubjectToTeacherModal: React.FC<{
                 optionFilterProp="label"
                 placeholder="Selecciona una materia"
                 size="large"
+                listHeight={500}
+                placement="bottomLeft"
                 onChange={handleChange}
                 style={{ width: "100%" }}
                 options={options}
