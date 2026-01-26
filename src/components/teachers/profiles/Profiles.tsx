@@ -240,9 +240,13 @@ export default function Profiles() {
       return;
     }
 
+    const selectedSubjectObj = (subjectList as SubjectOption[]).find(s => s.value === selectedSubject);
+    const subjectName = selectedSubjectObj ? selectedSubjectObj.label : "";
+
     const request = await postSubjectToPerfil({
       perfil_name_id: selectedPerfil,
       subject_id: selectedSubject,
+      subject_name: subjectName
     });
     if (request.error) {
       message.error(request.error);

@@ -1,12 +1,13 @@
-export default async function postSubjectToPerfil({ perfil_name_id, subject_id }
-  : { perfil_name_id: string, subject_id: string }) {
+export default async function postSubjectToPerfil({ perfil_name_id, subject_id, subject_name }
+  : { perfil_name_id: string, subject_id: string, subject_name: string }) {
   const headersList = {
     "Accept": "*/*",
     "Content-Type": "application/json"
   }
   const bodyContent = JSON.stringify({
     perfil_name_id,
-    subject_id
+    subject_id,
+    subject_name
   });
 
 
