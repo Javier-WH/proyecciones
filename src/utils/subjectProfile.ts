@@ -2,7 +2,7 @@ import { v5 as uuidv5 } from "uuid";
 import { normalizeText } from "./textFilter";
 
 const SUBJECT_PROFILE_NAMESPACE = "14923a76-bfe8-4f7a-aa67-0a492adefaf3";
-const SUBJECT_PROFILE_MAX_LENGTH = 36;
+const SUBJECT_PROFILE_MAX_LENGTH = 255;
 const SUBJECT_PROFILE_HASH_CHARS = 6;
 
 const normalizeRawText = (value: string | null | undefined): string => {

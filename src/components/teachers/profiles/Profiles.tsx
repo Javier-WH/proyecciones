@@ -198,8 +198,12 @@ export default function Profiles() {
     setSubjectsINperfil(profileData);
   };
 
-  const handleSubjectChange = (value: string) => {
+  const [selectedSubjectName, setSelectedSubjectName] = useState<string>("");
+  // ... existing state ...
+
+  const handleSubjectChange = (value: string, option: any) => {
     setSelectedSubject(value);
+    setSelectedSubjectName(option?.label ?? "");
   };
 
   const selectorStyle = {
@@ -240,13 +244,10 @@ export default function Profiles() {
       return;
     }
 
-    const selectedSubjectObj = (subjectList as SubjectOption[]).find(s => s.value === selectedSubject);
-    const subjectName = selectedSubjectObj ? selectedSubjectObj.label : "";
-
     const request = await postSubjectToPerfil({
       perfil_name_id: selectedPerfil,
       subject_id: selectedSubject,
-      subject_name: subjectName
+      subject_name: selectedSubjectName
     });
     if (request.error) {
       message.error(request.error);
