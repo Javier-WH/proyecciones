@@ -347,6 +347,7 @@ export default function Profiles() {
             placeholder="Seleccione Maya"
             style={selectorStyle}
             onChange={(value: string) => setSelectedMaya(value)}
+            value={selectedMaya}
             options={mayaList}
             allowClear
             loading={mayaLoading}
