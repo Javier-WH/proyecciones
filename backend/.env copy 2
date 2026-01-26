@@ -1,0 +1,21 @@
+PORT=3000
+IP = 0.0.0.0
+
+#API DATA
+API_USER="defaultAdmin"
+API_PASSWORD="123456789"
+API_URL="http://192.168.0.10:8082/APITecnologico/public/api/v1"
+
+#DATABASE
+DB_NAME="proyecciones"
+DB_USER="dev_uptll"
+DB_PASSWORD="1234"
+DB_HOST="127.0.0.1"
+DB_PORT="3306"
+DB_DIALECT="mysql"
+
+#SECURITY
+SESSION_SECRET = 'UPTLL_Juana_Ramirez'
+NODE_ENV = 'dev'
+
+#const [, , forceSyncArg, alterArg] = process.argv

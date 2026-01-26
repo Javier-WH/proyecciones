@@ -1,0 +1,73 @@
+1 Fem
+2 Mas
+
+11 agro
+
+12 admon
+
+13 info
+
+18 mv
+
+
+170 id de TSU
+171 regulares
+
+#cantidad de estudiantes regulares/TSU por sexo y programa
+SELECT inscripcions.* FROM `inscripcions` JOIN alumnos ON (alumnos.id = inscripcions.alumno_id) WHERE
+inscripcions.programa_id = 18 AND
+inscripcions.lapso_id = 171 AND
+alumnos.sexo_id = 1
+GROUP BY alumnos.id;
+
+#para saber por trayecto:
+SELECT inscripcions.* FROM `inscripcions` JOIN alumnos ON (alumnos.id = inscripcions.alumno_id) JOIN otros_datos_alumnos ON (otros_datos_alumnos.alumno_id = inscripcions.alumno_id) WHERE
+inscripcions.programa_id = 18 AND
+inscripcions.lapso_id = 171 AND
+otros_datos_alumnos.trayecto_id = 1 AND
+alumnos.sexo_id = 2
+GROUP BY alumnos.id;
+
+agro TSU
+F 0
+M 2
+agro regulares
+F 8
+M 6
+
+admon TSU
+F 4
+M 1
+admon regulares
+F 104
+M 59
+
+info TSU
+F 1
+M 3
+info regulares
+F 37
+M 118
+
+MV no tiene TSU solo regulares
+F 73
+M 65
+---------------------------
+
+nuevo ingreso | año pasado (2024) por lapsoingreso_id en otros_datos_alumnos
+agro
+F 6
+M 3
+
+admon
+F 43
+M 38
+
+info
+F 13
+M 48
+
+MV
+F 38
+M 33
+

@@ -1,0 +1,3 @@
+node -e "import('./src/backEnd/dataBase/alters/updateSubjectProfileColumns.js').then(m => m.default())"
+npm run profiles:migrate -- --dry-run
+npm run profiles:migrate
