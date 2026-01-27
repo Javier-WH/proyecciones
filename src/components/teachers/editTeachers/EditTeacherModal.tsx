@@ -1,4 +1,4 @@
-import { Modal, Input, message, Select, SelectProps, Radio } from "antd";
+import { Modal, Input, message, Select, SelectProps, Radio, Form, Row, Col, Divider, Typography } from "antd";
 import { Teacher } from "../../../interfaces/teacher";
 import { useEffect, useState, useContext } from "react";
 import getProfileNames from "../../../fetch/getProfileNames";
@@ -7,6 +7,9 @@ import postTeacher from "../../../fetch/postTeacher";
 import ImageUploader from "../../photo/photoUploader";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
+import { CheckCircleOutlined, CloseCircleOutlined, UserOutlined, IdcardOutlined, BookOutlined } from "@ant-design/icons";
+
+const { Text } = Typography;
 
 export default function EditTeacherModal({
   teacherData,
@@ -144,119 +147,133 @@ export default function EditTeacherModal({
 
   return (
     <Modal
-      style={{ minWidth: "800px" }}
-      title="Editar Profesor"
+      width={900}
+      title={<Text strong style={{ fontSize: '20px' }}>Editar Perfil del Profesor</Text>}
       open={isModalOpen}
       onOk={handleOk}
-      onCancel={handleCancel}>
-      <div className="edit-teacher-modal-container">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 5fr", gap: "5px" }}>
-          <ImageUploader filename={ci} gender={genderId} />
-          <div>
-            <div className="edit-teacher-modal-row">
-              <label>Nombre</label>
-              <Input placeholder="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
+      onCancel={handleCancel}
+      okText="Guardar Cambios"
+      cancelText="Cancelar"
+      maskClosable={false}
+      centered
+    >
+      <Form layout="vertical" style={{ marginTop: '20px' }}>
+        <Row gutter={24}>
+          {/* Left Column: Photo & Status */}
+          <Col xs={24} sm={8} md={6} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', borderRight: '1px solid #f0f0f0' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <ImageUploader filename={ci} gender={genderId} />
             </div>
-            <div className="edit-teacher-modal-row">
-              <label>Apellido</label>
-              <Input placeholder="Apellido" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px" }}>
-              <div className="edit-teacher-modal-row">
-                <label>Cédula</label>
-                <Input placeholder="Cédula" value={ci} onChange={(e) => setCi(e.target.value)} />
-              </div>
+            <Text type="secondary" style={{ textAlign: 'center', fontSize: '12px' }}>
+              Foto de Perfil
+            </Text>
 
-              <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
-                <label style={{ display: "block" }}>Programa asociado</label>
-                <Select
-                  style={{ width: "100%" }}
-                  showSearch
-                  placeholder="Selecciona un PNF"
-                  options={pnfOptions}
-                  value={pnf}
-                  onChange={(value) => setPnf(value)}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+            <Divider style={{ margin: '16px 0' }} />
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 150px", gap: "5px" }}>
-          <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
-            <label style={{ display: "block" }}>Tipo</label>
-            <Select
-              style={{ width: "100%" }}
-              showSearch
-              placeholder="Selecciona un tipo de contrato"
-              filterOption={(input, option) =>
-                String(option?.label ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-              options={contractOptions}
-              value={typeId}
-              onChange={(value) => setTypeId(value)}
-            />
-          </div>
-
-          <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
-            <label>Título</label>
-            <Input
-              placeholder="Título"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              style={{ width: "100%" }}
-            />
-          </div>
-
-          <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
-            <label style={{ display: "block" }}>Género</label>
-            <Select
-              style={{ width: "100%" }}
-              showSearch
-              placeholder="Selecciona un Genero"
-              options={genderOprions}
-              value={genderId}
-              onChange={(value) => setGenderId(value)}
-            />
-          </div>
-          <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
-            <label style={{ display: "block" }}>Activo</label>
+            <Text strong style={{ marginBottom: '8px' }}>Estado</Text>
             <Radio.Group
-              options={[
-                { label: "Activo", value: "1" },
-                { label: "Inactivo", value: "0" },
-              ]}
-              defaultValue="Apple"
-              optionType="button"
-              buttonStyle="solid"
               value={active}
               onChange={(e) => setActive(e.target.value)}
-            />
-          </div>
-        </div>
+              buttonStyle="solid"
+              size="small"
+              style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '8px', padding: '0 20px' }}
+            >
+              <Radio.Button value="1" style={{ textAlign: 'center' }}>
+                <CheckCircleOutlined style={{ marginRight: 5, color: '#52c41a' }} /> Activo
+              </Radio.Button>
+              <Radio.Button value="0" style={{ textAlign: 'center' }}>
+                <CloseCircleOutlined style={{ marginRight: 5, color: '#ff4d4f' }} /> Inactivo
+              </Radio.Button>
+            </Radio.Group>
+          </Col>
 
-        <div className="edit-teacher-modal-row" style={{ width: "100%", flex: 1 }}>
-          <label style={{ display: "block" }}>Perfil</label>
-          <Select
-            style={{ width: "100%" }}
-            mode="multiple"
-            allowClear
-            showSearch
-            placeholder="Selecciona un perfil"
-            filterOption={(input, option) =>
-              String(option?.label ?? "")
-                .toLowerCase()
-                .includes(input.toLowerCase())
-            }
-            options={profileOptions}
-            value={perfilId}
-            onChange={(value) => setPerfilId(value)}
-          />
-        </div>
-      </div>
-      <br />
+          {/* Right Column: Fields */}
+          <Col xs={24} sm={16} md={18}>
+            <Divider orientation="left" style={{ marginTop: 0 }}>Información Personal</Divider>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="Nombres" required>
+                  <Input prefix={<UserOutlined />} placeholder="Nombres" value={name} onChange={(e) => setName(e.target.value)} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="Apellidos" required>
+                  <Input prefix={<UserOutlined />} placeholder="Apellidos" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="Cédula de Identidad" required>
+                  <Input prefix={<IdcardOutlined />} placeholder="CI" value={ci} onChange={(e) => setCi(e.target.value)} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="Género">
+                  <Select
+                    placeholder="Seleccionar"
+                    options={genderOprions}
+                    value={genderId}
+                    onChange={(value) => setGenderId(value)}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider orientation="left">Datos Académicos y Contrato</Divider>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="Título Académico">
+                  <Input prefix={<BookOutlined />} placeholder="Ej. Ing. en Sistemas" value={title} onChange={(e) => setTitle(e.target.value)} />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="Tipo de Contrato">
+                  <Select
+                    placeholder="Seleccionar contrato"
+                    showSearch
+                    filterOption={(input, option) =>
+                      String(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                    }
+                    options={contractOptions}
+                    value={typeId}
+                    onChange={(value) => setTypeId(value)}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item label="Programa Nacional de Formación (PNF)">
+                  <Select
+                    style={{ width: "100%" }}
+                    showSearch
+                    placeholder="Programa asociado"
+                    options={pnfOptions}
+                    value={pnf}
+                    onChange={(value) => setPnf(value)}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item label="Perfiles y Habilidades">
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="Etiquetas de perfil (ej. Programador, Matemático)"
+                filterOption={(input, option) =>
+                  String(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                }
+                options={profileOptions}
+                value={perfilId}
+                onChange={(value) => setPerfilId(value)}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+      </Form>
     </Modal>
   );
 }
