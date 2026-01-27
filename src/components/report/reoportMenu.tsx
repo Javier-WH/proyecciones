@@ -1,42 +1,60 @@
-import { DownOutlined } from "@ant-design/icons";
+import { DownOutlined, CloudDownloadOutlined, FileExcelOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { Button, Dropdown, message, Space } from "antd";
-import { RiFileExcel2Line } from "react-icons/ri";
 import getReport from "../../fetch/report";
-
-const handleMenuClick: MenuProps["onClick"] = async (e) => {
-  const pnfId = sessionStorage.getItem("userPNF")?.replace(/"/g, "");
-  console.log(pnfId);
-  if (!pnfId) return;
-  const type = Number.parseInt(e.key);
-  const report = await getReport({ pnfId, type });
-  if (!report.success) return message.error(report.message, 5);
-};
-
-const items: MenuProps["items"] = [
-  {
-    label: "Proyección trimestral",
-    key: "1",
-    icon: <RiFileExcel2Line />,
-  },
-  {
-    label: "Proyección anual",
-    key: "2",
-    icon: <RiFileExcel2Line />,
-  },
-];
-
-const menuProps = {
-  items,
-  onClick: handleMenuClick,
-};
+import React, { useContext } from "react";
+import { MainContext } from "../../context/mainContext";
+import { MainContextValues } from "../../interfaces/contextInterfaces";
 
 const ReportMenu: React.FC = () => {
+  const { userPNF } = useContext(MainContext) as MainContextValues;
+
+  const handleMenuClick: MenuProps["onClick"] = async (e) => {
+    // Use userPNF from context, stripping quotes if necessary (though context should handle clean data, legacy replacement kept for safety)
+    const pnfId = userPNF?.replace(/"/g, "") || "";
+
+    if (!pnfId) {
+      message.warning("No se ha identificado el PNF del usuario");
+      return;
+    }
+
+    const type = Number.parseInt(e.key);
+    try {
+      message.loading({ content: "Generando reporte...", key: 'reportGen' });
+      const report = await getReport({ pnfId, type });
+      if (!report.success) {
+        message.error({ content: report.message, key: 'reportGen' });
+      } else {
+        message.success({ content: "Reporte generado correctamente", key: 'reportGen' });
+      }
+    } catch (error) {
+      message.error({ content: "Error al generar el reporte", key: 'reportGen' });
+    }
+  };
+
+  const items: MenuProps["items"] = [
+    {
+      label: "Proyección Trimestral",
+      key: "1",
+      icon: <FileExcelOutlined />,
+    },
+    {
+      label: "Proyección Anual",
+      key: "2",
+      icon: <FileExcelOutlined />,
+    },
+  ];
+
+  const menuProps = {
+    items,
+    onClick: handleMenuClick,
+  };
+
   return (
-    <Dropdown menu={menuProps}>
-      <Button type="link">
+    <Dropdown menu={menuProps} trigger={['click']}>
+      <Button type="primary" icon={<CloudDownloadOutlined />}>
         <Space>
-          Generar reporte
+          Reportes
           <DownOutlined />
         </Space>
       </Button>
