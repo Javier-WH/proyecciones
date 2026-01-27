@@ -1,10 +1,10 @@
 import TeacherTable from "./teacherTable/TeacherTable";
 import SelectedTeacher from "./selectedTeacher/selectedTeacher";
 import "./proyeccionesContainer.css";
-import { Button, Typography, Space, Segmented } from "antd";
-import { TeamOutlined, BookOutlined, UserOutlined, AppstoreOutlined } from "@ant-design/icons";
+import { Button, Typography, Space, Segmented, Result } from "antd";
+import { TeamOutlined, BookOutlined, UserOutlined, AppstoreOutlined, PlusOutlined } from "@ant-design/icons";
 import { GiAutoRepair } from "react-icons/gi";
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { useNavigate } from "react-router-dom";
@@ -77,19 +77,26 @@ export default function ProyeccionesContainer() {
         className="proyecciones-container"
         style={{
           display: "flex",
-          flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          gap: "20px",
+          height: "100vh",
+          backgroundColor: "#f0f2f5"
         }}>
-        <h1>No se ha encontrado ninguna proyección</h1>
-        <Button
-          style={{ height: "60px", width: "300px", fontSize: "20px" }}
-          type="primary"
-          icon={<GiAutoRepair style={iconStyle} />}
-          onClick={() => navigate("/app/proyecciones/create")}>
-          Crear proyección
-        </Button>
+        <Result
+          status="404"
+          title="No se encontró ninguna proyección"
+          subTitle="Parece que aún no has creado ninguna proyección académica para este período."
+          extra={
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+              onClick={() => navigate("/app/proyecciones/create")}
+            >
+              Crear Nueva Proyección
+            </Button>
+          }
+        />
       </div>
     );
   }
