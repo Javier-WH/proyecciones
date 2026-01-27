@@ -23,7 +23,7 @@ export default function CreateUserPanel() {
   const location = useLocation();
   const { redirect, update } = location.state || {};
   const digitsOnlyRegex = /^\d*$/;
-  const { pnfList } = useContext(MainContext) as MainContextValues;
+  const { pnfList, userData, setUserData, setUserPNF } = useContext(MainContext) as MainContextValues;
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [nameStatus, setNameStatus] = useState<"error" | "warning" | "">("");
@@ -222,6 +222,18 @@ export default function CreateUserPanel() {
             return;
           }
           message.success("Usuario actualizado correctamente");
+
+          // Update context if the updated user is the current logged-in user
+          if (userData && userData.ci === userToUpdate.ci) {
+            setUserData({
+              ...userData,
+              name: data.name,
+              su: data.su,
+              ci: data.ci
+            });
+            setUserPNF(data.pnf_id);
+          }
+
           if (redirect) {
             navigate(redirect);
             return;

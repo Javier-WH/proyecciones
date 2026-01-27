@@ -47,9 +47,9 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     if (!subjects) return;
 
     let filteredSubjects = JSON.parse(JSON.stringify(subjects)) as Subject[];
-
+    console.log({ userPNF, filteredSubjects });
     if (searchByUserPerfil) {
-      const pnfId = sessionStorage.getItem("userPNF")?.replace(/"/g, "");
+      const pnfId = userPNF?.replace(/"/g, "");
       filteredSubjects = filteredSubjects.filter((subject) => subject.pnfId === pnfId);
     }
 
