@@ -1,4 +1,4 @@
-import { Button, message, Select, SelectProps, Card, Row, Col, Typography, Divider, List, Empty, Space } from "antd";
+import { Button, message, Select, SelectProps, Card, Row, Col, Typography, Divider, List, Empty } from "antd";
 import { useEffect, useRef, useState } from "react";
 import getProfileNames from "../../../fetch/getProfileNames";
 import getProfile from "../../../fetch/getProfile";
