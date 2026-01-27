@@ -173,21 +173,17 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
   };
 
   const columns = [
-    {
-      title: 'Programa',
-      dataIndex: 'pnf',
-      key: 'pnf',
-      render: (text: string, record: Subject) => {
-        const color = subjectColors?.[record.pnfId] || "#1890ff";
-        return <Tag color={color}>{text}</Tag>
-      },
-      responsive: ['lg'] as any,
-    },
+
     {
       title: 'Materia',
       dataIndex: 'subject',
       key: 'subject',
       render: (text: string) => <Text strong>{text}</Text>,
+      onCell: (record: Subject) => ({
+        style: {
+          borderLeft: `5px solid ${subjectColors?.[record.pnfId] || "#1890ff"}`,
+        }
+      })
     },
     {
       title: 'Docente(s)',
@@ -330,16 +326,16 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
   ];
 
   return (
-    <div style={{ padding: '24px', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
+    <div style={{ padding: '16px', backgroundColor: '#f0f2f5', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AddSubjectToTeacherModal subject={selectedSubject} setSelectedSubject={setSelectedSubject} />
 
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ maxWidth: '1400px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           <BookOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
           <Title level={2} style={{ margin: 0 }}>Materias en la Proyección</Title>
         </div>
 
-        <Card bordered={false} style={{ marginBottom: '24px', borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+        <Card bordered={false} style={{ borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', flexShrink: 0 }}>
           <Row gutter={[16, 16]}>
             {!searchByUserPerfil && (
               <Col xs={24} sm={12} md={6}>
@@ -415,12 +411,13 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
           </Row>
         </Card>
 
-        <Card bordered={false} style={{ borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }} bodyStyle={{ padding: 0 }}>
+        <Card bordered={false} style={{ borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }} bodyStyle={{ padding: 0, flex: 1, overflow: 'hidden' }}>
           <Table
             columns={columns}
             dataSource={subjectList}
             rowKey="innerId"
             pagination={{ pageSize: 10, showSizeChanger: true }}
+            scroll={{ x: 'max-content', y: 'calc(100vh - 440px)' }}
           />
         </Card>
       </div>
