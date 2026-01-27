@@ -21,7 +21,7 @@ export default function ProyeccionesContainer() {
 
   const navigate = useNavigate();
 
-  const iconStyle = { color: "white", fontSize: "2rem" };
+
 
   const handleChangeRadio = (value: string) => {
     //profesores = a, materias = b
@@ -53,19 +53,26 @@ export default function ProyeccionesContainer() {
         className="proyecciones-container"
         style={{
           display: "flex",
-          flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          gap: "20px",
+          height: "100vh",
+          backgroundColor: "#f0f2f5"
         }}>
-        <h1>La proyección se ha creado con errores</h1>
-        <Button
-          style={{ height: "60px", width: "300px", fontSize: "20px" }}
-          type="primary"
-          icon={<GiAutoRepair style={iconStyle} />}
-          onClick={() => navigate("/app/proyecciones/subjects")}>
-          Solucionar
-        </Button>
+        <Result
+          status="error"
+          title="La proyección se ha creado con errores"
+          subTitle="Se han detectado inconsistencias en los datos de la proyección. Por favor, revise y solucione los problemas."
+          extra={
+            <Button
+              type="primary"
+              size="large"
+              icon={<GiAutoRepair />}
+              onClick={() => navigate("/app/proyecciones/subjects")}
+            >
+              Solucionar Problemas
+            </Button>
+          }
+        />
       </div>
     );
   }

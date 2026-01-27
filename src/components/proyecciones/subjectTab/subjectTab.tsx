@@ -3,12 +3,12 @@ import { Subject } from "../../../interfaces/subject";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { useContext, useEffect, useState } from "react";
-import { Button, message, Select, Tag, Table, Card, Row, Col, Space, Tooltip, Typography } from "antd";
+import { Button, message, Select, Tag, Table, Card, Row, Col, Space, Tooltip, Typography, Avatar } from "antd";
 import { FaUserPen } from "react-icons/fa6";
 import { TbTopologyStar3 } from "react-icons/tb";
 import AddSubjectToTeacherModal from "./addTeacherSubject";
 import { normalizeText } from "../../../utils/textFilter";
-import { EditOutlined, FilterOutlined, DatabaseOutlined, BookOutlined } from "@ant-design/icons";
+import { FilterOutlined, BookOutlined, UserOutlined } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 
@@ -180,7 +180,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       render: (text: string, record: Subject) => {
         const color = subjectColors?.[record.pnfId] || "#1890ff";
         return <Tag color={color}>{text}</Tag>
-      }
+      },
+      responsive: ['lg'] as any,
     },
     {
       title: 'Materia',
@@ -189,14 +190,60 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       render: (text: string) => <Text strong>{text}</Text>,
     },
     {
+      title: 'Docente(s)',
+      key: 'teacher',
+      render: (_: unknown, record: Subject) => {
+        const q1Id = record.quarter.q1;
+        const q2Id = record.quarter.q2;
+        const q3Id = record.quarter.q3;
+
+        const getTeacherName = (id: string | null | undefined) => {
+          if (!id) return null;
+          const t = teachers?.find(t => t.id === id);
+          return t ? `${t.name} ${t.lastName}` : 'Docente no encontrado';
+        }
+
+        const t1 = getTeacherName(q1Id);
+        const t2 = getTeacherName(q2Id);
+        const t3 = getTeacherName(q3Id);
+
+        // Logic to deduplicate if same teacher
+        const assignedTeachers = [t1, t2, t3].filter(Boolean);
+        const uniqueTeachers = Array.from(new Set(assignedTeachers));
+
+        if (uniqueTeachers.length === 0) {
+          return <Text type="secondary" italic>Sin asignar</Text>;
+        }
+
+        if (uniqueTeachers.length === 1) {
+          return (
+            <Space>
+              <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#87d068' }} />
+              <Text>{uniqueTeachers[0]}</Text>
+            </Space>
+          )
+        }
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', fontSize: '12px' }}>
+            {t1 && <div>Q1: {t1}</div>}
+            {t2 && t1 !== t2 && <div>Q2: {t2}</div>}
+            {t3 && t3 !== t2 && t3 !== t1 && <div>Q3: {t3}</div>}
+          </div>
+        )
+      }
+    },
+    {
       title: 'Trayecto',
       dataIndex: 'trayectoName',
       key: 'trayectoName',
+      responsive: ['md'] as any,
     },
     {
       title: 'Turno',
       dataIndex: 'turnoName',
       key: 'turnoName',
+      responsive: ['sm'] as any,
     },
     {
       title: 'Horas',
@@ -204,6 +251,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       render: (_: unknown, record: Subject) => (
         <Text>{`${record.hours?.q1 || 0} / ${record.hours?.q2 || 0} / ${record.hours?.q3 || 0}`}</Text>
       ),
+      responsive: ['md'] as any,
     },
     {
       title: 'Trimestre',
