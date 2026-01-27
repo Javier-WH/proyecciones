@@ -1,5 +1,5 @@
-import { Input, Select, Button, message, Checkbox, Modal } from "antd"; // Import Modal
-import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
+import { Input, Select, Button, message, Checkbox, Modal, Card, Row, Col, Divider, Typography, Form } from "antd";
+import { EyeInvisibleOutlined, EyeTwoTone, UserOutlined, SearchOutlined, SaveOutlined, DeleteOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import { useState, useContext, useEffect } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
@@ -8,6 +8,8 @@ import getUser from "../../fetch/getUser";
 import putUser from "../../fetch/putUser";
 import deleteUser from "../../fetch/deleteUser";
 import { useNavigate, useLocation } from "react-router-dom";
+
+const { Title, Text } = Typography;
 
 export interface UserData {
   name: string;
@@ -25,6 +27,8 @@ export default function CreateUserPanel() {
   const digitsOnlyRegex = /^\d*$/;
   const { pnfList, userData, setUserData, setUserPNF } = useContext(MainContext) as MainContextValues;
   const navigate = useNavigate();
+
+  // States
   const [name, setName] = useState("");
   const [nameStatus, setNameStatus] = useState<"error" | "warning" | "">("");
   const [lastName, setLastName] = useState("");
@@ -37,10 +41,12 @@ export default function CreateUserPanel() {
   const [passwordStatus, setPasswordStatus] = useState<"error" | "warning" | "">("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmPasswordStatus, setConfirmPasswordStatus] = useState<"error" | "warning" | "">("");
+
   const [pnfOptions, setPnfOptions] = useState<{ value: string; label: string }[]>([]);
   const [pnfValue, setPnfValue] = useState<string | null>(null);
   const [pnfStatus, setPnfStatus] = useState<"error" | "warning" | "">("");
   const [superUser, setSuperUser] = useState(false);
+
   const [searchUser, setSearchUser] = useState<string>("");
   const [userToUpdate, setUserToUpdate] = useState<UserData | null>(null);
 
@@ -49,23 +55,16 @@ export default function CreateUserPanel() {
     setPnfOptions(pnfList.map((pnf) => ({ value: pnf.id.toString(), label: pnf.name.toString() })));
   }, [pnfList]);
 
+  // Handlers
   const onChangeNames = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (value === "") {
-      setNameStatus("error");
-    } else {
-      setNameStatus("");
-    }
+    setNameStatus(value === "" ? "error" : "");
     setName(value);
   };
 
   const onChangeLastNames = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (value === "") {
-      setLastNameStatus("error");
-    } else {
-      setLastNameStatus("");
-    }
+    setLastNameStatus(value === "" ? "error" : "");
     setLastName(value);
   };
 
@@ -83,17 +82,15 @@ export default function CreateUserPanel() {
 
   const onChangeUser = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (value === "") {
-      setUserStatus("error");
-    } else {
-      setUserStatus("");
-    }
+    setUserStatus(value === "" ? "error" : "");
     setUser(value);
   };
 
   const onChangePassword = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (value === "") {
+    // For Update: Empty is allowed (no error)
+    // For Create: Empty is error
+    if (!update && value === "") {
       setPasswordStatus("error");
     } else {
       setPasswordStatus("");
@@ -103,14 +100,21 @@ export default function CreateUserPanel() {
 
   const onChangeConfirmPassword = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (value === "") {
+    setConfirmPassword(value);
+
+    // Check match immediately
+    if (update && password === "" && value === "") {
+      setConfirmPasswordStatus("");
+      return;
+    }
+
+    if (value === "" && (!update || password !== "")) {
       setConfirmPasswordStatus("error");
     } else if (password !== value) {
       setConfirmPasswordStatus("warning");
     } else {
       setConfirmPasswordStatus("");
     }
-    setConfirmPassword(value);
   };
 
   const onBlurConfirmPassword = () => {
@@ -124,17 +128,6 @@ export default function CreateUserPanel() {
   const handlePNFChange = (value: string) => {
     setPnfStatus("");
     setPnfValue(value);
-  };
-
-  const getLabelColor = (status: "error" | "warning" | "") => {
-    switch (status) {
-      case "error":
-        return "red";
-      case "warning":
-        return "orange";
-      default:
-        return "gray";
-    }
   };
 
   const handleSearchUser = () => {
@@ -159,13 +152,18 @@ export default function CreateUserPanel() {
         setUser(res.user);
         setPnfValue(res.pnf_id);
         setSuperUser(res.su);
+        // Clear passwords on load
         setPassword("");
         setConfirmPassword("");
+        // Reset statuses
+        resetStatuses();
       })
       .catch((error) => {
         message.error("Error al buscar el usuario: " + error);
       });
-    setSearchUser("");
+  };
+
+  const resetStatuses = () => {
     setNameStatus("");
     setLastNameStatus("");
     setCiStatus("");
@@ -176,31 +174,42 @@ export default function CreateUserPanel() {
   };
 
   const handleCreateUser = () => {
-    if (
-      name === "" ||
-      lastName === "" ||
-      ci === "" ||
-      user === "" ||
-      password === "" ||
-      confirmPassword === "" ||
-      pnfValue === null
-    ) {
-      name === "" && setNameStatus("error");
-      lastName === "" && setLastNameStatus("error");
-      ci === "" && setCiStatus("error");
-      user === "" && setUserStatus("error");
-      password === "" && setPasswordStatus("error");
-      confirmPassword === "" && setConfirmPasswordStatus("error");
-      pnfValue === null && setPnfStatus("error");
-      message.error("Todos los campos son obligatorios");
+    // Basic validation
+    let hasError = false;
+
+    if (name === "") { setNameStatus("error"); hasError = true; }
+    if (lastName === "") { setLastNameStatus("error"); hasError = true; }
+    if (ci === "") { setCiStatus("error"); hasError = true; }
+    if (user === "") { setUserStatus("error"); hasError = true; }
+    if (pnfValue === null) { setPnfStatus("error"); hasError = true; }
+
+    // Password validation logic
+    if (update) {
+      // If updating, password is optional, BUT if typed, must match
+      if (password !== "" || confirmPassword !== "") {
+        if (password !== confirmPassword) {
+          message.error("Las contraseñas no coinciden");
+          setConfirmPasswordStatus("error");
+          return;
+        }
+      }
+    } else {
+      // Creating new user
+      if (password === "") { setPasswordStatus("error"); hasError = true; }
+      if (confirmPassword === "") { setConfirmPasswordStatus("error"); hasError = true; }
+      if (password !== confirmPassword) {
+        message.error("Las contraseñas no coinciden");
+        return;
+      }
+    }
+
+    if (hasError) {
+      message.error("Por favor complete los campos obligatorios");
       return;
     }
+
     if (!digitsOnlyRegex.test(ci)) {
       message.error("La cédula debe ser un número");
-      return;
-    }
-    if (password !== confirmPassword) {
-      message.error("Las contraseñas no coinciden");
       return;
     }
 
@@ -209,9 +218,9 @@ export default function CreateUserPanel() {
       last_name: lastName,
       ci,
       user,
-      password,
+      password, // If empty string, backend ignores it
       su: superUser,
-      pnf_id: pnfValue,
+      pnf_id: pnfValue ?? "",
     };
 
     if (update && userToUpdate) {
@@ -223,7 +232,6 @@ export default function CreateUserPanel() {
           }
           message.success("Usuario actualizado correctamente");
 
-          // Update context if the updated user is the current logged-in user
           if (userData && userData.ci === userToUpdate.ci) {
             setUserData({
               ...userData,
@@ -236,9 +244,9 @@ export default function CreateUserPanel() {
 
           if (redirect) {
             navigate(redirect);
-            return;
+          } else {
+            navigate("/");
           }
-          navigate("/");
         })
         .catch((error) => {
           message.error("Error al actualizar el usuario " + error);
@@ -255,9 +263,9 @@ export default function CreateUserPanel() {
         message.success("Usuario creado correctamente");
         if (redirect) {
           navigate(redirect);
-          return;
+        } else {
+          navigate("/");
         }
-        navigate("/");
       })
       .catch((error) => {
         message.error("Error al crear el usuario " + error);
@@ -268,25 +276,21 @@ export default function CreateUserPanel() {
     if (e.key === "Enter") {
       handleSearchUser();
     }
-    setUserToUpdate(null);
+    // Only clear if meaningful change intended? keeping logic simple
+    if (userToUpdate && e.currentTarget.value !== searchUser) {
+      setUserToUpdate(null);
+    }
   };
 
   const handleDeleteUser = () => {
-    if (!userToUpdate) {
-      return;
-    }
-
+    if (!userToUpdate) return;
     let confirmInput = "";
-
     Modal.confirm({
       title: 'Confirmar eliminación',
       content: (
         <div>
-          <p>Para confirmar la eliminación del usuario **{userToUpdate.user}** con cédula **{userToUpdate.ci}**, por favor escriba **ELIMINAR** en el siguiente campo:</p>
-          <Input
-            placeholder="Escriba ELIMINAR para confirmar"
-            onChange={(e) => (confirmInput = e.target.value)}
-          />
+          <p>Para confirmar la eliminación del usuario <b>{userToUpdate.user}</b> con cédula <b>{userToUpdate.ci}</b>, por favor escriba <b>ELIMINAR</b> en el siguiente campo:</p>
+          <Input placeholder="Escriba ELIMINAR para confirmar" onChange={(e) => (confirmInput = e.target.value)} />
         </div>
       ),
       okText: 'Eliminar',
@@ -301,146 +305,150 @@ export default function CreateUserPanel() {
                 return;
               }
               message.success("Usuario eliminado correctamente");
-              if (redirect) {
-                navigate(redirect);
-                return;
-              }
-              navigate("/");
+              navigate(redirect || "/");
             })
-            .catch((error) => {
-              message.error("Error al eliminar el usuario " + error);
-            });
+            .catch((error) => message.error("Error al eliminar: " + error));
         } else {
-          message.error("Confirmación incorrecta. El usuario no ha sido eliminado.");
+          message.error("Confirmación incorrecta.");
         }
       },
-      onCancel() {
-        message.info("Eliminación cancelada.");
-      },
+      onCancel() { message.info("Eliminación cancelada."); },
     });
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        rowGap: "20px",
-        width: "100%",
-        maxWidth: "600px",
-        margin: "20px auto",
-      }}>
-      <div style={{ marginBottom: "20px" }}>
-        <h2>{update ? "Actualizar Usuario" : "Crear Usuario"}</h2>
-      </div>
-
-      {update && (
-        <div>
-          <label style={{ color: "gray" }}>Cédula</label>
-          <Input
-            placeholder="Escriba la cédula del usuario a buscar"
-            value={searchUser}
-            onChange={(e) => setSearchUser(e.target.value)}
-            onKeyDown={handleKeyDownOnSearchUser}
-          />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginTop: "10px" }}>
-            <Button onClick={() => (redirect ? navigate(redirect) : navigate("/"))} type="default">
-              Regresar
-            </Button>
-            <Button type="primary" onClick={handleSearchUser}>
-              Buscar Usuario
-            </Button>
+    <div style={{ padding: "40px 20px", display: "flex", justifyContent: "center", backgroundColor: "#f0f2f5", minHeight: "100vh" }}>
+      <Card
+        style={{ width: "100%", maxWidth: "900px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <UserOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+            <Title level={3} style={{ margin: 0 }}>{update ? "Actualizar Usuario" : "Crear Nuevo Usuario"}</Title>
           </div>
-        </div>
-      )}
-      {(!update || (update && userToUpdate)) && (
-        <>
-          <div>
-            <label style={{ color: getLabelColor(nameStatus) }}>Nombres</label>
-            <Input status={nameStatus} placeholder="Nombres" value={name} onChange={onChangeNames} />
-          </div>
-          <div>
-            <label style={{ color: getLabelColor(lastNameStatus) }}>Apellidos</label>
-            <Input
-              status={lastNameStatus}
-              placeholder="Apellidos"
-              value={lastName}
-              onChange={onChangeLastNames}
-            />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-            <div>
-              <label style={{ color: getLabelColor(ciStatus) }}>Cédula</label>
+        }
+        extra={
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(redirect || "/")}>
+            Volver
+          </Button>
+        }
+      >
+        {update && (
+          <div style={{ marginBottom: "24px", padding: "20px", background: "#fafafa", borderRadius: "8px", border: "1px solid #d9d9d9" }}>
+            <Text strong style={{ display: 'block', marginBottom: '8px' }}>Buscar Usuario Existente</Text>
+            <div style={{ display: "flex", gap: "12px" }}>
               <Input
-                disabled={update}
-                status={ciStatus}
-                placeholder="Cédula"
-                value={ci}
-                onChange={onChangeCI}
+                prefix={<SearchOutlined style={{ color: "rgba(0,0,0,.25)" }} />}
+                placeholder="Ingrese la Cédula (CI)"
+                value={searchUser}
+                onChange={(e) => setSearchUser(e.target.value)}
+                onKeyDown={handleKeyDownOnSearchUser}
+                size="large"
               />
+              <Button type="primary" size="large" onClick={handleSearchUser} icon={<SearchOutlined />}>
+                Buscar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {(!update || (update && userToUpdate)) && (
+          <Form layout="vertical" size="large">
+            <Divider orientation="left">Información Personal</Divider>
+            <Row gutter={24}>
+              <Col xs={24} md={12}>
+                <Form.Item label="Nombres" validateStatus={nameStatus} help={nameStatus === "error" ? "Campo obligatorio" : null}>
+                  <Input placeholder="Ej. Juan Andrés" value={name} onChange={onChangeNames} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item label="Apellidos" validateStatus={lastNameStatus} help={lastNameStatus === "error" ? "Campo obligatorio" : null}>
+                  <Input placeholder="Ej. Pérez López" value={lastName} onChange={onChangeLastNames} />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={24}>
+              <Col xs={24} md={12}>
+                <Form.Item label="Cédula de Identidad" validateStatus={ciStatus} help={ciStatus === "error" ? "Debe ser numérico y obligatorio" : null}>
+                  <Input placeholder="Ej. 12345678" value={ci} onChange={onChangeCI} disabled={update} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item label="Programa Nacional de Formación (PNF)" validateStatus={pnfStatus} help={pnfStatus === "error" ? "Seleccione una opción" : null}>
+                  <Select
+                    placeholder="Seleccione un programa"
+                    value={pnfValue}
+                    onChange={handlePNFChange}
+                    options={pnfOptions}
+                    style={{ width: "100%" }}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider orientation="left">Datos de Cuenta</Divider>
+            <Row gutter={24}>
+              <Col xs={24} md={8}>
+                <Form.Item label="Nombre de Usuario" validateStatus={userStatus} help={userStatus === "error" ? "Campo obligatorio" : null}>
+                  <Input prefix={<UserOutlined />} placeholder="usuario.sistema" value={user} onChange={onChangeUser} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={8}>
+                <Form.Item
+                  label={update ? "Contraseña (Opcional)" : "Contraseña"}
+                  validateStatus={passwordStatus}
+                  help={passwordStatus === "error" ? "Campo obligatorio" : (update ? "Dejar en blanco para conservar la actual" : null)}
+                >
+                  <Input.Password
+                    placeholder={update ? "Sin cambios" : "********"}
+                    value={password}
+                    onChange={onChangePassword}
+                    iconRender={visible => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={8}>
+                <Form.Item
+                  label="Confirmar Contraseña"
+                  validateStatus={confirmPasswordStatus}
+                  help={confirmPasswordStatus === "error" ? "No coinciden" : null}
+                >
+                  <Input.Password
+                    placeholder={update ? "Sin cambios" : "********"}
+                    value={confirmPassword}
+                    onChange={onChangeConfirmPassword}
+                    onBlur={onBlurConfirmPassword}
+                    iconRender={visible => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row>
+              <Col span={24}>
+                <Form.Item>
+                  <Checkbox checked={superUser} onChange={() => setSuperUser(!superUser)} style={{ fontSize: '16px' }}>
+                    Conceder permisos de <b>Administrador</b> (Super Usuario)
+                  </Checkbox>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider />
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              {update && (
+                <Button danger type="primary" icon={<DeleteOutlined />} size="large" onClick={handleDeleteUser}>
+                  Eliminar Usuario
+                </Button>
+              )}
+              <Button type="primary" icon={<SaveOutlined />} size="large" onClick={handleCreateUser} style={{ minWidth: '150px' }}>
+                {update ? "Guardar Cambios" : "Crear Usuario"}
+              </Button>
             </div>
 
-            <div>
-              <label style={{ display: "block", color: getLabelColor(pnfStatus) }}>Programa</label>
-              <Select
-                value={pnfValue}
-                status={pnfStatus}
-                style={{ width: "100%" }}
-                onChange={handlePNFChange}
-                options={pnfOptions}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ color: getLabelColor(userStatus) }}>Usuario</label>
-            <Input status={userStatus} placeholder="Usuario" value={user} onChange={onChangeUser} />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-            <div>
-              <label style={{ color: getLabelColor(passwordStatus) }}>Contraseña</label>
-              <Input.Password
-                placeholder="Contraseña"
-                iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
-                value={password}
-                onChange={onChangePassword}
-                status={passwordStatus}
-              />
-            </div>
-            <div>
-              <label style={{ color: getLabelColor(confirmPasswordStatus) }}>Confirmar contraseña</label>
-              <Input.Password
-                placeholder="Confirmar contraseña"
-                iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
-                value={confirmPassword}
-                onChange={onChangeConfirmPassword}
-                status={confirmPasswordStatus}
-                onBlur={onBlurConfirmPassword}
-              />
-            </div>
-            <div>
-              <Checkbox onChange={() => setSuperUser(!superUser)} checked={superUser}>
-                <span style={{ color: "gray" }}>Super usuario</span>
-              </Checkbox>
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginTop: "30px" }}>
-            {!update ? (
-              <Button onClick={() => (redirect ? navigate(redirect) : navigate("/"))} type="default">
-                Regresar
-              </Button>
-            ) : (
-              <Button onClick={handleDeleteUser} type="primary" danger>
-                Eliminar
-              </Button>
-            )}
-            <Button onClick={handleCreateUser} type="primary">
-              {update ? "Actualizar" : "Crear"}
-            </Button>
-          </div>
-        </>
-      )}
+          </Form>
+        )}
+      </Card>
     </div>
   );
 }
