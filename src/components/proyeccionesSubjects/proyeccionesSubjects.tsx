@@ -4,10 +4,10 @@ import "./proyeccionesSubjects.css";
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
-import { Button, Divider, message, Modal, Select, Popconfirm, List } from "antd";
+import { Button, Divider, message, Modal, Select, Popconfirm, List, Card, Row, Col, Typography } from "antd";
 import TablePensum from "./table/table";
 import { GiAutoRepair } from "react-icons/gi";
-import { QuestionCircleOutlined, DisconnectOutlined } from "@ant-design/icons";
+import { QuestionCircleOutlined, DisconnectOutlined, ProjectOutlined, EditOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { InlineHours, InlineQuarter, Subject } from "../../interfaces/subject";
 import { normalizeText } from "../../utils/textFilter";
@@ -537,107 +537,103 @@ export default function ProyeccionesSubjects() {
   };
 
   return (
-    <>
-      <div
-        className="title-bar-container"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "start",
-          columnGap: "3rem",
-        }}>
-        <h1>Materias en la Proyección</h1>
-      </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: "20px",
-          marginTop: "20px",
-        }}>
-        {userData?.su && (
-          <Select
-            allowClear
-            showSearch
-            style={{ width: 200 }}
-            placeholder="Filtrar por PNF"
-            optionFilterProp="label"
-            filterOption={(input, option) =>
-              normalizeText(option?.label ?? "").includes(normalizeText(input))
-            }
-            filterSort={(optionA, optionB) =>
-              normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
-            }
-            options={pnfOptions}
-            onChange={(value) => {
-              setSelectedPnf(value);
-            }}
-            value={selectedPnf}
-          />
-        )}
-
-        <Select
-          allowClear
-          showSearch
-          style={{ width: 200 }}
-          placeholder="Filtrar por materia"
-          optionFilterProp="label"
-          filterOption={(input, option) => normalizeText(option?.label ?? "").includes(normalizeText(input))}
-          filterSort={(optionA, optionB) =>
-            normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
-          }
-          options={subjectOptions}
-          onChange={(value) => {
-            setSelectedSubject(value);
-          }}
-          value={selectedSubject}
-        />
-
-        <Select
-          allowClear
-          showSearch
-          style={{ width: 200 }}
-          placeholder="Filtrar por trayecto"
-          optionFilterProp="label"
-          filterOption={(input, option) => normalizeText(option?.label ?? "").includes(normalizeText(input))}
-          filterSort={(optionA, optionB) =>
-            normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
-          }
-          options={trayectoOptions}
-          onChange={(value) => {
-            setSelectedTrayecto(value);
-          }}
-          value={selectedTrayecto}
-        />
-
-        <Select
-          allowClear
-          showSearch
-          style={{ width: 100 }}
-          placeholder="Sección"
-          optionFilterProp="label"
-          options={seccionOptions}
-          onChange={(value) => {
-            setSelectedSeccion(value);
-          }}
-          value={selectedSeccion}
-        />
-
-        <Button type="primary" onClick={showAddSubjectModal}>
-          Modificar
-        </Button>
-
-        <Button
-          type="dashed"
-          onClick={() => setIsUnlinkModalOpen(true)}
-          disabled={!selectedPnf || !selectedTrayecto || !selectedSeccion}
-          icon={<DisconnectOutlined />}
-        >
-          Gestionar Vinculaciones
-        </Button>
+    <div style={{ padding: '24px', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <ProjectOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+        <Typography.Title level={2} style={{ margin: 0 }}>Materias en la Proyección</Typography.Title>
       </div>
 
+      <Card bordered={false} style={{ borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+        <Row gutter={[16, 16]} align="middle">
+          {userData?.su && (
+            <Col xs={24} sm={12} md={6} lg={4}>
+              <Select
+                allowClear
+                showSearch
+                style={{ width: '100%' }}
+                placeholder="Filtrar por PNF"
+                optionFilterProp="label"
+                filterOption={(input, option) =>
+                  normalizeText(option?.label ?? "").includes(normalizeText(input))
+                }
+                filterSort={(optionA, optionB) =>
+                  normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
+                }
+                options={pnfOptions}
+                onChange={setSelectedPnf}
+                value={selectedPnf}
+              />
+            </Col>
+          )}
+
+          <Col xs={24} sm={12} md={6} lg={4}>
+            <Select
+              allowClear
+              showSearch
+              style={{ width: '100%' }}
+              placeholder="Filtrar por materia"
+              optionFilterProp="label"
+              filterOption={(input, option) => normalizeText(option?.label ?? "").includes(normalizeText(input))}
+              filterSort={(optionA, optionB) =>
+                normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
+              }
+              options={subjectOptions}
+              onChange={setSelectedSubject}
+              value={selectedSubject}
+            />
+          </Col>
+
+          <Col xs={24} sm={12} md={6} lg={4}>
+            <Select
+              allowClear
+              showSearch
+              style={{ width: '100%' }}
+              placeholder="Filtrar por trayecto"
+              optionFilterProp="label"
+              filterOption={(input, option) => normalizeText(option?.label ?? "").includes(normalizeText(input))}
+              filterSort={(optionA, optionB) =>
+                normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
+              }
+              options={trayectoOptions}
+              onChange={setSelectedTrayecto}
+              value={selectedTrayecto}
+            />
+          </Col>
+
+          <Col xs={24} sm={12} md={6} lg={3}>
+            <Select
+              allowClear
+              showSearch
+              style={{ width: '100%' }}
+              placeholder="Sección"
+              optionFilterProp="label"
+              options={seccionOptions}
+              onChange={setSelectedSeccion}
+              value={selectedSeccion}
+            />
+          </Col>
+
+          <Col xs={24} sm={12} md={12} lg={9} style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginLeft: 'auto' }}>
+            <Button type="primary" icon={<EditOutlined />} onClick={showAddSubjectModal}>
+              Modificar
+            </Button>
+
+            <Button
+              onClick={() => setIsUnlinkModalOpen(true)}
+              disabled={!selectedPnf || !selectedTrayecto || !selectedSeccion}
+              icon={<DisconnectOutlined />}
+            >
+              Vinculaciones
+            </Button>
+          </Col>
+        </Row>
+      </Card>
+
+      <Card bordered={false} style={{ borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }} bodyStyle={{ padding: 0, flex: 1, overflow: 'hidden' }}>
+        <TablePensum subjects={filteredSubjects} />
+      </Card>
+
+      {/* Modals */}
       <Modal
         title="Gestionar Vinculaciones"
         open={isUnlinkModalOpen}
@@ -868,9 +864,7 @@ export default function ProyeccionesSubjects() {
         <Divider />
         {getModalContent()}
       </Modal>
-
-      <TablePensum subjects={filteredSubjects} />
-    </>
-  );
+    </div>
+  )
 }
 

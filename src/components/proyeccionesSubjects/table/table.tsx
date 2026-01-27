@@ -61,7 +61,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       title: "Programa",
       dataIndex: "pnf",
       key: "pnf",
-      width: "20%",
+      width: 200,
       align: "center",
       onFilter: (value, record) => {
         const pnfValue = typeof record.pnf === "string" ? record.pnf : "";
@@ -77,7 +77,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       title: "Materia",
       dataIndex: "subject",
       key: "subject",
-      width: "25%",
+      width: 250,
       align: "center",
       //...getColumnSearchProps("subject"),
       onFilter: (value, record) => {
@@ -94,7 +94,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       title: "Trayecto",
       dataIndex: "trayectoName",
       key: "trayectoName",
-      width: "20%",
+      width: 150,
       align: "center",
       //...getColumnSearchProps("trayectoName"),
       onFilter: (value, record) => {
@@ -111,7 +111,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       title: "Turno",
       dataIndex: "turnoName",
       key: "turnoName",
-      width: "10%",
+      width: 100,
       align: "center",
       render: (value) => {
         return <div style={getRowStyle(value)}>{getRowContent(value)}</div>;
@@ -120,7 +120,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
     {
       title: "Horas",
       dataIndex: "hours",
-      width: "10%",
+      width: 100,
       key: "hours",
       align: "center",
       render: (value) => {
@@ -130,7 +130,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
     {
       title: "Trimestre",
       dataIndex: "quarter",
-      width: "20%",
+      width: 150,
       align: "center",
       key: "quarter",
       render: (value) => {
@@ -149,9 +149,9 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       },
     },
     {
-      title: "Seccion",
+      title: "Sección",
       dataIndex: "seccion",
-      width: "3%",
+      width: 100,
       key: "seccion",
       align: "center",
       render: (value) => {
@@ -161,7 +161,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
     {
       title: "Acciones",
       dataIndex: "seccion",
-      width: "10%",
+      width: 120,
       key: "seccion",
       align: "center",
       render: (_value, record) => {
@@ -211,8 +211,9 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
         rowKey={(record) => record.innerId}
         columns={columns}
         dataSource={subjects ?? []}
+        scroll={{ x: 'max-content', y: 'calc(100vh - 380px)' }}
       />
-      ;
+
       <EditProyeccionesSubjectModal
         open={openEditModal}
         setOpen={setOpenEditModal}

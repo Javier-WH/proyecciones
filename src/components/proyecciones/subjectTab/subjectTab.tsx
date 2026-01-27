@@ -289,6 +289,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       title: 'Sección',
       dataIndex: 'seccion',
       key: 'seccion',
+      width: 85,
       render: (text: string) => <Tag>{text}</Tag>
     },
     {
@@ -417,7 +418,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
             dataSource={subjectList}
             rowKey="innerId"
             pagination={{ pageSize: 10, showSizeChanger: true }}
-            scroll={{ x: 'max-content', y: 'calc(100vh - 440px)' }}
+            scroll={{ x: 'max-content', y: 'calc(100vh - 390px)' }}
           />
         </Card>
       </div>
