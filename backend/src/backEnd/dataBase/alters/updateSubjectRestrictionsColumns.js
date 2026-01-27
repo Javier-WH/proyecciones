@@ -5,7 +5,7 @@ const queryInterface = sequelize.getQueryInterface()
 const TABLE_NAME = 'subjects_restrictions'
 const UNIQUE_INDEX_NAME = 'subjects_restrictions_proyection_subject_key'
 
-async function ensureColumn (tableInfo, columnName, definition) {
+async function ensureColumn(tableInfo, columnName, definition) {
   const exists = Boolean(tableInfo[columnName])
   if (!exists) {
     await queryInterface.addColumn(TABLE_NAME, columnName, definition)
@@ -14,7 +14,7 @@ async function ensureColumn (tableInfo, columnName, definition) {
   }
 }
 
-export default async function updateSubjectRestrictionsColumns () {
+export default async function updateSubjectRestrictionsColumns() {
   try {
     const tableExists = await queryInterface.describeTable(TABLE_NAME).catch(() => null)
     if (!tableExists) {
@@ -33,7 +33,7 @@ export default async function updateSubjectRestrictionsColumns () {
     }
 
     await ensureColumn(tableInfo, 'proyection_id', {
-      type: DataTypes.STRING(36),
+      type: DataTypes.UUID,
       allowNull: false
     })
 

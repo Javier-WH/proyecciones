@@ -1,7 +1,7 @@
 import sequelize from '#dataBaseConnection'
 import { DataTypes, Model } from 'sequelize'
 
-class SubjectRestrictions extends Model {}
+class SubjectRestrictions extends Model { }
 SubjectRestrictions.init(
   {
     id: {
@@ -10,7 +10,7 @@ SubjectRestrictions.init(
       defaultValue: DataTypes.UUIDV4
     },
     proyection_id: {
-      type: DataTypes.STRING(36),
+      type: DataTypes.UUID,
       allowNull: false,
       references: {
         model: 'proyections',
