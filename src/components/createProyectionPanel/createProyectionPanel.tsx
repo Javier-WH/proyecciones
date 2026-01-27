@@ -1,10 +1,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { Select, SelectProps } from "antd";
+import { Select, SelectProps, Card, Typography, Row, Col, Space } from "antd";
+import { ProjectOutlined, BookOutlined, CalendarOutlined, DeploymentUnitOutlined } from "@ant-design/icons";
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import getMaya from "../../fetch/getMaya";
 import TabPanel from "./tabPanel/tabPanel";
+
+const { Title, Text } = Typography;
 
 export default function CreateProyectionPanel() {
   const { pnfList, trayectosList, userPNF, userData } = useContext(MainContext) as MainContextValues;
@@ -78,66 +81,69 @@ export default function CreateProyectionPanel() {
   const handleTrayectoChange = (value: string) => {
     setSelectedTrayecto(value);
   };
+
   return (
-    <div style={{ width: "100%", height: "100%", padding: "20px" }}>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          columnGap: "20px",
-          marginBottom: "20px",
-        }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-          }}>
-          <label style={{ color: "gray", fontSize: "12px" }}>Programa</label>
-          <Select
-            defaultValue={userPNF}
-            style={{ width: 300 }}
-            onChange={handlePnfChange}
-            options={pnfOptions}
-          />
-        </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-          }}>
-          <label style={{ color: "gray", fontSize: "12px" }}>Trayecto</label>
-          <Select
-            placeholder="Selecciona un trayecto"
-            style={{ width: 300 }}
-            onChange={handleTrayectoChange}
-            options={trayectoOptions}
-          />
+    <div style={{ padding: "24px", backgroundColor: "#f0f2f5", minHeight: "100vh" }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <ProjectOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+          <Title level={2} style={{ margin: 0 }}>Crear Proyección Académica</Title>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-          }}>
-          <label style={{ color: "gray", fontSize: "12px" }}>Maya</label>
-          <Select
-            placeholder="Selecciona una maya"
-            style={{ width: 300 }}
-            value={selectedMaya}
-            loading={loadingMaya}
-            disabled={loadingMaya}
-            onChange={handleMayaChange}
-            options={mayaOptions}
-          />
-        </div>
+        <Card bordered={false} style={{ borderRadius: '8px', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)', marginBottom: '24px' }}>
+          <Row gutter={[24, 24]} align="bottom">
+            <Col xs={24} md={8}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text type="secondary"><BookOutlined /> Programa Nacional de Formación (PNF)</Text>
+                <Select
+                  defaultValue={userPNF}
+                  style={{ width: "100%" }}
+                  onChange={handlePnfChange}
+                  options={pnfOptions}
+                  size="large"
+                />
+              </Space>
+            </Col>
+            <Col xs={24} md={8}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text type="secondary"><CalendarOutlined /> Trayecto</Text>
+                <Select
+                  placeholder="Selecciona un trayecto"
+                  style={{ width: "100%" }}
+                  onChange={handleTrayectoChange}
+                  options={trayectoOptions}
+                  size="large"
+                />
+              </Space>
+            </Col>
+            <Col xs={24} md={8}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text type="secondary"><DeploymentUnitOutlined /> Malla Curricular</Text>
+                <Select
+                  placeholder="Selecciona una maya"
+                  style={{ width: "100%" }}
+                  value={selectedMaya}
+                  loading={loadingMaya}
+                  disabled={loadingMaya}
+                  onChange={handleMayaChange}
+                  options={mayaOptions}
+                  size="large"
+                />
+              </Space>
+            </Col>
+          </Row>
+        </Card>
+
+        {mayaOptions?.length > 0 && selectedTrayecto && selectedMaya ? (
+          <div style={{ backgroundColor: "#fff", padding: "24px", borderRadius: "8px", boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}>
+            <TabPanel selectedPnf={selectedPnf} selectedTrayecto={selectedTrayecto} selectedMaya={selectedMaya} />
+          </div>
+        ) : (
+          <div style={{ textAlign: "center", marginTop: "50px", color: "#999" }}>
+            <p>Seleccione todos los campos requeridos para configurar la proyección.</p>
+          </div>
+        )}
       </div>
-
-      {
-        mayaOptions?.length > 0 && (
-          <TabPanel selectedPnf={selectedPnf} selectedTrayecto={selectedTrayecto} selectedMaya={selectedMaya} />
-        )
-      }
-
     </div>
   );
 }

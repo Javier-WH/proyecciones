@@ -1,9 +1,12 @@
 import { useContext, useEffect, useState } from "react";
 import { Subject } from "../../../../interfaces/subject";
-import { Button, Divider, message } from "antd";
+import { Button, Divider, message, Card, Statistic, Row, Col, Typography, Empty, Space } from "antd";
 import { MainContext } from "../../../../context/mainContext";
 import { MainContextValues } from "../../../../interfaces/contextInterfaces";
 import { v4 as uuidv4 } from "uuid";
+import { MinusOutlined, PlusOutlined, RocketOutlined } from "@ant-design/icons";
+
+const { Title, Text } = Typography;
 
 interface SeccionContentItem {
   turnoName?: string;
@@ -83,57 +86,64 @@ export default function TabProyection({ subjectList, turnos }: { subjectList: Su
 
 
   return (
-    <div>
-      <Button disabled={secciones.length === 0} type="primary" onClick={handleProyectar}>Proyectar</Button>
-      <Divider type="horizontal" />
-      <h3 style={{ color: "gray" }}>{secciones.length === 0 ? "No hay turnos para proyectar" : "Numero de secciones por turno"}</h3>
-      <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap" }}>
-        {
-          secciones.map((seccion) => (
-            <div
-              key={seccion.turnoName}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                backgroundColor: "white",
-                borderRadius: "10px",
-                width: "130px",
-                height: "150px",
-                margin: "10px",
-                padding: "10px",
-                border: "1px solid #e0e0e0",
-                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-              }}
-            >
-              <h3>{seccion.turnoName}</h3>
-
-              <span
-                style={{
-                  fontSize: "40px",
-                  fontWeight: "bold",
-                  color: "#1890ff",
-                  marginBottom: "10px",
-                  width: "100%",
-                  textAlign: "center",
-                }}
-              >
-                {seccion.sectionCount}
-              </span>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: "5px",
-                  width: "100%",
-                }}
-              >
-                <Button type="primary" danger onClick={() => handleSectionCountChange(seccion.turnoName!, -1)}>-</Button>
-                <Button type="primary" onClick={() => handleSectionCountChange(seccion.turnoName!, 1)}>+</Button>
-              </div>
-            </div>
-          ))
-        }
+    <div style={{ padding: '16px' }}>
+      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <Title level={4} style={{ margin: 0 }}>Configuración de Secciones</Title>
+          <Text type="secondary">Defina el número de secciones para cada turno disponible</Text>
+        </div>
+        <Button
+          disabled={secciones.length === 0}
+          type="primary"
+          size="large"
+          icon={<RocketOutlined />}
+          onClick={handleProyectar}
+        >
+          Generar Proyección
+        </Button>
       </div>
+
+      <Divider style={{ margin: '16px 0' }} />
+
+      {secciones.length === 0 ? (
+        <Empty description="No hay turnos disponibles para este trayecto o malla" />
+      ) : (
+        <Row gutter={[16, 16]}>
+          {secciones.map((seccion) => (
+            <Col xs={24} sm={12} md={8} lg={6} key={seccion.turnoName}>
+              <Card
+                title={<Text strong>{seccion.turnoName}</Text>}
+                bordered={false}
+                style={{
+                  textAlign: 'center',
+                  border: '1px solid #f0f0f0',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                }}
+              >
+                <Statistic
+                  value={seccion.sectionCount}
+                  valueStyle={{ color: '#1890ff', fontSize: '48px', fontWeight: 'bold' }}
+                />
+                <Space style={{ marginTop: '16px' }}>
+                  <Button
+                    type="primary"
+                    danger
+                    shape="circle"
+                    icon={<MinusOutlined />}
+                    onClick={() => handleSectionCountChange(seccion.turnoName!, -1)}
+                  />
+                  <Button
+                    type="primary"
+                    shape="circle"
+                    icon={<PlusOutlined />}
+                    onClick={() => handleSectionCountChange(seccion.turnoName!, 1)}
+                  />
+                </Space>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
     </div>
   )
 }
@@ -160,5 +170,8 @@ function sortTurns(arr: string[]) {
 
   return arr;
 }
+
+
+
 
 
