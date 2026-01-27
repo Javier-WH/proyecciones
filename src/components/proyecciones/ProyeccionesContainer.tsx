@@ -1,7 +1,8 @@
 import TeacherTable from "./teacherTable/TeacherTable";
 import SelectedTeacher from "./selectedTeacher/selectedTeacher";
 import "./proyeccionesContainer.css";
-import { Button, Radio } from "antd";
+import { Button, Typography, Space, Segmented } from "antd";
+import { TeamOutlined, BookOutlined, UserOutlined, AppstoreOutlined } from "@ant-design/icons";
 import { GiAutoRepair } from "react-icons/gi";
 import React, { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
@@ -44,10 +45,7 @@ export default function ProyeccionesContainer() {
     );
   }, [subjects]);
 
-  const tabButtonStyles: React.CSSProperties = {
-    width: "150px",
-    textAlign: "center",
-  };
+
 
   if (error) {
     return (
@@ -102,48 +100,32 @@ export default function ProyeccionesContainer() {
 
   return (
     <div>
-      <div
-        className="title-bar-container"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}>
-        <h3
-          style={{
-            width: "400px",
-            height: "50px",
-            lineHeight: "50px",
-            overflow: "hidden",
-            wordWrap: "break-word",
-            overflowWrap: "break-word",
-            whiteSpace: "normal",
-          }}>
+      <div className="title-bar-container">
+        <Typography.Title level={4} style={{ margin: 0, minWidth: "200px", maxWidth: "400px" }} ellipsis={{ tooltip: proyectionName }}>
           {proyectionName}
-        </h3>
+        </Typography.Title>
 
-        <Radio.Group defaultValue="a" size="small" onChange={(e) => handleChangeRadio(e.target.value)}>
-          <Radio.Button value="a">Profesores</Radio.Button>
-          <Radio.Button value="b">Materias</Radio.Button>
-        </Radio.Group>
+        <Space size="middle">
+          <Segmented
+            options={[
+              { label: 'Profesores', value: 'a', icon: <TeamOutlined /> },
+              { label: 'Materias', value: 'b', icon: <BookOutlined /> },
+            ]}
+            value={teacherTab ? 'a' : 'b'}
+            onChange={(value) => handleChangeRadio(value as string)}
+          />
 
-        <Radio.Group
-          defaultValue={true}
-          size="small"
-          onChange={(e) => onChageSearchByUserPerfil(e.target.value)}>
-          <Radio.Button style={tabButtonStyles} value={true}>
-            {teacherTab ? "Mis profesores" : "Mis materias"}
-          </Radio.Button>
-          <Radio.Button style={tabButtonStyles} value={false}>
-            {teacherTab ? "Todos los profesores" : "Todas las materias"}
-          </Radio.Button>
-        </Radio.Group>
+          <Segmented
+            options={[
+              { label: teacherTab ? 'Mis Profesores' : 'Mis Materias', value: 1, icon: <UserOutlined /> },
+              { label: teacherTab ? 'Todos' : 'Todas', value: 0, icon: <AppstoreOutlined /> },
+            ]}
+            value={searchByUserPerfil ? 1 : 0}
+            onChange={(value) => onChageSearchByUserPerfil(value === 1)}
+          />
 
-        {/*<span>{proyectionName}</span>*/}
-
-        <div style={{ display: "flex", gap: "5px" }}>
           <ReportMenu />
-        </div>
+        </Space>
       </div>
 
       <div
