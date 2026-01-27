@@ -3,12 +3,14 @@ import { Subject } from "../../../interfaces/subject";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { useContext, useEffect, useState } from "react";
-import { Button, message, Select, Tag } from "antd";
-import SubjectTeacherInfo from "../../addSubjectToTeacherModal/subjectTeacherInfo";
+import { Button, message, Select, Tag, Table, Card, Row, Col, Space, Tooltip, Typography } from "antd";
 import { FaUserPen } from "react-icons/fa6";
 import { TbTopologyStar3 } from "react-icons/tb";
 import AddSubjectToTeacherModal from "./addTeacherSubject";
 import { normalizeText } from "../../../utils/textFilter";
+import { EditOutlined, FilterOutlined, DatabaseOutlined, BookOutlined } from "@ant-design/icons";
+
+const { Title, Text } = Typography;
 
 interface props {
   searchByUserPerfil: boolean;
@@ -18,6 +20,7 @@ interface SelectOption {
   value: string;
   label: string;
 }
+
 function unasignedSubject(obj: { q1?: string | null; q2?: string | null; q3?: string | null }): boolean {
   return Object.values(obj).some((value) => value === null);
 }
@@ -25,7 +28,7 @@ function unasignedSubject(obj: { q1?: string | null; q2?: string | null; q3?: st
 export default function SubjectTab({ searchByUserPerfil }: props) {
   const { subjects, subjectColors, teachers, setEditSubjectQuarter, userData, userPNF, isAuthenticated } =
     useContext(MainContext) as MainContextValues;
-  const [subjectList, setSubjectList] = useState<Subject[]>();
+  const [subjectList, setSubjectList] = useState<Subject[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [pnfOptions, setPnfOptions] = useState<SelectOption[]>([]);
   const [selectedPnf, setSelectedPnf] = useState<string | undefined>(undefined);
@@ -47,7 +50,6 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     if (!subjects) return;
 
     let filteredSubjects = JSON.parse(JSON.stringify(subjects)) as Subject[];
-    console.log({ userPNF, filteredSubjects });
     if (searchByUserPerfil) {
       const pnfId = userPNF?.replace(/"/g, "");
       filteredSubjects = filteredSubjects.filter((subject) => subject.pnfId === pnfId);
@@ -72,9 +74,11 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     if (showUnasignedSubject) {
       filteredSubjects = filteredSubjects.filter((subject) => {
         const quarter = subject.quarter;
+        // eslint-disable-next-line array-callback-return
         if (unasignedSubject(quarter)) {
           return subject;
         }
+        return false;
       });
     }
 
@@ -82,7 +86,6 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     filteredSubjects = filteredSubjects.filter(student => !student.linkedToSection);
 
     setSubjectList(filteredSubjects);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     searchByUserPerfil,
     subjects,
@@ -169,225 +172,211 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     setSelectedSubject(subject);
   };
 
-  return (
-    <>
-      <AddSubjectToTeacherModal subject={selectedSubject} setSelectedSubject={setSelectedSubject} />
-      <div
-        style={{
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-          padding: "10px",
-        }}>
-        {/* Filters Header */}
-        <div
-          style={{
-            backgroundColor: "white",
-            padding: "16px",
-            borderRadius: "12px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "12px",
-            alignItems: "center",
-            border: "1px solid #f0f0f0",
+  const columns = [
+    {
+      title: 'Programa',
+      dataIndex: 'pnf',
+      key: 'pnf',
+      render: (text: string, record: Subject) => {
+        const color = subjectColors?.[record.pnfId] || "#1890ff";
+        return <Tag color={color}>{text}</Tag>
+      }
+    },
+    {
+      title: 'Materia',
+      dataIndex: 'subject',
+      key: 'subject',
+      render: (text: string) => <Text strong>{text}</Text>,
+    },
+    {
+      title: 'Trayecto',
+      dataIndex: 'trayectoName',
+      key: 'trayectoName',
+    },
+    {
+      title: 'Turno',
+      dataIndex: 'turnoName',
+      key: 'turnoName',
+    },
+    {
+      title: 'Horas',
+      key: 'horas',
+      render: (_: unknown, record: Subject) => (
+        <Text>{`${record.hours?.q1 || 0} / ${record.hours?.q2 || 0} / ${record.hours?.q3 || 0}`}</Text>
+      ),
+    },
+    {
+      title: 'Trimestre',
+      key: 'trimestre',
+      render: (_: unknown, record: Subject) => {
+        const q1Assigned = !!record.quarter.q1;
+        const q2Assigned = !!record.quarter.q2;
+        const q3Assigned = !!record.quarter.q3;
+
+        const Box = ({ active, label }: { active: boolean, label: string }) => (
+          <div style={{
+            display: 'inline-flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '24px',
+            height: '24px',
+            borderRadius: '4px',
+            backgroundColor: active ? '#e6f7ff' : '#f5f5f5',
+            border: `1px solid ${active ? '#1890ff' : '#d9d9d9'}`,
+            color: active ? '#1890ff' : '#bfbfbf',
+            fontWeight: 'bold',
+            fontSize: '12px',
+            marginRight: '4px'
           }}>
+            {label}
+          </div>
+        );
+
+        return (
+          <div style={{ display: 'flex' }}>
+            <Tooltip title={q1Assigned ? "Asignado" : "Sin asignar"}><Box active={q1Assigned} label="1" /></Tooltip>
+            <Tooltip title={q2Assigned ? "Asignado" : "Sin asignar"}><Box active={q2Assigned} label="2" /></Tooltip>
+            <Tooltip title={q3Assigned ? "Asignado" : "Sin asignar"}><Box active={q3Assigned} label="3" /></Tooltip>
+          </div>
+        )
+      }
+    },
+    {
+      title: 'Sección',
+      dataIndex: 'seccion',
+      key: 'seccion',
+      render: (text: string) => <Tag>{text}</Tag>
+    },
+    {
+      title: 'Acciones',
+      key: 'actions',
+      render: (_: unknown, record: Subject) => (
+        <Space size="small">
           <Button
-            size="large"
-            type={showUnasignedSubject ? "primary" : "default"}
-            onClick={() => setShowUnasignedSubject(!showUnasignedSubject)}
-            style={{ width: "160px" }}>
-            {showUnasignedSubject ? "Mostrar todas" : "Mostrar sin asignar"}
-          </Button>
-
-          <Select
-            allowClear
-            showSearch
-            size="large"
-            style={{ width: 220 }}
-            placeholder="Filtrar por trayecto"
-            optionFilterProp="label"
-            filterOption={(input, option) =>
-              normalizeText(option?.label ?? "").includes(normalizeText(input))
-            }
-            filterSort={(optionA, optionB) =>
-              normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
-            }
-            options={trayectoOptions}
-            onChange={(value) => {
-              setSelectedTrayectoOption(value);
-            }}
-            value={selectedTrayectoOption}
+            onClick={() => handleChangeTeacher(record)}
+            type="primary"
+            shape="circle"
+            icon={<FaUserPen />}
+            title="Asignar Docente"
           />
+          {(record.quarter?.q1 != null ||
+            record.quarter?.q2 != null ||
+            record.quarter?.q3 != null) && (
+              <Button
+                onClick={() => {
+                  if (!userData?.su && userPNF !== record.pnfId) {
+                    message.error("No puede modificar materias asignadas de otros programas");
+                    return;
+                  }
+                  setEditSubjectQuarter(record);
+                }}
+                shape="circle"
+                style={{ color: "#faad14", borderColor: "#faad14" }}
+                icon={<TbTopologyStar3 />}
+                title="Editar Asignación"
+              />
+            )}
+        </Space>
+      ),
+    },
+  ];
 
-          <Select
-            allowClear
-            showSearch
-            size="large"
-            style={{ flex: 1, minWidth: "280px" }}
-            placeholder="Filtrar por materia"
-            optionFilterProp="label"
-            filterOption={(input, option) =>
-              normalizeText(option?.label ?? "").includes(normalizeText(input))
-            }
-            filterSort={(optionA, optionB) =>
-              normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
-            }
-            options={subjectsOptions}
-            onChange={(value) => {
-              setSelectedSubjectOption(value);
-            }}
-            value={selectedSubjectOption}
-          />
+  return (
+    <div style={{ padding: '24px', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
+      <AddSubjectToTeacherModal subject={selectedSubject} setSelectedSubject={setSelectedSubject} />
 
-          <Select
-            allowClear
-            showSearch
-            size="large"
-            style={{ width: 180 }}
-            placeholder="Filtrar por turno"
-            optionFilterProp="label"
-            filterOption={(input, option) =>
-              normalizeText(option?.label ?? "").includes(normalizeText(input))
-            }
-            filterSort={(optionA, optionB) =>
-              normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
-            }
-            options={turnoOptions}
-            onChange={(value) => {
-              setSelectedTurnoOption(value);
-            }}
-            value={selectedTurnoOption}
-          />
-
-          {!searchByUserPerfil && (
-            <Select
-              allowClear
-              showSearch
-              size="large"
-              style={{ width: 240 }}
-              placeholder="Filtrar por PNF"
-              optionFilterProp="label"
-              filterOption={(input, option) =>
-                normalizeText(option?.label ?? "").includes(normalizeText(input))
-              }
-              filterSort={(optionA, optionB) =>
-                normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
-              }
-              options={pnfOptions}
-              onChange={(value) => {
-                setSelectedPnf(value);
-              }}
-              value={selectedPnf}
-            />
-          )}
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <BookOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+          <Title level={2} style={{ margin: 0 }}>Materias en la Proyección</Title>
         </div>
 
-        {/* List Container */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: "12px",
-            overflowY: "auto",
-            minHeight: 0,
-            paddingBottom: "20px",
-          }}>
-          {subjectList?.map((subject) => {
-            const color = subjectColors?.[subject.pnfId] || "#1890ff";
+        <Card bordered={false} style={{ marginBottom: '24px', borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+          <Row gutter={[16, 16]}>
+            {!searchByUserPerfil && (
+              <Col xs={24} sm={12} md={6}>
+                <Select
+                  allowClear
+                  showSearch
+                  placeholder="Filtrar por PNF"
+                  style={{ width: "100%" }}
+                  filterOption={(input, option) =>
+                    normalizeText(option?.label ?? "").includes(normalizeText(input))
+                  }
+                  options={pnfOptions}
+                  onChange={setSelectedPnf}
+                  value={selectedPnf}
+                />
+              </Col>
+            )}
+            <Col xs={24} sm={12} md={6}>
+              <Select
+                allowClear
+                showSearch
+                placeholder="Filtrar por materia"
+                style={{ width: "100%" }}
+                filterOption={(input, option) =>
+                  normalizeText(option?.label ?? "").includes(normalizeText(input))
+                }
+                options={subjectsOptions}
+                onChange={setSelectedSubjectOption}
+                value={selectedSubjectOption}
+              />
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Select
+                allowClear
+                showSearch
+                placeholder="Filtrar por trayecto"
+                style={{ width: "100%" }}
+                filterOption={(input, option) =>
+                  normalizeText(option?.label ?? "").includes(normalizeText(input))
+                }
+                options={trayectoOptions}
+                onChange={setSelectedTrayectoOption}
+                value={selectedTrayectoOption}
+              />
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Select
+                allowClear
+                showSearch
+                placeholder="Filtrar por turno"
+                style={{ width: "100%" }}
+                filterOption={(input, option) =>
+                  normalizeText(option?.label ?? "").includes(normalizeText(input))
+                }
+                options={turnoOptions}
+                onChange={setSelectedTurnoOption}
+                value={selectedTurnoOption}
+              />
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Button
+                type={showUnasignedSubject ? "primary" : "default"}
+                onClick={() => setShowUnasignedSubject(!showUnasignedSubject)}
+                icon={<FilterOutlined />}
+                block
+              >
+                {showUnasignedSubject ? "Mostrar todas" : "Mostrar sin asignar"}
+              </Button>
+            </Col>
+            <Col xs={24} sm={12} md={6} style={{ marginLeft: 'auto' }}>
+              {/* This could be a place for additional primary actions if needed */}
+            </Col>
+          </Row>
+        </Card>
 
-            const teacher = {
-              q1: teachers?.find((teacher) => teacher.id === subject.quarter.q1) || null,
-              q2: teachers?.find((teacher) => teacher.id === subject.quarter.q2) || null,
-              q3: teachers?.find((teacher) => teacher.id === subject.quarter.q3) || null,
-            };
-
-            return (
-              <div
-                key={subject.innerId}
-                style={{
-                  backgroundColor: "white",
-                  borderRadius: "8px",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-                  border: "1px solid #f0f0f0",
-                  borderLeft: `5px solid ${color}`,
-                  padding: "16px 20px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: "16px",
-                  transition: "all 0.2s ease",
-                  position: "relative",
-                  minHeight: "100px",
-                }}>
-                <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    <h3
-                      style={{
-                        margin: 0,
-                        fontSize: "1.05rem",
-                        fontWeight: 700,
-                        color: "#1f1f1f",
-                        lineHeight: 1.2,
-                        textTransform: "uppercase",
-                      }}>
-                      {subject.subject}
-                    </h3>
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-                      <Tag color="cyan" style={{ margin: 0 }}>
-                        {subject.pnf}
-                      </Tag>
-                      <Tag style={{ margin: 0 }}>{subject.trayectoName}</Tag>
-                      <Tag style={{ margin: 0 }}>Sec: {subject.turnoName[0]}-{subject.seccion}</Tag>
-                      <Tag color="purple" style={{ margin: 0 }}>
-                        Horas: {subject?.hours?.q1 || 0} / {subject?.hours?.q2 || 0} / {subject?.hours?.q3 || 0}
-                      </Tag>
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: "4px" }}>
-                    <SubjectTeacherInfo teacher={teacher} />
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", justifyContent: "center" }}>
-                  <Button
-                    onClick={() => handleChangeTeacher(subject)}
-                    type="primary"
-                    shape="circle"
-                    size="large"
-                    icon={<FaUserPen />}
-                    title="Asignar Docente"
-                  />
-
-                  {(subject?.quarter?.q1 != null ||
-                    subject?.quarter?.q2 != null ||
-                    subject?.quarter?.q3 != null) && (
-                      <Button
-                        onClick={() => {
-                          if (!userData?.su && userPNF !== subject.pnfId) {
-                            message.error("No puede modificar materias asignadas de otros programas");
-                            return;
-                          }
-                          setEditSubjectQuarter(subject);
-                        }}
-                        shape="circle"
-                        size="large"
-                        style={{ color: "#faad14", borderColor: "#faad14" }}
-                        icon={<TbTopologyStar3 />}
-                        title="Editar Asignación"
-                      />
-                    )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <Card bordered={false} style={{ borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }} bodyStyle={{ padding: 0 }}>
+          <Table
+            columns={columns}
+            dataSource={subjectList}
+            rowKey="innerId"
+            pagination={{ pageSize: 10, showSizeChanger: true }}
+          />
+        </Card>
       </div>
-    </>
+    </div>
   );
 }
 
