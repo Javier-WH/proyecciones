@@ -1,4 +1,4 @@
-import { Button, message, Select, SelectProps } from "antd";
+import { Button, message, Select, SelectProps, Card, Row, Col, Typography, Divider, List, Empty, Space } from "antd";
 import { useEffect, useRef, useState } from "react";
 import getProfileNames from "../../../fetch/getProfileNames";
 import getProfile from "../../../fetch/getProfile";
@@ -7,11 +7,13 @@ import getPnf from "../../../fetch/getPnf";
 import getTrayectos from "../../../fetch/getTrayectos";
 import getMaya from "../../../fetch/getMaya";
 import ProfileModal from "./profileModal/ProfileModal";
-import { FaTrashCan, FaPlus } from "react-icons/fa6";
 import deleteSubjectInProfile from "../../../fetch/deleteSubjectInPerfil";
 import postSubjectToPerfil from "../../../fetch/postSubjectToPerfil";
 import DeleteProfileModal from "./profileModal/deleteProfileModal";
 import { generateSubjectProfileId } from "../../../utils/subjectProfile";
+import { PlusOutlined, DeleteOutlined, BookOutlined, DeploymentUnitOutlined } from "@ant-design/icons";
+
+const { Title, Text } = Typography;
 
 interface basicSubject {
   id: string;
@@ -199,17 +201,10 @@ export default function Profiles() {
   };
 
   const [selectedSubjectName, setSelectedSubjectName] = useState<string>("");
-  // ... existing state ...
 
   const handleSubjectChange = (value: string, option: any) => {
     setSelectedSubject(value);
     setSelectedSubjectName(option?.label ?? "");
-  };
-
-  const selectorStyle = {
-    width: "100%",
-    maxWidth: "600px",
-    minWidth: "300px",
   };
 
   const handleDeleteSubjectInPerfil = async (subjectID: string) => {
@@ -272,7 +267,7 @@ export default function Profiles() {
   };
 
   return (
-    <div>
+    <div style={{ padding: '24px', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
       <ProfileModal
         isModalOpen={openProfileModal}
         setIsModalOpen={setOpenProfileModal}
@@ -285,154 +280,138 @@ export default function Profiles() {
         getPerfilList={getPerfilList}
         perfilList={perfilList}
       />
-      <div
-        className="title-bar-container"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}>
-        <h1>Perfiles</h1>
-      </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          columnGap: "1rem",
-          width: "100%",
-          maxWidth: "500px",
-          minWidth: "300px",
-          flexWrap: "wrap",
-          margin: "50px auto",
-        }}>
-        <Button type="primary" style={{ flex: 1 }} onClick={() => setOpenProfileModal(true)}>
-          Crear Perfil
-        </Button>
-        <Button type="dashed" style={{ flex: 1 }} onClick={() => setOpenDeleteProfileModal(true)}>
-          Eliminar Perfil
-        </Button>
-      </div>
-      <div
-        style={{
-          display: "flex",
-          columnGap: "1rem",
-          width: "100%",
-          maxWidth: "1000px",
-          minWidth: "500px",
-          flexWrap: "wrap",
-          margin: "50px auto",
-          alignItems: "center",
-        }}>
-        <div style={{ flex: 1 }}>
-          <label htmlFor="">Perfil</label>
-          <Select
-            placeholder="Seleccione un perfil"
-            style={selectorStyle}
-            onChange={handlePerfilChange}
-            options={perfilList}
-          />
+
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <DeploymentUnitOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+          <Title level={2} style={{ margin: 0 }}>Gestión de Perfiles</Title>
         </div>
 
-        <div style={{ flex: 1 }}>
-          <label htmlFor="">PNF</label>
-          <Select
-            placeholder="Seleccione PNF"
-            style={selectorStyle}
-            onChange={(value: string) => setSelectedPnf(value)}
-            options={pnfList}
-            allowClear
-          />
-        </div>
+        <Row gutter={[24, 24]}>
+          <Col xs={24} lg={16}>
+            <Card title="Asignar Materias a Perfiles" bordered={false} style={{ height: '100%' }}>
+              <Row gutter={16} style={{ marginBottom: '20px' }}>
+                <Col xs={24} md={12}>
+                  <Text strong>Seleccionar Perfil</Text>
+                  <Select
+                    placeholder="Seleccione un perfil"
+                    style={{ width: '100%', marginTop: '5px' }}
+                    onChange={handlePerfilChange}
+                    options={perfilList}
+                    size="large"
+                  />
+                </Col>
+                <Col xs={24} md={12} style={{ display: 'flex', alignItems: 'flex-end', gap: '10px' }}>
+                  <Button type="primary" onClick={() => setOpenProfileModal(true)}>
+                    Crear Nuevo
+                  </Button>
+                  <Button danger onClick={() => setOpenDeleteProfileModal(true)}>
+                    Eliminar
+                  </Button>
+                </Col>
+              </Row>
 
-        <div style={{ flex: 1 }}>
-          <label htmlFor="">Trayecto</label>
-          <Select
-            placeholder="Seleccione Trayecto"
-            style={selectorStyle}
-            onChange={(value: string) => setSelectedTrayecto(value)}
-            options={trayectoList}
-            allowClear
-          />
-        </div>
+              <Divider>Configuración de Materias</Divider>
 
-        <div style={{ flex: 1 }}>
-          <label htmlFor="">Maya</label>
-          <Select
-            placeholder="Seleccione Maya"
-            style={selectorStyle}
-            onChange={(value: string) => setSelectedMaya(value)}
-            value={selectedMaya}
-            options={mayaList}
-            allowClear
-            loading={mayaLoading}
-            disabled={mayaLoading}
-          />
-        </div>
-
-        <div style={{ flex: 1 }}>
-          <label htmlFor="">Materia</label>
-          <Select
-            showSearch
-            placeholder="Seleccione una materia o más materias"
-            style={selectorStyle}
-            onChange={handleSubjectChange}
-            options={subjectList as SubjectOption[]}
-            loading={isLoadingSubjects}
-            disabled={isLoadingSubjects}
-            filterOption={filterOption}
-          />
-        </div>
-
-        <Button
-          shape="circle"
-          type="primary"
-          icon={<FaPlus />}
-          style={{ flex: 1, maxWidth: "1rem", marginTop: "1rem" }}
-          onClick={addSubjectToPefil}
-          disabled={selectedSubject === null || selectedPerfil === null}
-        />
-      </div>
-
-      <h3 style={{ color: "grey", width: "100%", textAlign: "center" }}>Materias en el Perfil</h3>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          rowGap: "1rem",
-          width: "100%",
-          maxWidth: "1000px",
-          minWidth: "500px",
-          margin: "50px auto",
-          maxHeight: "calc(95vh - 350px)",
-          overflowY: "auto",
-        }}>
-        {subjectsINperfil.map((subject) => {
-          return (
-            <div
-              key={subject.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                columnGap: "1rem",
-                width: "100%",
-                maxWidth: "600px",
-                minWidth: "400px",
-              }}>
-              <span>{subject.subject_name}</span>
-              <div>
-                <Button
-                  shape="circle"
-                  type="primary"
-                  danger
-                  icon={<FaTrashCan />}
-                  onClick={() => handleDeleteSubjectInPerfil(subject.id)}
-                />
+              <div style={{ backgroundColor: '#fafafa', padding: '16px', borderRadius: '8px' }}>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} sm={12} md={8}>
+                    <Text type="secondary">Programa (PNF)</Text>
+                    <Select
+                      placeholder="Seleccione PNF"
+                      style={{ width: "100%" }}
+                      onChange={(value: string) => setSelectedPnf(value)}
+                      options={pnfList}
+                      allowClear
+                    />
+                  </Col>
+                  <Col xs={24} sm={12} md={8}>
+                    <Text type="secondary">Trayecto</Text>
+                    <Select
+                      placeholder="Seleccione Trayecto"
+                      style={{ width: "100%" }}
+                      onChange={(value: string) => setSelectedTrayecto(value)}
+                      options={trayectoList}
+                      allowClear
+                    />
+                  </Col>
+                  <Col xs={24} sm={12} md={8}>
+                    <Text type="secondary">Malla Curricular</Text>
+                    <Select
+                      placeholder="Seleccione Malla"
+                      style={{ width: "100%" }}
+                      onChange={(value: string) => setSelectedMaya(value)}
+                      value={selectedMaya}
+                      options={mayaList}
+                      allowClear
+                      loading={mayaLoading}
+                      disabled={mayaLoading}
+                    />
+                  </Col>
+                  <Col xs={24} sm={18} md={16}>
+                    <Text type="secondary">Materia a agregar</Text>
+                    <Select
+                      showSearch
+                      placeholder="Busque la materia..."
+                      style={{ width: "100%" }}
+                      onChange={handleSubjectChange}
+                      options={subjectList as SubjectOption[]}
+                      loading={isLoadingSubjects}
+                      disabled={isLoadingSubjects}
+                      filterOption={filterOption}
+                    />
+                  </Col>
+                  <Col xs={24} sm={6} md={8} style={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={addSubjectToPefil}
+                      disabled={selectedSubject === null || selectedPerfil === null}
+                      block
+                    >
+                      Agregar
+                    </Button>
+                  </Col>
+                </Row>
               </div>
-            </div>
-          );
-        })}
+            </Card>
+          </Col>
+
+          <Col xs={24} lg={8}>
+            <Card
+              title={<span><BookOutlined /> Materias en este Perfil</span>}
+              bordered={false}
+              style={{ height: '100%', minHeight: '400px' }}
+              bodyStyle={{ padding: '0 10px', height: 'calc(100% - 58px)', overflowY: 'auto' }}
+            >
+              {subjectsINperfil.length > 0 ? (
+                <List
+                  dataSource={subjectsINperfil}
+                  renderItem={(subject) => (
+                    <List.Item
+                      actions={[
+                        <Button
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleDeleteSubjectInPerfil(subject.id)}
+                        />
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={<Text style={{ fontSize: '14px' }}>{subject.subject_name}</Text>}
+                      />
+                    </List.Item>
+                  )}
+                />
+              ) : (
+                <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <Empty description={selectedPerfil ? "Sin materias asignadas" : "Seleccione un perfil"} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                </div>
+              )}
+            </Card>
+          </Col>
+        </Row>
       </div>
     </div>
   );
