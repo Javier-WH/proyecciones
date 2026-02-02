@@ -1,8 +1,9 @@
 import Days from '#models/schedule/days.js'
 import Classrooms from '#models/schedule/classrooms.js'
 import Hours from '#models/schedule/hours.js'
+import syncScheduleConfig from './syncScheduleConfig.js'
 
-async function syncDaysTable () {
+async function syncDaysTable() {
   try {
     const days = await Days.findAll({ raw: true })
     if (days.length === 0) {
@@ -23,7 +24,7 @@ async function syncDaysTable () {
   }
 }
 
-async function syncClassroomsTable () {
+async function syncClassroomsTable() {
   try {
     const classrooms = await Classrooms.findAll({ raw: true })
     if (classrooms.length === 0) {
@@ -54,7 +55,7 @@ async function syncClassroomsTable () {
   }
 }
 
-async function syncHoursTable () {
+async function syncHoursTable() {
   try {
     const stepMinutes = 45 // Duración de cada franja horaria en minutos
     const initialStartTime = '07:00' // Hora de inicio de la primera franja
@@ -126,7 +127,7 @@ const formatTime = (dateObj) => {
   return `${pad(hours)}:${pad(minutes)}`
 }
 
-export async function updateHoursTable (stepMinutes, initialStartTime, totalSlots) {
+export async function updateHoursTable(stepMinutes, initialStartTime, totalSlots) {
   try {
     // Validar parámetros
     if (typeof stepMinutes !== 'number' || stepMinutes <= 0) {
@@ -188,8 +189,9 @@ export async function updateHoursTable (stepMinutes, initialStartTime, totalSlot
   }
 }
 
-export default function syncSchedule () {
+export default function syncSchedule() {
   syncDaysTable()
   syncClassroomsTable()
   syncHoursTable()
+  syncScheduleConfig()
 }

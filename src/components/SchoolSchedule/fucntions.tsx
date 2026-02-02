@@ -37,6 +37,8 @@ export interface generateScheduleParams {
   minConsecutiveSlots?: number;
   preferredConsecutiveSlots?: number;
   setErrors?: (err: scheduleError) => void;
+  customDays?: number[];
+  customTurnos?: Record<string, [string, string][]>;
 }
 
 export const turnos: Record<string, [string, string][]> = {
@@ -107,9 +109,12 @@ export function generateScheduleEvents({
   minConsecutiveSlots = 2,
   preferredConsecutiveSlots = conserveSlots,
   setErrors = (err) => console.log(err),
+  customDays,
+  customTurnos,
 }: generateScheduleParams): Event[] {
   const events: Event[] = [];
-  const days = [1, 2, 3, 4, 5];
+  const days = customDays || [1, 2, 3, 4, 5];
+  const activeTurnos = customTurnos || turnos;
 
   const globalUsedSlots = new Set<string>();
   const sectionUsedSlots = new Set<string>();
@@ -193,7 +198,7 @@ export function generateScheduleEvents({
     const subjectKey = normalizeText(subject.subject);
     const turno = subject.turnoName?.toLowerCase();
     const preferConfig = preferredClassrooms?.find((p) => p.subjectKey === subjectKey);
-    const timeSlots = preferConfig?.preferLastSlot ? [...turnos[turno]].reverse() : turnos[turno];
+    const timeSlots = preferConfig?.preferLastSlot ? [...activeTurnos[turno]].reverse() : activeTurnos[turno];
 
     if (!hours || !professorId || !timeSlots) {
       const reason = `Datos incompletos: ${!hours ? "Horas no definidas" : ""}${!professorId ? ", Profesor no asignado" : ""

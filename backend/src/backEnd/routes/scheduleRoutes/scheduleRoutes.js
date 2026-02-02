@@ -4,6 +4,7 @@ import DaysRoutes from "./daysRoutes/daysRoutes.js";
 import HoursRoutes from "./hoursRoutes.js";
 import SchedulesRoutes from "./schedule.js";
 import RestrictionsRoutes from "./restrictionRoutes.js";
+import ScheduleConfigRoutes from "./scheduleConfigRoutes.js";
 
 const Router = express.Router();
 
@@ -12,6 +13,7 @@ Router.use(DaysRoutes);
 Router.use(HoursRoutes);
 Router.use(SchedulesRoutes);
 Router.use(RestrictionsRoutes);
+Router.use(ScheduleConfigRoutes);
 
 export default Router;
 

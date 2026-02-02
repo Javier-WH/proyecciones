@@ -21,12 +21,14 @@ import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Even
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
-import { FaRegSave, FaRegFolderOpen, FaPlus, FaPrint } from "react-icons/fa";
+import { FaRegSave, FaRegFolderOpen, FaPlus, FaPrint, FaCog } from "react-icons/fa";
 import { useReactToPrint } from "react-to-print";
 import PrintableSchedule from "./PrintableSchedule";
 
 import styles from "./modal.module.css";
 import { normalizeText } from "../../utils/textFilter";
+import ScheduleConfigModal from "./ScheduleConfigModal";
+import { getScheduleConfig, ScheduleConfig } from "../../fetch/schedule/scheduleConfigFetch";
 
 export interface teacherRestriction {
   teacherId: string;
@@ -103,18 +105,23 @@ const SchoolSchedule: React.FC = () => {
   const [subjectRestrictionsReady, setSubjectRestrictionsReady] = useState(false);
   const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">("q1");
   const [errors, setErrors] = useState<scheduleError[]>([]);
+  const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
   // New state for view mode and selected professor
   const [viewMode, setViewMode] = useState<"pnf" | "professor" | "classroom">("pnf");
   const [selectedProfessorId, setSelectedProfessorId] = useState<string | null>(null);
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(null);
 
-  const firstHour =
-    viewMode === "professor" || viewMode === "classroom" ? "07:00" : turnos?.[turn]?.[0]?.[0] ?? "07:00";
-  const lastHour =
-    viewMode === "professor" || viewMode === "classroom"
-      ? "21:15"
-      : turnos?.[turn]?.[turnos?.[turn]?.length - 1]?.[1] ?? "17:30";
+  const activeTurnos = scheduleConfig?.turnos || turnos;
+
+  const firstHour = viewMode === "professor" || viewMode === "classroom"
+    ? "07:00"
+    : activeTurnos?.[turn]?.[0]?.[0] ?? "07:00";
+
+  const lastHour = viewMode === "professor" || viewMode === "classroom"
+    ? "21:15"
+    : activeTurnos?.[turn]?.[activeTurnos?.[turn]?.length - 1]?.[1] ?? "17:30";
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
@@ -176,10 +183,10 @@ const SchoolSchedule: React.FC = () => {
       const raw = Array.isArray(response?.restrictions)
         ? response.restrictions
         : Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response)
-        ? response
-        : [];
+          ? response.data
+          : Array.isArray(response)
+            ? response
+            : [];
 
       const formatted: teacherRestriction[] = raw
         .map((item: RawTeacherRestriction) => {
@@ -227,10 +234,10 @@ const SchoolSchedule: React.FC = () => {
       const rawRestrictions = Array.isArray(response?.restrictions)
         ? response.restrictions
         : Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response)
-        ? response
-        : [];
+          ? response.data
+          : Array.isArray(response)
+            ? response
+            : [];
 
       const formatted: subjectRestriction[] = rawRestrictions
         .map((item: RawSubjectRestriction) => {
@@ -506,6 +513,12 @@ const SchoolSchedule: React.FC = () => {
     loadSubjectRestrictionsFromApi();
   }, [loadSubjectRestrictionsFromApi]);
 
+  useEffect(() => {
+    getScheduleConfig().then(data => {
+      if (data) setScheduleConfig(data);
+    });
+  }, []);
+
   // genera lops eventos del horario
   useEffect(() => {
     if (
@@ -524,10 +537,12 @@ const SchoolSchedule: React.FC = () => {
       trimestre: trimestre, // el trimeste a generar el horario
       preferredClassrooms: subjectRestriction, //las restricciones de materias por aulas de clase
       unavailableDays: teacherRestrictions, // restricciones de dias donde el profesor no puede dar clases
-      conserveSlots: consecutiveConfig.maxSlots, // el numero maximo de horas consecutivas que una materia puede ser vista en un dia
-      minConsecutiveSlots: consecutiveConfig.minSlots, // el minimo de bloques consecutivos requerido al arrancar
+      conserveSlots: scheduleConfig?.conserve_slots || consecutiveConfig.maxSlots, // el numero maximo de horas consecutivas que una materia puede ser vista en un dia
+      minConsecutiveSlots: scheduleConfig?.min_consecutive_slots || consecutiveConfig.minSlots, // el minimo de bloques consecutivos requerido al arrancar
       existingEvents: loadedScheduleEvents, // Pasar eventos cargados para respetar esos slots
       setErrors: addError,
+      customDays: scheduleConfig?.days,
+      customTurnos: scheduleConfig?.turnos,
     });
 
     setEventData(eventsdata);
@@ -540,8 +555,8 @@ const SchoolSchedule: React.FC = () => {
     loadedScheduleEvents,
     teacherRestrictionsReady,
     subjectRestrictionsReady,
-    consecutiveConfig.maxSlots,
-    consecutiveConfig.minSlots,
+    consecutiveConfig,
+    scheduleConfig
   ]); // Incluir para forzar regeneración al cargar
 
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
@@ -707,7 +722,7 @@ const SchoolSchedule: React.FC = () => {
                   value={turn}
                   style={{ width: 120 }}
                   onChange={setTurn}
-                  options={Object.keys(turnos).map((turn) => ({ value: turn, label: turn }))}
+                  options={Object.keys(activeTurnos).map((turn) => ({ value: turn, label: turn }))}
                 />
               </div>
 
@@ -872,7 +887,14 @@ const SchoolSchedule: React.FC = () => {
               subjectRestrictions={subjectRestriction}
               loadingSubjectRestrictions={!subjectRestrictionsReady}
             />
+
             <ScheduleErrorsModal errors={errors} />
+            <FaCog title="Configuración" className={styles.icon} onClick={() => setIsConfigModalOpen(true)} />
+            <ScheduleConfigModal
+              visible={isConfigModalOpen}
+              onClose={() => setIsConfigModalOpen(false)}
+              onConfigUpdate={(newConfig) => setScheduleConfig(newConfig)}
+            />
           </div>
         </div>
 
@@ -903,7 +925,7 @@ const SchoolSchedule: React.FC = () => {
               headerToolbar={{ left: "", center: "", right: "" }}
               events={events}
               height="100%"
-              expandRows={true}
+
               contentHeight={viewMode === "professor" || viewMode === "classroom" ? 2200 : 1100}
               eventContent={(arg) => {
                 const { event } = arg;
@@ -949,9 +971,8 @@ const SchoolSchedule: React.FC = () => {
 
                 return (
                   <div
-                    className={`fc-event-custom ${
-                      viewMode === "classroom" ? "fc-event-custom--classroom" : ""
-                    } ${isCompact ? "fc-event-custom--compact" : ""}`.trim()}
+                    className={`fc-event-custom ${viewMode === "classroom" ? "fc-event-custom--classroom" : ""
+                      } ${isCompact ? "fc-event-custom--compact" : ""}`.trim()}
                     style={eventStyle}>
                     <div className="schedule-event__title">{title}</div>
                     {isCompact ? (

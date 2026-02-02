@@ -21,7 +21,7 @@ export default async function updateSubjectRestrictionsColumns() {
       return
     }
 
-    await queryInterface.bulkDelete(TABLE_NAME, {})
+    // await queryInterface.bulkDelete(TABLE_NAME, {}) // Removed to prevent data loss
 
     const tableInfo = await queryInterface.describeTable(TABLE_NAME)
 

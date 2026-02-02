@@ -1,3 +1,4 @@
+import sequelize from '#dataBaseConnection'
 import tableList from './tables.js'
 import addPNFColumnToTeacherTable from '../alters/addPNFColumnToTeacherTable.js'
 import updateSubjectProfileColumns from '../alters/updateSubjectProfileColumns.js'
@@ -15,7 +16,14 @@ export const createTables = async () => {
 }
 
 export const dropTables = async () => {
-  for (const table of [...tableList].reverse()) {
-    await table.drop()
+  // Disable foreign key checks
+  await sequelize.query('SET FOREIGN_KEY_CHECKS = 0')
+  try {
+    for (const table of [...tableList].reverse()) {
+      await table.drop()
+    }
+  } finally {
+    // Enable foreign key checks
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1')
   }
 }
