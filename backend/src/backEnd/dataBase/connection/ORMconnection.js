@@ -3,7 +3,14 @@
  */
 import dotenv from 'dotenv'
 import { Sequelize } from 'sequelize'
-dotenv.config()
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Cargar .env desde la raíz del proyecto (4 niveles arriba)
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') })
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -25,7 +32,7 @@ try {
 
 export default sequelize
 
-export function closeConection () {
+export function closeConection() {
   sequelize.close()
   console.log('La base de datos se cerro correctamente')
 }
