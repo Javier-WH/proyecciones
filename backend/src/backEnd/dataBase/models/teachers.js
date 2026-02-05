@@ -1,7 +1,7 @@
 import sequelize from "#dataBaseConnection";
 import { DataTypes, Model } from "sequelize";
 
-class Teacher extends Model {}
+class Teacher extends Model { }
 Teacher.init(
   {
     id: {
@@ -54,6 +54,10 @@ Teacher.init(
     active: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
+    },
+    is_placeholder: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
     },
   },
   {

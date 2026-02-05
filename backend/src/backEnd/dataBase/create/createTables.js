@@ -4,6 +4,7 @@ import addPNFColumnToTeacherTable from '../alters/addPNFColumnToTeacherTable.js'
 import updateSubjectProfileColumns from '../alters/updateSubjectProfileColumns.js'
 import updateTeacherRestrictionsColumns from '../alters/updateTeacherRestrictionsColumns.js'
 import updateSubjectRestrictionsColumns from '../alters/updateSubjectRestrictionsColumns.js'
+import addIsPlaceholderColumnToTeacherTable from '../alters/addIsPlaceholderColumnToTeacherTable.js'
 
 export const createTables = async () => {
   await updateSubjectRestrictionsColumns()
@@ -13,6 +14,7 @@ export const createTables = async () => {
   await addPNFColumnToTeacherTable()
   await updateSubjectProfileColumns()
   await updateTeacherRestrictionsColumns()
+  await addIsPlaceholderColumnToTeacherTable()
 }
 
 export const dropTables = async () => {

@@ -1,4 +1,4 @@
-import { Modal, Input, message, Select, SelectProps, Radio, Form, Row, Col, Divider, Typography } from "antd";
+import { Modal, Input, message, Select, SelectProps, Radio, Form, Row, Col, Divider, Typography, Checkbox } from "antd";
 import { Teacher } from "../../../interfaces/teacher";
 import { useEffect, useState, useContext } from "react";
 import getProfileNames from "../../../fetch/getProfileNames";
@@ -38,6 +38,7 @@ export default function EditTeacherModal({
   const [pnfOptions, setPnfOptions] = useState<SelectProps["options"]>([]);
   const [pnf, setPnf] = useState<string>("");
   const [active, setActive] = useState<string>("1");
+  const [isPlaceholder, setIsPlaceholder] = useState<boolean>(false);
 
   useEffect(() => {
     if (!pnfList) return;
@@ -60,6 +61,7 @@ export default function EditTeacherModal({
         setActive(teacherData.active ? "1" : "0");
         setPerfilId(teacherData?.perfil_name_id?.split(",") || []);
         setPnf(teacherData?.PNF || "");
+        setIsPlaceholder(teacherData.is_placeholder || false);
       } else {
         // Reset fields for adding a new teacher
         setName("");
@@ -71,6 +73,7 @@ export default function EditTeacherModal({
         setGenderId("");
         setActive("1");
         setPnf("");
+        setIsPlaceholder(false);
       }
     }
   }, [teacherData, open]);
@@ -137,6 +140,7 @@ export default function EditTeacherModal({
       perfil_name_id: perfilId.join(","),
       PNF: pnf,
       active,
+      is_placeholder: isPlaceholder,
     };
 
     const response = await postTeacher(requestData);
@@ -190,6 +194,17 @@ export default function EditTeacherModal({
                 <CloseCircleOutlined style={{ marginRight: 5, color: '#ff4d4f' }} /> Inactivo
               </Radio.Button>
             </Radio.Group>
+
+            <div style={{ marginTop: '20px', width: '100%', padding: '0 20px' }}>
+              <Checkbox checked={isPlaceholder} onChange={(e) => setIsPlaceholder(e.target.checked)}>
+                Es Placeholder
+              </Checkbox>
+              {isPlaceholder && (
+                <Text type="secondary" style={{ display: 'block', fontSize: '11px', marginTop: '4px' }}>
+                  Marcar si el profesor es temporal o ficticio.
+                </Text>
+              )}
+            </div>
           </Col>
 
           {/* Right Column: Fields */}

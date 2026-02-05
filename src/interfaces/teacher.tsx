@@ -18,6 +18,7 @@ export interface Teacher {
   contractTypeId: string;
   active: boolean;
   PNF?: string | undefined;
+  is_placeholder?: boolean;
 }
 
 export interface TeacherContract {

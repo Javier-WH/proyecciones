@@ -4,10 +4,10 @@ import { setTeacherList } from "../../../socket/socket.js";
 
 export default async function postTeacher(req, res) {
   /* eslint-disable camelcase */
-  const { id, name, last_name, ci, gender_id, contractTypes_id, title, perfil_name_id, PNF, active } =
+  const { id, name, last_name, ci, gender_id, contractTypes_id, title, perfil_name_id, PNF, active, is_placeholder } =
     req.body;
 
-  if (!name && !last_name && !ci && !gender_id && !contractTypes_id && !title && !perfil_name_id && !active) {
+  if (!name && !last_name && !ci && !gender_id && !contractTypes_id && !title && !perfil_name_id && !active && is_placeholder === undefined) {
     return res.status(401).json({ error: "no hay datos para crear o actualizar el profesor" });
   }
 
@@ -21,6 +21,7 @@ export default async function postTeacher(req, res) {
   if (perfil_name_id) teacherData.perfil_name_id = perfil_name_id;
   if (PNF) teacherData.PNF = PNF;
   if (active) teacherData.active = active;
+  if (is_placeholder !== undefined) teacherData.is_placeholder = is_placeholder;
 
   if (!id) {
     try {

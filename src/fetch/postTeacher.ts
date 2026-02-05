@@ -9,6 +9,7 @@ export default async function postTeacher(requestData: {
   perfil_name_id: string | undefined;
   PNF: string | undefined | null;
   active: string | undefined;
+  is_placeholder: boolean | undefined;
 }) {
   const headersList = {
     Accept: "*/*",
