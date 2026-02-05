@@ -210,11 +210,11 @@ export default function SelectedTeacher() {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
             {selectedTeacher?.is_placeholder && (
               <Alert
-                message="Profesor Placeholder"
-                description="Este perfil es temporal y se utiliza para asignar materias sin docente asignado."
+                message={<span style={{ fontSize: '13px', fontWeight: 600 }}>Profesor Placeholder</span>}
+                description={<span style={{ fontSize: '12px' }}>Este perfil es temporal y se utiliza para asignar materias sin docente asignado.</span>}
                 type="warning"
                 showIcon
-                style={{ marginBottom: '8px' }}
+                style={{ marginBottom: '8px', padding: '6px 12px' }}
               />
             )}
             <div>
