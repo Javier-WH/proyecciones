@@ -2,7 +2,7 @@
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../../context/mainContext";
 import Subjects from "./subjects/subjects";
-import { Tag, Radio, RadioChangeEvent } from "antd";
+import { Tag, Radio, RadioChangeEvent, Alert } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
 import { Subject } from "../../../interfaces/subject";
@@ -208,6 +208,15 @@ export default function SelectedTeacher() {
 
           {/* Info Section */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+            {selectedTeacher?.is_placeholder && (
+              <Alert
+                message="Profesor Placeholder"
+                description="Este perfil es temporal y se utiliza para asignar materias sin docente asignado."
+                type="warning"
+                showIcon
+                style={{ marginBottom: '8px' }}
+              />
+            )}
             <div>
               <h2
                 style={{

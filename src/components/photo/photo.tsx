@@ -4,6 +4,7 @@ import MalePlaceHolder from "../../assets/malePlaceHolder.svg"
 import FemalePlaceHolder from "../../assets/femalePlaceHolder.svg"
 import { useQuery } from '@tanstack/react-query';
 import fetchTeacherPhoto from '../../fetch/fetchPhoto';
+import { QuestionCircleOutlined } from "@ant-design/icons";
 
 
 export default function Photo({ teacher }: { teacher: Teacher | null }) {
@@ -11,7 +12,7 @@ export default function Photo({ teacher }: { teacher: Teacher | null }) {
   const { data: photo, isError } = useQuery({
     queryKey: ['teacherPhoto', teacher?.ci],
     queryFn: () => teacher?.ci ? fetchTeacherPhoto(teacher.ci) : null,
-    enabled: !!teacher?.ci, // Solo ejecuta si hay CI
+    enabled: !!teacher?.ci && !teacher?.is_placeholder, // Solo ejecuta si hay CI y no es placeholder
     staleTime: 60 * 60 * 1000, // 1 hora de caché
   });
 
@@ -23,6 +24,14 @@ export default function Photo({ teacher }: { teacher: Teacher | null }) {
     height: "100%",
     objectFit: "cover",
   };
+
+  if (teacher?.is_placeholder) {
+    return (
+      <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' }}>
+        <QuestionCircleOutlined style={{ fontSize: '64px', color: '#bfbfbf' }} />
+      </div>
+    );
+  }
 
   if (photo) {
     return <img src={photo} alt="Teacher photo" style={photoStyle} />;

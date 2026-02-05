@@ -16,6 +16,7 @@ async function getTeacherList(active = 1) {
       "perfil_name_id",
       "PNF",
       "active",
+      "is_placeholder",
       [Sequelize.col("gender.name"), "gender"],
       [Sequelize.col("gender.id"), "genderId"],
       [Sequelize.col("contract_type.hours"), "partTime"],
