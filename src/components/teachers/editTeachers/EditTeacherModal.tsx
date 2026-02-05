@@ -15,12 +15,15 @@ export default function EditTeacherModal({
   teacherData,
   setTeacherData,
   fetchTeachers,
+  open,
+  onClose,
 }: {
   teacherData: Teacher | null;
   setTeacherData: (teacherData: Teacher | null) => void;
   fetchTeachers: () => Promise<void>;
+  open: boolean;
+  onClose: () => void;
 }) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const { pnfList } = useContext(MainContext) as MainContextValues;
   const [name, setName] = useState<string>("");
   const [lastName, setLastName] = useState<string>("");
@@ -46,30 +49,31 @@ export default function EditTeacherModal({
   }, [pnfList]);
 
   useEffect(() => {
-    if (teacherData !== null) {
-      setName(teacherData.name);
-      setLastName(teacherData.lastName);
-      setCi(teacherData.ci);
-      setTitle(teacherData.title);
-      setIsModalOpen(true);
-      setTypeId(teacherData.contractTypeId);
-      setGenderId(teacherData.genderId);
-      setActive(teacherData.active ? "1" : "0");
-      setPerfilId(teacherData?.perfil_name_id?.split(",") || []);
-      setPnf(teacherData?.PNF || "");
-    } else {
-      setName("");
-      setLastName("");
-      setCi("");
-      setPerfilId([]);
-      setTitle("");
-      setTypeId("");
-      setGenderId("");
-      setActive("1");
-      setIsModalOpen(false);
-      setPnf("");
+    if (open) {
+      if (teacherData !== null) {
+        setName(teacherData.name);
+        setLastName(teacherData.lastName);
+        setCi(teacherData.ci);
+        setTitle(teacherData.title);
+        setTypeId(teacherData.contractTypeId);
+        setGenderId(teacherData.genderId);
+        setActive(teacherData.active ? "1" : "0");
+        setPerfilId(teacherData?.perfil_name_id?.split(",") || []);
+        setPnf(teacherData?.PNF || "");
+      } else {
+        // Reset fields for adding a new teacher
+        setName("");
+        setLastName("");
+        setCi("");
+        setPerfilId([]);
+        setTitle("");
+        setTypeId("");
+        setGenderId("");
+        setActive("1");
+        setPnf("");
+      }
     }
-  }, [teacherData]);
+  }, [teacherData, open]);
 
   useEffect(() => {
     async function getProfileList() {
@@ -118,6 +122,7 @@ export default function EditTeacherModal({
 
   const handleCancel = () => {
     setTeacherData(null);
+    onClose();
   };
 
   const handleOk = async () => {
@@ -141,18 +146,18 @@ export default function EditTeacherModal({
     }
 
     fetchTeachers();
-    message.success("Profesor editado correctamente");
-    setTeacherData(null);
+    message.success(teacherData ? "Profesor editado correctamente" : "Profesor creado correctamente");
+    handleCancel();
   };
 
   return (
     <Modal
       width={900}
-      title={<Text strong style={{ fontSize: '20px' }}>Editar Perfil del Profesor</Text>}
-      open={isModalOpen}
+      title={<Text strong style={{ fontSize: '20px' }}>{teacherData ? 'Editar Perfil del Profesor' : 'Agregar Nuevo Profesor'}</Text>}
+      open={open}
       onOk={handleOk}
       onCancel={handleCancel}
-      okText="Guardar Cambios"
+      okText={teacherData ? "Guardar Cambios" : "Agregar Profesor"}
       cancelText="Cancelar"
       maskClosable={false}
       centered
@@ -162,7 +167,7 @@ export default function EditTeacherModal({
           {/* Left Column: Photo & Status */}
           <Col xs={24} sm={8} md={6} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', borderRight: '1px solid #f0f0f0' }}>
             <div style={{ marginBottom: '16px' }}>
-              <ImageUploader filename={ci} gender={genderId} />
+              <ImageUploader filename={ci || 'new'} gender={genderId} />
             </div>
             <Text type="secondary" style={{ textAlign: 'center', fontSize: '12px' }}>
               Foto de Perfil

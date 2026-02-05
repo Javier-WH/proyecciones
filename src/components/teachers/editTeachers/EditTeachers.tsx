@@ -1,5 +1,5 @@
 import { Button, Input, Table, Card, Tag, Typography } from "antd";
-import { EditOutlined, SearchOutlined, UserOutlined } from "@ant-design/icons";
+import { EditOutlined, SearchOutlined, UserOutlined, PlusOutlined } from "@ant-design/icons";
 import { Teacher } from "../../../interfaces/teacher";
 import { useEffect, useState } from "react";
 import EditTeacherModal from "./EditTeacherModal";
@@ -13,9 +13,11 @@ export default function EditTeachers() {
   const [teachers, setTeachers] = useState<Teacher[] | null>(null);
   const [teacherData, setTeacherData] = useState<Teacher | null>(null);
   const [search, setSearch] = useState<string>("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const onClickEdit = (data: Teacher) => {
     setTeacherData(data);
+    setIsModalOpen(true);
   };
 
   async function fetchTeachers() {
@@ -100,12 +102,27 @@ export default function EditTeachers() {
         teacherData={teacherData}
         setTeacherData={setTeacherData}
         fetchTeachers={fetchTeachers}
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
       />
 
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <UserOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-          <Title level={2} style={{ margin: 0 }}>Gestión de Profesores</Title>
+        <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <UserOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+            <Title level={2} style={{ margin: 0 }}>Gestión de Profesores</Title>
+          </div>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            size="large"
+            onClick={() => {
+              setTeacherData(null);
+              setIsModalOpen(true);
+            }}
+          >
+            Agregar Profesor
+          </Button>
         </div>
 
         <Card bordered={false} style={{ borderRadius: '8px', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)' }}>
