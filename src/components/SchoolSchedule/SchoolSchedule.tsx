@@ -664,6 +664,119 @@ const SchoolSchedule: React.FC = () => {
     selectedClassroomId,
   ]);
 
+  // --- TABLE DATA PREPARATION ---
+  const { tableSlots, tableGrid } = useMemo(() => {
+    let slots: string[][] = [];
+
+    // Logic from PrintableSchedule for slots
+    if (viewMode === "professor" || viewMode === "classroom") {
+      const startHour = 7;
+      const endHour = 21;
+      let currentH = startHour;
+      let currentM = 0;
+
+      while (currentH < endHour || (currentH === endHour && currentM < 15)) {
+        const startStr = `${currentH.toString().padStart(2, "0")}:${currentM.toString().padStart(2, "0")}`;
+        let endM = currentM + 45;
+        let endH = currentH;
+        if (endM >= 60) {
+          endH += Math.floor(endM / 60);
+          endM %= 60;
+        }
+        const endStr = `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`;
+        slots.push([startStr, endStr]);
+        currentH = endH;
+        currentM = endM;
+      }
+    } else {
+      // For PNF/Student view, utilize the active turn slots config
+      slots = activeTurnos?.[turn] || [];
+    }
+
+    // Build Grid
+    // Rows: Slots
+    // Cols: Days 1..5 (Monday to Friday)
+    const g = Array(slots.length).fill(null).map(() => Array(6).fill(null));
+
+    // Sort events by start time to ensure sequential processing
+    const sortedEvents = [...(events || [])].sort((a: any, b: any) =>
+      a.startTime.localeCompare(b.startTime)
+    );
+
+    sortedEvents.forEach((event: any) => {
+      if (!event.daysOfWeek || !event.daysOfWeek.length) return;
+      const day = event.daysOfWeek[0];
+      if (day < 1 || day > 5) return;
+
+      const slotIndex = slots.findIndex((s) => s[0] === event.startTime);
+      if (slotIndex === -1) return;
+
+      // Calculate Span
+      let span = 1;
+      for (let i = slotIndex; i < slots.length; i++) {
+        if (slots[i][1] === event.endTime) {
+          span = i - slotIndex + 1;
+          break;
+        }
+      }
+
+      // Check if we can merge with the event above
+      // We look for the "head" of the event covering the previous slot
+      const prevSlotIndex = slotIndex - 1;
+      let merged = false;
+
+      if (prevSlotIndex >= 0) {
+        let headIndex = prevSlotIndex;
+        // Search upwards for the head block
+        while (headIndex >= 0 && g[headIndex][day]?.occupied) {
+          headIndex--;
+        }
+
+        if (headIndex >= 0 && g[headIndex][day] && !g[headIndex][day].occupied) {
+          const prevEvent = g[headIndex][day];
+
+          // Check if contiguous: (headIndex + rowSpan) should equal current slotIndex
+          if (headIndex + prevEvent.rowSpan === slotIndex) {
+            // Check identity
+            const sameTitle = prevEvent.title === event.title;
+            const sameProf = prevEvent.extendedProps?.professorId === event.extendedProps?.professorId;
+            const sameClassroom = prevEvent.extendedProps?.classroomId === event.extendedProps?.classroomId;
+            const sameSection = prevEvent.extendedProps?.seccion === event.extendedProps?.seccion;
+
+            if (sameTitle && sameProf && sameClassroom && sameSection) {
+              // Merge it!
+              prevEvent.rowSpan += span;
+              merged = true;
+
+              // Mark current slots as occupied
+              for (let k = 0; k < span; k++) {
+                if (g[slotIndex + k]) {
+                  g[slotIndex + k][day] = { occupied: true };
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (!merged) {
+        // If cell is empty, place event
+        if (!g[slotIndex][day]) {
+          g[slotIndex][day] = { ...event, rowSpan: span };
+          // Mark spanned cells as occupied
+          for (let k = 1; k < span; k++) {
+            if (g[slotIndex + k]) {
+              g[slotIndex + k][day] = { occupied: true };
+            }
+          }
+        }
+      }
+    });
+
+    return { tableSlots: slots, tableGrid: g };
+  }, [viewMode, activeTurnos, turn, events]);
+  // ------------------------------
+
   const handleViewModeChange = (mode: "pnf" | "professor" | "classroom") => {
     setViewMode(mode);
     // Reset states when switching views
@@ -899,143 +1012,127 @@ const SchoolSchedule: React.FC = () => {
         </div>
 
         <div className="schedule-content-wrapper">
-          <div className={`calendar-container view-${viewMode}`}>
-            <FullCalendar
-              key={viewMode === "professor" || viewMode === "classroom" ? "full-view" : turn}
-              plugins={[timeGridPlugin]}
-              initialView="timeGridWeek"
-              locale={esLocale}
-              weekends={false}
-              slotMinTime={firstHour}
-              slotMaxTime={lastHour}
-              slotDuration="00:45:00"
-              slotLabelContent={(arg) => {
-                const start = arg.date;
-                const end = new Date(start.getTime() + 45 * 60000);
-                const formatTime = (date: Date) =>
-                  date.toLocaleTimeString("es-VE", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: true,
-                  });
-                return `${formatTime(start)} - ${formatTime(end)}`;
-              }}
-              dayHeaderFormat={{ weekday: "long" }}
-              allDaySlot={false}
-              headerToolbar={{ left: "", center: "", right: "" }}
-              events={events}
-              height="100%"
+          <div className={`calendar-container view-${viewMode}`} style={{ padding: "0", overflowY: "auto" }}>
+            {tableSlots.length > 0 ? (
+              <table style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                border: "1px solid #dee2e6",
+                fontSize: "0.85rem",
+                tableLayout: "fixed"
+              }}>
+                <thead style={{ position: "sticky", top: 0, zIndex: 5, backgroundColor: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>
+                  <tr>
+                    <th style={{ border: "1px solid #dee2e6", padding: "12px", width: "100px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>HORA</th>
+                    <th style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>LUNES</th>
+                    <th style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>MARTES</th>
+                    <th style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>MIÉRCOLES</th>
+                    <th style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>JUEVES</th>
+                    <th style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>VIERNES</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableSlots.map((slot, rowIndex) => {
+                    const formatTime = (t: string) => {
+                      // Format HH:MM to readable string if needed, or keeping it as is 
+                      // The input is already HH:MM
+                      return t;
+                    };
 
-              contentHeight={viewMode === "professor" || viewMode === "classroom" ? 2200 : 1100}
-              eventContent={(arg) => {
-                const { event } = arg;
-                const title = event.title;
-                const {
-                  professorId,
-                  classroomName,
-                  seccion,
-                  pnfName,
-                }: {
-                  professorId?: string;
-                  classroomName?: string;
-                  seccion?: string;
-                  pnfName?: string;
-                } = event.extendedProps;
+                    return (
+                      <tr key={rowIndex} style={{ height: "1px" /* let content dictate height, but min-height via css */ }}>
+                        <td style={{
+                          border: "1px solid #dee2e6",
+                          padding: "8px",
+                          textAlign: "center",
+                          fontWeight: "bold",
+                          color: "#555",
+                          backgroundColor: "#fff",
+                          verticalAlign: "middle",
+                          whiteSpace: "nowrap"
+                        }}>
+                          {formatTime(slot[0])} <br /> - <br /> {formatTime(slot[1])}
+                        </td>
+                        {[1, 2, 3, 4, 5].map((day) => {
+                          const cell = tableGrid[rowIndex][day];
+                          if (cell?.occupied) return null;
 
-                const teacher = teachers?.find((teacher) => teacher.id === professorId);
-                const teacherName = teacher ? `${teacher.lastName} ${teacher.name}` : "Profesor no asignado";
-                const pnfId = event.extendedProps?.pnfId as string | undefined;
-                const baseColor = (pnfId && subjectColors?.[pnfId]) || "#1a73e8";
-                const eventStyle: ScheduleEventStyle = {
-                  "--schedule-event-color": baseColor,
-                  "--schedule-event-chip-bg": hexToRgba(baseColor, 0.16),
-                };
+                          if (cell) {
+                            const pnfId = cell.extendedProps?.pnfId;
+                            const baseColor = (pnfId && subjectColors?.[pnfId]) || "#1a73e8";
+                            const bgColor = hexToRgba(baseColor, 0.12);
 
-                const start = event.start?.getTime() ?? 0;
-                const end = event.end?.getTime() ?? start;
-                const durationMinutes = Math.max((end - start) / 60000, 0);
-                const isCompact = durationMinutes <= 55;
+                            return (
+                              <td
+                                key={day}
+                                rowSpan={cell.rowSpan}
+                                style={{
+                                  border: "1px solid #dee2e6",
+                                  padding: "6px",
+                                  verticalAlign: "top",
+                                  backgroundColor: bgColor,
+                                  borderLeft: `4px solid ${baseColor}`,
+                                  height: "100%"
+                                }}
+                              >
+                                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                  <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px" }}>
+                                    {cell.title}
+                                  </div>
 
-                const classroomChipLabel = classroomName
-                  ? classroomName.trim().toLowerCase().startsWith("aula")
-                    ? classroomName.trim()
-                    : `Aula ${classroomName}`
-                  : null;
+                                  {/* Chip for PNF/Section/Classroom */}
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
+                                    {viewMode !== "pnf" && cell.extendedProps?.pnfName && (
+                                      <span style={{ fontSize: "0.65rem", backgroundColor: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: "4px", border: `1px solid ${baseColor}`, color: "#333" }}>
+                                        {cell.extendedProps.pnfName}
+                                      </span>
+                                    )}
+                                    {cell.extendedProps?.seccion && (
+                                      <span style={{ fontSize: "0.65rem", backgroundColor: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: "4px", border: `1px solid ${baseColor}`, color: "#333" }}>
+                                        Sec. {cell.extendedProps.seccion}
+                                      </span>
+                                    )}
+                                    {cell.extendedProps?.classroomName && (
+                                      <span style={{ fontSize: "0.65rem", backgroundColor: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: "4px", border: `1px solid ${baseColor}`, color: "#333" }}>
+                                        {cell.extendedProps.classroomName}
+                                      </span>
+                                    )}
+                                  </div>
 
-                const chips: string[] = [];
-                if (!isCompact) {
-                  if (pnfName) chips.push(`${pnfName}`);
-                  if (seccion) chips.push(`Sección ${seccion}`);
-                  if (classroomChipLabel) chips.push(classroomChipLabel);
-                }
+                                  {/* Professor Name */}
+                                  {viewMode !== "professor" && (
+                                    <div style={{ fontSize: "0.75rem", color: "#495057" }}>
+                                      <span style={{ fontWeight: "600" }}>Prof:</span> {
+                                        teachers?.find(t => t.id === cell.extendedProps?.professorId)
+                                          ? `${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.name} ${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.lastName}`
+                                          : "Sin Asignar"
+                                      }
+                                    </div>
+                                  )}
 
-                return (
-                  <div
-                    className={`fc-event-custom ${viewMode === "classroom" ? "fc-event-custom--classroom" : ""
-                      } ${isCompact ? "fc-event-custom--compact" : ""}`.trim()}
-                    style={eventStyle}>
-                    <div className="schedule-event__title">{title}</div>
-                    {isCompact ? (
-                      <>
-                        {(pnfName || seccion || classroomChipLabel) && (
-                          <div className="schedule-event__meta">
-                            {pnfName && (
-                              <span className="schedule-event__chip">{pnfName}</span>
-                            )}
-                            {seccion && (
-                              <span className="schedule-event__chip">Sección {seccion}</span>
-                            )}
-                            {classroomChipLabel && (
-                              <span className="schedule-event__chip">{classroomChipLabel}</span>
-                            )}
-                          </div>
-                        )}
-                        {viewMode !== "professor" && (
-                          <div className="schedule-event__meta-line">
-                            Prof.: <span className="schedule-event__label--muted">{teacherName}</span>
-                          </div>
-                        )}
-                        {viewMode === "professor" && classroomName && (
-                          <div className="schedule-event__meta-line">
-                            Aula <span className="schedule-event__label--muted">{classroomName}</span>
-                          </div>
-                        )}
-                        {viewMode !== "classroom" && classroomName && (
-                          <div className="schedule-event__meta-line schedule-event__label--muted">
-                            {classroomName}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        {chips.length > 0 && (
-                          <div className="schedule-event__meta">
-                            {chips.map((chip) => (
-                              <span key={chip} className="schedule-event__chip">
-                                {chip}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {viewMode !== "professor" && (
-                          <div className="schedule-event__label">
-                            Profesor: <span className="schedule-event__label--muted">{teacherName}</span>
-                          </div>
-                        )}
-                        {viewMode === "professor" && classroomName && (
-                          <div className="schedule-event__label">
-                            Aula: <span className="schedule-event__label--muted">{classroomName}</span>
-                          </div>
-                        )}
-                        {viewMode !== "classroom" && pnfName && (
-                          <div className="schedule-event__label schedule-event__label--muted">{pnfName}</div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              }}
-            />
+                                  {/* Classroom if in professor view */}
+                                  {viewMode === "professor" && cell.extendedProps?.classroomName && (
+                                    <div style={{ fontSize: "0.75rem", color: "#495057" }}>
+                                      <span style={{ fontWeight: "600" }}>Aula:</span> {cell.extendedProps.classroomName}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          } else {
+                            return <td key={day} style={{ border: "1px solid #dee2e6" }}></td>;
+                          }
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>
+                No hay horarios configurados para este turno
+              </div>
+            )}
           </div>
 
           {/* Hidden Printable Schedule */}
