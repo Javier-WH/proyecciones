@@ -20,7 +20,7 @@ let proyectionName = 'desconocido'
 let proyectionId = null
 
 // Verificar si hay una proyeccion activa
-const loadProyection = async () => {
+export const loadProyection = async () => {
   await setTeacherList()
   // se obtiene el id de la proyeccion activa
   const requestConfigData = await Config.findOne({ where: { id: 1 }, raw: true })
@@ -127,4 +127,3 @@ export default function setupSocket(server, sessionMiddleware) {
   return io
 }
 
-loadProyection()

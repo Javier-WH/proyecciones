@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 import configureStatic from './config/static/configureStatic.js'
 import configureCors from './config/cors/corsConfig.js'
 import Routes from './routes/routes.js'
-import setupSocket from './socket/socket.js'
+import setupSocket, { loadProyection } from './socket/socket.js'
 import getServerIP from './utils/serverIP.js'
 import { createTables } from './dataBase/create/createTables.js'
 import setTableRelations from './dataBase/relations/tableRelations.js'
@@ -29,11 +29,13 @@ const sessionStore = new SequelizeStore({
 })
 
 // base de datos
-createTables()
+// base de datos
+await createTables()
 setTableRelations()
-syncSagaTables()
-syncSchedule()
+await syncSagaTables()
+await syncSchedule()
 await sessionStore.sync()
+await loadProyection()
 
 // cors
 configureCors(app)
