@@ -828,7 +828,25 @@ const SchoolSchedule: React.FC = () => {
                   size="small"
                   value={turn}
                   style={{ width: 120 }}
-                  onChange={setTurn}
+                  onChange={(newTurn) => {
+                    setTurn(newTurn);
+                    const availableSections = Array.from(
+                      new Set(
+                        (subjects || [])
+                          .filter(
+                            (s) =>
+                              (!pnf || s.pnfId === pnf) &&
+                              (!trayectoId || s.trayectoId === trayectoId) &&
+                              (!newTurn || s.turnoName?.toLowerCase() === newTurn)
+                          )
+                          .map((s) => s.seccion)
+                      )
+                    ).sort();
+
+                    if (availableSections.length > 0) {
+                      setSeccion(availableSections[0]);
+                    }
+                  }}
                   options={Object.keys(activeTurnos).map((turn) => ({ value: turn, label: turn }))}
                 />
               </div>
