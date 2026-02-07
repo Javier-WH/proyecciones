@@ -887,10 +887,23 @@ const SchoolSchedule: React.FC = () => {
                   value={trayectoId}
                   style={{ width: 180 }}
                   onChange={setTrayectoId}
-                  options={trayectosList?.map((trayecto) => ({
-                    value: trayecto.id,
-                    label: trayecto.name,
-                  }))}
+                  options={(trayectosList || [])
+                    .slice()
+                    .sort((a, b) => {
+                      const nameA = a.name.toUpperCase();
+                      const nameB = b.name.toUpperCase();
+                      const isInicialA = nameA.includes("INICIAL");
+                      const isInicialB = nameB.includes("INICIAL");
+
+                      if (isInicialA && !isInicialB) return -1;
+                      if (!isInicialA && isInicialB) return 1;
+
+                      return nameA.localeCompare(nameB);
+                    })
+                    .map((trayecto) => ({
+                      value: trayecto.id,
+                      label: trayecto.name,
+                    }))}
                 />
               </div>
               <div className="schedule-select">
