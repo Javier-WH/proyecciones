@@ -110,15 +110,16 @@ const SchoolSchedule: React.FC = () => {
   const [selectedProfessorId, setSelectedProfessorId] = useState<string | null>(null);
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(null);
 
-  const activeTurnos = scheduleConfig?.turnos || turnos;
-
-  const firstHour = viewMode === "professor" || viewMode === "classroom"
-    ? "07:00"
-    : activeTurnos?.[turn]?.[0]?.[0] ?? "07:00";
-
-  const lastHour = viewMode === "professor" || viewMode === "classroom"
-    ? "21:15"
-    : activeTurnos?.[turn]?.[activeTurnos?.[turn]?.length - 1]?.[1] ?? "17:30";
+  const activeTurnos = useMemo(() => {
+    const base = scheduleConfig?.turnos || turnos;
+    // Dynamically update "diurno" if "mañana" and "tarde" exist, to reflect individual updates
+    if (base.mañana && base.tarde) {
+      const combined = [...base.mañana, ...base.tarde].sort((a, b) => a[0].localeCompare(b[0]));
+      // Use a new object to avoid mutating the original
+      return { ...base, diurno: combined };
+    }
+    return base;
+  }, [scheduleConfig]);
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
@@ -667,24 +668,19 @@ const SchoolSchedule: React.FC = () => {
 
     // Logic from PrintableSchedule for slots
     if (viewMode === "professor" || viewMode === "classroom") {
-      const startHour = 7;
-      const endHour = 21;
-      let currentH = startHour;
-      let currentM = 0;
-
-      while (currentH < endHour || (currentH === endHour && currentM < 15)) {
-        const startStr = `${currentH.toString().padStart(2, "0")}:${currentM.toString().padStart(2, "0")}`;
-        let endM = currentM + 45;
-        let endH = currentH;
-        if (endM >= 60) {
-          endH += Math.floor(endM / 60);
-          endM %= 60;
-        }
-        const endStr = `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`;
-        slots.push([startStr, endStr]);
-        currentH = endH;
-        currentM = endM;
+      // Use union of all unique slots from all configured turns for these global views
+      const allSlots = new Set<string>();
+      if (activeTurnos) {
+        Object.values(activeTurnos).forEach((turnSlots) => {
+          if (Array.isArray(turnSlots)) {
+            turnSlots.forEach((slot) => allSlots.add(JSON.stringify(slot)));
+          }
+        });
       }
+
+      slots = Array.from(allSlots)
+        .map((s) => JSON.parse(s) as [string, string])
+        .sort((a, b) => a[0].localeCompare(b[0]));
     } else {
       // For PNF/Student view, utilize the active turn slots config
       slots = activeTurnos?.[turn] || [];
