@@ -1082,18 +1082,9 @@ const SchoolSchedule: React.FC = () => {
 
                                   {/* Chip for PNF/Section/Classroom */}
                                   <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
-                                    {viewMode !== "pnf" && cell.extendedProps?.pnfName && (
-                                      <span style={{ fontSize: "0.65rem", backgroundColor: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: "4px", border: `1px solid ${baseColor}`, color: "#333" }}>
-                                        {cell.extendedProps.pnfName}
-                                      </span>
-                                    )}
-                                    {cell.extendedProps?.seccion && (
-                                      <span style={{ fontSize: "0.65rem", backgroundColor: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: "4px", border: `1px solid ${baseColor}`, color: "#333" }}>
-                                        Sec. {cell.extendedProps.seccion}
-                                      </span>
-                                    )}
+
                                     {cell.extendedProps?.classroomName && (
-                                      <span style={{ fontSize: "0.65rem", backgroundColor: "rgba(255,255,255,0.6)", padding: "1px 5px", borderRadius: "4px", border: `1px solid ${baseColor}`, color: "#333" }}>
+                                      <span style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333" }}>
                                         {cell.extendedProps.classroomName}
                                       </span>
                                     )}
