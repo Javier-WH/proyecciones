@@ -13,7 +13,7 @@ import {
   getSubjectRestrictions,
 } from "../../fetch/schedule/scheduleFetch";
 import { getTeacherRestrictionsList } from "../../fetch/schedule/teacherRestrictions";
-import { Select, Modal, message, List } from "antd";
+import { Select, Modal, message, List, Tooltip } from "antd";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
@@ -1061,6 +1061,18 @@ const SchoolSchedule: React.FC = () => {
                             const baseColor = (pnfId && subjectColors?.[pnfId]) || "#1a73e8";
                             const bgColor = hexToRgba(baseColor, 0.12);
 
+                            const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+                            const endTimeIndex = rowIndex + cell.rowSpan - 1;
+                            const endTime = tableSlots[endTimeIndex] ? tableSlots[endTimeIndex][1] : "";
+
+                            const tooltipContent = (
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ fontWeight: "bold", marginBottom: "4px" }}>{cell.title}</div>
+                                <div>{`${tableSlots[rowIndex][0]} - ${endTime}`}</div>
+                                <div>{dayNames[day]}</div>
+                              </div>
+                            );
+
                             return (
                               <td
                                 className="schedule-time-cell"
@@ -1075,39 +1087,41 @@ const SchoolSchedule: React.FC = () => {
                                   height: "100%",
                                 }}
                               >
-                                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                                  <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px" }}>
-                                    {cell.title}
-                                  </div>
+                                <Tooltip title={tooltipContent}>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "2px", height: "100%" }}>
+                                    <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px" }}>
+                                      {cell.title}
+                                    </div>
 
-                                  {/* Chip for PNF/Section/Classroom */}
-                                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
+                                    {/* Chip for PNF/Section/Classroom */}
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
 
-                                    {cell.extendedProps?.classroomName && (
-                                      <span style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333" }}>
-                                        {cell.extendedProps.classroomName}
-                                      </span>
+                                      {cell.extendedProps?.classroomName && (
+                                        <span style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333" }}>
+                                          {cell.extendedProps.classroomName}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Professor Name */}
+                                    {viewMode !== "professor" && (
+                                      <div style={{ fontSize: "0.75rem", color: "#495057" }}>
+                                        <span style={{ fontWeight: "600" }}>Prof:</span> {
+                                          teachers?.find(t => t.id === cell.extendedProps?.professorId)
+                                            ? `${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.name} ${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.lastName}`
+                                            : "Sin Asignar"
+                                        }
+                                      </div>
+                                    )}
+
+                                    {/* Classroom if in professor view */}
+                                    {viewMode === "professor" && cell.extendedProps?.classroomName && (
+                                      <div style={{ fontSize: "0.75rem", color: "#495057" }}>
+                                        <span style={{ fontWeight: "600" }}>Aula:</span> {cell.extendedProps.classroomName}
+                                      </div>
                                     )}
                                   </div>
-
-                                  {/* Professor Name */}
-                                  {viewMode !== "professor" && (
-                                    <div style={{ fontSize: "0.75rem", color: "#495057" }}>
-                                      <span style={{ fontWeight: "600" }}>Prof:</span> {
-                                        teachers?.find(t => t.id === cell.extendedProps?.professorId)
-                                          ? `${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.name} ${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.lastName}`
-                                          : "Sin Asignar"
-                                      }
-                                    </div>
-                                  )}
-
-                                  {/* Classroom if in professor view */}
-                                  {viewMode === "professor" && cell.extendedProps?.classroomName && (
-                                    <div style={{ fontSize: "0.75rem", color: "#495057" }}>
-                                      <span style={{ fontWeight: "600" }}>Aula:</span> {cell.extendedProps.classroomName}
-                                    </div>
-                                  )}
-                                </div>
+                                </Tooltip>
                               </td>
                             );
                           } else {
