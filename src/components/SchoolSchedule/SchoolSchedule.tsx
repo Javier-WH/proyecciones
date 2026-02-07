@@ -1091,32 +1091,36 @@ const SchoolSchedule: React.FC = () => {
                                     </div>
 
                                     {/* Chip for PNF/Section/Classroom */}
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
+                                    <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
 
-                                      {cell.extendedProps?.classroomName && (
-                                        <span style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333" }}>
-                                          {cell.extendedProps.classroomName}
-                                        </span>
+                                      {cell.extendedProps?.classroomName && viewMode !== "classroom" && (
+                                        <div style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333" }}>
+                                          <span style={{ fontWeight: "600" }}></span> {cell.extendedProps.classroomName}
+                                        </div>
+                                      )}
+
+                                      {(viewMode === "professor" || viewMode === "classroom") && (
+                                        <div style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333", display: "flex", flexDirection: "column" }}>
+                                          <span>
+                                            <span style={{ fontWeight: "600" }}></span> {cell.extendedProps?.pnfName}
+                                          </span>
+                                          <span>
+                                            <span style={{ fontWeight: "600" }}>Sec:</span> {cell.extendedProps?.seccion}
+                                          </span>
+                                        </div>
+                                      )}
+
+                                      {/* Professor Name */}
+                                      {viewMode !== "professor" && (
+                                        <div style={{ fontSize: "0.75rem", color: "#495057" }}>
+                                          <span style={{ fontWeight: "600" }}>Profesor:</span> {
+                                            teachers?.find(t => t.id === cell.extendedProps?.professorId)
+                                              ? `${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.name} ${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.lastName}`
+                                              : "Sin Asignar"
+                                          }
+                                        </div>
                                       )}
                                     </div>
-
-                                    {/* Professor Name */}
-                                    {viewMode !== "professor" && (
-                                      <div style={{ fontSize: "0.75rem", color: "#495057" }}>
-                                        <span style={{ fontWeight: "600" }}>Prof:</span> {
-                                          teachers?.find(t => t.id === cell.extendedProps?.professorId)
-                                            ? `${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.name} ${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.lastName}`
-                                            : "Sin Asignar"
-                                        }
-                                      </div>
-                                    )}
-
-                                    {/* Classroom if in professor view */}
-                                    {viewMode === "professor" && cell.extendedProps?.classroomName && (
-                                      <div style={{ fontSize: "0.75rem", color: "#495057" }}>
-                                        <span style={{ fontWeight: "600" }}>Aula:</span> {cell.extendedProps.classroomName}
-                                      </div>
-                                    )}
                                   </div>
                                 </Tooltip>
                               </td>
