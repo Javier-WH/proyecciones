@@ -40,6 +40,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                 days: data.days,
                 conserve_slots: data.conserve_slots,
                 min_consecutive_slots: data.min_consecutive_slots,
+                distribute_equitably: data.distribute_equitably,
             });
         }
         setLoading(false);
@@ -161,6 +162,10 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                 <Form form={form} layout="vertical">
                     <Form.Item label="Días Hábiles" name="days">
                         <Checkbox.Group options={DAYS_OPTIONS} />
+                    </Form.Item>
+
+                    <Form.Item name="distribute_equitably" valuePropName="checked">
+                        <Checkbox>Distribuir horas equitativamente (Ej: 4 horas en 2 días de 2 horas)</Checkbox>
                     </Form.Item>
 
                     <div style={{ display: "flex", gap: "16px" }}>

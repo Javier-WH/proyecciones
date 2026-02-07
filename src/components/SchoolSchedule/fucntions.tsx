@@ -39,6 +39,7 @@ export interface generateScheduleParams {
   setErrors?: (err: scheduleError) => void;
   customDays?: number[];
   customTurnos?: Record<string, [string, string][]>;
+  distributeEquitably?: boolean;
 }
 
 export const turnos: Record<string, [string, string][]> = {
@@ -111,6 +112,7 @@ export function generateScheduleEvents({
   setErrors = (err) => console.log(err),
   customDays,
   customTurnos,
+  distributeEquitably = false,
 }: generateScheduleParams): Event[] {
   const events: Event[] = [];
   const days = customDays || [1, 2, 3, 4, 5];
@@ -451,6 +453,25 @@ export function generateScheduleEvents({
         if (!contexts.some((ctx) => ctx.maxAssignable >= run)) continue;
         if (!runPriorities.includes(run)) {
           runPriorities.push(run);
+        }
+      }
+
+      // Equitable Logic override
+      if (distributeEquitably && remainingHours > 0) {
+        const numDays = Math.ceil(remainingHours / conserveSlots);
+        // Try to split evenly: e.g. 4 -> 2,2. 5 -> 3,2.
+        const balancedSize = Math.ceil(remainingHours / (numDays || 1));
+
+        // If balancedSize is valid for our constraints, put it first!
+        if (balancedSize >= minRun && balancedSize <= maxRun && balancedSize <= remainingHours) {
+          // Remove it if it exists elsewhere and unshift it
+          const idx = runPriorities.indexOf(balancedSize);
+          if (idx !== -1) runPriorities.splice(idx, 1);
+
+          // Check if it's actually assignable
+          if (contexts.some((ctx) => ctx.maxAssignable >= balancedSize)) {
+            runPriorities.unshift(balancedSize);
+          }
         }
       }
 

@@ -5,6 +5,7 @@ export interface ScheduleConfig {
     conserve_slots: number;
     min_consecutive_slots: number;
     active: boolean;
+    distribute_equitably?: boolean;
 }
 
 const API_BASE_URL = import.meta.env.MODE === 'development'

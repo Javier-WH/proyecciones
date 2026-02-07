@@ -541,6 +541,7 @@ const SchoolSchedule: React.FC = () => {
       setErrors: addError,
       customDays: scheduleConfig?.days,
       customTurnos: scheduleConfig?.turnos,
+      distributeEquitably: scheduleConfig?.distribute_equitably,
     });
 
     setEventData(eventsdata);
