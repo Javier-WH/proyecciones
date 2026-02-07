@@ -1147,6 +1147,7 @@ const SchoolSchedule: React.FC = () => {
                 turn={turn}
                 headerInfo={getHeaderInfo()}
                 seccion={seccion}
+                activeTurnos={activeTurnos}
               />
             </div>
           </div>

@@ -10,36 +10,29 @@ interface PrintableScheduleProps {
   turn: string;
   headerInfo: string;
   seccion: string;
+  activeTurnos?: Record<string, [string, string][]> | null;
 }
 
-const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ events, viewMode, turn, headerInfo, seccion }, ref) => {
+const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ events, viewMode, turn, headerInfo, seccion, activeTurnos }, ref) => {
   // Generate time slots based on view mode
-  let timeSlots: string[] = [];
+  // Generate time slots based on view mode
+  let timeSlots: [string, string][] = [];
   const { teachers } = useContext(MainContext) as MainContextValues;
 
+  const usedTurnos = activeTurnos || turnos;
+
   if (viewMode === "professor" || viewMode === "classroom") {
-    // Generate slots from 07:00 to 21:15 in 45 min intervals
-    const startHour = 7;
-    const endHour = 21;
-    const startMin = 0;
-
-    let currentH = startHour;
-    let currentM = startMin;
-
-    while (currentH < endHour || (currentH === endHour && currentM < 15)) {
-      const timeStr = `${currentH.toString().padStart(2, "0")}:${currentM.toString().padStart(2, "0")}`;
-      timeSlots.push(timeStr);
-
-      currentM += 45;
-      if (currentM >= 60) {
-        currentH += Math.floor(currentM / 60);
-        currentM = currentM % 60;
+    const allSlots = new Set<string>();
+    Object.values(usedTurnos).forEach((turnSlots) => {
+      if (Array.isArray(turnSlots)) {
+        turnSlots.forEach((slot) => allSlots.add(JSON.stringify(slot)));
       }
-    }
+    });
+    timeSlots = Array.from(allSlots)
+      .map((s) => JSON.parse(s) as [string, string])
+      .sort((a, b) => a[0].localeCompare(b[0]));
   } else {
-    // Use defined turnos
-    const turnSlots = turnos[turn] || [];
-    timeSlots = turnSlots.map(slot => slot[0]);
+    timeSlots = usedTurnos[turn] || [];
   }
 
   // Helper to format time for display
@@ -50,17 +43,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
     return date.toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit", hour12: true });
   };
 
-  // Helper to get end time for a slot
-  const getSlotEndTime = (startTime: string) => {
-    const [h, m] = startTime.split(":").map(Number);
-    let endM = m + 45;
-    let endH = h;
-    if (endM >= 60) {
-      endH += Math.floor(endM / 60);
-      endM = endM % 60;
-    }
-    return `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`;
-  };
+
 
   // Helper to get teacher's full name
   const getTeacherName = (professorId: string | null | undefined) => {
@@ -89,16 +72,17 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
       const endStr = event.endTime;
 
       // Find start slot index
-      const startIndex = timeSlots.findIndex(t => t === startStr);
+      const startIndex = timeSlots.findIndex(t => t[0] === startStr);
       if (startIndex === -1) return;
 
-      // Calculate duration in slots
-      const [startH, startM] = startStr.split(":").map(Number);
-      const [endH, endM] = endStr.split(":").map(Number);
-      const startMins = startH * 60 + startM;
-      const endMins = endH * 60 + endM;
-      const diffMins = endMins - startMins;
-      const span = Math.round(diffMins / 45);
+      // Calculate Span
+      let span = 1;
+      for (let i = startIndex; i < timeSlots.length; i++) {
+        if (timeSlots[i][1] === endStr) {
+          span = i - startIndex + 1;
+          break;
+        }
+      }
 
       // Iterate over daysOfWeek
       event.daysOfWeek.forEach((day: number) => {
@@ -332,8 +316,9 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
           }}>VIERNES</div>
 
           {/* Time slots and content */}
-          {timeSlots.map((time, rowIndex) => {
+          {timeSlots.map((slot, rowIndex) => {
             const gridRowNum = rowIndex + 2; // +2 because row 1 is header, rows start at 1
+            const [time, endTime] = slot;
 
             return (
               <React.Fragment key={time}>
@@ -351,7 +336,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                   textAlign: "center",
                   backgroundColor: "#fff"
                 }}>
-                  {formatTime(time)} - {formatTime(getSlotEndTime(time))}
+                  {formatTime(time)} - {formatTime(endTime)}
                 </div>
 
                 {/* Day columns */}
