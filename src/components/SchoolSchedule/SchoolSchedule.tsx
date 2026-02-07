@@ -1,7 +1,4 @@
 import React, { useState, useContext, useEffect, useRef, useMemo, useCallback } from "react";
-import FullCalendar from "@fullcalendar/react";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import esLocale from "@fullcalendar/core/locales/es";
 import { EventInput } from "@fullcalendar/core";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
@@ -1041,16 +1038,18 @@ const SchoolSchedule: React.FC = () => {
 
                     return (
                       <tr key={rowIndex} style={{ height: "1px" /* let content dictate height, but min-height via css */ }}>
-                        <td style={{
-                          border: "1px solid #dee2e6",
-                          padding: "8px",
-                          textAlign: "center",
-                          fontWeight: "bold",
-                          color: "#555",
-                          backgroundColor: "#fff",
-                          verticalAlign: "middle",
-                          whiteSpace: "nowrap"
-                        }}>
+                        <td
+
+                          style={{
+                            border: "1px solid #dee2e6",
+                            padding: "8px",
+                            textAlign: "center",
+                            fontWeight: "bold",
+                            color: "#555",
+                            backgroundColor: "#fff",
+                            verticalAlign: "middle",
+                            whiteSpace: "nowrap"
+                          }}>
                           {formatTime(slot[0])} <br /> - <br /> {formatTime(slot[1])}
                         </td>
                         {[1, 2, 3, 4, 5].map((day) => {
@@ -1064,6 +1063,7 @@ const SchoolSchedule: React.FC = () => {
 
                             return (
                               <td
+                                className="schedule-time-cell"
                                 key={day}
                                 rowSpan={cell.rowSpan}
                                 style={{
@@ -1072,7 +1072,7 @@ const SchoolSchedule: React.FC = () => {
                                   verticalAlign: "top",
                                   backgroundColor: bgColor,
                                   borderLeft: `4px solid ${baseColor}`,
-                                  height: "100%"
+                                  height: "100%",
                                 }}
                               >
                                 <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>

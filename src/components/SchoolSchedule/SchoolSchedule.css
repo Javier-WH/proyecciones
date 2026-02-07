@@ -10,6 +10,20 @@ body,
   font-family: 'Roboto', sans-serif;
 }
 
+.schedule-time-cell {
+  position: relative;
+}
+
+.schedule-time-cell::after {
+  content: "";
+  border-bottom: 4px solid #ffffff;
+  width: calc(100% + 4px);
+  height: 20px;
+  position: absolute;
+  bottom: -1px;
+  left: -4px;
+}
+
 /* Remove today's background color */
 .fc-day-today {
   background-color: transparent !important;
