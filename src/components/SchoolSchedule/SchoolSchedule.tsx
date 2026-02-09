@@ -57,10 +57,19 @@ type RawTeacherRestriction = {
 };
 
 const hexToRgba = (hexColor: string, alpha = 0.15): string => {
-  if (!hexColor) return hexColor;
+  if (!hexColor) return `rgba(26, 115, 232, ${alpha})`;
   let sanitized = hexColor.trim();
   if (sanitized.startsWith("#")) sanitized = sanitized.slice(1);
-  if (sanitized.length !== 3 && sanitized.length !== 6) return hexColor;
+
+  // Check if valid hex chars
+  const isHex = /^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/.test(sanitized);
+
+  if (!isHex) {
+    // If not hex (e.g. named color like 'blue' or 'rgb(...)'), default to standard light blue
+    // to avoid solid dark backgrounds that make text unreadable.
+    return `rgba(26, 115, 232, ${alpha})`;
+  }
+
   if (sanitized.length === 3) {
     sanitized = sanitized
       .split("")
