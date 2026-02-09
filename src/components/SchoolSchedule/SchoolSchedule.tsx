@@ -130,7 +130,9 @@ const SchoolSchedule: React.FC = () => {
 
   const schedulableSubjects = useMemo(() => {
     if (!subjects || subjects.length === 0) return [];
-    return (subjects as Subject[]).filter((subject) => !subject.linkedToSection);
+    return (subjects as Subject[]).filter(
+      (subject) => !subject.linkedToSection && subject.key !== "ADMINISTRATIVE_HOURS"
+    );
   }, [subjects]);
 
   // Helper to get names for the header
