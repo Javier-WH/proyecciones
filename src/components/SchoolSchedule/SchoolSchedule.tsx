@@ -890,7 +890,7 @@ const SchoolSchedule: React.FC = () => {
                   options={Array.from(
                     new Map(
                       (subjects || [])
-                        .filter((subject) => subject.pnfId && subject.pnf)
+                        .filter((subject) => subject.pnfId && subject.pnf && subject.pnf !== "ADMIN")
                         .map((subject) => [subject.pnfId, subject.pnf])
                     )
                   ).map(([value, label]) => ({
