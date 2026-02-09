@@ -74,10 +74,7 @@ const hexToRgba = (hexColor: string, alpha = 0.15): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-type ScheduleEventStyle = React.CSSProperties & {
-  "--schedule-event-color"?: string;
-  "--schedule-event-chip-bg"?: string;
-};
+
 
 const SchoolSchedule: React.FC = () => {
   const { subjects, teachers, trayectosList, proyectionId, subjectColors } =

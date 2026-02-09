@@ -103,6 +103,7 @@ export default function RegisterTeacher() {
       perfil_name_id: perfilId.join(","),
       active: "1",
       PNF: null,
+      is_placeholder: false,
     };
 
     const response = await postTeacher(requestData);
