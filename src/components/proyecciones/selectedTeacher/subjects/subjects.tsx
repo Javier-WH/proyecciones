@@ -12,6 +12,9 @@ import useSetSubject from "../../../../hooks/useSetSubject";
 
 import "./subjects.css";
 
+import AdministrativeHoursModal from "./AdministrativeHoursModal";
+import { v4 as uuidv4 } from 'uuid';
+
 const Subjects: React.FC<{
   data: Subject[] | null;
   showAllSubjects: boolean;
@@ -28,14 +31,114 @@ const Subjects: React.FC<{
     setEditSubjectQuarter,
     userData,
     userPNF,
+    selectedTeacher
   } = useContext(MainContext) as MainContextValues;
 
+  const [isAdminModalOpen, setIsAdminModalOpen] = React.useState(false);
+  const [adminHours, setAdminHours] = React.useState({ q1: 0, q2: 0, q3: 0 });
+
   const { removeSubjectFromTeacher } = useSetSubject(subjects || []);
+
+  const handleOpenAdminHoursModal = () => {
+    if (!subjects || !selectedTeacerId) return;
+
+    // Buscar si ya existen horas administrativas para este profesor
+    // La clave es única: "ADMINISTRATIVE_HOURS"
+    // Y debemos verificar que pertenezca a este profesor en algún trimestre
+    const existingAdminSubject = subjects.find(
+      (s) => s.key === "ADMINISTRATIVE_HOURS" &&
+        (s.quarter.q1 === selectedTeacerId ||
+          s.quarter.q2 === selectedTeacerId ||
+          s.quarter.q3 === selectedTeacerId)
+    );
+
+    if (existingAdminSubject) {
+      setAdminHours({
+        q1: existingAdminSubject.hours.q1 || 0,
+        q2: existingAdminSubject.hours.q2 || 0,
+        q3: existingAdminSubject.hours.q3 || 0,
+      });
+    } else {
+      setAdminHours({ q1: 0, q2: 0, q3: 0 });
+    }
+
+    setIsAdminModalOpen(true);
+  };
+
+  const handleSaveAdminHours = (hours: { q1: number; q2: number; q3: number }) => {
+    if (!subjects || !selectedTeacerId || !selectedTeacher) return;
+
+    const newSubjects = [...subjects];
+    const existingSubjectIndex = newSubjects.findIndex(
+      (s) => s.key === "ADMINISTRATIVE_HOURS" &&
+        (s.quarter.q1 === selectedTeacerId ||
+          s.quarter.q2 === selectedTeacerId ||
+          s.quarter.q3 === selectedTeacerId)
+    );
+
+    if (existingSubjectIndex !== -1) {
+      // Actualizar existente
+      newSubjects[existingSubjectIndex] = {
+        ...newSubjects[existingSubjectIndex],
+        hours: {
+          q1: hours.q1,
+          q2: hours.q2,
+          q3: hours.q3,
+        },
+        // Asegurar que el profesor esté asignado en los trimestres donde hay horas
+        quarter: {
+          q1: selectedTeacerId,
+          q2: selectedTeacerId,
+          q3: selectedTeacerId
+        }
+      };
+    } else {
+      // Crear nueva materia administrativa
+      const newSubject: Subject = {
+        id: uuidv4(),
+        innerId: uuidv4(),
+        subject: "HORAS ADMINISTRATIVAS",
+        key: "ADMINISTRATIVE_HOURS",
+        hours: {
+          q1: hours.q1,
+          q2: hours.q2,
+          q3: hours.q3,
+        },
+        pnf: "ADMIN",
+        pnfId: "ADMIN",
+        seccion: "ADMIN",
+        quarter: {
+          q1: selectedTeacerId,
+          q2: selectedTeacerId,
+          q3: selectedTeacerId
+        },
+        pensum_id: "ADMIN",
+        trayectoId: "ADMIN",
+        trayectoName: "Administrativo",
+        trayecto_saga_id: "ADMIN",
+        turnoName: "ADMIN",
+        linkedToSection: ""
+      };
+      newSubjects.push(newSubject);
+    }
+
+    handleSubjectChange(newSubjects);
+  };
+
+
   const handleRemoveSubject = (subject: Subject) => {
-    if (!userData?.su && userPNF !== subject.pnfId) {
+    if (!userData?.su && userPNF !== subject.pnfId && subject.key !== "ADMINISTRATIVE_HOURS") {
       message.error("No puede eliminar materias asignadas de otros programas");
       return;
     }
+
+    // Si es administrativa, la eliminamos directamente del array y actualizamos
+    if (subject.key === "ADMINISTRATIVE_HOURS") {
+      const newSubjects = subjects?.filter(s => s.innerId !== subject.innerId) || [];
+      handleSubjectChange(newSubjects);
+      return;
+    }
+
     const responseRemoveSubject = removeSubjectFromTeacher({
       subjectId: subject.innerId,
       teacherId: selectedTeacerId,
@@ -53,6 +156,11 @@ const Subjects: React.FC<{
   };
 
   const handleEditSubjectQuarter = (subject: Subject) => {
+    if (subject.key === "ADMINISTRATIVE_HOURS") {
+      handleOpenAdminHoursModal();
+      return;
+    }
+
     if (!userData?.su && userPNF !== subject.pnfId) {
       message.error("No puede modificar materias asignadas de otros programas");
       return;
@@ -102,14 +210,23 @@ const Subjects: React.FC<{
             </Tag>
           )}
         </div>
-        <Button
-          type="primary"
-          shape="round"
-          icon={<MdAssignmentAdd />}
-          onClick={() => setOpenAddSubjectToTeacherModal(true)}
-          style={{ boxShadow: "0 2px 5px rgba(24, 144, 255, 0.3)" }}>
-          Agregar Materia
-        </Button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button
+            type="default"
+            shape="round"
+            onClick={handleOpenAdminHoursModal}
+          >
+            Agregar Horas Admin.
+          </Button>
+          <Button
+            type="primary"
+            shape="round"
+            icon={<MdAssignmentAdd />}
+            onClick={() => setOpenAddSubjectToTeacherModal(true)}
+            style={{ boxShadow: "0 2px 5px rgba(24, 144, 255, 0.3)" }}>
+            Agregar Materia
+          </Button>
+        </div>
       </div>
 
       <div
@@ -206,9 +323,12 @@ const Subjects: React.FC<{
                     <Tag color="cyan" style={{ margin: 0 }}>
                       {subject.pnf}
                     </Tag>
-                    <Tag color="geekblue" style={{ margin: 0 }}>
-                      Sección: {subject.turnoName[0]}-{subject.seccion}
-                    </Tag>
+                    {subject.key !== "ADMINISTRATIVE_HOURS" && (
+                      <Tag color="geekblue" style={{ margin: 0 }}>
+                        Sección: {subject.turnoName[0]}-{subject.seccion}
+                      </Tag>
+                    )}
+
                     {showAllSubjects ? (
                       <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject?.hours?.q1 || 0
                         } / ${subject?.hours?.q2 || 0} / ${subject?.hours?.q3 || 0}`}</Tag>
@@ -223,9 +343,16 @@ const Subjects: React.FC<{
           })
         )}
       </div>
+      <AdministrativeHoursModal
+        open={isAdminModalOpen}
+        onCancel={() => setIsAdminModalOpen(false)}
+        onSave={handleSaveAdminHours}
+        initialHours={adminHours}
+      />
     </div>
   );
 };
 
 export default Subjects;
+
 
