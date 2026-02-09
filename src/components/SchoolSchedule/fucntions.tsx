@@ -183,17 +183,22 @@ export function generateScheduleEvents({
     (subject) => !unavailableDays?.some((r) => r.teacherId === subject.quarter[trimestre])
   );
 
-  // Fase 3: materias no asignadas
-  const unassignedSubjects: Array<{
+  type UnassignedSubjectItem = {
     subject: Subject;
     reason: string;
     assignedHours: number;
     totalHours: number;
-  }> = [];
+  };
+  const unassignedSubjectsPhase1: UnassignedSubjectItem[] = [];
+  const unassignedSubjectsPhase2: UnassignedSubjectItem[] = [];
+  /*const unassignedSubjectsPhase3: UnassignedSubjectItem[] = [];*/ // Unused
+
+
 
   const assignSubject = (
     subject: Subject,
-    ignoreRestrictions = false
+    ignoreRestrictions = false,
+    ignoreConserveSlots = false
   ): { success: boolean; reason?: string; assignedHours: number } => {
     const hours = subject.hours[trimestre];
     const professorId = subject.quarter[trimestre];
@@ -208,7 +213,18 @@ export function generateScheduleEvents({
       return { success: false, reason, assignedHours: 0 };
     }
 
-    let remainingHours = hours;
+    // Determine effective conserveSlots
+    // If ignoreConserveSlots is true, we allow up to 'hours' (try to fit everything in one day if needed, or max possible)
+    // effectively disabling the daily limit.
+    const effectiveConserveSlots = ignoreConserveSlots ? hours : conserveSlots;
+
+    const currentAssigned = events.filter((e) => e.extendedProps.subjectId === subject.innerId).length;
+    let remainingHours = hours - currentAssigned;
+
+    if (remainingHours <= 0) {
+      return { success: true, assignedHours: 0 };
+    }
+
     let totalAssignedInThisCall = 0;
 
     const teacherRest = unavailableDays?.find((r) => r.teacherId === professorId);
@@ -262,7 +278,9 @@ export function generateScheduleEvents({
           );
           const assignedCount = assignedEventsForDay.length;
           const maxChain = computeMaxChainForDay(day, assignedEventsForDay);
-          const maxAssignable = Math.min(maxChain, conserveSlots - assignedCount);
+
+          // Use effectiveConserveSlots here
+          const maxAssignable = Math.min(maxChain, effectiveConserveSlots - assignedCount);
 
           return {
             day,
@@ -444,8 +462,8 @@ export function generateScheduleEvents({
       if (contexts.length === 0) break;
 
       const runPriorities: number[] = [];
-      const maxRun = Math.min(preferredConsecutiveSlots, conserveSlots);
-      const minRun = Math.min(conserveSlots, Math.max(minConsecutiveSlots, 2));
+      const maxRun = Math.min(preferredConsecutiveSlots, effectiveConserveSlots);
+      const minRun = Math.min(effectiveConserveSlots, Math.max(minConsecutiveSlots, 2));
 
       for (let run = maxRun; run >= minRun; run--) {
         if (run <= 1) break;
@@ -458,7 +476,7 @@ export function generateScheduleEvents({
 
       // Equitable Logic override
       if (distributeEquitably && remainingHours > 0) {
-        const numDays = Math.ceil(remainingHours / conserveSlots);
+        const numDays = Math.ceil(remainingHours / effectiveConserveSlots);
         // Try to split evenly: e.g. 4 -> 2,2. 5 -> 3,2.
         const balancedSize = Math.ceil(remainingHours / (numDays || 1));
 
@@ -530,7 +548,7 @@ export function generateScheduleEvents({
         const reasons = [];
 
         if (remainingHours > 0) {
-          reasons.push(`falta de horarios consecutivos disponibles`);
+          reasons.push(ignoreConserveSlots ? `falta de espacio libre` : `falta de horarios consecutivos (máximo ${conserveSlots}h por día)`);
         }
         if (availableDays.length < days.length) {
           reasons.push(`solo ${availableDays.length} días disponibles de ${days.length}`);
@@ -547,9 +565,9 @@ export function generateScheduleEvents({
 
   // Ejecutar fases
   for (const subject of withRestrictions) {
-    const result = assignSubject(subject, false);
+    const result = assignSubject(subject, false, false);
     if (!result.success) {
-      unassignedSubjects.push({
+      unassignedSubjectsPhase1.push({
         subject,
         reason: `[FASE 1] ${result.reason}`,
         assignedHours: result.assignedHours,
@@ -559,9 +577,9 @@ export function generateScheduleEvents({
   }
 
   for (const subject of withoutRestrictions) {
-    const result = assignSubject(subject, false);
+    const result = assignSubject(subject, false, false);
     if (!result.success) {
-      unassignedSubjects.push({
+      unassignedSubjectsPhase2.push({
         subject,
         reason: `[FASE 2] ${result.reason}`,
         assignedHours: result.assignedHours,
@@ -570,16 +588,37 @@ export function generateScheduleEvents({
     }
   }
 
-  // FASE 3: Reintentar materias no asignadas ignorando restricciones
-  const stillUnassigned: typeof unassignedSubjects = [];
+  // FASE 3: Reintentar materias no asignadas ignorando restricciones (pero respetando límite de slots)
+  const failedPhase3: UnassignedSubjectItem[] = [];
+  const subjectsToRetryPhase3 = [...unassignedSubjectsPhase1, ...unassignedSubjectsPhase2];
 
-  for (const item of unassignedSubjects) {
-    const result = assignSubject(item.subject, true);
+  for (const item of subjectsToRetryPhase3) {
+
+
+    const result = assignSubject(item.subject, true, false); // Ignore restrictions, Respect ConserveSlots
+    if (!result.success) {
+      failedPhase3.push({
+        subject: item.subject,
+        reason: `[FASE 3] ${result.reason}`,
+        assignedHours: result.assignedHours + (item.assignedHours || 0), // Acumulado aproximado para reporte
+        totalHours: item.totalHours,
+      });
+    }
+  }
+
+  // FASE 4: Reintentar materias fallidas ignorando el límite de horas consecutivas (ConserveSlots)
+  // Esto permite asignar más de 3 horas el mismo día si es necesario para completar.
+  const stillUnassigned: UnassignedSubjectItem[] = [];
+
+  for (const item of failedPhase3) {
+    // Intentamos asignar ignorando TODAS las restricciones (Teacher restrictions Y Slot limits)
+    // Se asume que si falló en fase 3 (ignorando teacher restrictions), sigue necesitando ignorarlas.
+    const result = assignSubject(item.subject, true, true);
     if (!result.success) {
       stillUnassigned.push({
         subject: item.subject,
-        reason: `[FASE 3] ${result.reason}`,
-        assignedHours: result.assignedHours,
+        reason: `[FASE 4] ${result.reason}`,
+        assignedHours: result.assignedHours, // Nota: esto podría no ser preciso si se suman, pero para el error final basta saber que falló
         totalHours: item.totalHours,
       });
     }
@@ -587,28 +626,18 @@ export function generateScheduleEvents({
 
   // Reportar errores finales
   for (const item of stillUnassigned) {
+    // Calcular asignadas reales finales
+    const realAssigned = events.filter(e => e.extendedProps.subjectId === item.subject.innerId).length;
     setErrors({
       name: item.subject.subject,
-      description: `${item.subject.subject} - No se pudo asignar completamente. ${item.reason} (Asignadas: ${item.assignedHours}/${item.totalHours} horas)`,
+      description: `${item.subject.subject} - No se pudo asignar completamente. ${item.reason} (Asignadas: ${realAssigned}/${item.totalHours} horas)`,
       seccion: item.subject.seccion,
       year: item.subject.trayectoName,
       turn: item.subject.turnoName,
     });
   }
 
-  // Resumen final
-  /*const assignedHours = events.reduce((total, event) => {
-    const subject = subjects.find((s) => s.innerId === event.extendedProps.subjectId);
-    return total + (subject?.hours[trimestre] || 0);
-  }, 0);*/
-
-  /*const totalHours = subjects.reduce((total, subject) => total + (subject.hours[trimestre] || 0), 0);
-
- console.log("=== RESUMEN FINAL ===");
-  console.log(`Total materias: ${subjects.length}`);
-  console.log(`Materias no asignadas completamente: ${stillUnassigned.length}`);
-  console.log(`Horas asignadas: ${assignedHours}/${totalHours}`);*/
-
+  // Resumen final (logs)
   if (stillUnassigned.length > 0) {
     console.log("=== MATERIAS NO ASIGNADAS ===");
     stillUnassigned.forEach((item) => {
