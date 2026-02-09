@@ -94,12 +94,16 @@ export default function ProyeccionesSubjects() {
   useEffect(() => {
     if (!subjects) return;
     setModalSelectedSubject(null);
+
+    // Filter out administrative hours
+    const cleanSubjects = subjects.filter(s => s.key !== "ADMINISTRATIVE_HOURS");
+
     // opciones para el select de PNF
-    const uniquePnf = subjects?.filter(
+    const uniquePnf = cleanSubjects.filter(
       (subject, index, self) => index === self.findIndex((s) => s.pnfId === subject.pnfId)
     );
 
-    const pnfList = uniquePnf?.map((subject) => {
+    const pnfList = uniquePnf.map((subject) => {
       return {
         value: subject.pnfId,
         label: subject.pnf,
@@ -108,11 +112,11 @@ export default function ProyeccionesSubjects() {
     setPnfOptions(pnfList as SelectOption[]);
 
     // opcones para el select de materias
-    const uniqueSubject = subjects?.filter(
+    const uniqueSubject = cleanSubjects.filter(
       (subject, index, self) => index === self.findIndex((s) => s.subject === subject.subject)
     );
 
-    const subjectList = uniqueSubject?.map((subject) => {
+    const subjectList = uniqueSubject.map((subject) => {
       return {
         value: subject.subject,
         label: subject.subject,
@@ -121,10 +125,10 @@ export default function ProyeccionesSubjects() {
     setSubjectOptions(subjectList as SelectOption[]);
 
     // opciones para el select de trayectos
-    const uniqueTrayecto = subjects?.filter(
+    const uniqueTrayecto = cleanSubjects.filter(
       (subject, index, self) => index === self.findIndex((s) => s.trayectoId === subject.trayectoId)
     );
-    const trayectoList = uniqueTrayecto?.map((subject) => {
+    const trayectoList = uniqueTrayecto.map((subject) => {
       return {
         value: subject.trayectoId,
         label: subject.trayectoName,
@@ -133,11 +137,11 @@ export default function ProyeccionesSubjects() {
     setTrayectoOptions(trayectoList as SelectOption[]);
 
     // opciones para el select de turnos
-    const uniqueTurno = subjects?.filter(
+    const uniqueTurno = cleanSubjects.filter(
       (subject, index, self) => index === self.findIndex((s) => s.turnoName === subject.turnoName)
     );
 
-    const turnoList = uniqueTurno?.map((subject) => {
+    const turnoList = uniqueTurno.map((subject) => {
       return {
         value: subject.turnoName,
         label: subject.turnoName,
@@ -145,11 +149,11 @@ export default function ProyeccionesSubjects() {
     });
     setTurnoOptions(turnoList as SelectOption[]);
 
-    const uniqueSeccion = subjects?.filter(
+    const uniqueSeccion = cleanSubjects.filter(
       (subject, index, self) => index === self.findIndex((s) => s.seccion === subject.seccion)
     );
 
-    const seccionList = uniqueSeccion?.map((subject) => {
+    const seccionList = uniqueSeccion.map((subject) => {
       return {
         value: subject.seccion,
         label: subject.seccion,
@@ -158,13 +162,13 @@ export default function ProyeccionesSubjects() {
     setSeccionOptions(seccionList as SelectOption[]);
 
     // lista de materias
-    setFilteredSubjects(subjects);
+    setFilteredSubjects(cleanSubjects);
   }, [subjects]);
 
   useEffect(() => {
     if (!subjects) return;
     setModalSelectedSubject(null);
-    let filteredSubjectsCopy = [...subjects];
+    let filteredSubjectsCopy = subjects.filter(s => s.key !== "ADMINISTRATIVE_HOURS");
 
     // si el usuario no es superusuario, solo muestra las materias del PNF del usuario
     if (!userData?.su) {
