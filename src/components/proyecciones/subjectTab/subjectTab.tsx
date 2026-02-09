@@ -82,8 +82,11 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       });
     }
 
-    // Hide linked subjects
-    filteredSubjects = filteredSubjects.filter(student => !student.linkedToSection);
+    // Hide linked subjects and administrative hours
+    filteredSubjects = filteredSubjects.filter(
+      (subject) =>
+        !subject.linkedToSection && subject.key !== "ADMINISTRATIVE_HOURS"
+    );
 
     setSubjectList(filteredSubjects);
   }, [
@@ -102,8 +105,11 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
   useEffect(() => {
     if (!subjects) return;
 
+    // Filter out administrative hours
+    const cleanSubjects = subjects.filter(s => s.key !== "ADMINISTRATIVE_HOURS");
+
     // llena los pnf
-    const uniquePnf = subjects?.filter(
+    const uniquePnf = cleanSubjects?.filter(
       (subject, index, self) => index === self.findIndex((s) => s.pnfId === subject.pnfId)
     );
 
@@ -116,7 +122,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     setPnfOptions(pnfList as SelectOption[]);
 
     // llena los trayectos
-    const uniqueTrayectos = subjects?.filter(
+    const uniqueTrayectos = cleanSubjects?.filter(
       (subject, index, self) => index === self.findIndex((s) => s.trayectoId === subject.trayectoId)
     );
 
@@ -128,7 +134,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     });
     setTrayectoOptions(trayectoList as SelectOption[]);
 
-    const turnoList = Array.from(new Set(subjects?.map((subject) => subject.turnoName) || [])).map(
+    const turnoList = Array.from(new Set(cleanSubjects?.map((subject) => subject.turnoName) || [])).map(
       (subject) => ({
         value: subject,
         label: subject,
@@ -140,8 +146,12 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
   // llena el selector de materia condicional
   useEffect(() => {
     if (!subjects) return;
+
+    // Filter out administrative hours first
+    const cleanSubjects = subjects.filter(s => s.key !== "ADMINISTRATIVE_HOURS");
+
     if (!selectedTrayectoOption) {
-      const subjectList = Array.from(new Set(subjects?.map((subject) => subject.subject) || [])).map(
+      const subjectList = Array.from(new Set(cleanSubjects.map((subject) => subject.subject) || [])).map(
         (subject) => ({
           value: subject,
           label: subject,
@@ -153,8 +163,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
 
     const subjectList = Array.from(
       new Set(
-        subjects
-          ?.filter((subject) => subject.trayectoId === selectedTrayectoOption)
+        cleanSubjects
+          .filter((subject) => subject.trayectoId === selectedTrayectoOption)
           .map((subject) => subject.subject) || []
       )
     ).map((subject) => ({
@@ -162,7 +172,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       label: subject,
     }));
     setSubjectsOptions(subjectList as SelectOption[]);
-  }, [selectedTrayectoOption]);
+  }, [selectedTrayectoOption, subjects]);
 
   const handleChangeTeacher = (subject: Subject) => {
     if (!userData?.su && userPNF !== subject.pnfId) {

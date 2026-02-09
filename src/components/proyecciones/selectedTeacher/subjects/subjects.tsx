@@ -254,7 +254,10 @@ const Subjects: React.FC<{
           </div>
         ) : (
           data.map((subject, i) => {
-            const highlightColor = subjectColors?.[subject.pnfId] || "#1890ff";
+            const highlightColor =
+              subject.key === "ADMINISTRATIVE_HOURS"
+                ? "#FFB6C1"
+                : subjectColors?.[subject.pnfId] || "#1890ff";
             return (
               <div
                 key={i}
