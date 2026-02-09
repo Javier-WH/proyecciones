@@ -2,6 +2,7 @@
   position: relative;
   grid-column-end: span 2;
   margin-right: 5px;
+
 }
 
 .teacher-subjects-header {
@@ -17,7 +18,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   /* flex: 1;  <-- Desactivado para permitir control manual de altura */
-  height: calc(100vh - 420px);
+  height: calc(100vh - 425px);
   /* Ajusta este valor si el encabezado cambia de tamaño */
   width: 100%;
   border-bottom: 1px solid transparent;
@@ -32,6 +33,7 @@
   margin-bottom: 5px;
   /* Tu margen inferior */
   position: relative !important;
+
 }
 
 .teacher-subjects-body h4 {

@@ -208,7 +208,7 @@ export default function SelectedTeacher() {
 
           {/* Info Section */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
-            {selectedTeacher?.is_placeholder && (
+            {!!selectedTeacher?.is_placeholder && (
               <Alert
                 message={<span style={{ fontSize: '13px', fontWeight: 600 }}>Profesor Placeholder</span>}
                 description={<span style={{ fontSize: '12px' }}>Este perfil es temporal y se utiliza para asignar materias sin docente asignado.</span>}
