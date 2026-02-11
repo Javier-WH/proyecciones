@@ -85,17 +85,6 @@ export async function generateExcelReport(req, res) {
     const reportData = groupedSubjects.map((group) => {
       let teacher = teachers.find((t) => t.id === group.professorId)
 
-      // Si no se encuentra el profesor o el ID es UNASIGNED, asignar datos por defecto
-      if (!teacher) {
-        teacher = {
-          id: group.professorId || 'UNASIGNED',
-          name: 'SIN PROFESOR ASIGNADO',
-          lastName: '',
-          ci: 'S/C',
-          contractTypes_id: 'S/C'
-        }
-      }
-
       return {
         ...group,
         teacherData: teacher
