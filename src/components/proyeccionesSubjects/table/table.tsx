@@ -134,7 +134,7 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       },
     },
     {
-      title: "Trimestre",
+      title: "Lapso",
       dataIndex: "quarter",
       width: 150,
       align: "center",
@@ -145,10 +145,10 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
 
         if (record.isSemestral) {
           if (valueKeys.includes("q1") || valueKeys.includes("q2")) {
-            data.push(<Tag color="purple" key={"s1"}>Semestre 1</Tag>);
+            data.push(<Tag color="purple" key={"s1"}>Sem 1</Tag>);
           }
           if (valueKeys.includes("q3")) {
-            data.push(<Tag color="purple" key={"s2"}>Semestre 2</Tag>);
+            data.push(<Tag color="purple" key={"s2"}>Sem 2</Tag>);
           }
         } else {
           if (valueKeys.includes("q1")) {

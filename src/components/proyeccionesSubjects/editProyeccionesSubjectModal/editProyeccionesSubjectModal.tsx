@@ -1,4 +1,4 @@
-import { Button, Modal, Tag, InputNumber, Input } from "antd";
+import { Button, Modal, Tag, InputNumber, Input, Switch } from "antd";
 import { CloseCircleOutlined } from "@ant-design/icons";
 import { Subject } from "../../../interfaces/subject";
 
@@ -21,6 +21,7 @@ const EditProyeccionesSubjectModal: React.FC<{
   const [trimestreValue, setTrimestreValue] = useState<InlineQuarter | null>(null);
   const [hourValue, setHourValue] = useState<InlineHours | null>(null);
   const [seccionValue, setSeccionValue] = useState<string>("4");
+  const [isSemestral, setIsSemestral] = useState<boolean>(false);
 
   useEffect(() => {
     if (subject === null) {
@@ -30,7 +31,9 @@ const EditProyeccionesSubjectModal: React.FC<{
     setSubjectValue(subject?.subject || "");
     setHourValue(subject?.hours || null);
     setTrimestreValue(subject?.quarter || null);
+    setTrimestreValue(subject?.quarter || null);
     setSeccionValue(subject?.seccion || "1");
+    setIsSemestral(subject?.isSemestral || false);
   }, [subject, setOpen]);
 
   const handleOk = () => {
@@ -51,7 +54,9 @@ const EditProyeccionesSubjectModal: React.FC<{
         sub.pnf = pnfValue;
         sub.subject = subjectValue;
         sub.quarter = trimestreValue;
+        sub.quarter = trimestreValue;
         sub.seccion = seccionValue;
+        sub.isSemestral = isSemestral;
       }
       return sub;
     });
@@ -82,6 +87,7 @@ const EditProyeccionesSubjectModal: React.FC<{
         sub.pnf = pnfValue;
         sub.subject = subjectValue;
         sub.quarter = newQuarters;
+        sub.isSemestral = isSemestral;
         //sub.seccion = seccionValue;
       }
       return sub;
@@ -229,6 +235,19 @@ const EditProyeccionesSubjectModal: React.FC<{
               )}
             </div>
           </div>
+
+          <div style={{ display: "flex", flexDirection: "column", rowGap: "5px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>Semestral:</span>
+              <Switch checked={isSemestral} onChange={setIsSemestral} />
+            </div>
+            {isSemestral && (
+              <span style={{ fontSize: '12px', color: 'gray' }}>
+                (Q1/Q2 = Semestre 1, Q3 = Semestre 2)
+              </span>
+            )}
+          </div>
+
         </div>
       </Modal>
     </>

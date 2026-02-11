@@ -254,15 +254,34 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     {
       title: 'Horas',
       key: 'horas',
-      render: (_: unknown, record: Subject) => (
-        <Text>{`${record.hours?.q1 || 0} / ${record.hours?.q2 || 0} / ${record.hours?.q3 || 0}`}</Text>
-      ),
+      render: (_: unknown, record: Subject) => {
+        if (record.isSemestral) {
+          const sem1 = record.hours?.q1 || record.hours?.q2 || 0;
+          const sem2 = record.hours?.q3 || 0;
+          return <Text>{`${sem1} / ${sem2}`}</Text>;
+        }
+        return <Text>{`${record.hours?.q1 || 0} / ${record.hours?.q2 || 0} / ${record.hours?.q3 || 0}`}</Text>;
+      },
       responsive: ['md'] as any,
     },
     {
-      title: 'Trimestre',
+      title: 'Lapso',
       key: 'trimestre',
       render: (_: unknown, record: Subject) => {
+        if (record.isSemestral) {
+          const q1Assigned = !!record.quarter.q1;
+          const q2Assigned = !!record.quarter.q2;
+          const q3Assigned = !!record.quarter.q3;
+
+          return (
+            <div style={{ display: 'flex' }}>
+              {(q1Assigned || q2Assigned) && <Tag color="purple">Sem 1</Tag>}
+              {q3Assigned && <Tag color="purple">Sem 2</Tag>}
+              {(!q1Assigned && !q2Assigned && !q3Assigned) && <Tag>Sin asignar</Tag>}
+            </div>
+          )
+        }
+
         const q1Assigned = !!record.quarter.q1;
         const q2Assigned = !!record.quarter.q2;
         const q3Assigned = !!record.quarter.q3;
