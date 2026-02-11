@@ -4,7 +4,7 @@ import "./proyeccionesSubjects.css";
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
-import { Button, Divider, message, Modal, Select, Popconfirm, List, Card, Row, Col, Typography } from "antd";
+import { Button, Divider, message, Modal, Select, Popconfirm, List, Card, Row, Col, Typography, Switch } from "antd";
 import TablePensum from "./table/table";
 import { GiAutoRepair } from "react-icons/gi";
 import { QuestionCircleOutlined, DisconnectOutlined, ProjectOutlined, EditOutlined } from "@ant-design/icons";
@@ -50,6 +50,7 @@ export default function ProyeccionesSubjects() {
   const [selectedTargetLink, setSelectedTargetLink] = useState<string | undefined>(undefined);
   const [modalSourceSection, setModalSourceSection] = useState<string | undefined>(undefined);
   const [availableSections, setAvailableSections] = useState<SelectOption[]>([]);
+  const [isSemestralModal, setIsSemestralModal] = useState(false);
 
   const showAddSubjectModal = () => {
     setIsAddSubjectModalOpen(true);
@@ -69,7 +70,8 @@ export default function ProyeccionesSubjects() {
     }
 
     const subjectCopy = JSON.parse(JSON.stringify(subjects));
-    subjectCopy.push(modalSelectedSubject);
+    const newSubject = { ...modalSelectedSubject, isSemestral: isSemestralModal };
+    subjectCopy.push(newSubject);
 
     message.success(`Materia ${modalSelectedSubject.subject} agregada correctamente al pensum`);
     handleSubjectChange(subjectCopy);
@@ -88,6 +90,7 @@ export default function ProyeccionesSubjects() {
     setModalMayaOptions([]);
     setIsAddSubjectModalOpen(false);
     setSeccionExist(false);
+    setIsSemestralModal(false);
   };
 
   ///
@@ -852,6 +855,10 @@ export default function ProyeccionesSubjects() {
               }}
               value={selectedSeccion}
             />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ color: "gray", fontSize: "10px" }}>Semestral</span>
+            <Switch checked={isSemestralModal} onChange={setIsSemestralModal} style={{ marginTop: '5px' }} />
           </div>
           {userData?.su && seccionExist && (
             <Popconfirm

@@ -39,6 +39,7 @@ interface optionsInterface {
     q2?: string | null;
     q3?: string | null;
   };
+  isSemestral?: boolean;
 }
 
 const AddSubjectToTeacherModal: React.FC<{
@@ -162,6 +163,7 @@ const AddSubjectToTeacherModal: React.FC<{
             q2: getTeacherData(subject.quarter.q2),
             q3: getTeacherData(subject.quarter.q3),
           },
+          isSemestral: subject.isSemestral,
         };
       });
       const t_index = teachers.findIndex((teacher) => teacher.id === selectedTeacerId);
@@ -539,6 +541,7 @@ const AddSubjectToTeacherModal: React.FC<{
                           <Tag>{data.pnf}</Tag>
                           <Tag>{`Sección: ${data.turno ? data.turno[0] : ""}-0${data.seccion}`}</Tag>
                           {data.trayecto && <Tag>{data.trayecto}</Tag>}
+                          {data.isSemestral && <Tag color="purple">Semestral</Tag>}
                         </div>
                         <SubjectTeacherInfo teacher={data.teacher || {}} />
                       </div>
