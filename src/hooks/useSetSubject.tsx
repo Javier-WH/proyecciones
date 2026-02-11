@@ -73,6 +73,15 @@ export default function useSetSubject(SubjectArray: Subject[]) {
       for (let quarter of subjectQuarter) {
         currentSubject.quarter[quarter] = teacherId;
       }
+
+      // Logic for Semestral: Ensure Q1 and Q2 are identical
+      if (currentSubject.isSemestral) {
+        // If we assigned to Q1 or Q2, ensure both are set
+        if (currentSubject.quarter.q1 === teacherId || currentSubject.quarter.q2 === teacherId) {
+          currentSubject.quarter.q1 = teacherId;
+          currentSubject.quarter.q2 = teacherId;
+        }
+      }
     });
 
     return {
@@ -125,6 +134,12 @@ export default function useSetSubject(SubjectArray: Subject[]) {
         if (currentSubject.quarter[quarter] === teacherId) {
           currentSubject.quarter[quarter] = null;
         }
+      }
+
+      // Logic for Semestral: Ensure Q1 and Q2 are cleared together
+      if (currentSubject.isSemestral) {
+        if (currentSubject.quarter.q1 === teacherId) currentSubject.quarter.q1 = null;
+        if (currentSubject.quarter.q2 === teacherId) currentSubject.quarter.q2 = null;
       }
     });
 
