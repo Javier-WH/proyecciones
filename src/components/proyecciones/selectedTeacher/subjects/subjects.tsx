@@ -331,6 +331,11 @@ const Subjects: React.FC<{
                         Sección: {subject.turnoName[0]}-{subject.seccion}
                       </Tag>
                     )}
+                    {subject.isSemestral && (
+                      <Tag color="purple" style={{ margin: 0 }}>
+                        Semestral
+                      </Tag>
+                    )}
 
                     {showAllSubjects ? (
                       <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject?.hours?.q1 || 0

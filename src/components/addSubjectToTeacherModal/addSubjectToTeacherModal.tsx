@@ -100,6 +100,7 @@ const AddSubjectToTeacherModal: React.FC<{
       const options: { label: string; value: string }[] = [];
 
       subjects.forEach((subject) => {
+        if (subject.key === "ADMINISTRATIVE_HOURS") return;
         if (!uniqueTrayectos.has(subject.trayectoId)) {
           uniqueTrayectos.add(subject.trayectoId);
           options.push({
