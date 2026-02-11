@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { Subject } from "../../../../interfaces/subject";
-import { Button, Divider, message, Card, Statistic, Row, Col, Typography, Empty, Space } from "antd";
+import { Button, Divider, message, Card, Statistic, Row, Col, Typography, Empty, Space, Switch } from "antd";
 import { MainContext } from "../../../../context/mainContext";
 import { MainContextValues } from "../../../../interfaces/contextInterfaces";
 import { v4 as uuidv4 } from "uuid";
@@ -19,6 +19,7 @@ export default function TabProyection({ subjectList, turnos }: { subjectList: Su
   const { handleSubjectChange, subjects } = useContext(MainContext) as MainContextValues;
 
   const [secciones, setSecciones] = useState<SeccionContentItem[]>([]);
+  const [isSemestral, setIsSemestral] = useState<boolean>(false);
 
   // llena el array de secciones con los valores de turnos
   useEffect(() => {
@@ -63,6 +64,7 @@ export default function TabProyection({ subjectList, turnos }: { subjectList: Su
         for (const subject of subjectListCopy) {
           subject.innerId = uuidv4();
           subject.turnoName = turnoName || "No definido";
+          subject.isSemestral = isSemestral;
           proyectedSubjects.push(subject);
           if (turnoName === "Mañana" || turnoName === "Tarde") {
             subject.seccion = morningSections.toString();
@@ -101,6 +103,12 @@ export default function TabProyection({ subjectList, turnos }: { subjectList: Su
         >
           Generar Proyección
         </Button>
+      </div>
+
+      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Text>Proyección Semestral:</Text>
+        <Switch checked={isSemestral} onChange={setIsSemestral} />
+        {isSemestral && <Text type="secondary" style={{ fontSize: '12px' }}> (Q1 y Q2 formarán el 1er Semestre, Q3 será el 2do Semestre)</Text>}
       </div>
 
       <Divider style={{ margin: '16px 0' }} />

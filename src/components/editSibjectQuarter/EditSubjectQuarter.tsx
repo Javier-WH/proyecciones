@@ -52,7 +52,7 @@ const EditSubjectQuarterModal: React.FC<{
     }
 
     setOpen(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject]);
 
   useEffect(() => {
@@ -74,14 +74,26 @@ const EditSubjectQuarterModal: React.FC<{
     const subjectCopy = [...subjects];
     const subjectIndex = subjectCopy.findIndex((subj) => subj.innerId === subject.innerId);
     if (subjectIndex === -1) return;
-    if (selectedTeacherQ1 !== undefined) {
-      subjectCopy[subjectIndex].quarter.q1 = selectedTeacherQ1?.id;
-    }
-    if (selectedTeacherQ2 !== undefined) {
-      subjectCopy[subjectIndex].quarter.q2 = selectedTeacherQ2?.id;
-    }
-    if (selectedTeacherQ3 !== undefined) {
-      subjectCopy[subjectIndex].quarter.q3 = selectedTeacherQ3?.id;
+    if (subject.isSemestral) {
+      // Semestral logic: Q1 and Q2 must be the same (Semestre I)
+      if (selectedTeacherQ1 !== undefined) {
+        subjectCopy[subjectIndex].quarter.q1 = selectedTeacherQ1?.id;
+        subjectCopy[subjectIndex].quarter.q2 = selectedTeacherQ1?.id;
+      }
+      if (selectedTeacherQ3 !== undefined) {
+        subjectCopy[subjectIndex].quarter.q3 = selectedTeacherQ3?.id;
+      }
+    } else {
+      // Normal Trimestral logic
+      if (selectedTeacherQ1 !== undefined) {
+        subjectCopy[subjectIndex].quarter.q1 = selectedTeacherQ1?.id;
+      }
+      if (selectedTeacherQ2 !== undefined) {
+        subjectCopy[subjectIndex].quarter.q2 = selectedTeacherQ2?.id;
+      }
+      if (selectedTeacherQ3 !== undefined) {
+        subjectCopy[subjectIndex].quarter.q3 = selectedTeacherQ3?.id;
+      }
     }
     handleSubjectChange(subjectCopy);
     handleCancel();
@@ -154,12 +166,12 @@ const EditSubjectQuarterModal: React.FC<{
           }}>
           {Object.keys(subject?.quarter || {}).includes("q1") && (
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <label style={{ color: "gray" }}>Trimestre I</label>
+              <label style={{ color: "gray" }}>{subject?.isSemestral ? "Semestre I" : "Trimestre I"}</label>
               <Select
                 size="large"
                 showSearch
                 style={{ width: 600 }}
-                placeholder="Seleccione un profesor para el trimestre I"
+                placeholder={`Seleccione un profesor para el ${subject?.isSemestral ? "Semestre I" : "trimestre I"}`}
                 optionFilterProp="label"
                 filterSort={(optionA, optionB) =>
                   //(optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
@@ -180,7 +192,7 @@ const EditSubjectQuarterModal: React.FC<{
               />
             </div>
           )}
-          {Object.keys(subject?.quarter || {}).includes("q2") && (
+          {Object.keys(subject?.quarter || {}).includes("q2") && !subject?.isSemestral && (
             <div style={{ display: "flex", flexDirection: "column" }}>
               <label style={{ color: "gray" }}>Trimestre II</label>
               <Select
@@ -210,12 +222,12 @@ const EditSubjectQuarterModal: React.FC<{
           )}
           {Object.keys(subject?.quarter || {}).includes("q3") && (
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <label style={{ color: "gray" }}>Trimestre III</label>
+              <label style={{ color: "gray" }}>{subject?.isSemestral ? "Semestre II" : "Trimestre III"}</label>
               <Select
                 size="large"
                 showSearch
                 style={{ width: 600 }}
-                placeholder="Seleccione un profesor para el trimestre III"
+                placeholder={`Seleccione un profesor para el ${subject?.isSemestral ? "Semestre II" : "trimestre III"}`}
                 optionFilterProp="label"
                 filterSort={(optionA, optionB) =>
                   //(optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())

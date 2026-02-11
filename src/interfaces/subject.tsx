@@ -17,6 +17,7 @@ export interface Subject {
   teacherCi?: string;
   key?: string;
   linkedToSection?: string;
+  isSemestral?: boolean;
 }
 
 

@@ -123,7 +123,13 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       width: 100,
       key: "hours",
       align: "center",
-      render: (value) => {
+      render: (value, record) => {
+        if (record.isSemestral) {
+          // For semester 1, use q1 (or q2) hours. For semester 2, use q3 hours.
+          const sem1 = value?.q1 || value?.q2 || 0;
+          const sem2 = value?.q3 || 0;
+          return <div>{`${sem1} / ${sem2}`}</div>;
+        }
         return <div>{`${value?.q1 || 0} / ${value?.q2 || 0} / ${value?.q3 || 0}`}</div>;
       },
     },
@@ -133,17 +139,27 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       width: 150,
       align: "center",
       key: "quarter",
-      render: (value) => {
+      render: (value, record) => {
         const data: React.ReactNode[] = [];
         const valueKeys = Object.keys(value);
-        if (valueKeys.includes("q1")) {
-          data.push(<Tag color="blue" key={"q1"}>{`1`}</Tag>);
-        }
-        if (valueKeys.includes("q2")) {
-          data.push(<Tag color="blue" key={"q2"}>{`2`}</Tag>);
-        }
-        if (valueKeys.includes("q3")) {
-          data.push(<Tag color="blue" key={"q3"}>{`3`}</Tag>);
+
+        if (record.isSemestral) {
+          if (valueKeys.includes("q1") || valueKeys.includes("q2")) {
+            data.push(<Tag color="purple" key={"s1"}>Semestre 1</Tag>);
+          }
+          if (valueKeys.includes("q3")) {
+            data.push(<Tag color="purple" key={"s2"}>Semestre 2</Tag>);
+          }
+        } else {
+          if (valueKeys.includes("q1")) {
+            data.push(<Tag color="blue" key={"q1"}>{`1`}</Tag>);
+          }
+          if (valueKeys.includes("q2")) {
+            data.push(<Tag color="blue" key={"q2"}>{`2`}</Tag>);
+          }
+          if (valueKeys.includes("q3")) {
+            data.push(<Tag color="blue" key={"q3"}>{`3`}</Tag>);
+          }
         }
         return <div>{getRowContent(data)}</div>;
       },
