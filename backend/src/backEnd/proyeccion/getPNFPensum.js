@@ -81,7 +81,7 @@ export default async function getPNFPensum(req, res) {
 
     if (total && times && isNaN(total) === false && isNaN(times) === false) {
       quarterHours = total / times;
-      weekHours = quarterHours / 12;
+      weekHours = quarterHours / (Number(mayaId) == 24 ? 18 : 12);
     }
 
     return {
