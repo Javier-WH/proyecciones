@@ -65,35 +65,71 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
   const days = [1, 2, 3, 4, 5]; // Lunes to Viernes
   const grid: (any | null | 'occupied')[][] = Array(timeSlots.length).fill(null).map(() => Array(6).fill(null)); // 0 is unused, 1-5 are days
 
-  events.forEach(event => {
-    // Handle recurring events (daysOfWeek, startTime, endTime)
+  // Ensure events are processed top-to-bottom
+  const sortedEvents = [...(events || [])].sort((a: any, b: any) =>
+    a.startTime.localeCompare(b.startTime)
+  );
+
+  sortedEvents.forEach(event => {
     if (event.daysOfWeek && event.startTime && event.endTime) {
       const startStr = event.startTime;
       const endStr = event.endTime;
 
-      // Find start slot index
-      const startIndex = timeSlots.findIndex(t => t[0] === startStr);
-      if (startIndex === -1) return;
+      const slotIndex = timeSlots.findIndex(t => t[0] === startStr);
+      if (slotIndex === -1) return;
 
-      // Calculate Span
       let span = 1;
-      for (let i = startIndex; i < timeSlots.length; i++) {
+      for (let i = slotIndex; i < timeSlots.length; i++) {
         if (timeSlots[i][1] === endStr) {
-          span = i - startIndex + 1;
+          span = i - slotIndex + 1;
           break;
         }
       }
 
-      // Iterate over daysOfWeek
       event.daysOfWeek.forEach((day: number) => {
-        // daysOfWeek: 1=Monday, 5=Friday. Matches our grid index 1-5.
         if (day >= 1 && day <= 5) {
-          if (grid[startIndex][day] === null) {
-            grid[startIndex][day] = { ...event, span };
-            // Mark subsequent slots as occupied
-            for (let i = 1; i < span; i++) {
-              if (startIndex + i < timeSlots.length) {
-                grid[startIndex + i][day] = 'occupied';
+          const prevSlotIndex = slotIndex - 1;
+          let merged = false;
+
+          if (prevSlotIndex >= 0) {
+            let headIndex = prevSlotIndex;
+            // Search upwards for the head block
+            while (headIndex >= 0 && grid[headIndex][day] === 'occupied') {
+              headIndex--;
+            }
+
+            if (headIndex >= 0 && grid[headIndex][day] && grid[headIndex][day] !== 'occupied') {
+              const prevEvent = grid[headIndex][day];
+
+              // Check if contiguous visually (head block + its span == current slotIndex)
+              if (headIndex + prevEvent.span === slotIndex) {
+                const sameTitle = prevEvent.title === event.title;
+                const sameProf = prevEvent.extendedProps?.professorId === event.extendedProps?.professorId;
+                const sameClassroom = prevEvent.extendedProps?.classroomId === event.extendedProps?.classroomId;
+                const sameSection = prevEvent.extendedProps?.seccion === event.extendedProps?.seccion;
+
+                if (sameTitle && sameProf && sameClassroom && sameSection) {
+                  prevEvent.span += span; // merge into head block
+                  merged = true;
+
+                  // mark current slots as occupied
+                  for (let k = 0; k < span; k++) {
+                    if (grid[slotIndex + k]) {
+                      grid[slotIndex + k][day] = 'occupied';
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          if (!merged) {
+            if (grid[slotIndex][day] === null) {
+              grid[slotIndex][day] = { ...event, span };
+              for (let k = 1; k < span; k++) {
+                if (grid[slotIndex + k]) {
+                  grid[slotIndex + k][day] = 'occupied';
+                }
               }
             }
           }
