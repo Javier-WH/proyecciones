@@ -10,16 +10,30 @@ export function getTeacherHous(teacherLoad, teacherId) {
   teacherLoad.forEach(item => {
     // Verificamos si el objeto tiene la propiedad 'hours' y si es un objeto válido
     if (item.hours && typeof item.hours === 'object') {
-      // Sumamos las horas, convirtiendo los valores a números usando el operador unario '+'
-      // Añadimos un check para asegurarnos de que la clave existe antes de sumar
-      if (item.hours.q1 !== undefined && (item?.quarter?.q1 === teacherId || (teacherId === 'UNASIGNED' && !item?.quarter?.q1))) {
-        totalHoras.q1 += +item.hours.q1
-      }
-      if (item.hours.q2 !== undefined && (item?.quarter?.q2 === teacherId || (teacherId === 'UNASIGNED' && !item?.quarter?.q2))) {
-        totalHoras.q2 += +item.hours.q2
-      }
-      if (item.hours.q3 !== undefined && (item?.quarter?.q3 === teacherId || (teacherId === 'UNASIGNED' && !item?.quarter?.q3))) {
-        totalHoras.q3 += +item.hours.q3
+      const isSemestral = item.isSemestral === true
+
+      if (isSemestral) {
+        // Para materias semestrales: Q1+Q2 = Semestre 1, Q3 = Semestre 2
+        // Solo contamos las horas de Q1 para el Semestre 1 (evita doble conteo con Q2)
+        if (item.hours.q1 !== undefined && (item?.quarter?.q1 === teacherId || (teacherId === 'UNASIGNED' && !item?.quarter?.q1))) {
+          totalHoras.q1 += +item.hours.q1
+        }
+        // Q2 se omite para semestrales - ya está contabilizado en Q1 como Semestre 1
+        // Q3 es el Semestre 2, se cuenta normalmente
+        if (item.hours.q3 !== undefined && (item?.quarter?.q3 === teacherId || (teacherId === 'UNASIGNED' && !item?.quarter?.q3))) {
+          totalHoras.q3 += +item.hours.q3
+        }
+      } else {
+        // Trimestral: contar todos los trimestres normalmente
+        if (item.hours.q1 !== undefined && (item?.quarter?.q1 === teacherId || (teacherId === 'UNASIGNED' && !item?.quarter?.q1))) {
+          totalHoras.q1 += +item.hours.q1
+        }
+        if (item.hours.q2 !== undefined && (item?.quarter?.q2 === teacherId || (teacherId === 'UNASIGNED' && !item?.quarter?.q2))) {
+          totalHoras.q2 += +item.hours.q2
+        }
+        if (item.hours.q3 !== undefined && (item?.quarter?.q3 === teacherId || (teacherId === 'UNASIGNED' && !item?.quarter?.q3))) {
+          totalHoras.q3 += +item.hours.q3
+        }
       }
     }
   })

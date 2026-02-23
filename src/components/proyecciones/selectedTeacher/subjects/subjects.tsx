@@ -338,10 +338,17 @@ const Subjects: React.FC<{
                     )}
 
                     {showAllSubjects ? (
-                      <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject?.hours?.q1 || 0
-                        } / ${subject?.hours?.q2 || 0} / ${subject?.hours?.q3 || 0}`}</Tag>
+                      subject.isSemestral ? (
+                        <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject?.hours?.q1 || subject?.hours?.q2 || 0
+                          } / ${subject?.hours?.q3 || 0}`}</Tag>
+                      ) : (
+                        <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject?.hours?.q1 || 0
+                          } / ${subject?.hours?.q2 || 0} / ${subject?.hours?.q3 || 0}`}</Tag>
+                      )
                     ) : (
-                      <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject?.hours?.[selectedQuarter] || 0
+                      <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject.isSemestral && (selectedQuarter === "q1" || selectedQuarter === "q2")
+                        ? (subject?.hours?.q1 || subject?.hours?.q2 || 0)
+                        : (subject?.hours?.[selectedQuarter] || 0)
                         }`}</Tag>
                     )}
                   </div>

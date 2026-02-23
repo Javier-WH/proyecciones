@@ -188,6 +188,8 @@ export default function generateTriQuarterSheet({
           contracts.find((contract) => contract.id === teacher.contractTypes_id)?.contractType ||
           "Sin contrato";
 
+        const isSemestral = subject.isSemestral === true;
+
         // console.log(subject);
         sheet.cell(`B${row}`).value(subject.subject);
         sheet
@@ -199,6 +201,7 @@ export default function generateTriQuarterSheet({
         sheet.cell(`E${row}`).value(`${subject.turnoName[0]}-0${subject.seccion}`);
         sheet.cell(`F${row}`).value(subject.turnoName);
 
+        // Trimestre I (Q1) - Para semestrales muestra las horas del Semestre 1
         subject?.quarter?.q1 === teacher.id
           ? sheet.cell(`G${row}`).value(subject?.hours?.q1 || 0)
           : sheet.cell(`G${row}`).value(0);
@@ -206,13 +209,19 @@ export default function generateTriQuarterSheet({
         subjectIndex === 0 && sheet.cell(`H${row}`).value(teacherHours.q1);
         sheet.cell(`H${row}`).style("horizontalAlignment", "center");
 
-        subject?.quarter?.q2 === teacher.id
-          ? sheet.cell(`I${row}`).value(subject?.hours?.q2 || 0)
-          : sheet.cell(`I${row}`).value(0);
+        // Trimestre II (Q2) - Para semestrales mostrar 0 (ya contabilizado en Trimestre I como Semestre 1)
+        if (isSemestral) {
+          sheet.cell(`I${row}`).value(0);
+        } else {
+          subject?.quarter?.q2 === teacher.id
+            ? sheet.cell(`I${row}`).value(subject?.hours?.q2 || 0)
+            : sheet.cell(`I${row}`).value(0);
+        }
         sheet.cell(`I${row}`).style("horizontalAlignment", "center");
         subjectIndex === 0 && sheet.cell(`J${row}`).value(teacherHours.q2);
         sheet.cell(`J${row}`).style("horizontalAlignment", "center");
 
+        // Trimestre III (Q3) - Para semestrales es el Semestre 2
         subject?.quarter?.q3 === teacher.id
           ? sheet.cell(`K${row}`).value(subject?.hours?.q3 || 0)
           : sheet.cell(`K${row}`).value(0);
@@ -221,6 +230,12 @@ export default function generateTriQuarterSheet({
         sheet.cell(`L${row}`).style("horizontalAlignment", "center");
 
         sheet.cell(`M${row}`).value(teacherContractType);
+
+        // Agregar observación para materias semestrales
+        if (isSemestral) {
+          sheet.cell(`N${row}`).value("Semestral");
+        }
+
         sheet.row(row).height(25);
         sheet.row(row).style("verticalAlignment", "center");
         row++;

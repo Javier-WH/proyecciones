@@ -252,42 +252,90 @@ export default function SelectedTeacher() {
               <div
                 style={{
                   marginTop: "8px",
-                  display: "grid",
-                  gridTemplateColumns: "repeat(4, 1fr)",
+                  display: "flex",
+                  alignItems: "stretch",
                   gap: "12px",
                   backgroundColor: "#f9fafb",
                   padding: "12px",
                   borderRadius: "8px",
                   border: "1px solid #f0f0f0",
                 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                {/* Carga Total */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
                   <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 600 }}>CARGA TOTAL</span>
                   <span style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827" }}>
                     {totalHours}
                   </span>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 600 }}>T1 (U/D)</span>
-                  <div style={{ fontSize: "1rem", fontWeight: 600 }}>
-                    <span style={hourStyle("q1")}>{usedHoursQ1}</span>
-                    <span style={{ color: "#d1d5db", margin: "0 2px" }}>/</span>
-                    <span style={{ color: "#374151" }}>{aviableHoursQ1}</span>
+                {/* Semester I: T1 + T2 */}
+                <div style={{
+                  display: "flex",
+                  flex: 2,
+                  gap: "8px",
+                  border: "1.5px dashed #c4b5fd",
+                  borderRadius: "8px",
+                  padding: "6px 12px 2px",
+                  backgroundColor: "#faf5ff",
+                  position: "relative",
+                }}>
+                  <span style={{
+                    position: "absolute",
+                    top: "-8px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    backgroundColor: "#faf5ff",
+                    padding: "0 6px",
+                    fontSize: "0.6rem",
+                    color: "#8b5cf6",
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  }}>SEMESTRE I</span>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                    <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 600 }}>T1 (U/D)</span>
+                    <div style={{ fontSize: "1rem", fontWeight: 600 }}>
+                      <span style={hourStyle("q1")}>{usedHoursQ1}</span>
+                      <span style={{ color: "#d1d5db", margin: "0 2px" }}>/</span>
+                      <span style={{ color: "#374151" }}>{aviableHoursQ1}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                    <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 600 }}>T2 (U/D)</span>
+                    <div style={{ fontSize: "1rem", fontWeight: 600 }}>
+                      <span style={hourStyle("q2")}>{usedHoursQ2}</span>
+                      <span style={{ color: "#d1d5db", margin: "0 2px" }}>/</span>
+                      <span style={{ color: "#374151" }}>{aviableHoursQ2}</span>
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 600 }}>T2 (U/D)</span>
-                  <div style={{ fontSize: "1rem", fontWeight: 600 }}>
-                    <span style={hourStyle("q2")}>{usedHoursQ2}</span>
-                    <span style={{ color: "#d1d5db", margin: "0 2px" }}>/</span>
-                    <span style={{ color: "#374151" }}>{aviableHoursQ2}</span>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 600 }}>T3 (U/D)</span>
-                  <div style={{ fontSize: "1rem", fontWeight: 600 }}>
-                    <span style={hourStyle("q3")}>{usedHoursQ3}</span>
-                    <span style={{ color: "#d1d5db", margin: "0 2px" }}>/</span>
-                    <span style={{ color: "#374151" }}>{aviableHoursQ3}</span>
+                {/* Semester II: T3 */}
+                <div style={{
+                  display: "flex",
+                  flex: 1,
+                  border: "1.5px dashed #c4b5fd",
+                  borderRadius: "8px",
+                  padding: "6px 12px 2px",
+                  backgroundColor: "#faf5ff",
+                  position: "relative",
+                }}>
+                  <span style={{
+                    position: "absolute",
+                    top: "-8px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    backgroundColor: "#faf5ff",
+                    padding: "0 6px",
+                    fontSize: "0.6rem",
+                    color: "#8b5cf6",
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  }}>SEMESTRE II</span>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                    <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 600 }}>T3 (U/D)</span>
+                    <div style={{ fontSize: "1rem", fontWeight: 600 }}>
+                      <span style={hourStyle("q3")}>{usedHoursQ3}</span>
+                      <span style={{ color: "#d1d5db", margin: "0 2px" }}>/</span>
+                      <span style={{ color: "#374151" }}>{aviableHoursQ3}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -301,9 +349,11 @@ export default function SelectedTeacher() {
             style={{
               marginTop: "20px",
               display: "flex",
-              justifyContent: "center",
+              flexDirection: "column",
+              alignItems: "center",
               borderTop: "1px solid #f0f0f0",
               paddingTop: "16px",
+              gap: "4px",
             }}>
             <Radio.Group onChange={onChangeQuarter} defaultValue="0" buttonStyle="solid">
               <Radio.Button value="0">Todas</Radio.Button>
@@ -311,6 +361,20 @@ export default function SelectedTeacher() {
               <Radio.Button value="2">Trimestre 2</Radio.Button>
               <Radio.Button value="3">Trimestre 3</Radio.Button>
             </Radio.Group>
+            <div style={{ display: "flex", gap: "0px", fontSize: "0.65rem", color: "#8b5cf6", fontWeight: 500 }}>
+              <span style={{ width: "68px" }}></span>
+              <span style={{
+                borderBottom: "1.5px dashed #c4b5fd",
+                padding: "0 24px 1px",
+                textAlign: "center",
+              }}>Semestre I</span>
+              <span style={{
+                borderBottom: "1.5px dashed #c4b5fd",
+                padding: "0 14px 1px",
+                textAlign: "center",
+                marginLeft: "2px",
+              }}>Semestre II</span>
+            </div>
           </div>
         )}
       </div>

@@ -150,11 +150,13 @@ export default function generateSingleQuarterSheet({
         sheet.cell(`A${row}`).style("wrapText", true);
         const initRange = row;
         for (const [subjectIndex, subject] of teacher.load.entries()) {
-          const UCHours = subject.hours.q1
-            ? subject.hours.q1
-            : subject.hours.q2
-              ? subject.hours.q2
-              : subject.hours.q3;
+          // Para semestrales: en Q1 usar horas de q1, en Q3 usar horas de q3
+          let UCHours;
+          if (subject.isSemestral) {
+            UCHours = quarter === 3 ? (subject.hours.q3 || 0) : (subject.hours.q1 || subject.hours.q2 || 0);
+          } else {
+            UCHours = subject.hours[`q${quarter}`] || 0;
+          }
 
           const teacherContractType =
             contracts.find((contract) => contract.id === teacher.contractTypes_id)?.contractType ||
@@ -174,6 +176,10 @@ export default function generateSingleQuarterSheet({
           subjectIndex === 0 && sheet.cell(`H${row}`).value(teacherHours[`q${quarter}`]);
           sheet.cell(`H${row}`).style("horizontalAlignment", "center");
           sheet.cell(`I${row}`).value(teacherContractType);
+          // Agregar observación para materias semestrales
+          if (subject.isSemestral) {
+            sheet.cell(`J${row}`).value(quarter === 1 ? "Semestre I" : "Semestre II");
+          }
           sheet.row(row).height(25);
           sheet.row(row).style("verticalAlignment", "center");
           row++;
@@ -274,6 +280,12 @@ function groupSubjectsByTeacher(subjects, quarter) {
   const filteredSubjectsByQuarter = cleanTeachersArray.map((profesor) => {
     const load = profesor.load;
     const filteredLoad = load.filter((subject) => {
+      // Para materias semestrales: Q1+Q2 = Semestre 1, Q3 = Semestre 2
+      // Excluir semestrales del trimestre 2 (ya se muestran en trimestre 1 como Semestre 1)
+      if (subject.isSemestral && quarter === 2) {
+        return false
+      }
+
       const isAssignedToThisProfessor = subject.quarter?.[`q${quarter}`] === profesor.id
       // A subject is unassigned for this quarter if:
       // 1. We are processing the 'UNASIGNED' list
