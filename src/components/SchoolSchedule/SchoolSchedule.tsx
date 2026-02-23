@@ -13,7 +13,9 @@ import {
   getSubjectRestrictions,
 } from "../../fetch/schedule/scheduleFetch";
 import { getTeacherRestrictionsList } from "../../fetch/schedule/teacherRestrictions";
-import { Select, Modal, message, List, Tooltip } from "antd";
+import { Select, Modal, message, List, Tooltip, Dropdown } from "antd";
+import type { MenuProps } from "antd";
+import { SwapOutlined } from "@ant-design/icons";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
@@ -110,6 +112,18 @@ const SchoolSchedule: React.FC = () => {
   const [errors, setErrors] = useState<scheduleError[]>([]);
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+
+  // State for classroom change context menu
+  const [classroomChangeEvent, setClassroomChangeEvent] = useState<{
+    eventIndex: number;
+    day: number;
+    startTime: string;
+    endTime: string;
+    title: string;
+    currentClassroomId: string;
+    currentClassroomName: string;
+  } | null>(null);
+  const [newClassroomId, setNewClassroomId] = useState<string>("");
 
   // New state for view mode and selected professor
   const [viewMode, setViewMode] = useState<"pnf" | "professor" | "classroom">("pnf");
@@ -300,6 +314,44 @@ const SchoolSchedule: React.FC = () => {
 
   const addError = (err: scheduleError) => {
     setErrors((prevErrors) => [...prevErrors, err]);
+  };
+
+  // Handler to change classroom for a specific event (specific day+time block)
+  const handleChangeClassroom = () => {
+    if (!classroomChangeEvent || !newClassroomId) return;
+
+    const newClassroom = classrooms.find(c => c.id === newClassroomId);
+    if (!newClassroom) return;
+
+    // Update eventData: find ALL events within the merged block's time range
+    // A merged block spans from startTime to endTime, so we match all individual
+    // slot events whose time falls within that range on the same day with the same title
+    const updatedEvents = eventData.map(evt => {
+      const matchesDay = evt.daysOfWeek.includes(classroomChangeEvent.day);
+      const matchesTitle = evt.title === classroomChangeEvent.title;
+      // Check if event's time is within the block's time range
+      const withinTimeRange = evt.startTime >= classroomChangeEvent.startTime
+        && evt.startTime < classroomChangeEvent.endTime;
+      // Also match by current classroom to avoid changing other blocks of the same subject
+      const matchesClassroom = evt.extendedProps.classroomId === classroomChangeEvent.currentClassroomId;
+
+      if (matchesDay && matchesTitle && withinTimeRange && matchesClassroom) {
+        return {
+          ...evt,
+          extendedProps: {
+            ...evt.extendedProps,
+            classroomId: newClassroomId,
+            classroomName: newClassroom.classroom,
+          },
+        };
+      }
+      return evt;
+    });
+
+    setEventData(updatedEvents);
+    message.success(`Aula cambiada a "${newClassroom.classroom}" para ${classroomChangeEvent.title} el día seleccionado.`);
+    setClassroomChangeEvent(null);
+    setNewClassroomId("");
   };
 
   const putSubjectRestriction = async (subjectName: string, classroomIds: string[]) => {
@@ -1109,6 +1161,28 @@ const SchoolSchedule: React.FC = () => {
                               </div>
                             );
 
+                            const contextMenuItems: MenuProps["items"] = [
+                              {
+                                key: "change-classroom",
+                                icon: <SwapOutlined />,
+                                label: "Cambiar Aula",
+                                onClick: () => {
+                                  const endTimeIdx = rowIndex + cell.rowSpan - 1;
+                                  const evtEndTime = tableSlots[endTimeIdx] ? tableSlots[endTimeIdx][1] : "";
+                                  setClassroomChangeEvent({
+                                    eventIndex: rowIndex,
+                                    day,
+                                    startTime: slot[0],
+                                    endTime: evtEndTime,
+                                    title: cell.title,
+                                    currentClassroomId: cell.extendedProps?.classroomId || "",
+                                    currentClassroomName: cell.extendedProps?.classroomName || "",
+                                  });
+                                  setNewClassroomId(cell.extendedProps?.classroomId || "");
+                                },
+                              },
+                            ];
+
                             return (
                               <td
                                 className="schedule-time-cell"
@@ -1123,45 +1197,47 @@ const SchoolSchedule: React.FC = () => {
                                   height: "100%",
                                 }}
                               >
-                                <Tooltip title={tooltipContent}>
-                                  <div style={{ display: "flex", flexDirection: "column", gap: "2px", height: "100%" }}>
-                                    <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px" }}>
-                                      {cell.title}
+                                <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]}>
+                                  <Tooltip title={tooltipContent}>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "2px", height: "100%", cursor: "context-menu" }}>
+                                      <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px" }}>
+                                        {cell.title}
+                                      </div>
+
+                                      {/* Chip for PNF/Section/Classroom */}
+                                      <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
+
+                                        {cell.extendedProps?.classroomName && viewMode !== "classroom" && (
+                                          <div style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333" }}>
+                                            <span style={{ fontWeight: "600" }}></span> {cell.extendedProps.classroomName}
+                                          </div>
+                                        )}
+
+                                        {(viewMode === "professor" || viewMode === "classroom") && (
+                                          <div style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333", display: "flex", flexDirection: "column" }}>
+                                            <span>
+                                              <span style={{ fontWeight: "600" }}></span> {cell.extendedProps?.pnfName}
+                                            </span>
+                                            <span>
+                                              <span style={{ fontWeight: "600" }}>Sec:</span> {cell.extendedProps?.seccion}
+                                            </span>
+                                          </div>
+                                        )}
+
+                                        {/* Professor Name */}
+                                        {viewMode !== "professor" && (
+                                          <div style={{ fontSize: "0.75rem", color: "#495057" }}>
+                                            <span style={{ fontWeight: "600" }}>Profesor:</span> {
+                                              teachers?.find(t => t.id === cell.extendedProps?.professorId)
+                                                ? `${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.name} ${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.lastName}`
+                                                : "Sin Asignar"
+                                            }
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-
-                                    {/* Chip for PNF/Section/Classroom */}
-                                    <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
-
-                                      {cell.extendedProps?.classroomName && viewMode !== "classroom" && (
-                                        <div style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333" }}>
-                                          <span style={{ fontWeight: "600" }}></span> {cell.extendedProps.classroomName}
-                                        </div>
-                                      )}
-
-                                      {(viewMode === "professor" || viewMode === "classroom") && (
-                                        <div style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333", display: "flex", flexDirection: "column" }}>
-                                          <span>
-                                            <span style={{ fontWeight: "600" }}></span> {cell.extendedProps?.pnfName}
-                                          </span>
-                                          <span>
-                                            <span style={{ fontWeight: "600" }}>Sec:</span> {cell.extendedProps?.seccion}
-                                          </span>
-                                        </div>
-                                      )}
-
-                                      {/* Professor Name */}
-                                      {viewMode !== "professor" && (
-                                        <div style={{ fontSize: "0.75rem", color: "#495057" }}>
-                                          <span style={{ fontWeight: "600" }}>Profesor:</span> {
-                                            teachers?.find(t => t.id === cell.extendedProps?.professorId)
-                                              ? `${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.name} ${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.lastName}`
-                                              : "Sin Asignar"
-                                          }
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </Tooltip>
+                                  </Tooltip>
+                                </Dropdown>
                               </td>
                             );
                           } else {
@@ -1226,6 +1302,64 @@ const SchoolSchedule: React.FC = () => {
             )}
           />
         </div>
+      </Modal>
+
+      {/* Modal for changing classroom */}
+      <Modal
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <SwapOutlined style={{ color: "#1890ff" }} />
+            <span>Cambiar Aula</span>
+          </div>
+        }
+        open={!!classroomChangeEvent}
+        onOk={handleChangeClassroom}
+        onCancel={() => {
+          setClassroomChangeEvent(null);
+          setNewClassroomId("");
+        }}
+        okText="Cambiar"
+        cancelText="Cancelar"
+        okButtonProps={{ disabled: !newClassroomId || newClassroomId === classroomChangeEvent?.currentClassroomId }}
+      >
+        {classroomChangeEvent && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div style={{
+              backgroundColor: "#f0f5ff",
+              padding: "12px",
+              borderRadius: "8px",
+              border: "1px solid #d6e4ff",
+            }}>
+              <div style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "4px" }}>
+                {classroomChangeEvent.title}
+              </div>
+              <div style={{ fontSize: "0.85rem", color: "#595959" }}>
+                {["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"][classroomChangeEvent.day]} • {classroomChangeEvent.startTime} - {classroomChangeEvent.endTime}
+              </div>
+              <div style={{ fontSize: "0.85rem", color: "#8c8c8c", marginTop: "4px" }}>
+                Aula actual: <strong>{classroomChangeEvent.currentClassroomName}</strong>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontWeight: 600, marginBottom: "6px", color: "#374151" }}>
+                Nueva aula:
+              </label>
+              <Select
+                style={{ width: "100%" }}
+                value={newClassroomId || undefined}
+                placeholder="Seleccione un aula"
+                onChange={(value) => setNewClassroomId(value)}
+                showSearch
+                optionFilterProp="label"
+                options={classrooms.map(c => ({
+                  value: c.id,
+                  label: c.classroom,
+                }))}
+              />
+            </div>
+          </div>
+        )}
       </Modal>
     </>
   );
