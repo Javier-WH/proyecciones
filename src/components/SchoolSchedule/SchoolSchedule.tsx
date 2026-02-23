@@ -323,16 +323,38 @@ const SchoolSchedule: React.FC = () => {
     const newClassroom = classrooms.find(c => c.id === newClassroomId);
     if (!newClassroom) return;
 
+    // Check if the new classroom is already occupied by another event
+    // during the same time slots on the same day
+    const conflictingEvent = eventData.find(evt => {
+      // Must be on the same day
+      const sameDay = evt.daysOfWeek.includes(classroomChangeEvent.day);
+      // Must already use the target classroom
+      const usesTargetClassroom = evt.extendedProps.classroomId === newClassroomId;
+      // Must overlap with our block's time range
+      const overlapsTime = evt.startTime >= classroomChangeEvent.startTime
+        && evt.startTime < classroomChangeEvent.endTime;
+      // Must NOT be the same event we're changing (different title or different classroom)
+      const isOtherEvent = evt.title !== classroomChangeEvent.title
+        || evt.extendedProps.classroomId !== classroomChangeEvent.currentClassroomId;
+
+      return sameDay && usesTargetClassroom && overlapsTime && isOtherEvent;
+    });
+
+    if (conflictingEvent) {
+      const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+      message.error(
+        `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" ` +
+        `el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}.`
+      );
+      return;
+    }
+
     // Update eventData: find ALL events within the merged block's time range
-    // A merged block spans from startTime to endTime, so we match all individual
-    // slot events whose time falls within that range on the same day with the same title
     const updatedEvents = eventData.map(evt => {
       const matchesDay = evt.daysOfWeek.includes(classroomChangeEvent.day);
       const matchesTitle = evt.title === classroomChangeEvent.title;
-      // Check if event's time is within the block's time range
       const withinTimeRange = evt.startTime >= classroomChangeEvent.startTime
         && evt.startTime < classroomChangeEvent.endTime;
-      // Also match by current classroom to avoid changing other blocks of the same subject
       const matchesClassroom = evt.extendedProps.classroomId === classroomChangeEvent.currentClassroomId;
 
       if (matchesDay && matchesTitle && withinTimeRange && matchesClassroom) {
