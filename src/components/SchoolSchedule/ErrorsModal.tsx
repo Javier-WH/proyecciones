@@ -10,6 +10,7 @@ export interface scheduleError {
   turn: string;
   year: string;
   description: string;
+  pnfName: string;
 }
 
 interface params {
@@ -149,6 +150,18 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
                       >
                         {err.year}
                       </span>
+                      {err.pnfName && (
+                        <span
+                          style={{
+                            backgroundColor: "#fff",
+                            border: "1px solid #d9d9d9",
+                            borderRadius: "4px",
+                            padding: "0 6px",
+                          }}
+                        >
+                          {err.pnfName}
+                        </span>
+                      )}
                     </div>
                     <p
                       style={{

@@ -717,6 +717,7 @@ export function generateScheduleEvents({
           seccion: sub.seccion,
           year: sub.trayectoName,
           turn: sub.turnoName,
+          pnfName: sub.pnf || "",
         });
         return null;
       }
@@ -842,6 +843,7 @@ export function generateScheduleEvents({
       seccion: task.subject.seccion,
       year: task.subject.trayectoName,
       turn: task.subject.turnoName,
+      pnfName: task.subject.pnf || "",
     });
   }
 
