@@ -20,6 +20,8 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
   const [data, setData] = useState<Teacher[] | null>([]);
   const [searchText, setSearchText] = useState("");
 
+  // Use a ref and ResizeObserver or simply CSS for table height
+  // For Ant Design table, setting scroll y to '100%' works best if parent is fixed flex
 
   useEffect(() => {
     if (!teachers) return;
@@ -155,6 +157,8 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
         width: "100%",
         height: "100%",
         padding: "0 5px 0 10px",
+        display: "flex",
+        flexDirection: "column"
       }}>
       <div
         style={{
@@ -162,11 +166,12 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
           borderRadius: "12px",
           padding: "16px",
           boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-          height: "100%",
+          flex: 1,
           display: "flex",
           flexDirection: "column",
           gap: "16px",
           border: "1px solid #f0f0f0",
+          minHeight: 0, // CRITICAL for responsiveness
         }}>
         <Input
           size="large"
@@ -178,10 +183,11 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
           style={{
             borderRadius: "8px",
             boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+            flexShrink: 0
           }}
         />
 
-        <div style={{ flex: 1, overflow: "hidden" }}>
+        <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
           {data?.length === 0 ? (
             <div
               style={{
@@ -199,7 +205,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
           ) : (
             <ConfigProvider locale={es_ES}>
               <Table
-                className="tabla-compacta"
+                className="tabla-compacta sticky-table"
                 pagination={{
                   position: ["bottomCenter"],
                   simple: true,
@@ -212,7 +218,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
                 rowKey="id"
                 onRow={onRow}
                 size="middle"
-                scroll={{ y: "calc(100vh - 280px)" }}
+                scroll={{ y: 'calc(100vh - 250px)' }}
                 style={{ cursor: "pointer" }}
                 rowClassName={(record) =>
                   context.selectedTeacerId === record.id ? "ant-table-row-selected" : ""

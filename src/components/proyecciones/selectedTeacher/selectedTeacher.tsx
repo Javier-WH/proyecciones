@@ -23,7 +23,7 @@ export default function SelectedTeacher() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_teacherData, setTeacherData] = useState(getTeachersHoursData(0));
   const [subjecData, setSubjectData] = useState<Subject[]>([]);
-  const { getTeacherHoursData } = useSetSubject(subjects || []);
+  const { getTeacherHoursData: getTeacherHoursDataHook } = useSetSubject(subjects || []);
   const [totalHours, setTotalHours] = useState("0");
   const [aviableHoursQ1, setAviableHoursQ1] = useState("0");
   const [usedHoursQ1, setUsedHoursQ1] = useState("0");
@@ -51,7 +51,7 @@ export default function SelectedTeacher() {
 
   useEffect(() => {
     if (!selectedTeacher || !selectedQuarter) return;
-    const teacherHourData = getTeacherHoursData(selectedTeacher);
+    const teacherHourData = getTeacherHoursDataHook(selectedTeacher);
     if (teacherHourData.error) {
       console.log(teacherHourData.message);
       return;
@@ -70,7 +70,6 @@ export default function SelectedTeacher() {
       setAviableHoursQ3(q3?.aviableHours || "0");
       setOverloadedQ3(q3?.overloaded || false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTeacerId, selectedQuarter, subjects]);
 
   useEffect(() => {
@@ -93,8 +92,6 @@ export default function SelectedTeacher() {
     if (!teachers || !selectedTeacerId) return;
     const teacherIndex = teachers.findIndex((teacher) => teacher.id === selectedTeacerId);
     setTeacherData(getTeachersHoursData(teacherIndex || 0));
-
-
   }, [selectedTeacerId, getTeachersHoursData, selectedTeacher, teachers, selectedQuarter]);
 
   if (!selectedTeacher) {
@@ -179,7 +176,7 @@ export default function SelectedTeacher() {
   };
 
   return (
-    <div className="selected-teacher-container" style={{ padding: "0 10px", height: "100%", display: "flex", flexDirection: "column" }}>
+    <div className="selected-teacher-outer-container" style={{ padding: "0 10px", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div
         style={{
           flexShrink: 0,
@@ -396,4 +393,3 @@ export default function SelectedTeacher() {
     </div>
   );
 }
-

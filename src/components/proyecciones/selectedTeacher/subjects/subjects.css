@@ -2,7 +2,10 @@
   position: relative;
   grid-column-end: span 2;
   margin-right: 5px;
-
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .teacher-subjects-header {
@@ -17,23 +20,14 @@
 .teacher-subjects-body {
   overflow-y: auto;
   overflow-x: hidden;
-  /* flex: 1;  <-- Desactivado para permitir control manual de altura */
-  height: calc(100vh - 425px);
-  /* Ajusta este valor si el encabezado cambia de tamaño */
+  height: calc(100vh - 430px);
+  padding: 4px 4px 60px 4px;
   width: 100%;
-  border-bottom: 1px solid transparent;
-  /* Ayuda visual para el margen */
-  /* Esto hace que ocupe todo el espacio disponible */
-  /* min-height: 0; */
-  /* Necesario para que el scroll funcione dentro de flex */
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 4px;
   margin-bottom: 5px;
-  /* Tu margen inferior */
-  position: relative !important;
-
+  position: relative;
 }
 
 .teacher-subjects-body h4 {

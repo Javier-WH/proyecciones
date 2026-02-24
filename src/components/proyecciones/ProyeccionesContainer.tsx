@@ -155,7 +155,7 @@ export default function ProyeccionesContainer() {
               gridTemplateColumns: "minmax(380px, 30%) 1fr",
               gridTemplateRows: "1fr",
               gap: "16px",
-              padding: "10px",
+              padding: "10px 10px 5px 10px",
               height: "100%",
               overflow: "hidden",
             }}>
@@ -164,7 +164,9 @@ export default function ProyeccionesContainer() {
           </div>
         ) : (
           <>
-            <SubjectTab searchByUserPerfil={searchByUserPerfil} />
+            <div style={{ padding: "10px 10px 5px 10px", height: "100%" }}>
+              <SubjectTab searchByUserPerfil={searchByUserPerfil} />
+            </div>
           </>
         )}
       </div>

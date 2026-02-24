@@ -175,7 +175,7 @@ const Subjects: React.FC<{
         flex: 1,
         display: "flex",
         flexDirection: "column",
-        minHeight: 0, // Critical for nested flex scrolling
+        minHeight: 0,
         overflow: "hidden",
       }}>
       <div

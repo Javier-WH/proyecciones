@@ -356,7 +356,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
   ];
 
   return (
-    <div style={{ padding: '16px', backgroundColor: '#f0f2f5', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ backgroundColor: '#f0f2f5', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AddSubjectToTeacherModal subject={selectedSubject} setSelectedSubject={setSelectedSubject} />
 
       <div style={{ maxWidth: '1400px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px', height: '100%' }}>
@@ -441,13 +441,13 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
           </Row>
         </Card>
 
-        <Card bordered={false} style={{ borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }} bodyStyle={{ padding: 0, flex: 1, overflow: 'hidden' }}>
+        <Card bordered={false} style={{ borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }} bodyStyle={{ padding: 0, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <Table
             columns={columns}
             dataSource={subjectList}
             rowKey="innerId"
-            pagination={{ pageSize: 10, showSizeChanger: true }}
-            scroll={{ x: 'max-content', y: 'calc(100vh - 390px)' }}
+            pagination={{ pageSize: 12, showSizeChanger: true }}
+            scroll={{ x: 'max-content', y: 'calc(100vh - 380px)' }}
           />
         </Card>
       </div>
