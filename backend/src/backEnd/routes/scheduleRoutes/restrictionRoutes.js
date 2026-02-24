@@ -4,7 +4,7 @@ import TeachersRestrictions from '#models/schedule/teacherRestrictions.js'
 import Teachers from '#models/teachers.js'
 import Proyections from '#models/proyections.js'
 import sequelize from '#dataBaseConnection'
-import { validateAdminUser } from '../../middlewares/middlewares.js'
+
 
 const Router = express.Router()
 
@@ -162,7 +162,7 @@ function formatRestriction(record, teacherId) {
   }
 }
 
-Router.post('/teacher-restrictions', validateAdminUser, express.json(), async (req, res) => {
+Router.post('/teacher-restrictions', express.json(), async (req, res) => {
   try {
     const { teacher_id: teacherId, restricted_days: restrictedDaysInput, restricted_hours: restrictedHoursInput } =
       req.body || {}
@@ -263,7 +263,7 @@ Router.get('/subject-restrictions/:proyectionId', async (req, res) => {
   }
 })
 
-Router.post('/subject-restrictions', validateAdminUser, express.json(), async (req, res) => {
+Router.post('/subject-restrictions', express.json(), async (req, res) => {
   try {
     const { proyection_id: proyectionId, restrictions } = req.body || {}
 
