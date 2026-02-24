@@ -38,6 +38,7 @@ export interface subjectRestriction {
   subjectKey: string;
   subjectName: string;
   classroomIds: string[];
+  pnfId?: string;
 }
 
 type RawSubjectRestriction = {
@@ -47,6 +48,8 @@ type RawSubjectRestriction = {
   subjectKey?: string;
   classroom_ids?: string[];
   classroomIds?: string[];
+  pnf_id?: string;
+  pnfId?: string;
 };
 
 type RawTeacherRestriction = {
@@ -112,6 +115,9 @@ const SchoolSchedule: React.FC = () => {
   const [errors, setErrors] = useState<scheduleError[]>([]);
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  // Contador de generación: se incrementa cada vez que cambian las restricciones
+  // para forzar la regeneración del horario
+  const [generationCounter, setGenerationCounter] = useState(0);
 
   // State for classroom change context menu
   const [classroomChangeEvent, setClassroomChangeEvent] = useState<{
@@ -265,11 +271,13 @@ const SchoolSchedule: React.FC = () => {
           const fallbackName = subjectName ?? "";
           const subjectKey = item?.subject_key ?? item?.subjectKey ?? normalizeText(fallbackName);
           const classroomIds = item?.classroom_ids ?? item?.classroomIds ?? [];
+          const pnfId = item?.pnf_id ?? item?.pnfId;
           if (!subjectName || !subjectKey) return null;
           return {
             subjectKey,
             subjectName,
             classroomIds,
+            pnfId,
           };
         })
         .filter(Boolean) as subjectRestriction[];
@@ -297,6 +305,7 @@ const SchoolSchedule: React.FC = () => {
           subject_key: rest.subjectKey,
           subject_name: rest.subjectName,
           classroom_ids: rest.classroomIds,
+          pnf_id: rest.pnfId,
         })),
       };
 
@@ -376,7 +385,7 @@ const SchoolSchedule: React.FC = () => {
     setNewClassroomId("");
   };
 
-  const putSubjectRestriction = async (subjectName: string, classroomIds: string[]) => {
+  const putSubjectRestriction = async (subjectName: string, classroomIds: string[], pnfId?: string) => {
     if (!subjectRestrictionsReady) {
       throw new Error("Las restricciones aún se están cargando. Intente nuevamente en unos segundos");
     }
@@ -395,21 +404,23 @@ const SchoolSchedule: React.FC = () => {
 
     if (classroomIds.length === 0) {
       updatedRestrictions = updatedRestrictions.filter(
-        (rest: subjectRestriction) => rest.subjectKey !== normalizedName
+        (rest: subjectRestriction) => !(rest.subjectKey === normalizedName && rest.pnfId === pnfId)
       );
     } else {
       const currentRestriction = updatedRestrictions.find(
-        (rest: subjectRestriction) => rest.subjectKey === normalizedName
+        (rest: subjectRestriction) => rest.subjectKey === normalizedName && rest.pnfId === pnfId
       );
       if (currentRestriction) {
         currentRestriction.classroomIds = classroomIds;
         currentRestriction.subjectName = subjectName;
       } else {
-        updatedRestrictions.push({ subjectKey: normalizedName, subjectName, classroomIds });
+        updatedRestrictions.push({ subjectKey: normalizedName, subjectName, classroomIds, pnfId });
       }
     }
 
     setSubjectRestriction(updatedRestrictions);
+    // Forzar regeneración del horario
+    setGenerationCounter((c) => c + 1);
 
     try {
       await persistSubjectRestrictions(updatedRestrictions);
@@ -422,6 +433,8 @@ const SchoolSchedule: React.FC = () => {
         return;
       }
       setSubjectRestriction(previousRestrictions);
+      // También forzar regeneración al hacer rollback
+      setGenerationCounter((c) => c + 1);
       throw error;
     }
   };
@@ -432,26 +445,29 @@ const SchoolSchedule: React.FC = () => {
     hours: { day: number; start: string; end: string }[] = []
   ) => {
     if (!id || id.length === 0) return;
-    const currentRestrictions: teacherRestriction[] = JSON.parse(JSON.stringify(teacherRestrictions));
 
-    // si no hay restricciones, se elimina el profesor de la lista de restricciones
-    if (restricions.length === 0 && hours.length === 0) {
-      const filteredRestrictions = currentRestrictions.filter(
-        (rest: teacherRestriction) => rest.teacherId !== id
-      );
-      setTeacherRestrictions(filteredRestrictions);
-      return;
-    }
+    // Usar functional setState para garantizar nueva referencia
+    setTeacherRestrictions((prev) => {
+      // Si no hay restricciones, eliminar el profesor de la lista
+      if (restricions.length === 0 && hours.length === 0) {
+        return prev.filter((rest) => rest.teacherId !== id);
+      }
 
-    const currentRestriction = currentRestrictions.find((rest: teacherRestriction) => rest.teacherId === id);
-    if (currentRestriction) {
-      currentRestriction.days = restricions;
-      currentRestriction.hours = hours;
-    } else {
-      currentRestrictions.push({ teacherId: id, days: restricions, hours: hours });
-    }
-    setTeacherRestrictions(currentRestrictions);
+      const existing = prev.find((rest) => rest.teacherId === id);
+      if (existing) {
+        // Crear nuevo array con el elemento actualizado (inmutable)
+        return prev.map((rest) =>
+          rest.teacherId === id
+            ? { ...rest, days: [...restricions], hours: [...hours] }
+            : rest
+        );
+      } else {
+        return [...prev, { teacherId: id, days: [...restricions], hours: [...hours] }];
+      }
+    });
     setTeacherRestrictionsReady(true);
+    // Forzar regeneración del horario
+    setGenerationCounter((c) => c + 1);
   };
 
   const saveSchedule = async () => {
@@ -599,7 +615,9 @@ const SchoolSchedule: React.FC = () => {
     });
   }, []);
 
-  // genera lops eventos del horario
+  // Genera los eventos del horario.
+  // Se re-ejecuta cuando cambian las restricciones, el trimestre, las materias,
+  // las aulas, o el generationCounter (forzado al aplicar restricciones).
   useEffect(() => {
     if (
       !classrooms ||
@@ -612,14 +630,14 @@ const SchoolSchedule: React.FC = () => {
     }
     setErrors([]);
     const eventsdata = generateScheduleEvents({
-      subjects: schedulableSubjects, // la lista de materias (sin materias vinculadas)
-      classrooms: classrooms, // la lista de aulas
-      trimestre: trimestre, // el trimeste a generar el horario
-      preferredClassrooms: subjectRestriction, //las restricciones de materias por aulas de clase
-      unavailableDays: teacherRestrictions, // restricciones de dias donde el profesor no puede dar clases
-      conserveSlots: scheduleConfig?.conserve_slots || consecutiveConfig.maxSlots, // el numero maximo de horas consecutivas que una materia puede ser vista en un dia
-      minConsecutiveSlots: scheduleConfig?.min_consecutive_slots || consecutiveConfig.minSlots, // el minimo de bloques consecutivos requerido al arrancar
-      existingEvents: loadedScheduleEvents, // Pasar eventos cargados para respetar esos slots
+      subjects: schedulableSubjects,
+      classrooms: classrooms,
+      trimestre: trimestre,
+      preferredClassrooms: subjectRestriction,
+      unavailableDays: teacherRestrictions,
+      conserveSlots: scheduleConfig?.conserve_slots || consecutiveConfig.maxSlots,
+      minConsecutiveSlots: scheduleConfig?.min_consecutive_slots || consecutiveConfig.minSlots,
+      existingEvents: loadedScheduleEvents,
       setErrors: addError,
       customDays: scheduleConfig?.days,
       customTurnos: scheduleConfig?.turnos,
@@ -627,6 +645,7 @@ const SchoolSchedule: React.FC = () => {
     });
 
     setEventData(eventsdata);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     classrooms,
     schedulableSubjects,
@@ -637,8 +656,9 @@ const SchoolSchedule: React.FC = () => {
     teacherRestrictionsReady,
     subjectRestrictionsReady,
     consecutiveConfig,
-    scheduleConfig
-  ]); // Incluir para forzar regeneración al cargar
+    scheduleConfig,
+    generationCounter,  // Fuerza regeneración cuando se aplican restricciones
+  ]);
 
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {

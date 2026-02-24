@@ -3,7 +3,9 @@ import { DataTypes } from 'sequelize'
 
 const queryInterface = sequelize.getQueryInterface()
 const TABLE_NAME = 'subjects_restrictions'
-const UNIQUE_INDEX_NAME = 'subjects_restrictions_proyection_subject_key'
+const UNIQUE_INDEX_NAME_OLD1 = 'subjects_restrictions_proyection_id_subject_key'
+const UNIQUE_INDEX_NAME_OLD2 = 'subjects_restrictions_proyection_subject_key'
+const NEW_UNIQUE_INDEX_NAME = 'subjects_restrictions_proj_subj_pnf_key'
 
 async function ensureColumn(tableInfo, columnName, definition) {
   const exists = Boolean(tableInfo[columnName])
@@ -64,13 +66,32 @@ export default async function updateSubjectRestrictionsColumns() {
       defaultValue: sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
     })
 
-    const indexes = await queryInterface.showIndex(TABLE_NAME)
-    const hasUniqueIndex = indexes.some((index) => index.name === UNIQUE_INDEX_NAME)
+    await ensureColumn(tableInfo, 'pnf_id', {
+      type: DataTypes.UUID,
+      allowNull: true
+    })
 
-    if (!hasUniqueIndex) {
-      await queryInterface.addIndex(TABLE_NAME, ['proyection_id', 'subject_key'], {
+    const indexes = await queryInterface.showIndex(TABLE_NAME)
+
+    // Remover índices únicos viejos si existen
+    const hasOldIndex1 = indexes.some((index) => index.name === UNIQUE_INDEX_NAME_OLD1)
+    const hasOldIndex2 = indexes.some((index) => index.name === UNIQUE_INDEX_NAME_OLD2)
+
+    if (hasOldIndex1) {
+      await queryInterface.removeConstraint(TABLE_NAME, UNIQUE_INDEX_NAME_OLD1).catch(() => null)
+      await queryInterface.removeIndex(TABLE_NAME, UNIQUE_INDEX_NAME_OLD1).catch(() => null)
+    }
+    if (hasOldIndex2) {
+      await queryInterface.removeConstraint(TABLE_NAME, UNIQUE_INDEX_NAME_OLD2).catch(() => null)
+      await queryInterface.removeIndex(TABLE_NAME, UNIQUE_INDEX_NAME_OLD2).catch(() => null)
+    }
+
+    const hasNewUniqueIndex = indexes.some((index) => index.name === NEW_UNIQUE_INDEX_NAME)
+
+    if (!hasNewUniqueIndex) {
+      await queryInterface.addIndex(TABLE_NAME, ['proyection_id', 'subject_key', 'pnf_id'], {
         unique: true,
-        name: UNIQUE_INDEX_NAME
+        name: NEW_UNIQUE_INDEX_NAME
       })
     }
   } catch (error) {

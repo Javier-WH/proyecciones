@@ -2,6 +2,10 @@ import { Subject } from "../../interfaces/subject";
 import { scheduleError } from "./ErrorsModal";
 import { normalizeText } from "../../utils/textFilter";
 
+// =====================================================
+// Types & Interfaces (unchanged for compatibility)
+// =====================================================
+
 export interface Classroom {
   id: string;
   classroom: string;
@@ -9,7 +13,7 @@ export interface Classroom {
 
 export interface Event {
   title: string;
-  daysOfWeek: number[]; // 1 = lunes, ..., 5 = viernes
+  daysOfWeek: number[];
   startTime: string;
   endTime: string;
   extendedProps: {
@@ -30,8 +34,18 @@ export interface generateScheduleParams {
   subjects: Subject[];
   classrooms: Classroom[];
   trimestre: "q1" | "q2" | "q3";
-  unavailableDays?: { teacherId: string; days: number[]; hours?: { day: number; start: string; end: string }[] }[];
-  preferredClassrooms?: { subjectKey: string; classroomIds: string[]; subjectName?: string; preferLastSlot?: boolean }[];
+  unavailableDays?: {
+    teacherId: string;
+    days: number[];
+    hours?: { day: number; start: string; end: string }[];
+  }[];
+  preferredClassrooms?: {
+    subjectKey: string;
+    classroomIds: string[];
+    subjectName?: string;
+    preferLastSlot?: boolean;
+    pnfId?: string;
+  }[];
   existingEvents?: Event[];
   conserveSlots?: number;
   minConsecutiveSlots?: number;
@@ -41,6 +55,10 @@ export interface generateScheduleParams {
   customTurnos?: Record<string, [string, string][]>;
   distributeEquitably?: boolean;
 }
+
+// =====================================================
+// Constants
+// =====================================================
 
 export const turnos: Record<string, [string, string][]> = {
   mañana: [
@@ -84,20 +102,514 @@ export const turnos: Record<string, [string, string][]> = {
   ],
 };
 
+// =====================================================
+// OccupancyTracker — Efficient conflict detection + undo
+// =====================================================
+
+class OccupancyTracker {
+  private profSlots = new Set<string>();
+  private roomSlots = new Set<string>();
+  private secSlots = new Set<string>();
+  /** Counts per (subjectId, day) for conserveSlots enforcement */
+  private subjectDayCount = new Map<string, number>();
+
+  private pk(day: number, s: string, pid: string) {
+    return `P|${day}|${s}|${pid}`;
+  }
+  private rk(day: number, s: string, rid: string) {
+    return `R|${day}|${s}|${rid}`;
+  }
+  private sk(day: number, s: string, pnf: string, tray: string, sec: string) {
+    return `S|${day}|${s}|${pnf}|${tray}|${sec}`;
+  }
+  private sdk(subId: string, day: number) {
+    return `${subId}|${day}`;
+  }
+
+  occupy(
+    day: number,
+    start: string,
+    profId: string | null,
+    roomId: string,
+    pnfId: string,
+    trayId: string,
+    sec: string,
+    subId: string
+  ) {
+    if (profId) this.profSlots.add(this.pk(day, start, profId));
+    this.roomSlots.add(this.rk(day, start, roomId));
+    this.secSlots.add(this.sk(day, start, pnfId, trayId, sec));
+    const k = this.sdk(subId, day);
+    this.subjectDayCount.set(k, (this.subjectDayCount.get(k) || 0) + 1);
+  }
+
+  release(
+    day: number,
+    start: string,
+    profId: string | null,
+    roomId: string,
+    pnfId: string,
+    trayId: string,
+    sec: string,
+    subId: string
+  ) {
+    if (profId) this.profSlots.delete(this.pk(day, start, profId));
+    this.roomSlots.delete(this.rk(day, start, roomId));
+    this.secSlots.delete(this.sk(day, start, pnfId, trayId, sec));
+    const k = this.sdk(subId, day);
+    const cur = this.subjectDayCount.get(k) || 0;
+    if (cur <= 1) this.subjectDayCount.delete(k);
+    else this.subjectDayCount.set(k, cur - 1);
+  }
+
+  hasProfConflict(day: number, start: string, profId: string | null): boolean {
+    return profId ? this.profSlots.has(this.pk(day, start, profId)) : false;
+  }
+
+  hasRoomConflict(day: number, start: string, roomId: string): boolean {
+    return this.roomSlots.has(this.rk(day, start, roomId));
+  }
+
+  hasSectionConflict(
+    day: number,
+    start: string,
+    pnfId: string,
+    trayId: string,
+    sec: string
+  ): boolean {
+    return this.secSlots.has(this.sk(day, start, pnfId, trayId, sec));
+  }
+
+  getSubjectDayHours(subId: string, day: number): number {
+    return this.subjectDayCount.get(this.sdk(subId, day)) || 0;
+  }
+}
+
+// =====================================================
+// Internal types for the solver
+// =====================================================
+
+interface SubjectTask {
+  subject: Subject;
+  totalHours: number;
+  professorId: string;
+  turnoName: string;
+  timeSlots: [string, string][];
+  availableDays: number[];
+  restrictedHours: { day: number; start: string; end: string }[];
+  candidateClassrooms: Classroom[];
+  effectiveConserveSlots: number;
+  effectiveMinConsecutive: number;
+  preferLastSlot: boolean;
+  constraintScore: number;
+}
+
+interface BlockPlacement {
+  day: number;
+  startSlotIndex: number;
+  length: number;
+  classroomId: string;
+  classroomName: string;
+}
+
+// =====================================================
+// Block Decomposition
+// =====================================================
+
 /**
- * Genera un horario para los profesores y materias pasadas como parámetro.
- * Intenta asignar materias a los profesores con restricciones en los horarios disponibles.
- * Si no hay horarios disponibles, intenta asignar materias a los profesores sin restricciones.
- * Si aún no hay horarios disponibles, intenta asignar materias a los profesores con restricciones, ignorando las restricciones.
- * @param {generateScheduleParams} params - parámetros para generar el horario
- * @param {Subject[]} params.subjects - lista de materias de la proyección
- * @param {Classroom[]} params.classrooms - lista de todos los salones disponibles (interface Classroom)
- * @param {string} params.trimestre - trimestre donde se generaran los datos del usuario, solo admite (q1, q2 o q3)
- * @param {Object[]} [params.unavailableDays] - Días no disponibles para cada profesor { teacherId: string; days: number[] }[], 1-lunes, 2-martes, 3-miercoles, 4-jueves, 5-viernes
- * @param {Event[]} [params.existingEvents] - eventos existentes que se deberán respetar, si existem datos guardados deben ser sumisrados aqui
- * @param {Object[]} [params.preferredClassrooms] - restricción de salones por materia { subjectId: string; classroomIds: string[]; preferLastSlot?: boolean }[], selecciona que salones es preferible para la materia y si debe estar al final del dia
- * @param {number} [params.conserveSlots=3] - cuantas horas al dia como maximo se debe ver una materia, por defecto 3
- * @return {Event[]} - eventos generados (interface Event [])
+ * Genera todas las formas válidas de dividir `total` horas en bloques.
+ * Ej: total=4, max=3, min=2 → [[2,2]], [[3,1]] (1 < min, pero se incluye como fallback)
+ * Se priorizan descomposiciones donde todos los bloques ≥ min.
+ */
+function generateDecompositions(
+  total: number,
+  maxPerDay: number,
+  minPerBlock: number,
+  maxBlocks: number,
+  distributeEquitably: boolean
+): number[][] {
+  const results: number[][] = [];
+
+  function gen(remaining: number, cur: number[]) {
+    if (remaining === 0) {
+      results.push([...cur]);
+      return;
+    }
+    if (cur.length >= maxBlocks) return;
+
+    const maxSize = Math.min(remaining, maxPerDay);
+    // Allow blocks of 1 as last resort (the sort will deprioritize them)
+    for (let size = maxSize; size >= 1; size--) {
+      // Don't create splits that would leave an impossible remainder
+      const after = remaining - size;
+      if (after > 0 && after > maxPerDay * (maxBlocks - cur.length - 1)) continue;
+      cur.push(size);
+      gen(after, cur);
+      cur.pop();
+    }
+  }
+
+  gen(total, []);
+
+  // Deduplicate (sorted form as key)
+  const seen = new Set<string>();
+  const unique = results.filter((d) => {
+    const key = [...d].sort((a, b) => b - a).join(",");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Score and sort
+  unique.sort((a, b) => {
+    // 1. Prefer all blocks ≥ minPerBlock
+    const aAllValid = a.every((x) => x >= minPerBlock) ? 0 : 1;
+    const bAllValid = b.every((x) => x >= minPerBlock) ? 0 : 1;
+    if (aAllValid !== bAllValid) return aAllValid - bAllValid;
+
+    // 2. Distribution preference
+    if (distributeEquitably) {
+      if (a.length !== b.length) return b.length - a.length; // more days first
+    } else {
+      if (a.length !== b.length) return a.length - b.length; // fewer days first
+    }
+
+    // 3. Prefer balanced blocks (lower variance)
+    const meanA = a.reduce((s, x) => s + x, 0) / a.length;
+    const meanB = b.reduce((s, x) => s + x, 0) / b.length;
+    const varA = a.reduce((s, x) => s + (x - meanA) ** 2, 0);
+    const varB = b.reduce((s, x) => s + (x - meanB) ** 2, 0);
+    return varA - varB;
+  });
+
+  return unique;
+}
+
+// =====================================================
+// Placement Finding
+// =====================================================
+
+/**
+ * Busca todas las colocaciones válidas de un bloque de `blockLen` slots
+ * en un día dado, considerando conflictos y restricciones.
+ */
+function findSlotPlacements(
+  day: number,
+  blockLen: number,
+  task: SubjectTask,
+  occupancy: OccupancyTracker,
+  alreadyPlacedOnDay: BlockPlacement[]
+): Omit<BlockPlacement, "day">[] {
+  const { timeSlots, restrictedHours, professorId, subject, candidateClassrooms } = task;
+  const placements: Omit<BlockPlacement, "day">[] = [];
+
+  for (let startIdx = 0; startIdx <= timeSlots.length - blockLen; startIdx++) {
+    // Check overlap with already-placed blocks on this day
+    const endIdx = startIdx + blockLen;
+    const overlaps = alreadyPlacedOnDay.some((bp) => {
+      const bpEnd = bp.startSlotIndex + bp.length;
+      return !(endIdx <= bp.startSlotIndex || startIdx >= bpEnd);
+    });
+    if (overlaps) continue;
+
+    // Check all slots in the run are free for professor + section
+    let runValid = true;
+    const slotStarts: string[] = [];
+
+    for (let offset = 0; offset < blockLen; offset++) {
+      const [slotStart] = timeSlots[startIdx + offset];
+      slotStarts.push(slotStart);
+
+      // Teacher restricted hour?
+      if (restrictedHours.some((rh) => rh.day === day && rh.start === slotStart)) {
+        runValid = false;
+        break;
+      }
+      // Professor busy?
+      if (occupancy.hasProfConflict(day, slotStart, professorId)) {
+        runValid = false;
+        break;
+      }
+      // Section busy?
+      if (
+        occupancy.hasSectionConflict(
+          day,
+          slotStart,
+          subject.pnfId,
+          subject.trayectoId,
+          subject.seccion
+        )
+      ) {
+        runValid = false;
+        break;
+      }
+    }
+    if (!runValid) continue;
+
+    // Try each candidate classroom
+    for (const room of candidateClassrooms) {
+      let roomOk = true;
+      for (const s of slotStarts) {
+        if (occupancy.hasRoomConflict(day, s, room.id)) {
+          roomOk = false;
+          break;
+        }
+      }
+      if (roomOk) {
+        placements.push({
+          startSlotIndex: startIdx,
+          length: blockLen,
+          classroomId: room.id,
+          classroomName: room.classroom,
+        });
+      }
+    }
+  }
+
+  return placements;
+}
+
+// =====================================================
+// CSP Solver with Backtracking
+// =====================================================
+
+/** Global backtrack counter to limit computation */
+let backtrackCounter = 0;
+const MAX_BACKTRACKS = 2000;
+
+/**
+ * Intenta colocar los bloques de una descomposición en los días disponibles.
+ * Usa backtracking recursivo para explorar opciones.
+ * @returns lista de BlockPlacement si tiene éxito, null si no
+ */
+function tryPlaceDecomposition(
+  decomp: number[],
+  blockIdx: number,
+  placed: BlockPlacement[],
+  task: SubjectTask,
+  occupancy: OccupancyTracker
+): BlockPlacement[] | null {
+  if (backtrackCounter >= MAX_BACKTRACKS) return null;
+  if (blockIdx >= decomp.length) return [...placed];
+
+  const blockLen = decomp[blockIdx];
+  const usedDays = new Map<number, BlockPlacement[]>();
+  for (const bp of placed) {
+    if (!usedDays.has(bp.day)) usedDays.set(bp.day, []);
+    usedDays.get(bp.day)!.push(bp);
+  }
+
+  // Sort days: prefer unused days first, then days with less load
+  const sortedDays = [...task.availableDays].sort((a, b) => {
+    const aUsed = usedDays.has(a) ? 1 : 0;
+    const bUsed = usedDays.has(b) ? 1 : 0;
+    if (aUsed !== bUsed) return aUsed - bUsed;
+    const aHours = occupancy.getSubjectDayHours(task.subject.innerId, a);
+    const bHours = occupancy.getSubjectDayHours(task.subject.innerId, b);
+    return aHours - bHours;
+  });
+
+  for (const day of sortedDays) {
+    // Check conserveSlots limit
+    const currentOnDay = occupancy.getSubjectDayHours(task.subject.innerId, day);
+    if (currentOnDay + blockLen > task.effectiveConserveSlots) continue;
+
+    const alreadyOnDay = usedDays.get(day) || [];
+    const slotOptions = findSlotPlacements(day, blockLen, task, occupancy, alreadyOnDay);
+
+    for (const option of slotOptions) {
+      const bp: BlockPlacement = { day, ...option };
+
+      // Apply placement
+      applyBlock(bp, task, occupancy);
+      placed.push(bp);
+
+      // Recurse for next block
+      const result = tryPlaceDecomposition(decomp, blockIdx + 1, placed, task, occupancy);
+      if (result) return result;
+
+      // Backtrack
+      placed.pop();
+      undoBlock(bp, task, occupancy);
+      backtrackCounter++;
+      if (backtrackCounter >= MAX_BACKTRACKS) return null;
+    }
+  }
+
+  return null;
+}
+
+function applyBlock(bp: BlockPlacement, task: SubjectTask, occ: OccupancyTracker) {
+  for (let i = 0; i < bp.length; i++) {
+    const [start] = task.timeSlots[bp.startSlotIndex + i];
+    occ.occupy(
+      bp.day,
+      start,
+      task.professorId,
+      bp.classroomId,
+      task.subject.pnfId,
+      task.subject.trayectoId,
+      task.subject.seccion,
+      task.subject.innerId
+    );
+  }
+}
+
+function undoBlock(bp: BlockPlacement, task: SubjectTask, occ: OccupancyTracker) {
+  for (let i = 0; i < bp.length; i++) {
+    const [start] = task.timeSlots[bp.startSlotIndex + i];
+    occ.release(
+      bp.day,
+      start,
+      task.professorId,
+      bp.classroomId,
+      task.subject.pnfId,
+      task.subject.trayectoId,
+      task.subject.seccion,
+      task.subject.innerId
+    );
+  }
+}
+
+/**
+ * Intenta asignar una materia usando todas las descomposiciones posibles.
+ * @returns placements si tiene éxito, null si no
+ */
+function assignTask(
+  task: SubjectTask,
+  occupancy: OccupancyTracker,
+  distributeEquitably = false
+): BlockPlacement[] | null {
+  const decomps = generateDecompositions(
+    task.totalHours,
+    task.effectiveConserveSlots,
+    task.effectiveMinConsecutive,
+    task.availableDays.length,
+    distributeEquitably
+  );
+
+  for (const decomp of decomps) {
+    const result = tryPlaceDecomposition(decomp, 0, [], task, occupancy);
+    if (result) return result;
+  }
+
+  return null;
+}
+
+/**
+ * Solver principal con backtracking entre materias.
+ * Si una materia no puede asignarse, retrocede hasta `maxDepth` materias previas
+ * e intenta colocaciones alternativas.
+ */
+function solveAll(
+  tasks: SubjectTask[],
+  occupancy: OccupancyTracker,
+  maxDepth: number = 4,
+  distributeEquitably = false
+): { assigned: Map<number, BlockPlacement[]>; unassigned: number[] } {
+  const assigned = new Map<number, BlockPlacement[]>();
+  const assignmentOrder: number[] = []; // stack of indices
+  const unassigned: number[] = [];
+
+  let i = 0;
+  while (i < tasks.length) {
+    if (backtrackCounter >= MAX_BACKTRACKS && !assigned.has(i)) {
+      // Budget exhausted, add remaining to unassigned
+      unassigned.push(i);
+      i++;
+      continue;
+    }
+
+    const task = tasks[i];
+    const placements = assignTask(task, occupancy, distributeEquitably);
+
+    if (placements) {
+      assigned.set(i, placements);
+      assignmentOrder.push(i);
+      i++;
+    } else {
+      // Try backtracking
+      let resolved = false;
+      let depth = 0;
+
+      while (depth < maxDepth && assignmentOrder.length > 0 && backtrackCounter < MAX_BACKTRACKS) {
+        depth++;
+        const prevIdx = assignmentOrder.pop()!;
+        const prevPlacements = assigned.get(prevIdx)!;
+        const prevTask = tasks[prevIdx];
+
+        // Undo previous assignment
+        for (const bp of prevPlacements) {
+          undoBlock(bp, prevTask, occupancy);
+        }
+        assigned.delete(prevIdx);
+
+        // Try to assign current task first, then re-assign previous
+        const currentPlacements = assignTask(task, occupancy, distributeEquitably);
+        if (currentPlacements) {
+          assigned.set(i, currentPlacements);
+
+          // Now try to re-assign the previous task
+          const prevRetry = assignTask(prevTask, occupancy, distributeEquitably);
+          if (prevRetry) {
+            assigned.set(prevIdx, prevRetry);
+            assignmentOrder.push(prevIdx);
+            assignmentOrder.push(i);
+            resolved = true;
+            i++;
+            break;
+          } else {
+            // Undo current and restore previous
+            for (const bp of currentPlacements) {
+              undoBlock(bp, task, occupancy);
+            }
+            assigned.delete(i);
+
+            // Restore previous assignment
+            for (const bp of prevPlacements) {
+              applyBlock(bp, prevTask, occupancy);
+            }
+            assigned.set(prevIdx, prevPlacements);
+            assignmentOrder.push(prevIdx);
+          }
+        } else {
+          // Restore previous assignment
+          for (const bp of prevPlacements) {
+            applyBlock(bp, prevTask, occupancy);
+          }
+          assigned.set(prevIdx, prevPlacements);
+          assignmentOrder.push(prevIdx);
+        }
+
+        backtrackCounter++;
+      }
+
+      if (!resolved) {
+        unassigned.push(i);
+        i++;
+      }
+    }
+  }
+
+  return { assigned, unassigned };
+}
+
+// =====================================================
+// Main Entry Point
+// =====================================================
+
+/**
+ * Motor de generación de horarios basado en CSP con backtracking.
+ *
+ * Mejoras sobre el enfoque greedy anterior:
+ * 1. Backtracking: puede deshacer asignaciones previas para encontrar soluciones válidas
+ * 2. Heurística MRV: asigna primero las materias más restringidas
+ * 3. Descomposición de bloques: explora múltiples formas de distribuir horas en días
+ * 4. Relajación progresiva: solo relaja restricciones cuando es necesario
+ * 5. Detección de conflictos O(1) con OccupancyTracker
+ *
+ * @param params mismos parámetros que antes (retrocompatible)
+ * @returns Event[] — lista de eventos individuales por slot (usar mergeConsecutiveEvents para agrupar)
  */
 export function generateScheduleEvents({
   subjects,
@@ -108,22 +620,23 @@ export function generateScheduleEvents({
   preferredClassrooms,
   conserveSlots = 3,
   minConsecutiveSlots = 2,
-  preferredConsecutiveSlots = conserveSlots,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  preferredConsecutiveSlots: _preferredConsecutiveSlots = conserveSlots,
   setErrors = (err) => console.log(err),
   customDays,
   customTurnos,
   distributeEquitably = false,
 }: generateScheduleParams): Event[] {
-  const events: Event[] = [];
+  // Reset global backtrack counter
+  backtrackCounter = 0;
+
   const days = customDays || [1, 2, 3, 4, 5];
   const activeTurnos = customTurnos || turnos;
+  const occupancy = new OccupancyTracker();
 
-  const globalUsedSlots = new Set<string>();
-  const sectionUsedSlots = new Set<string>();
-
-  // Precargar conflictos existentes y filtrar materias ya agendadas
+  // ─── Step 1: Cargar eventos existentes ───
   const existingSubjectIds = new Set<string>();
-  const existingSubjectKeys = new Set<string>(); // Clave compuesta para mayor seguridad
+  const existingSubjectKeys = new Set<string>();
 
   if (existingEvents?.length) {
     for (const event of existingEvents) {
@@ -131,522 +644,214 @@ export function generateScheduleEvents({
 
       const day = event.daysOfWeek[0];
       const start = event.startTime;
-      const { professorId, classroomId, trayectoId, seccion, pnfId, subjectId } = event.extendedProps;
+      const { professorId, classroomId, trayectoId, seccion, pnfId, subjectId } =
+        event.extendedProps;
+
+      if (subjectId) existingSubjectIds.add(subjectId);
+
+      // Clave compuesta para detectar duplicados
       const title = event.title;
-
-      if (subjectId) {
-        existingSubjectIds.add(subjectId);
-      }
-
-      // Crear clave compuesta: NombreMateria-Seccion-PNF-Trayecto
       if (title && seccion && pnfId && trayectoId) {
-        const compositeKey = `${title.trim().toLowerCase()}-${seccion}-${pnfId}-${trayectoId}`;
-        existingSubjectKeys.add(compositeKey);
+        existingSubjectKeys.add(
+          `${title.trim().toLowerCase()}-${seccion}-${pnfId}-${trayectoId}`
+        );
       }
 
-      if (professorId) {
-        globalUsedSlots.add(`PROF-${day}-${start}-${professorId}`);
-      }
-      if (classroomId) {
-        globalUsedSlots.add(`ROOM-${day}-${start}-${classroomId}`);
-      }
-      sectionUsedSlots.add(`SEC-${day}-${start}-${pnfId}-${trayectoId}-${seccion}`);
+      // Registrar ocupación
+      occupancy.occupy(day, start, professorId, classroomId, pnfId, trayectoId, seccion, subjectId);
     }
   }
 
-  // Filtrar materias que ya están en los eventos existentes
-  const cleanSubject = subjects.filter((sub) => {
+  // ─── Step 2: Filtrar materias y preparar tasks ───
+  const filteredSubjects = subjects.filter((sub) => {
     const isQuarterMatch =
-      Object.keys(sub.quarter).includes(trimestre) && sub?.hours?.[trimestre] && sub?.hours?.[trimestre] > 0;
-
+      Object.keys(sub.quarter).includes(trimestre) &&
+      sub?.hours?.[trimestre] &&
+      sub.hours[trimestre]! > 0;
     if (!isQuarterMatch) return false;
 
-    // Verificar por ID (usando innerId que es lo que guardamos)
-    const hasIdConflict = existingSubjectIds.has(sub.innerId) || existingSubjectIds.has(sub.id);
-
-    // Verificar por clave compuesta
+    // Ya existe en eventos cargados?
+    const hasIdConflict =
+      existingSubjectIds.has(sub.innerId) || existingSubjectIds.has(sub.id);
     const compositeKey = `${sub.subject.trim().toLowerCase()}-${sub.seccion}-${sub.pnfId}-${sub.trayectoId}`;
     const hasKeyConflict = existingSubjectKeys.has(compositeKey);
 
     return !hasIdConflict && !hasKeyConflict;
   });
 
-  subjects = cleanSubject;
+  const tasks: SubjectTask[] = filteredSubjects
+    .map((sub): SubjectTask | null => {
+      const hours = sub.hours[trimestre];
+      const professorId = sub.quarter[trimestre];
+      const turnoName = sub.turnoName?.toLowerCase() || "";
+      const subjectKey = normalizeText(sub.subject);
 
-  // Fase 1: profesores con restricciones
-  const withRestrictions = subjects.filter((subject) =>
-    unavailableDays?.some((r) => r.teacherId === subject.quarter[trimestre])
-  );
+      if (!hours || !professorId) return null;
 
-  // Fase 2: profesores sin restricciones
-  const withoutRestrictions = subjects.filter(
-    (subject) => !unavailableDays?.some((r) => r.teacherId === subject.quarter[trimestre])
-  );
+      const timeSlots = activeTurnos[turnoName];
+      if (!timeSlots || timeSlots.length === 0) return null;
 
-  type UnassignedSubjectItem = {
-    subject: Subject;
-    reason: string;
-    assignedHours: number;
-    totalHours: number;
-  };
-  const unassignedSubjectsPhase1: UnassignedSubjectItem[] = [];
-  const unassignedSubjectsPhase2: UnassignedSubjectItem[] = [];
-  /*const unassignedSubjectsPhase3: UnassignedSubjectItem[] = [];*/ // Unused
+      // Restricciones de profesor
+      const teacherRest = unavailableDays?.find((r) => r.teacherId === professorId);
+      const restrictedDays = teacherRest?.days ?? [];
+      const restrictedHours = teacherRest?.hours ?? [];
+      const availableDays = days.filter((d) => !restrictedDays.includes(d));
 
+      // Aulas candidatas
+      const preferConfig = preferredClassrooms?.find(
+        (p) => p.subjectKey === subjectKey && (!p.pnfId || p.pnfId === sub.pnfId)
+      );
+      const candidateClassrooms =
+        preferConfig?.classroomIds?.length
+          ? classrooms.filter((c) => preferConfig.classroomIds.includes(c.id))
+          : classrooms;
 
-
-  const assignSubject = (
-    subject: Subject,
-    ignoreRestrictions = false,
-    ignoreConserveSlots = false
-  ): { success: boolean; reason?: string; assignedHours: number } => {
-    const hours = subject.hours[trimestre];
-    const professorId = subject.quarter[trimestre];
-    const subjectKey = normalizeText(subject.subject);
-    const turno = subject.turnoName?.toLowerCase();
-    const preferConfig = preferredClassrooms?.find((p) => p.subjectKey === subjectKey);
-    const timeSlots = preferConfig?.preferLastSlot ? [...activeTurnos[turno]].reverse() : activeTurnos[turno];
-
-    if (!hours || !professorId || !timeSlots) {
-      const reason = `Datos incompletos: ${!hours ? "Horas no definidas" : ""}${!professorId ? ", Profesor no asignado" : ""
-        }${!timeSlots ? ", Turno no válido" : ""}`;
-      return { success: false, reason, assignedHours: 0 };
-    }
-
-    // Determine effective conserveSlots
-    // If ignoreConserveSlots is true, we allow up to 'hours' (try to fit everything in one day if needed, or max possible)
-    // effectively disabling the daily limit.
-    const effectiveConserveSlots = ignoreConserveSlots ? hours : conserveSlots;
-
-    const currentAssigned = events.filter((e) => e.extendedProps.subjectId === subject.innerId).length;
-    let remainingHours = hours - currentAssigned;
-
-    if (remainingHours <= 0) {
-      return { success: true, assignedHours: 0 };
-    }
-
-    let totalAssignedInThisCall = 0;
-
-    const teacherRest = unavailableDays?.find((r) => r.teacherId === professorId);
-    const restrictedDays = teacherRest?.days ?? [];
-    const restrictedHours = teacherRest?.hours ?? [];
-    const availableDays = ignoreRestrictions ? days : days.filter((day) => !restrictedDays.includes(day));
-
-    // Verificar disponibilidad básica
-    if (availableDays.length === 0) {
-      const reason = ignoreRestrictions
-        ? `Profesor sin días disponibles incluso ignorando restricciones (días restringidos: ${restrictedDays.join(
-          ", "
-        )})`
-        : `Profesor sin días disponibles (días restringidos: ${restrictedDays.join(", ")})`;
-      return { success: false, reason, assignedHours: 0 };
-    }
-
-    const candidateClassrooms = preferConfig?.classroomIds?.length
-      ? classrooms.filter((c) => preferConfig.classroomIds.includes(c.id))
-      : classrooms;
-
-    if (candidateClassrooms.length === 0) {
-      const reason = `No hay aulas disponibles para esta materia${preferConfig ? " (aulas preferidas no disponibles)" : ""}`;
-      return { success: false, reason, assignedHours: 0 };
-    }
-
-    const computeMaxChainForDay = (day: number, assignedEventsForDay: Event[]) => {
-      const assignedStarts = new Set(assignedEventsForDay.map((e) => e.startTime));
-      let maxChain = 0;
-      let currentChain = 0;
-      for (const [slotStart] of timeSlots) {
-        const isAssignedSlot = assignedStarts.has(slotStart);
-        const isRestrictedHour = !ignoreRestrictions && restrictedHours.some((rh) => rh.day === day && rh.start === slotStart);
-
-        if (isAssignedSlot || isRestrictedHour) {
-          currentChain = 0;
-          continue;
-        }
-
-        currentChain++;
-        maxChain = Math.max(maxChain, currentChain);
+      if (candidateClassrooms.length === 0 || availableDays.length === 0) {
+        // Reportar inmediatamente: sin aulas o sin días
+        setErrors({
+          name: sub.subject,
+          description: `${sub.subject} — ${availableDays.length === 0
+            ? `Sin días disponibles (restringidos: ${restrictedDays.join(", ")})`
+            : `Sin aulas disponibles${preferConfig ? " (las aulas preferidas no existen)" : ""}`
+            }`,
+          seccion: sub.seccion,
+          year: sub.trayectoName,
+          turn: sub.turnoName,
+        });
+        return null;
       }
-      return maxChain;
+
+      // Constraint score: más alto = más restringido = se asigna primero (MRV)
+      let score = 0;
+      score += (7 - availableDays.length) * 100;
+      score += Math.max(0, 20 - candidateClassrooms.length) * 10;
+      score += hours * 5;
+      score += restrictedHours.length * 8;
+      score += Math.max(0, 10 - timeSlots.length) * 6;
+
+      return {
+        subject: sub,
+        totalHours: hours,
+        professorId,
+        turnoName,
+        timeSlots: preferConfig?.preferLastSlot ? [...timeSlots].reverse() : timeSlots,
+        availableDays,
+        restrictedHours,
+        candidateClassrooms,
+        effectiveConserveSlots: conserveSlots,
+        effectiveMinConsecutive: Math.min(minConsecutiveSlots, hours),
+        preferLastSlot: preferConfig?.preferLastSlot || false,
+        constraintScore: score,
+      };
+    })
+    .filter(Boolean) as SubjectTask[];
+
+  // ─── Step 3: Ordenar por constraint score (MRV heuristic) ───
+  tasks.sort((a, b) => b.constraintScore - a.constraintScore);
+
+  // ─── Step 4: Resolver con backtracking ───
+  const { assigned, unassigned } = solveAll(tasks, occupancy, 4, distributeEquitably);
+
+  // ─── Step 5: Fase de relajación para materias no asignadas ───
+  const stillUnassigned: number[] = [];
+
+  for (const idx of unassigned) {
+    const task = tasks[idx];
+
+    // Fase 2: Relajar conserveSlots (permitir más horas por día)
+    const relaxedTask: SubjectTask = {
+      ...task,
+      effectiveConserveSlots: task.totalHours,
+      effectiveMinConsecutive: 1,
     };
-
-    const buildDayContexts = () => {
-      return availableDays
-        .map((day) => {
-          const assignedEventsForDay = events.filter(
-            (event) => event.daysOfWeek[0] === day && event.extendedProps.subjectId === subject.innerId
-          );
-          const assignedCount = assignedEventsForDay.length;
-          const maxChain = computeMaxChainForDay(day, assignedEventsForDay);
-
-          // Use effectiveConserveSlots here
-          const maxAssignable = Math.min(maxChain, effectiveConserveSlots - assignedCount);
-
-          return {
-            day,
-            assignedEventsForDay,
-            assignedCount,
-            maxAssignable,
-          };
-        })
-        .filter((ctx) => ctx.maxAssignable > 0)
-        .sort((a, b) => b.maxAssignable - a.maxAssignable);
-    };
-
-    const tryAssignRunInContext = (context: ReturnType<typeof buildDayContexts>[number], runLength: number): boolean => {
-      const assignedStarts = new Set(context.assignedEventsForDay.map((e) => e.startTime));
-
-      for (let startIndex = 0; startIndex < timeSlots.length && startIndex + runLength <= timeSlots.length; startIndex++) {
-        const plannedSlots: {
-          start: string;
-          end: string;
-          conflictKeyProf: string;
-          conflictKeyRoom: string;
-          conflictKeySection: string;
-          slotIndex: number;
-        }[] = [];
-        let feasible = true;
-
-        for (let offset = 0; offset < runLength; offset++) {
-          const slotIndex = startIndex + offset;
-          const [slotStart, slotEnd] = timeSlots[slotIndex];
-
-          if (assignedStarts.has(slotStart)) {
-            feasible = false;
-            break;
-          }
-
-          if (!ignoreRestrictions) {
-            const isRestrictedHour = restrictedHours.some((rh) => rh.day === context.day && rh.start === slotStart);
-            if (isRestrictedHour) {
-              feasible = false;
-              break;
-            }
-          }
-
-          plannedSlots.push({
-            start: slotStart,
-            end: slotEnd,
-            slotIndex,
-            conflictKeyProf: `PROF-${context.day}-${slotStart}-${professorId}`,
-            conflictKeyRoom: "",
-            conflictKeySection: `SEC-${context.day}-${slotStart}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`,
-          });
-        }
-
-        if (!feasible || plannedSlots.length !== runLength) continue;
-
-        for (const classroom of candidateClassrooms) {
-          let classroomFeasible = true;
-          const enrichedSlots = plannedSlots.map((slot) => ({
-            ...slot,
-            conflictKeyRoom: `ROOM-${context.day}-${slot.start}-${classroom.id}`,
-          }));
-
-          for (const slot of enrichedSlots) {
-            if (
-              globalUsedSlots.has(slot.conflictKeyProf) ||
-              globalUsedSlots.has(slot.conflictKeyRoom) ||
-              sectionUsedSlots.has(slot.conflictKeySection)
-            ) {
-              classroomFeasible = false;
-              break;
-            }
-          }
-
-          if (!classroomFeasible) continue;
-
-          for (const slot of enrichedSlots) {
-            const newEvent: Event = {
-              title: subject.subject,
-              daysOfWeek: [context.day],
-              startTime: slot.start,
-              endTime: slot.end,
-              extendedProps: {
-                subjectId: subject.innerId,
-                professorId,
-                classroomId: classroom.id,
-                classroomName: classroom.classroom,
-                pnfId: subject.pnfId,
-                trayectoId: subject.trayectoId,
-                seccion: subject.seccion,
-                pnfName: subject.pnf,
-                turnName: subject.turnoName,
-                blockId: `${context.day}-${subject.innerId}`,
-              },
-            };
-
-            events.push(newEvent);
-            globalUsedSlots.add(slot.conflictKeyProf);
-            globalUsedSlots.add(slot.conflictKeyRoom);
-            sectionUsedSlots.add(slot.conflictKeySection);
-            remainingHours--;
-            totalAssignedInThisCall++;
-          }
-
-          return true;
-        }
-      }
-
-      return false;
-    };
-
-    const tryAssignSingleBlock = (contexts: ReturnType<typeof buildDayContexts>) => {
-      for (const context of contexts) {
-        const assignedStartTimes = context.assignedEventsForDay.map((e) => e.startTime);
-
-        for (let i = 0; i < timeSlots.length && remainingHours > 0; i++) {
-          const [start, end] = timeSlots[i];
-
-          if (assignedStartTimes.includes(start)) continue;
-
-          if (!ignoreRestrictions) {
-            const isRestrictedHour = restrictedHours.some((rh) => rh.day === context.day && rh.start === start);
-            if (isRestrictedHour) continue;
-          }
-
-          if (assignedStartTimes.length > 0) {
-            if (!isConsecutiveToExisting(subject.innerId, context.day, i, events, timeSlots)) {
-              continue;
-            }
-          }
-
-          for (const classroom of candidateClassrooms) {
-            const conflictKeyProf = `PROF-${context.day}-${start}-${professorId}`;
-            const conflictKeyRoom = `ROOM-${context.day}-${start}-${classroom.id}`;
-            const conflictKeySection = `SEC-${context.day}-${start}-${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
-
-            if (
-              globalUsedSlots.has(conflictKeyProf) ||
-              globalUsedSlots.has(conflictKeyRoom) ||
-              sectionUsedSlots.has(conflictKeySection)
-            ) {
-              continue;
-            }
-
-            const newEvent: Event = {
-              title: subject.subject,
-              daysOfWeek: [context.day],
-              startTime: start,
-              endTime: end,
-              extendedProps: {
-                subjectId: subject.innerId,
-                professorId,
-                classroomId: classroom.id,
-                classroomName: classroom.classroom,
-                pnfId: subject.pnfId,
-                trayectoId: subject.trayectoId,
-                seccion: subject.seccion,
-                pnfName: subject.pnf,
-                turnName: subject.turnoName,
-                blockId: `${context.day}-${subject.innerId}`,
-              },
-            };
-
-            events.push(newEvent);
-            globalUsedSlots.add(conflictKeyProf);
-            globalUsedSlots.add(conflictKeyRoom);
-            sectionUsedSlots.add(conflictKeySection);
-            remainingHours--;
-            totalAssignedInThisCall++;
-            return true;
-          }
-        }
-      }
-
-      return false;
-    };
-
-    while (remainingHours > 0) {
-      const contexts = buildDayContexts();
-      if (contexts.length === 0) break;
-
-      const runPriorities: number[] = [];
-      const maxRun = Math.min(preferredConsecutiveSlots, effectiveConserveSlots);
-      const minRun = Math.min(effectiveConserveSlots, Math.max(minConsecutiveSlots, 2));
-
-      for (let run = maxRun; run >= minRun; run--) {
-        if (run <= 1) break;
-        if (remainingHours < run) continue;
-        if (!contexts.some((ctx) => ctx.maxAssignable >= run)) continue;
-        if (!runPriorities.includes(run)) {
-          runPriorities.push(run);
-        }
-      }
-
-      // Equitable Logic override
-      if (distributeEquitably && remainingHours > 0) {
-        const numDays = Math.ceil(remainingHours / effectiveConserveSlots);
-        // Try to split evenly: e.g. 4 -> 2,2. 5 -> 3,2.
-        const balancedSize = Math.ceil(remainingHours / (numDays || 1));
-
-        // If balancedSize is valid for our constraints, put it first!
-        if (balancedSize >= minRun && balancedSize <= maxRun && balancedSize <= remainingHours) {
-          // Remove it if it exists elsewhere and unshift it
-          const idx = runPriorities.indexOf(balancedSize);
-          if (idx !== -1) runPriorities.splice(idx, 1);
-
-          // Check if it's actually assignable
-          if (contexts.some((ctx) => ctx.maxAssignable >= balancedSize)) {
-            runPriorities.unshift(balancedSize);
-          }
-        }
-      }
-
-      if (!runPriorities.includes(2) && remainingHours >= 2 && contexts.some((ctx) => ctx.maxAssignable >= 2)) {
-        runPriorities.push(2);
-      }
-
-      runPriorities.push(1);
-
-      let assignedInLoop = false;
-
-      for (const runLength of runPriorities) {
-        if (runLength > 1) {
-          for (const context of contexts) {
-            if (context.maxAssignable < runLength) continue;
-            if (tryAssignRunInContext(context, runLength)) {
-              assignedInLoop = true;
-              break;
-            }
-          }
-        } else {
-          assignedInLoop = tryAssignSingleBlock(contexts);
-        }
-
-        if (assignedInLoop) {
-          break;
-        }
-      }
-
-      if (!assignedInLoop) {
-        break;
-      }
+    const placements = assignTask(relaxedTask, occupancy, distributeEquitably);
+    if (placements) {
+      assigned.set(idx, placements);
+      continue;
     }
 
-    // Determinar la razón del fallo si no se asignaron todas las horas
-    if (remainingHours > 0) {
-      let reason = "";
-
-      if (totalAssignedInThisCall === 0) {
-        reason = `No se pudo asignar ninguna hora. Razones posibles: `;
-        const reasons = [];
-
-        if (availableDays.length === 0) {
-          reasons.push("sin días disponibles");
-        }
-        if (candidateClassrooms.length === 0) {
-          reasons.push("sin aulas disponibles");
-        }
-        if ((restrictedDays.length > 0 || restrictedHours.length > 0) && !ignoreRestrictions) {
-          reasons.push("restricciones de horario/días");
-        }
-
-        reason += reasons.length > 0 ? reasons.join(", ") : "horarios y aulas ocupados";
-      } else {
-        reason = `Solo se asignaron ${totalAssignedInThisCall} de ${hours} horas. Razones: `;
-        const reasons = [];
-
-        if (remainingHours > 0) {
-          reasons.push(ignoreConserveSlots ? `falta de espacio libre` : `falta de horarios consecutivos (máximo ${conserveSlots}h por día)`);
-        }
-        if (availableDays.length < days.length) {
-          reasons.push(`solo ${availableDays.length} días disponibles de ${days.length}`);
-        }
-
-        reason += reasons.join(", ");
-      }
-
-      return { success: false, reason, assignedHours: totalAssignedInThisCall };
+    // Fase 3: Ignorar restricciones de profesor + relajar slots
+    const allDaysTask: SubjectTask = {
+      ...task,
+      availableDays: customDays || [1, 2, 3, 4, 5],
+      restrictedHours: [],
+      effectiveConserveSlots: task.totalHours,
+      effectiveMinConsecutive: 1,
+    };
+    const placements2 = assignTask(allDaysTask, occupancy, distributeEquitably);
+    if (placements2) {
+      assigned.set(idx, placements2);
+      continue;
     }
 
-    return { success: true, assignedHours: hours };
-  };
+    stillUnassigned.push(idx);
+  }
 
-  // Ejecutar fases
-  for (const subject of withRestrictions) {
-    const result = assignSubject(subject, false, false);
-    if (!result.success) {
-      unassignedSubjectsPhase1.push({
-        subject,
-        reason: `[FASE 1] ${result.reason}`,
-        assignedHours: result.assignedHours,
-        totalHours: Number(subject.hours[trimestre]),
-      });
+  // ─── Step 6: Convertir a Event[] ───
+  const events: Event[] = [];
+
+  for (const [idx, placements] of assigned.entries()) {
+    const task = tasks[idx];
+    for (const bp of placements) {
+      for (let offset = 0; offset < bp.length; offset++) {
+        const [slotStart, slotEnd] = task.timeSlots[bp.startSlotIndex + offset];
+        events.push({
+          title: task.subject.subject,
+          daysOfWeek: [bp.day],
+          startTime: slotStart,
+          endTime: slotEnd,
+          extendedProps: {
+            subjectId: task.subject.innerId,
+            professorId: task.professorId,
+            classroomId: bp.classroomId,
+            classroomName: bp.classroomName,
+            pnfId: task.subject.pnfId,
+            trayectoId: task.subject.trayectoId,
+            seccion: task.subject.seccion,
+            pnfName: task.subject.pnf,
+            turnName: task.subject.turnoName,
+            blockId: `${bp.day}-${task.subject.innerId}`,
+          },
+        });
+      }
     }
   }
 
-  for (const subject of withoutRestrictions) {
-    const result = assignSubject(subject, false, false);
-    if (!result.success) {
-      unassignedSubjectsPhase2.push({
-        subject,
-        reason: `[FASE 2] ${result.reason}`,
-        assignedHours: result.assignedHours,
-        totalHours: Number(subject.hours[trimestre]),
-      });
+  // ─── Step 7: Reportar errores ───
+  for (const idx of stillUnassigned) {
+    const task = tasks[idx];
+    const realAssigned = events.filter(
+      (e) => e.extendedProps.subjectId === task.subject.innerId
+    ).length;
+
+    const reasons: string[] = [];
+    if (task.availableDays.length < days.length) {
+      reasons.push(`solo ${task.availableDays.length} de ${days.length} días disponibles`);
     }
-  }
-
-  // FASE 3: Reintentar materias no asignadas ignorando restricciones (pero respetando límite de slots)
-  const failedPhase3: UnassignedSubjectItem[] = [];
-  const subjectsToRetryPhase3 = [...unassignedSubjectsPhase1, ...unassignedSubjectsPhase2];
-
-  for (const item of subjectsToRetryPhase3) {
-
-
-    const result = assignSubject(item.subject, true, false); // Ignore restrictions, Respect ConserveSlots
-    if (!result.success) {
-      failedPhase3.push({
-        subject: item.subject,
-        reason: `[FASE 3] ${result.reason}`,
-        assignedHours: result.assignedHours + (item.assignedHours || 0), // Acumulado aproximado para reporte
-        totalHours: item.totalHours,
-      });
+    if (task.candidateClassrooms.length < classrooms.length) {
+      reasons.push(`solo ${task.candidateClassrooms.length} aulas permitidas`);
     }
-  }
-
-  // FASE 4: Reintentar materias fallidas ignorando el límite de horas consecutivas (ConserveSlots)
-  // Esto permite asignar más de 3 horas el mismo día si es necesario para completar.
-  const stillUnassigned: UnassignedSubjectItem[] = [];
-
-  for (const item of failedPhase3) {
-    // Intentamos asignar ignorando TODAS las restricciones (Teacher restrictions Y Slot limits)
-    // Se asume que si falló en fase 3 (ignorando teacher restrictions), sigue necesitando ignorarlas.
-    const result = assignSubject(item.subject, true, true);
-    if (!result.success) {
-      stillUnassigned.push({
-        subject: item.subject,
-        reason: `[FASE 4] ${result.reason}`,
-        assignedHours: result.assignedHours, // Nota: esto podría no ser preciso si se suman, pero para el error final basta saber que falló
-        totalHours: item.totalHours,
-      });
+    if (task.restrictedHours.length > 0) {
+      reasons.push(`${task.restrictedHours.length} horas restringidas`);
     }
-  }
+    reasons.push("horarios y aulas ocupados por otras materias");
 
-  // Reportar errores finales
-  for (const item of stillUnassigned) {
-    // Calcular asignadas reales finales
-    const realAssigned = events.filter(e => e.extendedProps.subjectId === item.subject.innerId).length;
     setErrors({
-      name: item.subject.subject,
-      description: `${item.subject.subject} - No se pudo asignar completamente. ${item.reason} (Asignadas: ${realAssigned}/${item.totalHours} horas)`,
-      seccion: item.subject.seccion,
-      year: item.subject.trayectoName,
-      turn: item.subject.turnoName,
-    });
-  }
-
-  // Resumen final (logs)
-  if (stillUnassigned.length > 0) {
-    console.log("=== MATERIAS NO ASIGNADAS ===");
-    stillUnassigned.forEach((item) => {
-      console.log(`- ${item.subject.subject}: ${item.reason}`);
+      name: task.subject.subject,
+      description: `${task.subject.subject} — No se pudo asignar completamente. (Asignadas: ${realAssigned}/${task.totalHours} horas). Razones: ${reasons.join(", ")}`,
+      seccion: task.subject.seccion,
+      year: task.subject.trayectoName,
+      turn: task.subject.turnoName,
     });
   }
 
   return events;
 }
+
+// =====================================================
+// Utility: Merge consecutive events
+// =====================================================
+
 /**
  * Agrupa eventos consecutivos con el mismo blockId y mergea sus horarios.
  * @param events lista de eventos a agrupar
@@ -683,35 +888,3 @@ export function mergeConsecutiveEvents(events: Event[]): Event[] {
 
   return merged;
 }
-
-/**
- * Verificar si un índice candidato es adyacente a un horario ya asignado en el mismo día.
- * @param subjectId identificador del bloque a asignar
- * @param day día de la semana (1-7)
- * @param candidateIndex índice candidato a asignar
- * @param events lista de eventos ya asignados
- * @param timeSlots lista de horarios posibles
- * @returns true si el índice candidato es adyacente, false de lo contrario
- */
-function isConsecutiveToExisting(
-  subjectId: string,
-  day: number,
-  candidateIndex: number,
-  events: Event[],
-  timeSlots: [string, string][]
-): boolean {
-  const assignedEvents = events.filter(
-    (e) => e.daysOfWeek[0] === day && e.extendedProps.subjectId === subjectId
-  );
-
-  const assignedIndices = assignedEvents
-    .map((e) => timeSlots.findIndex((slot) => slot[0] === e.startTime))
-    .filter((i) => i !== -1)
-    .sort((a, b) => a - b);
-
-  if (assignedIndices.length === 0) return true; // primer bloque del día
-
-  // Verificar si el nuevo índice es adyacente a alguno ya asignado
-  return assignedIndices.some((i) => Math.abs(candidateIndex - i) === 1);
-}
-

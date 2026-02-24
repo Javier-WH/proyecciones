@@ -16,7 +16,7 @@ const toMinutes = (time) => {
   return hours * 60 + minutes
 }
 
-function normalizeSubjectKey (value) {
+function normalizeSubjectKey(value) {
   if (typeof value !== 'string') return null
   const normalized = value
     .normalize('NFD')
@@ -28,7 +28,7 @@ function normalizeSubjectKey (value) {
   return normalized || null
 }
 
-function normalizeClassroomIds (input) {
+function normalizeClassroomIds(input) {
   if (!Array.isArray(input)) return null
 
   const normalized = [...new Set(input.map((value) => {
@@ -39,21 +39,22 @@ function normalizeClassroomIds (input) {
   return normalized.length ? normalized : null
 }
 
-function sanitizeSubjectName (name) {
+function sanitizeSubjectName(name) {
   if (typeof name !== 'string') return null
   const trimmed = name.trim()
   return trimmed || null
 }
 
-function formatSubjectRestriction (restriction) {
+function formatSubjectRestriction(restriction) {
   return {
     subject_key: restriction.subject_key,
     subject_name: restriction.subject_name,
-    classroom_ids: Array.isArray(restriction.classroom_ids) ? restriction.classroom_ids : []
+    classroom_ids: Array.isArray(restriction.classroom_ids) ? restriction.classroom_ids : [],
+    pnf_id: restriction.pnf_id || undefined
   }
 }
 
-function normalizeHour (value) {
+function normalizeHour(value) {
   if (typeof value === 'number') {
     value = value.toString()
   }
@@ -75,7 +76,7 @@ function normalizeHour (value) {
   return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
 }
 
-function normalizeRestrictedDays (daysInput) {
+function normalizeRestrictedDays(daysInput) {
   if (daysInput === undefined || daysInput === null) return []
   if (!Array.isArray(daysInput)) return null
 
@@ -87,7 +88,7 @@ function normalizeRestrictedDays (daysInput) {
   return normalized.sort((a, b) => a - b)
 }
 
-function normalizeHourEntry (entry) {
+function normalizeHourEntry(entry) {
   if (!entry || typeof entry !== 'object') return null
   const day = Number(entry.day)
 
@@ -104,7 +105,7 @@ function normalizeHourEntry (entry) {
   return { day, start, end }
 }
 
-function hasOverlap (entries) {
+function hasOverlap(entries) {
   const byDay = entries.reduce((map, entry) => {
     const list = map.get(entry.day) || []
     list.push(entry)
@@ -124,7 +125,7 @@ function hasOverlap (entries) {
   return false
 }
 
-function normalizeRestrictedHours (hoursInput) {
+function normalizeRestrictedHours(hoursInput) {
   if (hoursInput === undefined || hoursInput === null) return []
   if (!Array.isArray(hoursInput)) return null
 
@@ -145,7 +146,7 @@ function normalizeRestrictedHours (hoursInput) {
   })
 }
 
-function formatRestriction (record, teacherId) {
+function formatRestriction(record, teacherId) {
   if (!record) {
     return {
       teacher_id: teacherId ?? null,
@@ -251,7 +252,7 @@ Router.get('/subject-restrictions/:proyectionId', async (req, res) => {
 
     const restrictions = await SubjectRestrictions.findAll({
       where: { proyection_id: proyectionId },
-      attributes: ['subject_key', 'subject_name', 'classroom_ids'],
+      attributes: ['subject_key', 'subject_name', 'classroom_ids', 'pnf_id'],
       raw: true
     })
 
@@ -307,11 +308,14 @@ Router.post('/subject-restrictions', validateAdminUser, express.json(), async (r
         })
       }
 
+      const pnfIdInput = restriction?.pnf_id ?? restriction?.pnfId
+
       normalizedRestrictions.push({
         proyection_id: proyectionId,
         subject_key: subjectKey,
         subject_name: subjectName,
-        classroom_ids: classroomIds
+        classroom_ids: classroomIds,
+        pnf_id: pnfIdInput || null
       })
     }
 

@@ -28,6 +28,10 @@ SubjectRestrictions.init(
     classroom_ids: {
       type: DataTypes.JSON,
       allowNull: false
+    },
+    pnf_id: {
+      type: DataTypes.UUID,
+      allowNull: true
     }
   },
   {
@@ -41,7 +45,8 @@ SubjectRestrictions.init(
     indexes: [
       {
         unique: true,
-        fields: ['proyection_id', 'subject_key']
+        fields: ['proyection_id', 'subject_key', 'pnf_id'],
+        name: 'subjects_restrictions_proj_subj_pnf_key'
       }
     ]
   }
