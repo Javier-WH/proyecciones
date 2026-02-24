@@ -16,7 +16,7 @@ interface TeacherTableProps {
 const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
   const context = useContext(MainContext) as MainContextValues;
   const { getTeacherHoursData } = useSetSubject(context.subjects || []);
-  const { teachers, setSelectedTeacherById, selectedQuarter, userPerfil } = context;
+  const { teachers, setSelectedTeacherById, selectedQuarter, userPerfil, userPNF } = context;
   const [data, setData] = useState<Teacher[] | null>([]);
   const [searchText, setSearchText] = useState("");
 
@@ -32,17 +32,22 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
     if (!teachers) return;
     let filteredTeachers = [];
 
-    const shouldFilterByPerfil = searchByUserPerfil && Boolean(userPerfil?.length);
+    if (searchByUserPerfil) {
+      const cleanUserPNF = userPNF?.replace(/"/g, "");
+      filteredTeachers = teachers?.filter((teacher) => {
+        // Regla: Priorizar el PNF del profesor
+        const matchesPNF = !cleanUserPNF || teacher.PNF === cleanUserPNF;
 
-    if (shouldFilterByPerfil) {
-      filteredTeachers = teachers?.filter((teacher) =>
-        shareProfileSubjects(teacher.perfil, userPerfil)
-      );
+        // El perfil de materias es un filtro adicional si existe
+        const matchesPerfil = !userPerfil?.length || shareProfileSubjects(teacher.perfil, userPerfil);
+
+        return matchesPNF && matchesPerfil;
+      });
     } else {
       filteredTeachers = teachers;
     }
 
-    if (searchText.length > 0 && filteredTeachers?.length > 0) {
+    if (searchText.length > 0 && (filteredTeachers?.length ?? 0) > 0) {
       filteredTeachers = filteredTeachers?.filter((teacher) => {
         return (
           normalizeText(teacher.name).includes(normalizeText(searchText)) ||
@@ -55,7 +60,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
     }
 
     //filtra los profesores inactivos (los que no tengan flag se consideran activos)
-    filteredTeachers = filteredTeachers.filter((teacher) => {
+    filteredTeachers = (filteredTeachers ?? []).filter((teacher) => {
       return teacher.active ?? true;
     });
 
@@ -65,7 +70,7 @@ const TeacherTable: React.FC<TeacherTableProps> = ({ searchByUserPerfil }) => {
     });
 
     setData(filteredTeachers);
-  }, [searchText, selectedQuarter, teachers, searchByUserPerfil, userPerfil]);
+  }, [searchText, selectedQuarter, teachers, searchByUserPerfil, userPerfil, userPNF]);
 
   // const tagStyle: React.CSSProperties = {
   //   width: "100%",
