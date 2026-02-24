@@ -423,7 +423,7 @@ const SchoolSchedule: React.FC = () => {
     };
 
     if (conflictingEvent) {
-      const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+      const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
       Modal.confirm({
         title: "Aula Ocupada",
         content: `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. ¿Deseas reasignar de todos modos y recalcular el horario alrededor de este cambio?`,
@@ -849,8 +849,8 @@ const SchoolSchedule: React.FC = () => {
 
     // Build Grid
     // Rows: Slots
-    // Cols: Days 1..5 (Monday to Friday)
-    const g = Array(slots.length).fill(null).map(() => Array(6).fill(null));
+    // Cols: Days 1..7 (Monday to Sunday)
+    const g = Array(slots.length).fill(null).map(() => Array(8).fill(null));
 
     // Sort events by start time to ensure sequential processing
     const sortedEvents = [...(events || [])].sort((a: any, b: any) =>
@@ -860,7 +860,7 @@ const SchoolSchedule: React.FC = () => {
     sortedEvents.forEach((event: any) => {
       if (!event.daysOfWeek || !event.daysOfWeek.length) return;
       const day = event.daysOfWeek[0];
-      if (day < 1 || day > 5) return;
+      if (day < 1 || day > 7) return;
 
       const slotIndex = slots.findIndex((s) => s[0] === event.startTime);
       if (slotIndex === -1) return;
@@ -1336,11 +1336,11 @@ const SchoolSchedule: React.FC = () => {
                 <thead style={{ position: "sticky", top: 0, zIndex: 5, backgroundColor: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>
                   <tr>
                     <th style={{ border: "1px solid #dee2e6", padding: "12px", width: "100px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>HORA</th>
-                    <th style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>LUNES</th>
-                    <th style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>MARTES</th>
-                    <th style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>MIÉRCOLES</th>
-                    <th style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>JUEVES</th>
-                    <th style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>VIERNES</th>
+                    {(scheduleConfig?.days || [1, 2, 3, 4, 5]).map(day => (
+                      <th key={day} style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa", textTransform: "uppercase" }}>
+                        {["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][day]}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -1367,7 +1367,7 @@ const SchoolSchedule: React.FC = () => {
                           }}>
                           {formatTime(slot[0])} <br /> - <br /> {formatTime(slot[1])}
                         </td>
-                        {[1, 2, 3, 4, 5].map((day) => {
+                        {(scheduleConfig?.days || [1, 2, 3, 4, 5]).map((day) => {
                           const cell = tableGrid[rowIndex][day];
                           if (cell?.occupied) return null;
 
@@ -1376,7 +1376,7 @@ const SchoolSchedule: React.FC = () => {
                             const baseColor = (pnfId && subjectColors?.[pnfId]) || "#1a73e8";
                             const bgColor = hexToRgba(baseColor, 0.12);
 
-                            const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+                            const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
                             const endTimeIndex = rowIndex + cell.rowSpan - 1;
                             const endTime = tableSlots[endTimeIndex] ? tableSlots[endTimeIndex][1] : "";
 
@@ -1588,7 +1588,7 @@ const SchoolSchedule: React.FC = () => {
                 {classroomChangeEvent.title}
               </div>
               <div style={{ fontSize: "0.85rem", color: "#595959" }}>
-                {["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"][classroomChangeEvent.day]} • {classroomChangeEvent.startTime} - {classroomChangeEvent.endTime}
+                {["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][classroomChangeEvent.day]} • {classroomChangeEvent.startTime} - {classroomChangeEvent.endTime}
               </div>
               <div style={{ fontSize: "0.85rem", color: "#8c8c8c", marginTop: "4px" }}>
                 Aula actual: <strong>{classroomChangeEvent.currentClassroomName}</strong>
