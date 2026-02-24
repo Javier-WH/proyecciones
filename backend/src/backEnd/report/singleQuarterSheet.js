@@ -6,12 +6,13 @@ export default function generateSingleQuarterSheet({
   pnfArray,
   proyectionDate,
   contracts,
+  targetPnfId
 }) {
   let pageNumber = Number.parseInt(sheetNumber);
 
   for (const pnf of pnfArray) {
     for (let quarter = 1; quarter <= 3; quarter++) {
-      const teachers = groupSubjectsByTeacher(pnf, quarter);
+      const teachers = groupSubjectsByTeacher(pnf, quarter, targetPnfId);
       const sheetName = `${pnf[0].pnf} T-${quarter}`
         .replace("P.N.F. en ", "")
         .replace("P.N.F en ", "")
@@ -244,7 +245,7 @@ function getQuaterName(number) {
   }
 }
 
-function groupSubjectsByTeacher(subjects, quarter) {
+function groupSubjectsByTeacher(subjects, quarter, targetPnfId) {
   const teachersMap = {};
 
   subjects.forEach((subject) => {
@@ -277,28 +278,31 @@ function groupSubjectsByTeacher(subjects, quarter) {
     return teacher;
   });
 
-  const filteredSubjectsByQuarter = cleanTeachersArray.map((profesor) => {
+  const filteredTeachersByQuarter = cleanTeachersArray.map((profesor) => {
     const load = profesor.load;
     const filteredLoad = load.filter((subject) => {
       // Para materias semestrales: Q1+Q2 = Semestre 1, Q3 = Semestre 2
-      // Excluir semestrales del trimestre 2 (ya se muestran en trimestre 1 como Semestre 1)
       if (subject.isSemestral && quarter === 2) {
         return false
       }
 
       const isAssignedToThisProfessor = subject.quarter?.[`q${quarter}`] === profesor.id
-      // A subject is unassigned for this quarter if:
-      // 1. We are processing the 'UNASIGNED' list
-      // 2. The subject has no teacher assigned for this quarter (!subject.quarter.qN)
-      // 3. The subject DOES exist in this quarter (it has hours defined: subject.hours.qN)
       const hasHoursForQuarter = subject.hours && subject.hours[`q${quarter}`]
       const isUnassigned = profesor.id === 'UNASIGNED' && !subject.quarter?.[`q${quarter}`] && hasHoursForQuarter
       return isAssignedToThisProfessor || isUnassigned
     })
-    profesor.load = filteredLoad;
+
+    // Nueva regla: Si el profesor es de otro PNF y no tiene materias del PNF objetivo en este trimestre, se vacía su carga
+    const hasPNFSubjectInQuarter = filteredLoad.some(s => s.pnfId === targetPnfId);
+    if (profesor.id !== 'UNASIGNED' && profesor.PNF !== targetPnfId && !hasPNFSubjectInQuarter) {
+      profesor.load = [];
+    } else {
+      profesor.load = filteredLoad;
+    }
+
     return profesor;
   });
 
-  return Object.values(filteredSubjectsByQuarter);
+  return Object.values(filteredTeachersByQuarter);
 }
 

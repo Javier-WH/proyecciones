@@ -42,23 +42,38 @@ export async function generateExcelReport(req, res) {
     }
     const rawSubjects = JSON.parse(proyection.subjects)
 
-    // agrupar materias por pnf
-    const filteredSubjects = rawSubjects.filter((subject) => subject.pnfId === pnfId)
-    if (filteredSubjects.length === 0) {
-      return res.status(404).json({ message: 'No se encontraron materias para el PNF especificado' })
-    }
+    // Obtener los datos de los profesores y sus materias asignadas en la proyección
 
-    // agrupar las materias por profesor
-    const groupedSubjects = groupSubjectsByProfessor(filteredSubjects)
+    // 1. Mapear materias por ID de profesor para evitar búsquedas repetitivas
+    const professorSubjectsMap = {}
+    rawSubjects.forEach(subject => {
+      ['q1', 'q2', 'q3'].forEach(q => {
+        const teacherId = subject.quarter?.[q]
+        if (teacherId) {
+          if (!professorSubjectsMap[teacherId]) professorSubjectsMap[teacherId] = []
+          if (!professorSubjectsMap[teacherId].some(s => s.innerId === subject.innerId)) {
+            professorSubjectsMap[teacherId].push(subject)
+          }
+        }
+      })
+    })
 
-    // Obtener los datos de los profesores desde la base de datos
-    const teachersIDs = groupedSubjects
-      .map((group) => group.professorId)
-      .filter((id) => id !== 'UNASIGNED')
+    // 2. Identificar profesores que califican para el reporte
+    const assignedIdsInPNF = new Set()
+    rawSubjects.forEach(s => {
+      if (s.pnfId === pnfId) {
+        if (s.quarter?.q1) assignedIdsInPNF.add(s.quarter.q1)
+        if (s.quarter?.q2) assignedIdsInPNF.add(s.quarter.q2)
+        if (s.quarter?.q3) assignedIdsInPNF.add(s.quarter.q3)
+      }
+    })
 
     const teachers = await Teachers.findAll({
       where: {
-        [Op.or]: [{ id: teachersIDs }, { PNF: pnfId }]
+        [Op.or]: [
+          { id: Array.from(assignedIdsInPNF) },
+          { PNF: pnfId }
+        ]
       },
       raw: true
     })
@@ -67,60 +82,30 @@ export async function generateExcelReport(req, res) {
       return res.status(404).json({ message: 'No se encontraron profesores' })
     }
 
-    // revisar si todos los profesores tienen un contrato
-    const teachersWhioutContract = teachers.filter(
-      (teacher) =>
-        teacher.contractTypes_id === null ||
-        teacher.contractTypes_id === undefined ||
-        teacher.contractTypes_id === ''
-    )
+    // 3. Verificar contratos
+    const targetTeachers = teachers.filter(t => !t.is_placeholder);
+    const teachersWithoutContract = targetTeachers.filter(t => !t.contractTypes_id)
 
-    if (teachersWhioutContract.length > 0) {
-      const teachersWhioutContractCi = teachersWhioutContract.map((teacher) => teacher.ci).join(', ')
+    if (teachersWithoutContract.length > 0) {
+      const teachersWithoutContractCi = teachersWithoutContract.map((teacher) => teacher.ci).join(', ')
       return res.status(406).json({
-        message: `Hay materias asociadas a profesores sin contrato => ( ${teachersWhioutContractCi} )`
+        message: `Hay profesores sin contrato => ( ${teachersWithoutContractCi} )`
       })
     }
 
-    const reportData = groupedSubjects.map((group) => {
-      let teacher = teachers.find((t) => t.id === group.professorId)
-
-      return {
-        ...group,
-        teacherData: teacher
-      }
+    // 4. Preparar carga académica completa
+    const reportSubjects = teachers.flatMap(teacher => {
+      const mySubjects = professorSubjectsMap[teacher.id] || []
+      return mySubjects.map(s => ({ ...s, teacherData: teacher }))
     })
 
-    // agrupar los datos por pnf
-    let groupedByProgram = groupSubjectsByPnfFromProfessorArray(reportData)
+    // 5. Incluir materias por asignar del PNF
+    const unassignedSubjects = rawSubjects
+      .filter(s => s.pnfId === pnfId && (!s.quarter?.q1 && !s.quarter?.q2 && !s.quarter?.q3))
+      .map(s => ({ ...s, teacherData: { id: 'UNASIGNED', name: 'POR', last_name: 'ASIGNAR' } }))
 
-    /// /////////////////////////////////////////
-    // agrea las materias que el profesor dá en otros pnf
-    // 1. se determina que materias tiene ese profesor en otro pnf
-    const missedSubjects = groupedByProgram?.[0].map((subject) => {
-      const teacherId = subject.teacherData?.id
-      const teacherData = subject.teacherData
-
-      // filtra el pnf para evitar agregar las mismas materias ya agregadas
-      const nonPNFsubjects = rawSubjects
-        .filter((rawSubject) => rawSubject.pnfId !== pnfId)
-        .filter(
-          (rawSubject) =>
-            rawSubject?.quarter?.q1 === teacherId ||
-            rawSubject?.quarter?.q2 === teacherId ||
-            rawSubject?.quarter?.q3 === teacherId
-        )
-        .map((rawSubject) => {
-          rawSubject.teacherData = teacherData
-          return rawSubject
-        })
-
-      return nonPNFsubjects
-    })
-
-    // crea un nuevo objeto con todas las materias que da el profesor de todos los pnf
-    const wholeSubjects = [groupedByProgram?.[0], ...missedSubjects.flat()]
-    groupedByProgram = [wholeSubjects.flat()]
+    const wholeSubjects = [...reportSubjects, ...unassignedSubjects]
+    const groupedByProgram = [wholeSubjects]
     /// /////////////////////////////////
 
     // Crear un nuevo libro de Excel
@@ -135,9 +120,9 @@ export async function generateExcelReport(req, res) {
         sheetNumber: 0,
         workbook,
         pnfArray: groupedByProgram,
-        // pnfArray: [wholeSubjects.flat()],
         proyectionDate,
-        contracts
+        contracts,
+        targetPnfId: pnfId
       })
       responseWarkbook = singleQuaterWarkbook
     } else if (type === 2) {
@@ -147,9 +132,9 @@ export async function generateExcelReport(req, res) {
         sheetNumber: 0,
         workbook,
         pnfArray: groupedByProgram,
-        // pnfArray: [wholeSubjects.flat()],
         proyectionDate,
-        contracts
+        contracts,
+        targetPnfId: pnfId
       })
       responseWarkbook = triQuaterWarkbook
     }
@@ -164,7 +149,8 @@ export async function generateExcelReport(req, res) {
     const proyectionName = cleanFileNamePart(proyection?.name)
 
     // obtener el nombre del pnf
-    const pnfName = cleanFileNamePart(filteredSubjects[0]?.pnf).replace('P.N.F._en_', '')
+    const pnfRawObjForName = rawSubjects.find(s => s.pnfId === pnfId)
+    const pnfName = cleanFileNamePart(pnfRawObjForName ? pnfRawObjForName.pnf : 'PNF').replace('P.N.F._en_', '')
 
     // --- Obtener y formatear la fecha actual ---
     const today = new Date()
@@ -191,74 +177,7 @@ export async function generateExcelReport(req, res) {
   }
 }
 
-function groupSubjectsByProfessor(subjects) {
-  const professorsMap = {}
 
-  subjects.forEach((subject) => {
-    const quarters = subject.quarter
-
-    const subjectWithoutQuarter = {
-      ...subject
-    }
-
-    const targetQuarters = ['q1', 'q2', 'q3']
-
-    for (const quarterKey of targetQuarters) {
-      if (Object.prototype.hasOwnProperty.call(quarters, quarterKey)) {
-        const professorId = quarters[quarterKey] || 'UNASIGNED'
-
-        // If the professorId doesn't exist in our map, create an entry
-        if (!professorsMap[professorId]) {
-          professorsMap[professorId] = {
-            professorId,
-            subjects: []
-          }
-        }
-        professorsMap[professorId].subjects.push(subjectWithoutQuarter)
-      }
-    }
-  })
-
-  // Convert the map values into an array
-  return Object.values(professorsMap)
-}
-
-function groupSubjectsByPnfFromProfessorArray(professorsWithSubjects) {
-  const pnfSubjectsMap = {} // Map to hold arrays of subjects, grouped by PNF
-
-  // Iterate through each professor's data (which includes teacherData)
-  professorsWithSubjects.forEach((professorData) => {
-    // Get the teacherData associated with this professor
-    const teacherData = professorData.teacherData
-
-    // Iterate through the subjects assigned to this professor
-    professorData.subjects.forEach((subject) => {
-      const pnfId = subject.pnfId
-
-      // Ensure the pnfId exists
-      if (pnfId) {
-        // If the PNF ID is not yet a key in the map, initialize its array
-        if (!pnfSubjectsMap[pnfId]) {
-          pnfSubjectsMap[pnfId] = [] // The value is just an array of subjects for this PNF
-        }
-
-        // Create a new object that is a copy of the subject,
-        // and add the teacherData property to it.
-        const subjectWithTeacher = {
-          ...subject, // Copy all properties from the original subject
-          teacherData // Add the teacherData key with the current professor's data
-        }
-
-        // Push this new object (subject with teacherData) into the array for its PNF
-        pnfSubjectsMap[pnfId].push(subjectWithTeacher)
-      }
-    })
-  })
-
-  // Convert the map values (which are the arrays of subjects, now including teacherData)
-  // into a single array. This preserves the structure [ [PNF1 subjects], [PNF2 subjects], ... ]
-  return Object.values(pnfSubjectsMap)
-}
 
 function formatQuarterDateRange(dateString) {
   const date = new Date(dateString)

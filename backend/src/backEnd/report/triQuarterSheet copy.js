@@ -6,11 +6,12 @@ export default function generateTriQuarterSheet({
   pnfArray,
   proyectionDate,
   contracts,
+  targetPnfId
 }) {
   let pageNumber = Number.parseInt(sheetNumber);
 
   for (const pnf of pnfArray) {
-    const teachers = groupSubjectsByTeacher(pnf);
+    const teachers = groupSubjectsByTeacher(pnf, targetPnfId);
     const sheetName = `${pnf[0].pnf} I-II-III`
       .replace("P.N.F. en ", "")
       .replace("P.N.F en ", "")
@@ -296,7 +297,7 @@ export default function generateTriQuarterSheet({
   };
 }
 
-function groupSubjectsByTeacher(subjects, quarter) {
+function groupSubjectsByTeacher(subjects, targetPnfId) {
   const teachersMap = {};
 
   subjects.forEach((subject) => {
@@ -334,6 +335,13 @@ function groupSubjectsByTeacher(subjects, quarter) {
     return teacher;
   });
 
-  return Object.values(cleanTeachersArray);
+  // Filtrar los profesores: Si es de otro PNF, solo incluir si tiene al menos una materia del PNF objetivo
+  const qualifiedTeachers = cleanTeachersArray.filter(profesor => {
+    if (profesor.id === 'UNASIGNED') return true;
+    if (profesor.PNF === targetPnfId) return true;
+    return profesor.load.some(s => s.pnfId === targetPnfId);
+  });
+
+  return Object.values(qualifiedTeachers);
 }
 
