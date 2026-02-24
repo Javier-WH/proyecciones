@@ -435,9 +435,6 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
                 {showUnasignedSubject ? "Mostrar todas" : "Mostrar sin asignar"}
               </Button>
             </Col>
-            <Col xs={24} sm={12} md={6} style={{ marginLeft: 'auto' }}>
-              {/* This could be a place for additional primary actions if needed */}
-            </Col>
           </Row>
         </Card>
 
@@ -446,12 +443,15 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
             columns={columns}
             dataSource={subjectList}
             rowKey="innerId"
-            pagination={{ pageSize: 12, showSizeChanger: true }}
-            scroll={{ x: 'max-content', y: 'calc(100vh - 380px)' }}
+            pagination={{
+              pageSize: 12,
+              showSizeChanger: true,
+              style: { marginBottom: '5px' }
+            }}
+            scroll={{ x: 'max-content', y: 'calc(100vh - 210px)' }}
           />
         </Card>
       </div>
     </div>
   );
 }
-
