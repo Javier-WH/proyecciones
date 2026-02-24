@@ -262,6 +262,11 @@ function generateDecompositions(
 
   // Score and sort
   unique.sort((a, b) => {
+    // 0. Severely penalize blocks of 1 (user request: only as absolute last resort)
+    const aHasOne = a.includes(1) ? 1 : 0;
+    const bHasOne = b.includes(1) ? 1 : 0;
+    if (aHasOne !== bHasOne) return aHasOne - bHasOne;
+
     // 1. Prefer all blocks ≥ minPerBlock
     const aAllValid = a.every((x) => x >= minPerBlock) ? 0 : 1;
     const bAllValid = b.every((x) => x >= minPerBlock) ? 0 : 1;
