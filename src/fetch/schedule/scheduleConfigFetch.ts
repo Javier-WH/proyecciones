@@ -6,6 +6,7 @@ export interface ScheduleConfig {
     min_consecutive_slots: number;
     active: boolean;
     distribute_equitably?: boolean;
+    prevent_single_hour_blocks?: boolean;
 }
 
 const API_BASE_URL = import.meta.env.MODE === 'development'

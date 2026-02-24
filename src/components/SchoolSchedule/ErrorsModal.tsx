@@ -11,6 +11,8 @@ export interface scheduleError {
   year: string;
   description: string;
   pnfName: string;
+  professorName?: string;
+  trimestre?: string;
 }
 
 interface params {
@@ -160,6 +162,32 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
                           }}
                         >
                           {err.pnfName}
+                        </span>
+                      )}
+                      {err.professorName && (
+                        <span
+                          style={{
+                            backgroundColor: "#e6f7ff",
+                            border: "1px solid #91d5ff",
+                            borderRadius: "4px",
+                            padding: "0 6px",
+                            color: "#096dd9"
+                          }}
+                        >
+                          Profesor: {err.professorName}
+                        </span>
+                      )}
+                      {err.trimestre && (
+                        <span
+                          style={{
+                            backgroundColor: "#f6ffed",
+                            border: "1px solid #b7eb8f",
+                            borderRadius: "4px",
+                            padding: "0 6px",
+                            color: "#389e0d"
+                          }}
+                        >
+                          {err.trimestre}
                         </span>
                       )}
                     </div>

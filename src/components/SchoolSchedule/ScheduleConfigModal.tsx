@@ -41,6 +41,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                 conserve_slots: data.conserve_slots,
                 min_consecutive_slots: data.min_consecutive_slots,
                 distribute_equitably: data.distribute_equitably,
+                prevent_single_hour_blocks: data.prevent_single_hour_blocks,
             });
         }
         setLoading(false);
@@ -166,6 +167,10 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
 
                     <Form.Item name="distribute_equitably" valuePropName="checked">
                         <Checkbox>Distribuir horas equitativamente (Ej: 4 horas en 2 días de 2 horas)</Checkbox>
+                    </Form.Item>
+
+                    <Form.Item name="prevent_single_hour_blocks" valuePropName="checked">
+                        <Checkbox>Evitar que las materias queden con bloques de solo 1 hora</Checkbox>
                     </Form.Item>
 
                     <div style={{ display: "flex", gap: "16px" }}>

@@ -32,6 +32,14 @@ ScheduleConfig.init(
         active: {
             type: DataTypes.BOOLEAN,
             defaultValue: true
+        },
+        distribute_equitably: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        prevent_single_hour_blocks: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
         }
     },
     {

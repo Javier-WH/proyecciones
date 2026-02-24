@@ -16,7 +16,7 @@ export const getScheduleConfig = async (req, res) => {
 export const updateScheduleConfig = async (req, res) => {
     try {
         const { id } = req.params
-        const { days, turnos, conserve_slots, min_consecutive_slots } = req.body
+        const { days, turnos, conserve_slots, min_consecutive_slots, distribute_equitably, prevent_single_hour_blocks } = req.body
 
         const config = await ScheduleConfig.findByPk(id)
         if (!config) {
@@ -27,6 +27,8 @@ export const updateScheduleConfig = async (req, res) => {
         config.turnos = turnos
         config.conserve_slots = conserve_slots
         config.min_consecutive_slots = min_consecutive_slots
+        config.distribute_equitably = distribute_equitably
+        config.prevent_single_hour_blocks = prevent_single_hour_blocks
         await config.save()
 
         return res.status(200).json(config)
@@ -38,7 +40,7 @@ export const updateScheduleConfig = async (req, res) => {
 
 export const createScheduleConfig = async (req, res) => {
     try {
-        const { days, turnos, conserve_slots, min_consecutive_slots } = req.body
+        const { days, turnos, conserve_slots, min_consecutive_slots, distribute_equitably, prevent_single_hour_blocks } = req.body
 
         // Deactivate previous configs
         await ScheduleConfig.update({ active: false }, { where: { active: true } })
@@ -48,6 +50,8 @@ export const createScheduleConfig = async (req, res) => {
             turnos,
             conserve_slots,
             min_consecutive_slots,
+            distribute_equitably,
+            prevent_single_hour_blocks,
             active: true
         })
 

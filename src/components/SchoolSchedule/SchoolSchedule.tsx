@@ -131,6 +131,16 @@ const SchoolSchedule: React.FC = () => {
   } | null>(null);
   const [newClassroomId, setNewClassroomId] = useState<string>("");
 
+  const [draggedEventInfo, setDraggedEventInfo] = useState<{
+    sourceDay: number;
+    sourceStartTime: string;
+    rowSpan: number;
+    title: string;
+    classroomId: string;
+    seccion: string;
+    pnfName: string;
+  } | null>(null);
+
   // New state for view mode and selected professor
   const [viewMode, setViewMode] = useState<"pnf" | "professor" | "classroom">("pnf");
   const [selectedProfessorId, setSelectedProfessorId] = useState<string | null>(null);
@@ -329,60 +339,105 @@ const SchoolSchedule: React.FC = () => {
   const handleChangeClassroom = () => {
     if (!classroomChangeEvent || !newClassroomId) return;
 
-    const newClassroom = classrooms.find(c => c.id === newClassroomId);
+    const newClassroom = classrooms.find((c) => c.id === newClassroomId);
     if (!newClassroom) return;
 
     // Check if the new classroom is already occupied by another event
-    // during the same time slots on the same day
-    const conflictingEvent = eventData.find(evt => {
+    const allEventsForConflict = [...loadedScheduleEvents, ...eventData];
+    const conflictingEvent = allEventsForConflict.find((evt) => {
       // Must be on the same day
       const sameDay = evt.daysOfWeek.includes(classroomChangeEvent.day);
       // Must already use the target classroom
       const usesTargetClassroom = evt.extendedProps.classroomId === newClassroomId;
       // Must overlap with our block's time range
-      const overlapsTime = evt.startTime >= classroomChangeEvent.startTime
-        && evt.startTime < classroomChangeEvent.endTime;
+      const overlapsTime =
+        evt.startTime >= classroomChangeEvent.startTime &&
+        evt.startTime < classroomChangeEvent.endTime;
       // Must NOT be the same event we're changing (different title or different classroom)
-      const isOtherEvent = evt.title !== classroomChangeEvent.title
-        || evt.extendedProps.classroomId !== classroomChangeEvent.currentClassroomId;
+      const isOtherEvent =
+        evt.title !== classroomChangeEvent.title ||
+        evt.extendedProps.classroomId !== classroomChangeEvent.currentClassroomId;
 
       return sameDay && usesTargetClassroom && overlapsTime && isOtherEvent;
     });
 
-    if (conflictingEvent) {
-      const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
-      message.error(
-        `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" ` +
-        `el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}.`
-      );
-      return;
-    }
+    const applyClassroomChangeAndRecalculate = () => {
+      const allEvents = [...loadedScheduleEvents, ...eventData];
 
-    // Update eventData: find ALL events within the merged block's time range
-    const updatedEvents = eventData.map(evt => {
-      const matchesDay = evt.daysOfWeek.includes(classroomChangeEvent.day);
-      const matchesTitle = evt.title === classroomChangeEvent.title;
-      const withinTimeRange = evt.startTime >= classroomChangeEvent.startTime
-        && evt.startTime < classroomChangeEvent.endTime;
-      const matchesClassroom = evt.extendedProps.classroomId === classroomChangeEvent.currentClassroomId;
-
-      if (matchesDay && matchesTitle && withinTimeRange && matchesClassroom) {
-        return {
+      // Find the specific events we are modifying
+      const modifiedEvents = allEvents
+        .filter((evt) => {
+          const matchesDay = evt.daysOfWeek.includes(classroomChangeEvent.day);
+          const matchesTitle = evt.title === classroomChangeEvent.title;
+          const withinTimeRange =
+            evt.startTime >= classroomChangeEvent.startTime &&
+            evt.startTime < classroomChangeEvent.endTime;
+          const matchesClassroom =
+            evt.extendedProps.classroomId === classroomChangeEvent.currentClassroomId;
+          return matchesDay && matchesTitle && withinTimeRange && matchesClassroom;
+        })
+        .map((evt) => ({
           ...evt,
           extendedProps: {
             ...evt.extendedProps,
             classroomId: newClassroomId,
             classroomName: newClassroom.classroom,
           },
-        };
-      }
-      return evt;
-    });
+        }));
 
-    setEventData(updatedEvents);
-    message.success(`Aula cambiada a "${newClassroom.classroom}" para ${classroomChangeEvent.title} el día seleccionado.`);
-    setClassroomChangeEvent(null);
-    setNewClassroomId("");
+      if (modifiedEvents.length === 0) {
+        message.error("No se pudo aplicar el cambio. El evento original no se encontró.");
+        setClassroomChangeEvent(null);
+        setNewClassroomId("");
+        return;
+      }
+
+      // Remover cualquier versión previa de esta materia de los eventos clavados (pinned)
+      setLoadedScheduleEvents((prev) => {
+        const title = classroomChangeEvent.title;
+        const day = classroomChangeEvent.day;
+        const startTime = classroomChangeEvent.startTime;
+        const endTime = classroomChangeEvent.endTime;
+
+        const filteredPrev = prev.filter(
+          (e) =>
+            !(
+              e.title === title &&
+              e.daysOfWeek.includes(day) &&
+              e.startTime >= startTime &&
+              e.startTime < endTime
+            )
+        );
+
+        return [...filteredPrev, ...modifiedEvents];
+      });
+
+      // Recalcular todo el horario alrededor de este nuevo evento fijo
+      setGenerationCounter((prev) => prev + 1);
+
+      message.success(
+        `Aula cambiada a "${newClassroom.classroom}" para ${classroomChangeEvent.title} el día seleccionado.`
+      );
+      setClassroomChangeEvent(null);
+      setNewClassroomId("");
+    };
+
+    if (conflictingEvent) {
+      const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+      Modal.confirm({
+        title: "Aula Ocupada",
+        content: `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. ¿Deseas reasignar de todos modos y recalcular el horario alrededor de este cambio?`,
+        okText: "Sí, cambiar aula y recalcular",
+        cancelText: "Deshacer",
+        okButtonProps: { danger: true },
+        onOk: () => {
+          applyClassroomChangeAndRecalculate();
+        },
+      });
+      return;
+    }
+
+    applyClassroomChangeAndRecalculate();
   };
 
   const putSubjectRestriction = async (subjectName: string, classroomIds: string[], pnfId?: string) => {
@@ -642,6 +697,8 @@ const SchoolSchedule: React.FC = () => {
       customDays: scheduleConfig?.days,
       customTurnos: scheduleConfig?.turnos,
       distributeEquitably: scheduleConfig?.distribute_equitably,
+      preventSingleHourBlocks: scheduleConfig?.prevent_single_hour_blocks,
+      teachers: teachers || [],
     });
 
     setEventData(eventsdata);
@@ -657,6 +714,7 @@ const SchoolSchedule: React.FC = () => {
     subjectRestrictionsReady,
     consecutiveConfig,
     scheduleConfig,
+    teachers,
     generationCounter,  // Fuerza regeneración cuando se aplican restricciones
   ]);
 
@@ -872,6 +930,133 @@ const SchoolSchedule: React.FC = () => {
     return { tableSlots: slots, tableGrid: g };
   }, [viewMode, activeTurnos, turn, events]);
   // ------------------------------
+
+  const handleDrop = (targetRowIndex: number, targetDay: number) => {
+    if (!draggedEventInfo || !tableSlots[targetRowIndex]) return;
+
+    const { sourceDay, sourceStartTime, rowSpan, title, classroomId, seccion, pnfName } = draggedEventInfo;
+    const targetStartTime = tableSlots[targetRowIndex][0];
+
+    if ((sourceDay === targetDay && sourceStartTime === targetStartTime) || targetRowIndex + rowSpan > tableSlots.length) {
+      setDraggedEventInfo(null);
+      return;
+    }
+
+    const sourceStartIdx = tableSlots.findIndex(s => s[0] === sourceStartTime);
+
+    const allEvents = [...loadedScheduleEvents, ...eventData];
+
+    // Identificar los eventos movidos y los slots de destino
+    const movingEvents = allEvents.filter(evt => {
+      const isTargetSubject = evt.daysOfWeek.includes(sourceDay) &&
+        evt.title === title &&
+        evt.extendedProps.classroomId === classroomId &&
+        evt.extendedProps.seccion === seccion &&
+        evt.extendedProps.pnfName === pnfName;
+
+      if (!isTargetSubject) return false;
+      const evtStartIdx = tableSlots.findIndex(s => s[0] === evt.startTime);
+      return evtStartIdx >= sourceStartIdx && evtStartIdx < sourceStartIdx + rowSpan;
+    });
+
+    if (movingEvents.length === 0) {
+      setDraggedEventInfo(null);
+      return;
+    }
+
+    const targetSlots = tableSlots.slice(targetRowIndex, targetRowIndex + rowSpan);
+    const targetSlotStarts = targetSlots.map(s => s[0]);
+    const firstMovingEvent = movingEvents[0];
+    const profId = firstMovingEvent.extendedProps.professorId;
+    const trayId = firstMovingEvent.extendedProps.trayectoId;
+
+    // --- REVISIÓN DE RESTRICCIONES Y CONFLICTOS ---
+    let conflictFound = false;
+
+    // 1. Conflictos de profesor, sección y aula
+    for (const evt of allEvents) {
+      if (movingEvents.includes(evt)) continue; // Ignorar el propio evento que se mueve
+      if (!evt.daysOfWeek.includes(targetDay)) continue;
+
+      if (targetSlotStarts.includes(evt.startTime)) {
+        const sameClassroom = evt.extendedProps.classroomId === classroomId;
+        const sameProf = profId && evt.extendedProps.professorId === profId;
+        const sameSection = evt.extendedProps.seccion === seccion && evt.extendedProps.pnfName === pnfName && evt.extendedProps.trayectoId === trayId;
+
+        if (sameClassroom) {
+          message.error(`El aula ya está ocupada por "${evt.title}" a las ${evt.startTime}.`);
+          conflictFound = true; break;
+        }
+        if (sameProf) {
+          message.error(`El profesor ya da clase de "${evt.title}" a las ${evt.startTime}.`);
+          conflictFound = true; break;
+        }
+        if (sameSection) {
+          message.error(`La sección ya ve "${evt.title}" a las ${evt.startTime}.`);
+          conflictFound = true; break;
+        }
+      }
+    }
+
+    // 2. Restricciones del Profesor (Días y Horas)
+    if (profId && !conflictFound) {
+      const profRest = teacherRestrictions.find(r => r.teacherId === profId);
+      if (profRest) {
+        if (profRest.days?.includes(targetDay)) {
+          message.error("El profesor no tiene disponibilidad este día de la semana.");
+          conflictFound = true;
+        } else {
+          const restrictedTime = profRest.hours?.find(h => h.day === targetDay && targetSlotStarts.includes(h.start));
+          if (restrictedTime) {
+            message.error(`El profesor tiene la hora de las ${restrictedTime.start} restringida este día.`);
+            conflictFound = true;
+          }
+        }
+      }
+    }
+
+    const pinDraggedEventsAndRecalculate = () => {
+      const newPinnedEvents = movingEvents.map((evt, idx) => {
+        const newSlot = targetSlots[idx];
+        return {
+          ...evt,
+          daysOfWeek: [targetDay],
+          startTime: newSlot[0],
+          endTime: newSlot[1]
+        };
+      });
+
+      // Remover cualquier versión previa de esta misma sección de los eventos clavados (pinned)
+      setLoadedScheduleEvents(prev => [
+        ...prev.filter(e => !(e.title === title && e.extendedProps.pnfName === pnfName && e.extendedProps.seccion === seccion)),
+        ...newPinnedEvents
+      ]);
+      setGenerationCounter(prev => prev + 1);
+    };
+
+    if (conflictFound) {
+      Modal.confirm({
+        title: "Conflicto de Horario Detectado",
+        content: `La posición que deseas asignar tiene conflictos o restricciones ocupadas. ¿Deseas forzar el cambio de todos modos y recalcular automáticamente el resto del horario alrededor de esta nueva posición?`,
+        okText: "Sí, forzar y recalcular",
+        cancelText: "Deshacer",
+        okButtonProps: { danger: true },
+        onOk: () => {
+          pinDraggedEventsAndRecalculate();
+          setDraggedEventInfo(null);
+        },
+        onCancel: () => {
+          setDraggedEventInfo(null);
+        }
+      });
+      return;
+    }
+
+    // Si no hay conflicto, igual lo anclamos para que soporte futuros recálculos sin perderse
+    pinDraggedEventsAndRecalculate();
+    setDraggedEventInfo(null);
+
+  };
 
   const handleViewModeChange = (mode: "pnf" | "professor" | "classroom") => {
     setViewMode(mode);
@@ -1230,6 +1415,28 @@ const SchoolSchedule: React.FC = () => {
                                 className="schedule-time-cell"
                                 key={day}
                                 rowSpan={cell.rowSpan}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.effectAllowed = "move";
+                                  e.dataTransfer.setData("text/plain", cell.title || "");
+                                  setDraggedEventInfo({
+                                    sourceDay: day,
+                                    sourceStartTime: slot[0],
+                                    rowSpan: cell.rowSpan,
+                                    title: cell.title || "",
+                                    classroomId: cell.extendedProps?.classroomId || "",
+                                    seccion: cell.extendedProps?.seccion || "",
+                                    pnfName: cell.extendedProps?.pnfName || "",
+                                  });
+                                }}
+                                onDragOver={(e) => {
+                                  e.preventDefault();
+                                  e.dataTransfer.dropEffect = "move";
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  handleDrop(rowIndex, day);
+                                }}
                                 style={{
                                   border: "1px solid #dee2e6",
                                   padding: "6px",
@@ -1237,6 +1444,8 @@ const SchoolSchedule: React.FC = () => {
                                   backgroundColor: bgColor,
                                   borderLeft: `4px solid ${baseColor}`,
                                   height: "100%",
+                                  cursor: "grab",
+                                  opacity: draggedEventInfo?.title === cell.title && draggedEventInfo?.sourceDay === day && draggedEventInfo?.sourceStartTime === slot[0] ? 0.3 : 1
                                 }}
                               >
                                 <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]}>
@@ -1283,7 +1492,10 @@ const SchoolSchedule: React.FC = () => {
                               </td>
                             );
                           } else {
-                            return <td key={day} style={{ border: "1px solid #dee2e6" }}></td>;
+                            return <td key={day} style={{ border: "1px solid #dee2e6" }}
+                              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                              onDrop={(e) => { e.preventDefault(); handleDrop(rowIndex, day); }}
+                            ></td>;
                           }
                         })}
                       </tr>

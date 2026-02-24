@@ -52,6 +52,8 @@ export default async function syncScheduleConfig() {
             turnos: defaultTurnos,
             conserve_slots: 3,
             min_consecutive_slots: 2,
+            distribute_equitably: false,
+            prevent_single_hour_blocks: false,
             active: true
         })
         console.log('Configuración de horarios inicial creada.')
