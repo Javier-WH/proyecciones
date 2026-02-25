@@ -6,6 +6,7 @@ import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { turnos } from "./fucntions";
 import { saveTeacherRestriction, type TeacherRestrictionPayload } from "../../fetch/schedule/teacherRestrictions";
+import { getScheduleConfig } from "../../fetch/schedule/scheduleConfigFetch";
 
 interface day {
   value: number;
@@ -39,22 +40,18 @@ const TeacherRestrictionModal: React.FC<{
   const [restrictedHours, setRestrictedHours] = useState<HourRestriction[]>([]);
   const [activeDayTab, setActiveDayTab] = useState<string>("1");
   const [savingRestrictions, setSavingRestrictions] = useState(false);
+  const [activeTurnos, setActiveTurnos] = useState<Record<string, [string, string][]>>(turnos);
+  const [activeDays, setActiveDays] = useState<number[]>([1, 2, 3, 4, 5]);
 
-  const days: day[] = useMemo(
-    () => [
-      { value: 1, label: "Lunes" },
-      { value: 2, label: "Martes" },
-      { value: 3, label: "Miercoles" },
-      { value: 4, label: "Jueves" },
-      { value: 5, label: "Viernes" },
-    ],
-    []
-  );
+  const days: day[] = useMemo(() => {
+    const labels = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+    return activeDays.map((d) => ({ value: d, label: labels[d] || String(d) }));
+  }, [activeDays]);
 
   // Calculate all unique time slots sorted by time
   const allSlots = useMemo(() => {
     const uniqueSlots = new Map<string, HourBlock>();
-    Object.values(turnos).forEach((turn) => {
+    Object.values(activeTurnos).forEach((turn) => {
       turn.forEach(([start, end]) => {
         const key = `${start}-${end}`;
         if (!uniqueSlots.has(key)) {
@@ -65,7 +62,7 @@ const TeacherRestrictionModal: React.FC<{
     return Array.from(uniqueSlots.values()).sort((a, b) =>
       a.start.localeCompare(b.start)
     );
-  }, []);
+  }, [activeTurnos]);
 
   const cleanUp = () => {
     setSelectedTeacher("");
@@ -75,9 +72,18 @@ const TeacherRestrictionModal: React.FC<{
     setSavingRestrictions(false);
   };
 
-  const showModal = () => {
+  const showModal = async () => {
     cleanUp();
     setIsModalOpen(true);
+    try {
+      const config = await getScheduleConfig();
+      if (config) {
+        if (config.turnos) setActiveTurnos(config.turnos);
+        if (config.days) setActiveDays(config.days);
+      }
+    } catch (error) {
+      console.error("Error fetching schedule config", error);
+    }
   };
 
   const handleCancel = () => {

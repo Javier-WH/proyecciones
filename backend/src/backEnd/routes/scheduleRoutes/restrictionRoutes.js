@@ -105,26 +105,6 @@ function normalizeHourEntry(entry) {
   return { day, start, end }
 }
 
-function hasOverlap(entries) {
-  const byDay = entries.reduce((map, entry) => {
-    const list = map.get(entry.day) || []
-    list.push(entry)
-    map.set(entry.day, list)
-    return map
-  }, new Map())
-
-  for (const slots of byDay.values()) {
-    slots.sort((a, b) => toMinutes(a.start) - toMinutes(b.start))
-    for (let i = 1; i < slots.length; i++) {
-      if (toMinutes(slots[i].start) < toMinutes(slots[i - 1].end)) {
-        return true
-      }
-    }
-  }
-
-  return false
-}
-
 function normalizeRestrictedHours(hoursInput) {
   if (hoursInput === undefined || hoursInput === null) return []
   if (!Array.isArray(hoursInput)) return null
@@ -134,10 +114,6 @@ function normalizeRestrictedHours(hoursInput) {
     const normalizedEntry = normalizeHourEntry(entry)
     if (!normalizedEntry) return null
     normalized.push(normalizedEntry)
-  }
-
-  if (hasOverlap(normalized)) {
-    return null
   }
 
   return normalized.sort((a, b) => {
@@ -184,12 +160,14 @@ Router.post('/teacher-restrictions', express.json(), async (req, res) => {
       })
     }
 
+    console.log(restrictedHoursInput)
     const restrictedHours = normalizeRestrictedHours(restrictedHoursInput)
+    console.log(restrictedHours)
     if (restrictedHours === null) {
       return res.status(400).json({
         error: true,
         message:
-          'restricted_hours debe ser un arreglo de objetos { day, start, end } con horarios válidos y sin traslapes'
+          'restricted_hours debe ser un arreglo de objetos { day, start, end } con horarios válidos'
       })
     }
 
