@@ -20,7 +20,12 @@ export const getScheduleConfig = async (): Promise<ScheduleConfig | null> => {
             if (response.status === 404) return null;
             throw new Error('Error fetching schedule config');
         }
-        return await response.json();
+        const data = await response.json();
+        if (data) {
+            if (typeof data.turnos === 'string') data.turnos = JSON.parse(data.turnos);
+            if (typeof data.days === 'string') data.days = JSON.parse(data.days);
+        }
+        return data;
     } catch (error) {
         console.error(error);
         return null;
@@ -45,7 +50,12 @@ export const updateScheduleConfig = async (
             return { error: true, message: errorData.message || 'Error updating schedule config' };
         }
 
-        return await response.json();
+        const result = await response.json();
+        if (result && !result.error) {
+            if (typeof result.turnos === 'string') result.turnos = JSON.parse(result.turnos);
+            if (typeof result.days === 'string') result.days = JSON.parse(result.days);
+        }
+        return result;
     } catch (error) {
         console.error(error);
         return { error: true, message: 'Internal server error' };

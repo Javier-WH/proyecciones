@@ -156,6 +156,7 @@ const SchoolSchedule: React.FC = () => {
     }
     return base;
   }, [scheduleConfig]);
+  const activeDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
@@ -1304,6 +1305,8 @@ const SchoolSchedule: React.FC = () => {
               putTeacherRestriction={putTeacherRestriction}
               teacherRestrictions={teacherRestrictions}
               loadingTeacherRestrictions={!teacherRestrictionsReady}
+              scheduleTurnos={activeTurnos}
+              scheduleDays={activeDays}
             />
             <SubjectRestrictionModal
               putSubjectRestriction={putSubjectRestriction}

@@ -6,7 +6,7 @@ import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { turnos } from "./fucntions";
 import { saveTeacherRestriction, type TeacherRestrictionPayload } from "../../fetch/schedule/teacherRestrictions";
-import { getScheduleConfig } from "../../fetch/schedule/scheduleConfigFetch";
+
 
 interface day {
   value: number;
@@ -32,7 +32,9 @@ const TeacherRestrictionModal: React.FC<{
   ) => void;
   teacherRestrictions: { teacherId: string; days: number[]; hours: HourRestriction[] }[];
   loadingTeacherRestrictions?: boolean;
-}> = ({ putTeacherRestriction, teacherRestrictions, loadingTeacherRestrictions = false }) => {
+  scheduleDays?: number[];
+  scheduleTurnos?: Record<string, [string, string][]>;
+}> = ({ putTeacherRestriction, teacherRestrictions, loadingTeacherRestrictions = false, scheduleDays, scheduleTurnos }) => {
   const { teachers } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
@@ -40,8 +42,16 @@ const TeacherRestrictionModal: React.FC<{
   const [restrictedHours, setRestrictedHours] = useState<HourRestriction[]>([]);
   const [activeDayTab, setActiveDayTab] = useState<string>("1");
   const [savingRestrictions, setSavingRestrictions] = useState(false);
-  const [activeTurnos, setActiveTurnos] = useState<Record<string, [string, string][]>>(turnos);
-  const [activeDays, setActiveDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [activeTurnos, setActiveTurnos] = useState<Record<string, [string, string][]>>(scheduleTurnos || turnos);
+  const [activeDays, setActiveDays] = useState<number[]>(scheduleDays || [1, 2, 3, 4, 5]);
+
+  useEffect(() => {
+    if (scheduleTurnos) setActiveTurnos(scheduleTurnos);
+  }, [scheduleTurnos]);
+
+  useEffect(() => {
+    if (scheduleDays) setActiveDays(scheduleDays);
+  }, [scheduleDays]);
 
   const days: day[] = useMemo(() => {
     const labels = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -72,18 +82,9 @@ const TeacherRestrictionModal: React.FC<{
     setSavingRestrictions(false);
   };
 
-  const showModal = async () => {
+  const showModal = () => {
     cleanUp();
     setIsModalOpen(true);
-    try {
-      const config = await getScheduleConfig();
-      if (config) {
-        if (config.turnos) setActiveTurnos(config.turnos);
-        if (config.days) setActiveDays(config.days);
-      }
-    } catch (error) {
-      console.error("Error fetching schedule config", error);
-    }
   };
 
   const handleCancel = () => {
