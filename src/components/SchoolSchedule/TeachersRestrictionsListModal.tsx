@@ -1,6 +1,6 @@
 import { useContext, useState, useMemo } from "react";
 import { Modal, Select, Table, Tag, Empty, Button, Tabs } from "antd";
-import { FaUserCheck } from "react-icons/fa";
+import { FaUsers } from "react-icons/fa6";
 import styles from "./modal.module.css";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
@@ -148,10 +148,10 @@ const TeachersRestrictionsListModal: React.FC<{
 
   return (
     <>
-      <FaUserCheck
+      <FaUsers
         title="Ver profesores con restricciones"
         style={{
-          fontSize: "1.2rem",
+          fontSize: "2.5rem",
           color: "rgb(55, 174, 221)",
           cursor: "pointer",
           padding: "6px",
