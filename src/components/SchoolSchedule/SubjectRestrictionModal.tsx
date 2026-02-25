@@ -22,7 +22,7 @@ const SubjectRestrictionModal: React.FC<{
   subjectRestrictions,
   loadingSubjectRestrictions = false,
 }) => {
-    const { subjects, pnfList, userData, userPNF } = useContext(MainContext) as MainContextValues;
+    const { subjects, pnfList, userData, userPNF, subjectColors } = useContext(MainContext) as MainContextValues;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [selectedPnf, setSelectedPnf] = useState<string>("");
@@ -49,7 +49,7 @@ const SubjectRestrictionModal: React.FC<{
 
     const subjectOptions = useMemo(() => {
       if (!subjects) return [];
-      const uniqueSubjects = new Map<string, string>();
+      const uniqueSubjects = new Map<string, { label: string; pnfId: string }>();
 
       subjects.forEach((subject) => {
         if (subject.linkedToSection) return;
@@ -61,15 +61,27 @@ const SubjectRestrictionModal: React.FC<{
         const key = normalizeText(label);
         if (!key) return;
         if (!uniqueSubjects.has(key)) {
-          uniqueSubjects.set(key, label);
+          uniqueSubjects.set(key, { label, pnfId: String(subject.pnfId) });
         }
       });
 
-      return Array.from(uniqueSubjects.values()).map((label) => ({
-        value: label,
-        label,
-      }));
-    }, [subjects, selectedPnf]);
+      return Array.from(uniqueSubjects.entries()).map(([key, data]) => {
+        const existing = subjectRestrictions?.find(
+          (rest) => rest.subjectKey === key && (!selectedPnf || rest.pnfId === selectedPnf || rest.pnfId === data.pnfId)
+        );
+        const hasRestriction = !!existing;
+        const count = existing ? existing.classroomIds.length : 0;
+        const color = subjectColors?.[data.pnfId] || "#ccc";
+
+        return {
+          value: data.label,
+          label: data.label,
+          hasRestriction,
+          count,
+          color,
+        };
+      });
+    }, [subjects, selectedPnf, subjectRestrictions, subjectColors]);
 
     const showModal = () => {
       setRestrictedClassrooms(sortedClassrooms.map((room) => room.id));
@@ -106,7 +118,7 @@ const SubjectRestrictionModal: React.FC<{
       setIsModalOpen(false);
     };
 
-    const handleOk = async () => {
+    const handleOk = async (shouldClose = true) => {
       if (!selectedPnf) {
         message.warning("Debe seleccionar un PNF");
         return;
@@ -119,7 +131,9 @@ const SubjectRestrictionModal: React.FC<{
       try {
         await putSubjectRestriction(selectedSubject, restrictedClassrooms, selectedPnf || undefined);
         message.success("Restricciones guardadas correctamente");
-        setIsModalOpen(false);
+        if (shouldClose) {
+          setIsModalOpen(false);
+        }
       } catch (error: any) {
         // error already handled in SchoolSchedule.tsx or can be shown here
         console.error(error);
@@ -195,13 +209,25 @@ const SubjectRestrictionModal: React.FC<{
           title="Restriccion por materias"
           closable={{ "aria-label": "Custom Close Button" }}
           open={isModalOpen}
-          okText="Guardar"
-          cancelText="Cancelar"
           width={720}
           height={600}
-          onOk={handleOk}
-          confirmLoading={isSaving}
-          onCancel={handleCancel}>
+          onCancel={handleCancel}
+          footer={[
+            <Button key="back" onClick={handleCancel}>
+              Cancelar
+            </Button>,
+            <Button
+              key="save"
+              type="primary"
+              style={{ backgroundColor: "#52c41a", borderColor: "#52c41a" }}
+              loading={isSaving}
+              onClick={() => handleOk(false)}>
+              Guardar
+            </Button>,
+            <Button key="submit" type="primary" loading={isSaving} onClick={() => handleOk(true)}>
+              Guardar y salir
+            </Button>,
+          ]}>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <div className={styles.selectorContainer}>
               <span className={styles.modalSectionTitle}>Agregar un nuevo salón</span>
@@ -252,6 +278,29 @@ const SubjectRestrictionModal: React.FC<{
                 filterOption={(input, option) =>
                   !!option?.label?.toString()?.toLowerCase()?.includes(input.toLowerCase())
                 }
+                optionRender={(option) => (
+                  <div style={{ display: "flex", alignItems: "stretch", gap: "8px", padding: "4px 0" }}>
+                    <div
+                      style={{
+                        width: "4px",
+                        backgroundColor: option.data.color,
+                        borderRadius: "2px",
+                      }}
+                    />
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontWeight: 500 }}>{option.data.label}</span>
+                      <span style={{ fontSize: "12px", color: option.data.hasRestriction ? "rgb(55, 174, 221)" : "#6b7280" }}>
+                        {option.data.hasRestriction ? (
+                          <>
+                            <strong>{option.data.count}</strong> {option.data.count === 1 ? "aula asignada" : "aulas asignadas"}
+                          </>
+                        ) : (
+                          "no tiene aulas asignadas"
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
               />
             </div>
           </div>
