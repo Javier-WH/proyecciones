@@ -4,10 +4,10 @@ import { FaUserCheck } from "react-icons/fa";
 import styles from "./modal.module.css";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
-import { teacherRestriction } from "./SchoolSchedule";
+import { TeacherRestriction } from "../../interfaces/teacher";
 
 const TeachersRestrictionsListModal: React.FC<{
-  restrictions: teacherRestriction[];
+  restrictions: TeacherRestriction[];
 }> = ({ restrictions }) => {
   const { teachers, pnfList, subjectColors } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -118,14 +118,22 @@ const TeachersRestrictionsListModal: React.FC<{
           <Tabs
             size="small"
             type="card"
-            style={{ width: "100%" }}
+            style={{ width: "500px" }}
             items={sortedDays.map((day) => ({
               key: String(day),
               label: dayLabels[day],
               children: (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", padding: "8px 0" }}>
+                <div style={{ 
+                  display: "flex", 
+                  flexWrap: "wrap", 
+                  gap: "4px", 
+                  padding: "8px 0",
+                  height: "100px",  // Altura fija
+                  overflowY: "auto", // Scroll si hay muchas horas
+                  alignContent: "flex-start" 
+                }}>
                   {hoursByDay[day].map((h, i) => (
-                    <Tag key={i} style={{ margin: 0 }}>
+                    <Tag key={i} style={{ margin: 0, height: "fit-content" }}>
                       {h.start} - {h.end}
                     </Tag>
                   ))}
@@ -142,7 +150,14 @@ const TeachersRestrictionsListModal: React.FC<{
     <>
       <FaUserCheck
         title="Ver profesores con restricciones"
-        className={styles.icon}
+        style={{
+          fontSize: "1.2rem",
+          color: "rgb(55, 174, 221)",
+          cursor: "pointer",
+          padding: "6px",
+          borderRadius: "4px",
+          transition: "all 0.2s"
+        }}
         onClick={() => setIsModalOpen(true)}
       />
       <Modal

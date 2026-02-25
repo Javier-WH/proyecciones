@@ -3,6 +3,7 @@ import { EventInput } from "@fullcalendar/core";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { Subject } from "../../interfaces/subject";
+import { Teacher, TeacherRestriction, SubjectRestriction } from "../../interfaces/teacher";
 import "./SchoolSchedule.css";
 import {
   getClassrooms,
@@ -30,17 +31,6 @@ import { normalizeText } from "../../utils/textFilter";
 import ScheduleConfigModal from "./ScheduleConfigModal";
 import { getScheduleConfig, ScheduleConfig } from "../../fetch/schedule/scheduleConfigFetch";
 
-export interface teacherRestriction {
-  teacherId: string;
-  days: number[];
-  hours: { day: number; start: string; end: string }[];
-}
-export interface subjectRestriction {
-  subjectKey: string;
-  subjectName: string;
-  classroomIds: string[];
-  pnfId?: string;
-}
 
 type RawSubjectRestriction = {
   subject_name?: string;
@@ -108,9 +98,9 @@ const SchoolSchedule: React.FC = () => {
   const [seccion, setSeccion] = useState("1");
   const [pnf, setPnf] = useState("");
   const [trayectoId, setTrayectoId] = useState("");
-  const [teacherRestrictions, setTeacherRestrictions] = useState<teacherRestriction[]>([]);
+  const [teacherRestrictions, setTeacherRestrictions] = useState<TeacherRestriction[]>([]);
   const [teacherRestrictionsReady, setTeacherRestrictionsReady] = useState(false);
-  const [subjectRestriction, setSubjectRestriction] = useState<subjectRestriction[]>([]);
+  const [subjectRestriction, setSubjectRestriction] = useState<SubjectRestriction[]>([]);
   const [subjectRestrictionsReady, setSubjectRestrictionsReady] = useState(false);
   const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">("q1");
   const [errors, setErrors] = useState<scheduleError[]>([]);
@@ -226,7 +216,7 @@ const SchoolSchedule: React.FC = () => {
             ? response
             : [];
 
-      const formatted: teacherRestriction[] = raw
+      const formatted: TeacherRestriction[] = raw
         .map((item: RawTeacherRestriction) => {
           const teacherId = item?.teacher_id ?? item?.teacherId;
           if (!teacherId) return null;
@@ -236,7 +226,7 @@ const SchoolSchedule: React.FC = () => {
             hours: item?.restricted_hours ?? item?.hours ?? [],
           };
         })
-        .filter(Boolean) as teacherRestriction[];
+        .filter(Boolean) as TeacherRestriction[];
 
       setTeacherRestrictions(formatted);
     } catch (error) {
@@ -277,7 +267,7 @@ const SchoolSchedule: React.FC = () => {
             ? response
             : [];
 
-      const formatted: subjectRestriction[] = rawRestrictions
+      const formatted: SubjectRestriction[] = rawRestrictions
         .map((item: RawSubjectRestriction) => {
           const subjectName = item?.subject_name ?? item?.subjectName;
           const fallbackName = subjectName ?? "";
@@ -292,7 +282,7 @@ const SchoolSchedule: React.FC = () => {
             pnfId,
           };
         })
-        .filter(Boolean) as subjectRestriction[];
+        .filter(Boolean) as SubjectRestriction[];
 
       setSubjectRestriction(formatted);
       setSubjectRestrictionsReady(true);
@@ -306,7 +296,7 @@ const SchoolSchedule: React.FC = () => {
   }, [proyectionId]);
 
   const persistSubjectRestrictions = useCallback(
-    async (restrictions: subjectRestriction[]) => {
+    async (restrictions: SubjectRestriction[]) => {
       if (!proyectionId) {
         throw new Error("No se pudo identificar la proyección para guardar las restricciones");
       }
@@ -457,15 +447,15 @@ const SchoolSchedule: React.FC = () => {
     }
 
     const previousRestrictions = subjectRestriction;
-    let updatedRestrictions: subjectRestriction[] = JSON.parse(JSON.stringify(subjectRestriction));
+    let updatedRestrictions: SubjectRestriction[] = JSON.parse(JSON.stringify(subjectRestriction));
 
     if (classroomIds.length === 0) {
       updatedRestrictions = updatedRestrictions.filter(
-        (rest: subjectRestriction) => !(rest.subjectKey === normalizedName && rest.pnfId === pnfId)
+        (rest: SubjectRestriction) => !(rest.subjectKey === normalizedName && rest.pnfId === pnfId)
       );
     } else {
       const currentRestriction = updatedRestrictions.find(
-        (rest: subjectRestriction) => rest.subjectKey === normalizedName && rest.pnfId === pnfId
+        (rest: SubjectRestriction) => rest.subjectKey === normalizedName && rest.pnfId === pnfId
       );
       if (currentRestriction) {
         currentRestriction.classroomIds = classroomIds;

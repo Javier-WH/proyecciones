@@ -27,4 +27,15 @@ export interface TeacherContract {
   hours: number;
   active: boolean;
 }
+export interface TeacherRestriction {
+  teacherId: string;
+  days: number[];
+  hours: { day: number; start: string; end: string }[];
+}
 
+export interface SubjectRestriction {
+  subjectKey: string;
+  subjectName: string;
+  classroomIds: string[];
+  pnfId?: string;
+}
