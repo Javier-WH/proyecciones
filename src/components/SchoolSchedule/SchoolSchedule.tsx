@@ -19,6 +19,7 @@ import { SwapOutlined } from "@ant-design/icons";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
+import TeachersRestrictionsListModal from "./TeachersRestrictionsListModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
 import { FaRegSave, FaRegFolderOpen, FaPlus, FaPrint, FaCog } from "react-icons/fa";
 import { useReactToPrint } from "react-to-print";
@@ -1315,6 +1316,7 @@ const SchoolSchedule: React.FC = () => {
               subjectRestrictions={subjectRestriction}
               loadingSubjectRestrictions={!subjectRestrictionsReady}
             />
+            <TeachersRestrictionsListModal restrictions={teacherRestrictions} />
 
             <ScheduleErrorsModal errors={errors} />
             <FaCog title="Configuración" className={styles.icon} onClick={() => setIsConfigModalOpen(true)} />
