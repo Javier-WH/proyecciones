@@ -106,6 +106,10 @@ const SubjectRestrictionModal: React.FC<{
     };
 
     const handleOk = async () => {
+      if (!selectedPnf) {
+        message.warning("Debe seleccionar un PNF");
+        return;
+      }
       if (!selectedSubject) {
         message.warning("Debe seleccionar una materia");
         return;
@@ -214,14 +218,13 @@ const SubjectRestrictionModal: React.FC<{
             </div>
 
             <div className={styles.selectorContainer}>
-              <span className={styles.modalSectionTitle}>Seleccione el PNF (Opcional)</span>
+              <span className={styles.modalSectionTitle}>Seleccione el PNF</span>
               <span className={styles.helperText}>
-                Selecciona un PNF para aplicar restricciones solo a las materias de esa carrera.
+                Selecciona un PNF para aplicar restricciones a las materias de esa carrera.
               </span>
               <Select
-                allowClear
                 showSearch
-                placeholder="Todos los PNF"
+                placeholder="Seleccione un PNF"
                 value={selectedPnf || undefined}
                 style={{ width: "100%" }}
                 onChange={(value) => {
