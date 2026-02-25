@@ -66,7 +66,7 @@ const MainLayout: React.FC = () => {
       ...(userData?.su ? [getItem("Proyección Activa", "/app/active", <FaPersonMilitaryPointing />)] : []),
       getItem("Crear", "/app/proyecciones/create", <IoIosCreate />),
       getItem("Materias", "/app/proyecciones/subjects", <MdSubject />),
-      getItem("Proyeccion", "/app/proyecciones", <FaCalendarAlt />),
+      getItem("Proyección", "/app/proyecciones", <FaCalendarAlt />),
     ]),
     getItem("Profesores", "/app/profesores", <FaChalkboardTeacher />, [
       //...(userData?.su ? [getItem("Registrar", "/app/registerTeacher", <IoPersonAddSharp />)] : []),
@@ -76,12 +76,12 @@ const MainLayout: React.FC = () => {
     ]),
     ...(userData?.su
       ? [
-          getItem("Trayectos Y PNF", "/app/trayectos", <PiStepsDuotone />, [
-            getItem("Editar Trayectos", "/app/editTrayectos", <MdEditRoad />),
-            getItem("Editar PNF", "/app/editPNF", <IoMdPlanet />),
-          ]),
-          getItem("Administrador", "/app/admin", <MdAdminPanelSettings />),
-        ]
+        getItem("Trayectos Y PNF", "/app/trayectos", <PiStepsDuotone />, [
+          getItem("Editar Trayectos", "/app/editTrayectos", <MdEditRoad />),
+          getItem("Editar PNF", "/app/editPNF", <IoMdPlanet />),
+        ]),
+        getItem("Administrador", "/app/admin", <MdAdminPanelSettings />),
+      ]
       : []),
     getItem("Horarios", "/app/horarios/create", <GrSchedules />),
     getItem("Información", "/app/info", <TiInfoLargeOutline />),

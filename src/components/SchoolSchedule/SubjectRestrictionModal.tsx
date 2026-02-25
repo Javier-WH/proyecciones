@@ -22,7 +22,7 @@ const SubjectRestrictionModal: React.FC<{
   subjectRestrictions,
   loadingSubjectRestrictions = false,
 }) => {
-    const { subjects, pnfList } = useContext(MainContext) as MainContextValues;
+    const { subjects, pnfList, userData, userPNF } = useContext(MainContext) as MainContextValues;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [selectedPnf, setSelectedPnf] = useState<string>("");
@@ -73,7 +73,8 @@ const SubjectRestrictionModal: React.FC<{
 
     const showModal = () => {
       setRestrictedClassrooms(sortedClassrooms.map((room) => room.id));
-      setSelectedPnf("");
+      const cleanUserPNF = userPNF?.replace(/"/g, "");
+      setSelectedPnf(cleanUserPNF || "");
       setSelectedSubject("");
       setIsModalOpen(true);
     };
@@ -225,6 +226,7 @@ const SubjectRestrictionModal: React.FC<{
               <Select
                 showSearch
                 placeholder="Seleccione un PNF"
+                disabled={!userData?.su}
                 value={selectedPnf || undefined}
                 style={{ width: "100%" }}
                 onChange={(value) => {
