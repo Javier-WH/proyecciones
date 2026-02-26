@@ -3,7 +3,7 @@ import { EventInput } from "@fullcalendar/core";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { Subject } from "../../interfaces/subject";
-import { Teacher, TeacherRestriction, SubjectRestriction } from "../../interfaces/teacher";
+import { TeacherRestriction, SubjectRestriction } from "../../interfaces/teacher";
 import "./SchoolSchedule.css";
 import {
   getClassrooms,
@@ -277,17 +277,21 @@ const SchoolSchedule: React.FC = () => {
 
       const formatted: SubjectRestriction[] = rawRestrictions
         .map((item: RawSubjectRestriction) => {
-          const subjectName = item?.subject_name ?? item?.subjectName;
-          const fallbackName = subjectName ?? "";
-          const subjectKey = item?.subject_key ?? item?.subjectKey ?? normalizeText(fallbackName);
+          const subjectName = item?.subject_name ?? item?.subjectName ?? "";
+          // Always normalize the key from the name if possible for consistency, 
+          // or use the stored key as fallback.
+          const subjectKey = (subjectName ? normalizeText(subjectName) : (item?.subject_key ?? item?.subjectKey));
+
           const classroomIds = item?.classroom_ids ?? item?.classroomIds ?? [];
           const pnfId = item?.pnf_id ?? item?.pnfId;
-          if (!subjectName || !subjectKey) return null;
+
+          if (!subjectKey) return null;
+
           return {
             subjectKey,
-            subjectName,
+            subjectName: subjectName || subjectKey,
             classroomIds,
-            pnfId,
+            pnfId: pnfId || undefined,
           };
         })
         .filter(Boolean) as SubjectRestriction[];
@@ -462,12 +466,14 @@ const SchoolSchedule: React.FC = () => {
         (rest: SubjectRestriction) => !(rest.subjectKey === normalizedName && rest.pnfId === pnfId)
       );
     } else {
-      const currentRestriction = updatedRestrictions.find(
-        (rest: SubjectRestriction) => rest.subjectKey === normalizedName && rest.pnfId === pnfId
+      const existing = updatedRestrictions.find(
+        (rest) => rest.subjectKey === normalizedName && rest.pnfId === pnfId
+      ) || updatedRestrictions.find(
+        (rest) => rest.subjectKey === normalizedName && !rest.pnfId
       );
-      if (currentRestriction) {
-        currentRestriction.classroomIds = classroomIds;
-        currentRestriction.subjectName = subjectName;
+      if (existing) {
+        existing.classroomIds = classroomIds;
+        existing.subjectName = subjectName;
       } else {
         updatedRestrictions.push({ subjectKey: normalizedName, subjectName, classroomIds, pnfId });
       }

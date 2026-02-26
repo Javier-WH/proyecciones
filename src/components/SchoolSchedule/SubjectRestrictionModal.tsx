@@ -67,7 +67,9 @@ const SubjectRestrictionModal: React.FC<{
 
       return Array.from(uniqueSubjects.entries()).map(([key, data]) => {
         const existing = subjectRestrictions?.find(
-          (rest) => rest.subjectKey === key && (!selectedPnf || rest.pnfId === selectedPnf || rest.pnfId === data.pnfId)
+          (rest) => rest.subjectKey === key && rest.pnfId === data.pnfId
+        ) || subjectRestrictions?.find(
+          (rest) => rest.subjectKey === key && !rest.pnfId
         );
         const hasRestriction = !!existing;
         const count = existing ? existing.classroomIds.length : 0;
@@ -99,8 +101,11 @@ const SubjectRestrictionModal: React.FC<{
         return;
       }
 
+      // Look for EXACT PNF match first, then generic match (no pnfId)
       const existing = subjectRestrictions?.find(
-        (rest) => rest.subjectKey === selectedSubjectKey && (!selectedPnf || rest.pnfId === selectedPnf)
+        (rest) => rest.subjectKey === selectedSubjectKey && rest.pnfId === selectedPnf
+      ) || subjectRestrictions?.find(
+        (rest) => rest.subjectKey === selectedSubjectKey && !rest.pnfId
       );
       if (existing) {
         setRestrictedClassrooms(existing.classroomIds);
