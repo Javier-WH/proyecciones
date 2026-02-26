@@ -503,11 +503,28 @@ const SchoolSchedule: React.FC = () => {
     // Sort runs: prefer longer runs first (can fit more hours), then earlier days
     allRuns.sort((a, b) => b.slots.length - a.slots.length || a.day - b.day || a.startSlotIdx - b.startSlotIdx);
 
+    const preventSingleBlocks = !!scheduleConfig?.prevent_single_hour_blocks;
+
+    // If prevent_single_hour_blocks is on, filter out runs with only 1 slot
+    const usableRuns = preventSingleBlocks
+      ? allRuns.filter(run => run.slots.length >= 2)
+      : allRuns;
+
     // Place hours using consecutive runs
-    for (const run of allRuns) {
+    for (const run of usableRuns) {
       if (hoursPlaced >= hoursNeeded) break;
 
-      const slotsToUse = Math.min(run.slots.length, hoursNeeded - hoursPlaced);
+      let slotsToUse = Math.min(run.slots.length, hoursNeeded - hoursPlaced);
+
+      // If prevent_single_hour_blocks is on, never place just 1 hour from a run
+      if (preventSingleBlocks && slotsToUse === 1) {
+        // Take 2 instead if the run has room, otherwise skip this run
+        if (run.slots.length >= 2) {
+          slotsToUse = 2;
+        } else {
+          continue;
+        }
+      }
 
       for (let i = 0; i < slotsToUse; i++) {
         const { slotIdx, classroom } = run.slots[i];
