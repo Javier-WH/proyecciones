@@ -42,6 +42,8 @@ type RawSubjectRestriction = {
   classroomIds?: string[];
   pnf_id?: string;
   pnfId?: string;
+  is_exclusive?: boolean;
+  isExclusive?: boolean;
 };
 
 type RawTeacherRestriction = {
@@ -347,6 +349,7 @@ const SchoolSchedule: React.FC = () => {
 
           const classroomIds = item?.classroom_ids ?? item?.classroomIds ?? [];
           const pnfId = item?.pnf_id ?? item?.pnfId;
+          const isExclusive = item?.is_exclusive ?? item?.isExclusive ?? false;
 
           if (!subjectKey) return null;
 
@@ -355,6 +358,7 @@ const SchoolSchedule: React.FC = () => {
             subjectName: subjectName || subjectKey,
             classroomIds,
             pnfId: pnfId || undefined,
+            isExclusive: Boolean(isExclusive),
           };
         })
         .filter(Boolean) as SubjectRestriction[];
@@ -383,6 +387,7 @@ const SchoolSchedule: React.FC = () => {
           subject_name: rest.subjectName,
           classroom_ids: rest.classroomIds,
           pnf_id: rest.pnfId,
+          is_exclusive: rest.isExclusive,
         })),
       };
 
@@ -535,7 +540,8 @@ const SchoolSchedule: React.FC = () => {
       finalResult = executeSearch(profDays, prefClassrooms, preventSingleBlocksGlobal);
 
       // Pass 2: Relaxed Subject (Teacher + ALL Active Classrooms)
-      if (finalResult.count < hoursNeeded) {
+      // Only fallback if NOT exclusive
+      if (finalResult.count < hoursNeeded && !subPref?.isExclusive) {
         const fallbackClassrooms = executeSearch(profDays, activeClassrooms, preventSingleBlocksGlobal);
         if (fallbackClassrooms.count > finalResult.count) {
           finalResult = fallbackClassrooms;
@@ -543,9 +549,16 @@ const SchoolSchedule: React.FC = () => {
         }
       }
     } else {
-      // PASS 3: FORCE (ALL Days + ALL Active Classrooms)
-      finalResult = executeSearch(defaultDays, activeClassrooms, preventSingleBlocksGlobal);
-      note = "⚠️ Se ignoraron las restricciones de días del profesor y aulas preferidas.";
+      // PASS 3: FORCE (ALL Days + Classrooms)
+      // If exclusive, still restrict to pref classrooms. Else use all active rooms.
+      const targetRooms = subPref?.isExclusive ? prefClassrooms : activeClassrooms;
+      finalResult = executeSearch(defaultDays, targetRooms, preventSingleBlocksGlobal);
+
+      if (subPref?.isExclusive) {
+        note = "⚠️ Se ignoraron las restricciones de días del profesor. Se mantuvo la exclusividad de aulas.";
+      } else {
+        note = "⚠️ Se ignoraron las restricciones de días del profesor y aulas preferidas.";
+      }
     }
 
     if (finalResult.count === 0) {
@@ -677,7 +690,7 @@ const SchoolSchedule: React.FC = () => {
     applyClassroomChangeAndRecalculate();
   };
 
-  const putSubjectRestriction = async (subjectName: string, classroomIds: string[], pnfId?: string) => {
+  const putSubjectRestriction = async (subjectName: string, classroomIds: string[], pnfId?: string, isExclusive: boolean = false) => {
     if (!subjectRestrictionsReady) {
       throw new Error("Las restricciones aún se están cargando. Intente nuevamente en unos segundos");
     }
@@ -707,8 +720,9 @@ const SchoolSchedule: React.FC = () => {
       if (existing) {
         existing.classroomIds = classroomIds;
         existing.subjectName = subjectName;
+        existing.isExclusive = isExclusive;
       } else {
-        updatedRestrictions.push({ subjectKey: normalizedName, subjectName, classroomIds, pnfId });
+        updatedRestrictions.push({ subjectKey: normalizedName, subjectName, classroomIds, pnfId, isExclusive });
       }
     }
 

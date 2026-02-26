@@ -32,6 +32,11 @@ SubjectRestrictions.init(
     pnf_id: {
       type: DataTypes.UUID,
       allowNull: true
+    },
+    is_exclusive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
     }
   },
   {

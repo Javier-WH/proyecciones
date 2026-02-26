@@ -47,6 +47,7 @@ export interface generateScheduleParams {
     subjectName?: string;
     preferLastSlot?: boolean;
     pnfId?: string;
+    isExclusive?: boolean;
   }[];
   existingEvents?: Event[];
   conserveSlots?: number;
@@ -938,11 +939,24 @@ export function generateScheduleEvents({
           (p) => p.subjectKey === subjectKey && !p.pnfId,
         );
 
-      // Para materias CON restricción de aula: solo usar las aulas asignadas
-      // Para materias SIN restricción: usar todas, pero deprioritizar las reservadas
-      // para que no le quiten aulas a las materias que SÍ las necesitan
+      // Aulas candidatas
+      // 1. Si es exclusivo: SOLO usar las aulas seleccionadas
+      // 2. Si no es exclusivo pero hay seleccionadas: PREFERIR las seleccionadas, luego el resto
+      // 3. Si no hay nada seleccionado: Usar todas, deprioritizando las reservadas
       const candidateClassrooms = preferConfig?.classroomIds?.length
-        ? classrooms.filter((c) => preferConfig.classroomIds.includes(c.id))
+        ? (preferConfig.isExclusive
+          ? classrooms.filter((c) => preferConfig.classroomIds.includes(c.id))
+          : [...classrooms].sort((a, b) => {
+            const aInPref = preferConfig.classroomIds.includes(a.id);
+            const bInPref = preferConfig.classroomIds.includes(b.id);
+            if (aInPref && !bInPref) return -1;
+            if (!aInPref && bInPref) return 1;
+            // Si ambos están o ninguno está, usar orden de reserva usual
+            const aReserved = reservedClassroomIds.has(a.id) ? 1 : 0;
+            const bReserved = reservedClassroomIds.has(b.id) ? 1 : 0;
+            return aReserved - bReserved;
+          })
+        )
         : [...classrooms].sort((a, b) => {
           const aReserved = reservedClassroomIds.has(a.id) ? 1 : 0;
           const bReserved = reservedClassroomIds.has(b.id) ? 1 : 0;

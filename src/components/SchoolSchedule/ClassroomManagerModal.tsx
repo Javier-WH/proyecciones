@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Modal, Button, Input, Table, Space, Tag, Popconfirm, message, Switch, Tooltip } from "antd";
-import { BiBuildingHouse } from "react-icons/bi";
+import { SiGoogleclassroom } from "react-icons/si";
 import { FaTrash, FaEdit, FaPlus, FaCheck, FaTimes } from "react-icons/fa";
 import { Classroom } from "./fucntions";
 import { createClassroom, updateClassroom, deleteClassroom } from "../../fetch/schedule/scheduleFetch";
@@ -196,11 +196,11 @@ const ClassroomManagerModal: React.FC<ClassroomManagerModalProps> = ({
 
   return (
     <>
-      <BiBuildingHouse title="Gestionar Aulas" className={styles.icon} onClick={showModal} />
+      <SiGoogleclassroom title="Gestionar Aulas" className={styles.icon} onClick={showModal} />
       <Modal
         title={
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <BiBuildingHouse style={{ fontSize: "1.4rem", color: "#1890ff" }} />
+            <SiGoogleclassroom style={{ fontSize: "1.4rem", color: "#1890ff" }} />
             <span>Gestión de Aulas</span>
           </div>
         }

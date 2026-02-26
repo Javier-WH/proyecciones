@@ -1,5 +1,5 @@
 import { useContext, useState, useMemo, useEffect } from "react";
-import { Modal, Select, Button, message, Spin } from "antd";
+import { Modal, Select, Button, message, Spin, Switch, Space } from "antd";
 import { BiSolidSchool } from "react-icons/bi";
 import styles from "./modal.module.css";
 import { MainContext } from "../../context/mainContext";
@@ -9,9 +9,9 @@ import { Classroom } from "./fucntions";
 import { normalizeText } from "../../utils/textFilter";
 
 const SubjectRestrictionModal: React.FC<{
-  putSubjectRestriction: (subjectName: string, classroomIds: string[], pnfId?: string) => Promise<void> | void;
+  putSubjectRestriction: (subjectName: string, classroomIds: string[], pnfId?: string, isExclusive?: boolean) => Promise<void> | void;
   classrooms: Classroom[];
-  subjectRestrictions: { subjectKey: string; subjectName: string; classroomIds: string[]; pnfId?: string }[];
+  subjectRestrictions: { subjectKey: string; subjectName: string; classroomIds: string[]; pnfId?: string; isExclusive?: boolean }[];
   loadingSubjectRestrictions?: boolean;
 }> = ({
   putSubjectRestriction,
@@ -24,6 +24,7 @@ const SubjectRestrictionModal: React.FC<{
     const [isSaving, setIsSaving] = useState(false);
     const [selectedPnf, setSelectedPnf] = useState<string>("");
     const [selectedSubject, setSelectedSubject] = useState<string>("");
+    const [isExclusive, setIsExclusive] = useState(false);
 
     const sortedClassrooms = useMemo(() => {
       const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
@@ -104,8 +105,10 @@ const SubjectRestrictionModal: React.FC<{
       );
       if (existing) {
         setRestrictedClassrooms(existing.classroomIds);
+        setIsExclusive(!!existing.isExclusive);
       } else {
         setRestrictedClassrooms(sortedClassrooms.map((room) => room.id));
+        setIsExclusive(false);
       }
     };
 
@@ -129,7 +132,7 @@ const SubjectRestrictionModal: React.FC<{
       }
       setIsSaving(true);
       try {
-        await putSubjectRestriction(selectedSubject, restrictedClassrooms, selectedPnf || undefined);
+        await putSubjectRestriction(selectedSubject, restrictedClassrooms, selectedPnf || undefined, isExclusive);
         message.success("Restricciones guardadas correctamente");
         if (shouldClose) {
           setIsModalOpen(false);
@@ -259,6 +262,20 @@ const SubjectRestrictionModal: React.FC<{
                   </div>
                 )}
               />
+            </div>
+
+            <div className={styles.selectorContainer}>
+              <Space align="center">
+                <span className={styles.modalSectionTitle} style={{ marginBottom: 0 }}>Solo usar aulas seleccionadas</span>
+                <Switch
+                  checked={isExclusive}
+                  onChange={setIsExclusive}
+                  disabled={!selectedSubject}
+                />
+              </Space>
+              <div className={styles.helperText} style={{ marginTop: "4px" }}>
+                Si está activado, el sistema NO buscará otras aulas si las seleccionadas están llenas.
+              </div>
             </div>
           </div>
           <br />
