@@ -34,7 +34,10 @@ const TeacherRestrictionModal: React.FC<{
   loadingTeacherRestrictions?: boolean;
   scheduleDays?: number[];
   scheduleTurnos?: Record<string, [string, string][]>;
-}> = ({ putTeacherRestriction, teacherRestrictions, loadingTeacherRestrictions = false, scheduleDays, scheduleTurnos }) => {
+  externalOpen?: boolean;
+  externalTeacherId?: string;
+  onExternalClose?: () => void;
+}> = ({ putTeacherRestriction, teacherRestrictions, loadingTeacherRestrictions = false, scheduleDays, scheduleTurnos, externalOpen, externalTeacherId, onExternalClose }) => {
   const { teachers } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
@@ -87,9 +90,19 @@ const TeacherRestrictionModal: React.FC<{
     setIsModalOpen(true);
   };
 
+  // Handle external open (from TeachersRestrictionsListModal)
+  useEffect(() => {
+    if (externalOpen && externalTeacherId) {
+      cleanUp();
+      setSelectedTeacher(externalTeacherId);
+      setIsModalOpen(true);
+    }
+  }, [externalOpen, externalTeacherId]);
+
   const handleCancel = () => {
     cleanUp();
     setIsModalOpen(false);
+    onExternalClose?.();
   };
 
   const toggleRestrictedDay = (day: number) => {
@@ -169,6 +182,7 @@ const TeacherRestrictionModal: React.FC<{
       putTeacherRestriction(selectedTeacher, restrictedDays, restrictedHours);
       message.success("Restricciones guardadas correctamente");
       setIsModalOpen(false);
+      onExternalClose?.();
     } catch (error) {
       console.error(error);
       message.error("Error al guardar las restricciones");

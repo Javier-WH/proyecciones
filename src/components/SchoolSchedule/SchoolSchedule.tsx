@@ -118,6 +118,8 @@ const SchoolSchedule: React.FC = () => {
   // Contador de generación: se incrementa cada vez que cambian las restricciones
   // para forzar la regeneración del horario
   const [generationCounter, setGenerationCounter] = useState(0);
+  // State to open TeacherRestrictionModal from TeachersRestrictionsListModal
+  const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
 
   // State for classroom change context menu
   const [classroomChangeEvent, setClassroomChangeEvent] = useState<{
@@ -1585,6 +1587,9 @@ const SchoolSchedule: React.FC = () => {
               loadingTeacherRestrictions={!teacherRestrictionsReady}
               scheduleTurnos={activeTurnos}
               scheduleDays={activeDays}
+              externalOpen={!!editingTeacherId}
+              externalTeacherId={editingTeacherId || undefined}
+              onExternalClose={() => setEditingTeacherId(null)}
             />
             <SubjectRestrictionModal
               putSubjectRestriction={putSubjectRestriction}
@@ -1593,7 +1598,10 @@ const SchoolSchedule: React.FC = () => {
               subjectRestrictions={subjectRestriction}
               loadingSubjectRestrictions={!subjectRestrictionsReady}
             />
-            <TeachersRestrictionsListModal restrictions={teacherRestrictions} />
+            <TeachersRestrictionsListModal
+              restrictions={teacherRestrictions}
+              onEditTeacher={(teacherId) => setEditingTeacherId(teacherId)}
+            />
 
             <ScheduleErrorsModal errors={errors} onForceInsert={handleForceInsert} />
             <FaCog title="Configuración" className={styles.icon} onClick={() => setIsConfigModalOpen(true)} />

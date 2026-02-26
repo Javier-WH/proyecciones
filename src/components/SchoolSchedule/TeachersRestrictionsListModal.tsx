@@ -1,13 +1,15 @@
 import { useContext, useState, useMemo } from "react";
 import { Modal, Select, Table, Tag, Empty, Button, Tabs } from "antd";
 import { FaUsers } from "react-icons/fa6";
+import { EditOutlined } from "@ant-design/icons";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { TeacherRestriction } from "../../interfaces/teacher";
 
 const TeachersRestrictionsListModal: React.FC<{
   restrictions: TeacherRestriction[];
-}> = ({ restrictions }) => {
+  onEditTeacher?: (teacherId: string) => void;
+}> = ({ restrictions, onEditTeacher }) => {
   const { teachers, pnfList, subjectColors } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPnfId, setSelectedPnfId] = useState<string | null>(null);
@@ -31,22 +33,18 @@ const TeachersRestrictionsListModal: React.FC<{
         const teacher = teacherMap.get(r.teacherId);
         if (!teacher) return null;
 
-        // The teacher.PNF field seems to contain the ID based on user feedback/screenshot
         const teacherPnfId = teacher.PNF;
 
-        // Filter out those with NO restrictions at all (empty days and empty hours)
         const hasDays = r.days && r.days.length > 0;
         const hasHours = r.hours && r.hours.length > 0;
         if (!hasDays && !hasHours) return null;
 
-        // Filter by PNF if selected.
         if (selectedPnfId && teacherPnfId !== selectedPnfId) {
           return null;
         }
 
         const pnfObj = pnfList?.find(p => p.id === teacherPnfId);
         const pnfName = pnfObj?.name || "N/A";
-        // Use color from context if available
         const pnfColor = (teacherPnfId && subjectColors?.[teacherPnfId]) || pnfObj?.color || "#ccc";
 
         return {
@@ -76,10 +74,25 @@ const TeachersRestrictionsListModal: React.FC<{
               borderRadius: "2px",
             }}
           />
-          <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
             <span style={{ fontWeight: 600 }}>{text}</span>
             <span style={{ fontSize: "11px", color: "#6b7280" }}>{record.pnfName}</span>
           </div>
+          {onEditTeacher && (
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditTeacher(record.teacherId);
+              }}
+              title="Editar restricciones"
+              style={{ alignSelf: "center" }}
+            >
+              Editar
+            </Button>
+          )}
         </div>
       )
     },
@@ -132,8 +145,8 @@ const TeachersRestrictionsListModal: React.FC<{
                   flexWrap: "wrap",
                   gap: "4px",
                   padding: "8px 0",
-                  height: "100px",  // Altura fija
-                  overflowY: "auto", // Scroll si hay muchas horas
+                  height: "100px",
+                  overflowY: "auto",
                   alignContent: "flex-start"
                 }}>
                   {hoursByDay[day].map((h, i) => (
