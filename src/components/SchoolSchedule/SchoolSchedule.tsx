@@ -455,50 +455,57 @@ const SchoolSchedule: React.FC = () => {
 
     // Prefer consecutive slots on the same day for better schedule quality
     // Helper: check if a slot is available (no hard-constraint violations)
-    const isSlotAvailable = (day: number, slotIdx: number): { available: boolean; classroom: Classroom | null } => {
-      const [start] = timeSlots[slotIdx];
-      const key = `${day}-${start}`;
-      const occ = occupancy.get(key);
 
-      const profConflict = professorId && occ?.professorIds.has(professorId);
-      const sectionConflict = occ?.sectionKeys.has(sectionKey);
-      if (profConflict || sectionConflict) return { available: false, classroom: null };
-
-      // Find an available classroom
-      for (const cr of allClassrooms) {
-        if (!occ || !occ.classroomIds.has(cr.id)) {
-          return { available: true, classroom: cr };
-        }
-      }
-      return { available: false, classroom: null }; // All classrooms occupied
-    };
 
     // For each day, find all consecutive runs of available slots
     type ConsecutiveRun = { day: number; startSlotIdx: number; slots: { slotIdx: number; classroom: Classroom }[] };
     const allRuns: ConsecutiveRun[] = [];
 
     for (const day of allDays) {
-      let currentRun: ConsecutiveRun | null = null;
+      // Find runs per day AND per classroom to ensure they are actually together
+      for (const cr of allClassrooms) {
+        let currentRun: ConsecutiveRun | null = null;
+        let lastEnd: string | null = null;
 
-      for (let slotIdx = 0; slotIdx < timeSlots.length; slotIdx++) {
-        const { available, classroom } = isSlotAvailable(day, slotIdx);
+        for (let slotIdx = 0; slotIdx < timeSlots.length; slotIdx++) {
+          const [start, end] = timeSlots[slotIdx];
+          const key = `${day}-${start}`;
+          const occ = occupancy.get(key);
 
-        if (available && classroom) {
-          if (!currentRun) {
-            currentRun = { day, startSlotIdx: slotIdx, slots: [] };
+          // Check hard constraints for this specific teacher/section and THIS classroom
+          const profConflict = professorId && occ?.professorIds.has(professorId);
+          const sectionConflict = occ?.sectionKeys.has(sectionKey);
+          const roomConflict = occ?.classroomIds.has(cr.id);
+
+          const isAvailable = !profConflict && !sectionConflict && !roomConflict;
+
+          // Consecutive means: same day, same classroom, AND end of previous == start of current
+          const isConsecutive = isAvailable && (lastEnd === null || lastEnd === start);
+
+          if (isConsecutive) {
+            if (!currentRun) {
+              currentRun = { day, startSlotIdx: slotIdx, slots: [] };
+            }
+            currentRun.slots.push({ slotIdx, classroom: cr });
+            lastEnd = end;
+          } else {
+            // End of run
+            if (currentRun && currentRun.slots.length > 0) {
+              allRuns.push(currentRun);
+            }
+            if (isAvailable) {
+              // Start a NEW run with this slot if available but not consecutive
+              currentRun = { day, startSlotIdx: slotIdx, slots: [{ slotIdx, classroom: cr }] };
+              lastEnd = end;
+            } else {
+              currentRun = null;
+              lastEnd = null;
+            }
           }
-          currentRun.slots.push({ slotIdx, classroom });
-        } else {
-          // End of a consecutive run
-          if (currentRun && currentRun.slots.length > 0) {
-            allRuns.push(currentRun);
-          }
-          currentRun = null;
         }
-      }
-      // Don't forget the last run in the day
-      if (currentRun && currentRun.slots.length > 0) {
-        allRuns.push(currentRun);
+        if (currentRun && currentRun.slots.length > 0) {
+          allRuns.push(currentRun);
+        }
       }
     }
 
@@ -1124,10 +1131,14 @@ const SchoolSchedule: React.FC = () => {
 
     // Logic from PrintableSchedule for slots
     if (viewMode === "professor" || viewMode === "classroom") {
-      // Use union of all unique slots from all configured turns for these global views
+      // Use union of all unique slots from the SOURCE turns (mañana, tarde, nocturno)
+      // Exclude composite turns like "diurno" since they may have different boundaries
+      // that don't match the actual scheduling slots.
       const allSlots = new Set<string>();
       if (activeTurnos) {
-        Object.values(activeTurnos).forEach((turnSlots) => {
+        Object.entries(activeTurnos).forEach(([key, turnSlots]) => {
+          // Skip "diurno" — it's a derived/composite turn
+          if (key === "diurno") return;
           if (Array.isArray(turnSlots)) {
             turnSlots.forEach((slot) => allSlots.add(JSON.stringify(slot)));
           }
@@ -1527,25 +1538,44 @@ const SchoolSchedule: React.FC = () => {
           )}
 
           {viewMode === "professor" && (
-            <div className="schedule-select">
-              <span>Profesor:</span>
-              <Select
-                size="small"
-                showSearch
-                value={selectedProfessorId}
-                placeholder="Seleccione un profesor"
-                optionFilterProp="children"
-                filterOption={(input, option) =>
-                  (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
-                }
-                style={{ width: 500 }}
-                onChange={setSelectedProfessorId}
-                options={teachers?.map((teacher) => ({
-                  value: teacher.id,
-                  label: `${teacher.name} ${teacher.lastName}`,
-                }))}
-              />
-            </div>
+            <>
+              <div className="schedule-select">
+                <span>Profesor:</span>
+                <Select
+                  size="small"
+                  showSearch
+                  value={selectedProfessorId}
+                  placeholder="Seleccione un profesor"
+                  optionFilterProp="children"
+                  filterOption={(input, option) =>
+                    (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                  }
+                  style={{ width: 500 }}
+                  onChange={setSelectedProfessorId}
+                  options={teachers?.map((teacher) => ({
+                    value: teacher.id,
+                    label: `${teacher.name} ${teacher.lastName}`,
+                  }))}
+                />
+              </div>
+              <div className="schedule-select">
+                <span>Trimestre:</span>
+                <Select
+                  size="small"
+                  value={trimestre}
+                  style={{ width: 150 }}
+                  onChange={(e) => {
+                    setErrors([]);
+                    setTrimestre(e);
+                  }}
+                  options={[
+                    { value: "q1", label: "Trimestre 1" },
+                    { value: "q2", label: "Trimestre 2" },
+                    { value: "q3", label: "Trimestre 3" },
+                  ]}
+                />
+              </div>
+            </>
           )}
 
           {viewMode === "classroom" && (
