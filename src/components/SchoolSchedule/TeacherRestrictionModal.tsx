@@ -139,10 +139,12 @@ const TeacherRestrictionModal: React.FC<{
     }
   };
 
+  // Load teacher restrictions when a teacher is selected OR the modal opens
   useEffect(() => {
-    if (!selectedTeacher) {
-      setIsRestrictedDays([]);
-      setRestrictedHours([]);
+    if (!isModalOpen || !selectedTeacher) {
+      if (!isModalOpen) {
+        // Optional: clean up when closing if preferred, but handleCancel already does it
+      }
       return;
     }
 
@@ -150,15 +152,19 @@ const TeacherRestrictionModal: React.FC<{
     if (existing) {
       setIsRestrictedDays(existing.days ?? []);
       setRestrictedHours(existing.hours ?? []);
+      // Reset to first available day tab
       if ((existing.days?.length ?? 0) === 0) {
         setActiveDayTab("1");
+      } else {
+        const firstAvailable = activeDays.find(d => !existing.days.includes(d));
+        if (firstAvailable) setActiveDayTab(String(firstAvailable));
       }
     } else {
       setIsRestrictedDays([]);
       setRestrictedHours([]);
       setActiveDayTab("1");
     }
-  }, [selectedTeacher, teacherRestrictions]);
+  }, [selectedTeacher, teacherRestrictions, isModalOpen, activeDays]);
 
   const handleSaveRestrictions = async () => {
     if (!selectedTeacher) {
