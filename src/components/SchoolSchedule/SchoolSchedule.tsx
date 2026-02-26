@@ -518,13 +518,32 @@ const SchoolSchedule: React.FC = () => {
 
       let slotsToUse = Math.min(run.slots.length, hoursNeeded - hoursPlaced);
 
-      // If prevent_single_hour_blocks is on, never place just 1 hour from a run
-      if (preventSingleBlocks && slotsToUse === 1) {
-        // Take 2 instead if the run has room, otherwise skip this run
-        if (run.slots.length >= 2) {
-          slotsToUse = 2;
-        } else {
-          continue;
+      if (preventSingleBlocks) {
+        // Rule 1: Never place just 1 slot (creates a single-hour block now)
+        if (slotsToUse === 1) {
+          if (run.slots.length >= 2) {
+            slotsToUse = 2;
+          } else {
+            continue;
+          }
+        }
+
+        // Rule 2: Never leave exactly 1 remaining hour (would be impossible to place later)
+        // Example: 3 hours needed, taking 2 leaves 1 → take 3 instead or reduce to 0
+        const remaining = (hoursNeeded - hoursPlaced) - slotsToUse;
+        if (remaining === 1) {
+          // Option A: take one more slot from this run (if available)
+          if (run.slots.length > slotsToUse) {
+            slotsToUse += 1;
+          }
+          // Option B: take one fewer, but only if that still leaves us with >= 2
+          else if (slotsToUse - 1 >= 2) {
+            slotsToUse -= 1;
+          }
+          // Option C: skip this run entirely — placing here guarantees an orphan
+          else {
+            continue;
+          }
         }
       }
 

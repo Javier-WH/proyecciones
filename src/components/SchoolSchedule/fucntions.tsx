@@ -1201,6 +1201,14 @@ export function generateScheduleEvents({
 
     // Intentar con horas decrecientes: totalHours-1, totalHours-2, ..., minBlock
     for (let tryHours = task.totalHours - 1; tryHours >= minBlock; tryHours--) {
+      // Don't leave exactly 1 remaining hour if preventSingleHourBlocks is active,
+      // because that orphaned hour can never be placed. E.g., 5 total, placing 4
+      // leaves 1 (bad). Place 3 instead (leaves 2, which is a valid block).
+      const remaining = task.totalHours - tryHours;
+      if (task.preventSingleHourBlocks && remaining > 0 && remaining < 2) {
+        continue;
+      }
+
       backtrackCounter = 0;
 
       const partialTask: SubjectTask = {
