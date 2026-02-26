@@ -1353,276 +1353,280 @@ const SchoolSchedule: React.FC = () => {
     <>
       <div className="schedule-select-main-container">
         <div className="schedule-select-container">
-          <div className="schedule-status-indicator">
-            <div className={`dot ${activeScheduleName === "Horario fresco" ? "fresh" : "loaded"} `} />
-            <span className="status-text">{activeScheduleName === "Horario fresco" ? "Nuevo" : "Cargado"}</span>
-            <span className="schedule-name">{activeScheduleName}</span>
-          </div>
-          {/* TABS FOR VIEW MODE */}
-          <div className="view-mode-tabs">
-            <div
-              className={`view - mode - tab ${viewMode === "pnf" ? "active" : ""} `}
-              onClick={() => handleViewModeChange("pnf")}>
-              Por PNF
+          <div className="header-row-top">
+            <div className="view-mode-tabs">
+              <div
+                className={`view-mode-tab ${viewMode === "pnf" ? "active" : ""}`}
+                onClick={() => handleViewModeChange("pnf")}>
+                Por PNF
+              </div>
+              <div
+                className={`view-mode-tab ${viewMode === "professor" ? "active" : ""}`}
+                onClick={() => handleViewModeChange("professor")}>
+                Por Profesor
+              </div>
+              <div
+                className={`view-mode-tab ${viewMode === "classroom" ? "active" : ""}`}
+                onClick={() => handleViewModeChange("classroom")}>
+                Por Aula
+              </div>
             </div>
-            <div
-              className={`view - mode - tab ${viewMode === "professor" ? "active" : ""} `}
-              onClick={() => handleViewModeChange("professor")}>
-              Por Profesor
-            </div>
-            <div
-              className={`view - mode - tab ${viewMode === "classroom" ? "active" : ""} `}
-              onClick={() => handleViewModeChange("classroom")}>
-              Por Aula
+
+            <div className="schedule-status-indicator">
+              <div className={`dot ${activeScheduleName === "Horario fresco" ? "fresh" : "loaded"}`} />
+              <span className="status-text">{activeScheduleName === "Horario fresco" ? "Nuevo" : "Cargado"}</span>
+              <span className="schedule-name">{activeScheduleName}</span>
             </div>
           </div>
 
-          {viewMode === "pnf" && (
-            <>
-              <div className="schedule-select">
-                <span>Turno:</span>
-                <Select
-                  size="small"
-                  value={turn}
-                  style={{ width: 120 }}
-                  onChange={(newTurn) => {
-                    setTurn(newTurn);
-                    const availableSections = Array.from(
+          <div className="header-row-bottom">
+            {viewMode === "pnf" && (
+              <>
+                <div className="schedule-select">
+                  <span>Turno:</span>
+                  <Select
+                    size="small"
+                    value={turn}
+                    style={{ width: 120 }}
+                    onChange={(newTurn) => {
+                      setTurn(newTurn);
+                      const availableSections = Array.from(
+                        new Set(
+                          (subjects || [])
+                            .filter(
+                              (s) =>
+                                (!pnf || s.pnfId === pnf) &&
+                                (!trayectoId || s.trayectoId === trayectoId) &&
+                                (!newTurn || s.turnoName?.toLowerCase() === newTurn)
+                            )
+                            .map((s) => s.seccion)
+                        )
+                      ).sort();
+
+                      if (availableSections.length > 0) {
+                        setSeccion(availableSections[0]);
+                      }
+                    }}
+                    options={Object.keys(activeTurnos).map((turn) => ({ value: turn, label: turn }))}
+                  />
+                </div>
+
+                <div className="schedule-select">
+                  <span>Sección:</span>
+                  <Select
+                    size="small"
+                    value={seccion}
+                    style={{ width: 120 }}
+                    onChange={setSeccion}
+                    options={Array.from(
                       new Set(
                         (subjects || [])
                           .filter(
                             (s) =>
                               (!pnf || s.pnfId === pnf) &&
                               (!trayectoId || s.trayectoId === trayectoId) &&
-                              (!newTurn || s.turnoName?.toLowerCase() === newTurn)
+                              (!turn || s.turnoName?.toLowerCase() === turn)
                           )
                           .map((s) => s.seccion)
                       )
-                    ).sort();
+                    )
+                      .sort()
+                      .map((seccion) => ({
+                        value: seccion,
+                        label: `Sección ${seccion}`,
+                      }))}
+                  />
+                </div>
 
-                    if (availableSections.length > 0) {
-                      setSeccion(availableSections[0]);
+                <div className="schedule-select">
+                  <span>PNF:</span>
+                  <Select
+                    size="small"
+                    value={pnf}
+                    style={{ width: 250 }}
+                    onChange={setPnf}
+                    options={Array.from(
+                      new Map(
+                        (subjects || [])
+                          .filter((subject) => subject.pnfId && subject.pnf && subject.pnf !== "ADMIN")
+                          .map((subject) => [subject.pnfId, subject.pnf])
+                      )
+                    ).map(([value, label]) => ({
+                      value,
+                      label,
+                    }))}
+                  />
+                </div>
+
+                <div className="schedule-select">
+                  <span>Trayecto:</span>
+                  <Select
+                    size="small"
+                    value={trayectoId}
+                    style={{ width: 180 }}
+                    onChange={setTrayectoId}
+                    options={(trayectosList || [])
+                      .slice()
+                      .sort((a, b) => {
+                        const nameA = a.name.toUpperCase();
+                        const nameB = b.name.toUpperCase();
+                        const isInicialA = nameA.includes("INICIAL");
+                        const isInicialB = nameB.includes("INICIAL");
+
+                        if (isInicialA && !isInicialB) return -1;
+                        if (!isInicialA && isInicialB) return 1;
+
+                        return nameA.localeCompare(nameB);
+                      })
+                      .map((trayecto) => ({
+                        value: trayecto.id,
+                        label: trayecto.name,
+                      }))}
+                  />
+                </div>
+                <div className="schedule-select">
+                  <span>Trimestre:</span>
+                  <Select
+                    size="small"
+                    value={trimestre}
+                    style={{ width: 150 }}
+                    onChange={(e) => {
+                      setErrors([]);
+                      setTrimestre(e);
+                    }}
+                    options={[
+                      { value: "q1", label: "Trimestre 1" },
+                      { value: "q2", label: "Trimestre 2" },
+                      { value: "q3", label: "Trimestre 3" },
+                    ]}
+                  />
+                </div>
+              </>
+            )}
+
+            {viewMode === "professor" && (
+              <>
+                <div className="schedule-select">
+                  <span>Profesor:</span>
+                  <Select
+                    size="small"
+                    showSearch
+                    value={selectedProfessorId}
+                    placeholder="Seleccione un profesor"
+                    optionFilterProp="children"
+                    filterOption={(input, option) =>
+                      (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                     }
-                  }}
-                  options={Object.keys(activeTurnos).map((turn) => ({ value: turn, label: turn }))}
-                />
-              </div>
-
-              <div className="schedule-select">
-                <span>Sección:</span>
-                <Select
-                  size="small"
-                  value={seccion}
-                  style={{ width: 120 }}
-                  onChange={setSeccion}
-                  options={Array.from(
-                    new Set(
-                      (subjects || [])
-                        .filter(
-                          (s) =>
-                            (!pnf || s.pnfId === pnf) &&
-                            (!trayectoId || s.trayectoId === trayectoId) &&
-                            (!turn || s.turnoName?.toLowerCase() === turn)
-                        )
-                        .map((s) => s.seccion)
-                    )
-                  )
-                    .sort()
-                    .map((seccion) => ({
-                      value: seccion,
-                      label: `Sección ${seccion} `,
+                    style={{ width: 500 }}
+                    onChange={setSelectedProfessorId}
+                    options={teachers?.map((teacher) => ({
+                      value: teacher.id,
+                      label: `${teacher.name} ${teacher.lastName}`,
                     }))}
-                />
-              </div>
+                  />
+                </div>
+                <div className="schedule-select">
+                  <span>Trimestre:</span>
+                  <Select
+                    size="small"
+                    value={trimestre}
+                    style={{ width: 150 }}
+                    onChange={(e) => {
+                      setErrors([]);
+                      setTrimestre(e);
+                    }}
+                    options={[
+                      { value: "q1", label: "Trimestre 1" },
+                      { value: "q2", label: "Trimestre 2" },
+                      { value: "q3", label: "Trimestre 3" },
+                    ]}
+                  />
+                </div>
+              </>
+            )}
 
-              <div className="schedule-select">
-                <span>PNF:</span>
-                <Select
-                  size="small"
-                  value={pnf}
-                  style={{ width: 250 }}
-                  onChange={setPnf}
-                  options={Array.from(
-                    new Map(
-                      (subjects || [])
-                        .filter((subject) => subject.pnfId && subject.pnf && subject.pnf !== "ADMIN")
-                        .map((subject) => [subject.pnfId, subject.pnf])
-                    )
-                  ).map(([value, label]) => ({
-                    value,
-                    label,
-                  }))}
-                />
-              </div>
+            {viewMode === "classroom" && (
+              <>
+                <div className="schedule-select">
+                  <span>Aula:</span>
+                  <Select
+                    size="small"
+                    showSearch
+                    value={selectedClassroomId}
+                    placeholder="Seleccione un aula"
+                    optionFilterProp="children"
+                    filterOption={(input, option) =>
+                      (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                    }
+                    style={{ width: 250 }}
+                    onChange={setSelectedClassroomId}
+                    options={(classrooms || [])
+                      .slice()
+                      .sort((a, b) =>
+                        a.classroom.localeCompare(b.classroom, undefined, { numeric: true, sensitivity: "base" })
+                      )
+                      .map((classroom) => ({
+                        value: classroom.id,
+                        label: classroom.classroom,
+                      }))}
+                  />
+                </div>
 
-              <div className="schedule-select">
-                <span>Trayecto:</span>
-                <Select
-                  size="small"
-                  value={trayectoId}
-                  style={{ width: 180 }}
-                  onChange={setTrayectoId}
-                  options={(trayectosList || [])
-                    .slice()
-                    .sort((a, b) => {
-                      const nameA = a.name.toUpperCase();
-                      const nameB = b.name.toUpperCase();
-                      const isInicialA = nameA.includes("INICIAL");
-                      const isInicialB = nameB.includes("INICIAL");
+                <div className="schedule-select">
+                  <span>Trimestre:</span>
+                  <Select
+                    size="small"
+                    value={trimestre}
+                    style={{ width: 150 }}
+                    onChange={(e) => {
+                      setErrors([]);
+                      setTrimestre(e);
+                    }}
+                    options={[
+                      { value: "q1", label: "Trimestre 1" },
+                      { value: "q2", label: "Trimestre 2" },
+                      { value: "q3", label: "Trimestre 3" },
+                    ]}
+                  />
+                </div>
+              </>
+            )}
 
-                      if (isInicialA && !isInicialB) return -1;
-                      if (!isInicialA && isInicialB) return 1;
+            <div className="schedule-actions">
+              <FaPlus title="Nuevo Horario" className={styles.icon} onClick={newSchedule} />
+              <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
+              <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
+              <FaPrint title="Imprimir Horario" className={styles.icon} onClick={handlePrint} />
+              <TeacherRestrictionModal
+                putTeacherRestriction={putTeacherRestriction}
+                teacherRestrictions={teacherRestrictions}
+                loadingTeacherRestrictions={!teacherRestrictionsReady}
+                scheduleTurnos={activeTurnos}
+                scheduleDays={activeDays}
+                externalOpen={!!editingTeacherId}
+                externalTeacherId={editingTeacherId || undefined}
+                onExternalClose={() => setEditingTeacherId(null)}
+              />
+              <SubjectRestrictionModal
+                putSubjectRestriction={putSubjectRestriction}
+                classrooms={classrooms}
+                subjectRestrictions={subjectRestriction}
+                loadingSubjectRestrictions={!subjectRestrictionsReady}
+              />
+              <TeachersRestrictionsListModal
+                restrictions={teacherRestrictions}
+                onEditTeacher={(teacherId) => setEditingTeacherId(teacherId)}
+              />
+              <ClassroomManagerModal classrooms={classrooms} onClassroomsUpdated={loadClassrooms} />
 
-                      return nameA.localeCompare(nameB);
-                    })
-                    .map((trayecto) => ({
-                      value: trayecto.id,
-                      label: trayecto.name,
-                    }))}
-                />
-              </div>
-              <div className="schedule-select">
-                <span>Trimestre:</span>
-                <Select
-                  size="small"
-                  value={trimestre}
-                  style={{ width: 150 }}
-                  onChange={(e) => {
-                    setErrors([]);
-                    setTrimestre(e);
-                  }}
-                  options={[
-                    { value: "q1", label: "Trimestre 1" },
-                    { value: "q2", label: "Trimestre 2" },
-                    { value: "q3", label: "Trimestre 3" },
-                  ]}
-                />
-              </div>
-            </>
-          )}
-
-          {viewMode === "professor" && (
-            <>
-              <div className="schedule-select">
-                <span>Profesor:</span>
-                <Select
-                  size="small"
-                  showSearch
-                  value={selectedProfessorId}
-                  placeholder="Seleccione un profesor"
-                  optionFilterProp="children"
-                  filterOption={(input, option) =>
-                    (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
-                  }
-                  style={{ width: 500 }}
-                  onChange={setSelectedProfessorId}
-                  options={teachers?.map((teacher) => ({
-                    value: teacher.id,
-                    label: `${teacher.name} ${teacher.lastName} `,
-                  }))}
-                />
-              </div>
-              <div className="schedule-select">
-                <span>Trimestre:</span>
-                <Select
-                  size="small"
-                  value={trimestre}
-                  style={{ width: 150 }}
-                  onChange={(e) => {
-                    setErrors([]);
-                    setTrimestre(e);
-                  }}
-                  options={[
-                    { value: "q1", label: "Trimestre 1" },
-                    { value: "q2", label: "Trimestre 2" },
-                    { value: "q3", label: "Trimestre 3" },
-                  ]}
-                />
-              </div>
-            </>
-          )}
-
-          {viewMode === "classroom" && (
-            <>
-              <div className="schedule-select">
-                <span>Aula:</span>
-                <Select
-                  size="small"
-                  showSearch
-                  value={selectedClassroomId}
-                  placeholder="Seleccione un aula"
-                  optionFilterProp="children"
-                  filterOption={(input, option) =>
-                    (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
-                  }
-                  style={{ width: 250 }}
-                  onChange={setSelectedClassroomId}
-                  options={(classrooms || [])
-                    .slice()
-                    .sort((a, b) =>
-                      a.classroom.localeCompare(b.classroom, undefined, { numeric: true, sensitivity: "base" })
-                    )
-                    .map((classroom) => ({
-                      value: classroom.id,
-                      label: classroom.classroom,
-                    }))}
-                />
-              </div>
-
-              <div className="schedule-select">
-                <span>Trimestre:</span>
-                <Select
-                  size="small"
-                  value={trimestre}
-                  style={{ width: 150 }}
-                  onChange={(e) => {
-                    setErrors([]);
-                    setTrimestre(e);
-                  }}
-                  options={[
-                    { value: "q1", label: "Trimestre 1" },
-                    { value: "q2", label: "Trimestre 2" },
-                    { value: "q3", label: "Trimestre 3" },
-                  ]}
-                />
-              </div>
-            </>
-          )}
-
-          <div className="schedule-actions">
-            <FaPlus title="Nuevo Horario" className={styles.icon} onClick={newSchedule} />
-            <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
-            <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
-            <FaPrint title="Imprimir Horario" className={styles.icon} onClick={handlePrint} />
-            <TeacherRestrictionModal
-              putTeacherRestriction={putTeacherRestriction}
-              teacherRestrictions={teacherRestrictions}
-              loadingTeacherRestrictions={!teacherRestrictionsReady}
-              scheduleTurnos={activeTurnos}
-              scheduleDays={activeDays}
-              externalOpen={!!editingTeacherId}
-              externalTeacherId={editingTeacherId || undefined}
-              onExternalClose={() => setEditingTeacherId(null)}
-            />
-            <SubjectRestrictionModal
-              putSubjectRestriction={putSubjectRestriction}
-              classrooms={classrooms}
-              subjectRestrictions={subjectRestriction}
-              loadingSubjectRestrictions={!subjectRestrictionsReady}
-            />
-            <TeachersRestrictionsListModal
-              restrictions={teacherRestrictions}
-              onEditTeacher={(teacherId) => setEditingTeacherId(teacherId)}
-            />
-            <ClassroomManagerModal classrooms={classrooms} onClassroomsUpdated={loadClassrooms} />
-
-            <ScheduleErrorsModal errors={errors} onForceInsert={handleForceInsert} />
-            <FaCog title="Configuración" className={styles.icon} onClick={() => setIsConfigModalOpen(true)} />
-            <ScheduleConfigModal
-              visible={isConfigModalOpen}
-              onClose={() => setIsConfigModalOpen(false)}
-              onConfigUpdate={(newConfig) => setScheduleConfig(newConfig)}
-            />
+              <ScheduleErrorsModal errors={errors} onForceInsert={handleForceInsert} />
+              <FaCog title="Configuración" className={styles.icon} onClick={() => setIsConfigModalOpen(true)} />
+              <ScheduleConfigModal
+                visible={isConfigModalOpen}
+                onClose={() => setIsConfigModalOpen(false)}
+                onConfigUpdate={(newConfig) => setScheduleConfig(newConfig)}
+              />
+            </div>
           </div>
         </div>
 

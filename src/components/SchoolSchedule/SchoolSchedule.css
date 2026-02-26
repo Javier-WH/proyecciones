@@ -219,14 +219,28 @@ body,
 
 .schedule-select-container {
   display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
   background-color: #fff;
-  padding: 10px 20px;
+  padding: 12px 20px;
   border-bottom: 1px solid #e0e0e0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
   z-index: 10;
+}
+
+.header-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.header-row-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: flex-end;
+  width: 100%;
 }
 
 /* View Mode Tabs */
@@ -273,10 +287,8 @@ body,
   display: flex;
   gap: 12px;
   margin-left: auto;
-  /* Push to right */
   align-items: center;
   padding-left: 15px;
-  border-left: 1px solid #eee;
 }
 
 .schedule-content-wrapper {
@@ -379,7 +391,6 @@ body,
   border-radius: 50px;
   border: 1px solid #e1e8f0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
-  margin-right: 15px;
 }
 
 .schedule-status-indicator .dot {
@@ -409,9 +420,20 @@ body,
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); opacity: 0.4; }
-  70% { transform: scale(3); opacity: 0; }
-  100% { transform: scale(1); opacity: 0; }
+  0% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+
+  70% {
+    transform: scale(3);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
 }
 
 .schedule-status-indicator .status-text {
