@@ -206,6 +206,7 @@ interface SubjectTask {
   constraintScore: number;
   preventSingleHourBlocks: boolean;
   hasTeacherRestrictions: boolean;
+  hasClassroomRestrictions: boolean;
 }
 
 interface BlockPlacement {
@@ -541,9 +542,109 @@ function assignTask(
 }
 
 /**
+ * Backtracking dirigido por profesor.
+ * Cuando una materia no se puede colocar y el mismo profesor tiene otras materias
+ * ya asignadas, deshace TODAS las del profesor, coloca la materia fallida primero,
+ * y luego reasigna las demás.
+ *
+ * Esto resuelve el caso donde las materias A, B, C del profesor X se colocan
+ * sin dejar espacio para la materia D del mismo profesor.
+ */
+function tryProfessorBacktrack(
+  currentIdx: number,
+  task: SubjectTask,
+  tasks: SubjectTask[],
+  assigned: Map<number, BlockPlacement[]>,
+  assignmentOrder: number[],
+  occupancy: OccupancyTracker,
+  distributeEquitably: boolean,
+): boolean {
+  // Find all previously assigned tasks from the same professor
+  const sameProfIndices = assignmentOrder.filter(
+    (idx) => tasks[idx].professorId === task.professorId,
+  );
+
+  if (sameProfIndices.length === 0) return false;
+
+  // Save all same-professor placements before undoing
+  const savedPlacements = new Map<number, BlockPlacement[]>();
+  for (const idx of sameProfIndices) {
+    savedPlacements.set(idx, assigned.get(idx)!);
+    for (const bp of assigned.get(idx)!) {
+      undoBlock(bp, tasks[idx], occupancy);
+    }
+    assigned.delete(idx);
+  }
+
+  const sameProfSet = new Set(sameProfIndices);
+
+  // Reset backtrack counter for this sub-problem
+  backtrackCounter = 0;
+
+  // Try to assign current task first (professor's other slots are now freed)
+  const currentPlacements = assignTask(task, occupancy, distributeEquitably);
+
+  if (currentPlacements) {
+    // Current succeeded! Now try to re-assign all other professor tasks
+    assigned.set(currentIdx, currentPlacements);
+    let allReassigned = true;
+    const reassignedIndices: number[] = [];
+
+    // Re-assign professor's other tasks sorted by constraint (most constrained first)
+    const sortedSameProf = [...sameProfIndices].sort(
+      (a, b) => tasks[b].constraintScore - tasks[a].constraintScore,
+    );
+
+    for (const idx of sortedSameProf) {
+      backtrackCounter = 0;
+      const retry = assignTask(tasks[idx], occupancy, distributeEquitably);
+      if (retry) {
+        assigned.set(idx, retry);
+        reassignedIndices.push(idx);
+      } else {
+        allReassigned = false;
+        break;
+      }
+    }
+
+    if (allReassigned) {
+      // Success! Update assignment order: remove same-prof, add them back + current
+      const filtered = assignmentOrder.filter((idx) => !sameProfSet.has(idx));
+      assignmentOrder.length = 0;
+      assignmentOrder.push(...filtered, ...sortedSameProf, currentIdx);
+      return true;
+    }
+
+    // Failed — undo current task and any re-assigned tasks
+    for (const bp of currentPlacements) {
+      undoBlock(bp, task, occupancy);
+    }
+    assigned.delete(currentIdx);
+
+    for (const idx of reassignedIndices) {
+      for (const bp of assigned.get(idx)!) {
+        undoBlock(bp, tasks[idx], occupancy);
+      }
+      assigned.delete(idx);
+    }
+  }
+
+  // Restore all original placements
+  for (const [idx, pls] of savedPlacements) {
+    for (const bp of pls) {
+      applyBlock(bp, tasks[idx], occupancy);
+    }
+    assigned.set(idx, pls);
+  }
+
+  return false;
+}
+
+/**
  * Solver principal con backtracking entre materias.
  * Si una materia no puede asignarse, retrocede hasta `maxDepth` materias previas
  * e intenta colocaciones alternativas.
+ * Si eso falla, intenta backtracking dirigido por profesor.
  */
 function solveAll(
   tasks: SubjectTask[],
@@ -557,12 +658,10 @@ function solveAll(
 
   let i = 0;
   while (i < tasks.length) {
-    if (backtrackCounter >= MAX_BACKTRACKS && !assigned.has(i)) {
-      // Budget exhausted, add remaining to unassigned
-      unassigned.push(i);
-      i++;
-      continue;
-    }
+    // Reset backtrack counter per task so each task gets its own budget.
+    // Without this, restricted tasks could exhaust the budget and cause
+    // unrestricted tasks to be skipped even when obvious placements exist.
+    backtrackCounter = 0;
 
     const task = tasks[i];
     const placements = assignTask(task, occupancy, distributeEquitably);
@@ -572,7 +671,7 @@ function solveAll(
       assignmentOrder.push(i);
       i++;
     } else {
-      // Try backtracking
+      // Try standard backtracking (last maxDepth tasks)
       let resolved = false;
       let depth = 0;
 
@@ -638,6 +737,23 @@ function solveAll(
         }
 
         backtrackCounter++;
+      }
+
+      // If standard backtracking failed, try professor-targeted backtracking
+      if (!resolved) {
+        backtrackCounter = 0;
+        resolved = tryProfessorBacktrack(
+          i,
+          task,
+          tasks,
+          assigned,
+          assignmentOrder,
+          occupancy,
+          distributeEquitably,
+        );
+        if (resolved) {
+          i++;
+        }
       }
 
       if (!resolved) {
@@ -731,6 +847,20 @@ export function generateScheduleEvents({
     }
   }
 
+  // ─── Build set of reserved classrooms ───
+  // Classrooms that are explicitly assigned to specific subjects
+  // via subject restrictions should be deprioritized for other subjects
+  const reservedClassroomIds = new Set<string>();
+  if (preferredClassrooms) {
+    for (const pref of preferredClassrooms) {
+      if (pref.classroomIds?.length) {
+        for (const id of pref.classroomIds) {
+          reservedClassroomIds.add(id);
+        }
+      }
+    }
+  }
+
   // ─── Step 2: Filtrar materias y preparar tasks ───
   const filteredSubjects = subjects.filter((sub) => {
     const isQuarterMatch =
@@ -794,9 +924,16 @@ export function generateScheduleEvents({
         (p) =>
           p.subjectKey === subjectKey && (!p.pnfId || p.pnfId === sub.pnfId),
       );
+      // Para materias CON restricción de aula: solo usar las aulas asignadas
+      // Para materias SIN restricción: usar todas, pero deprioritizar las reservadas
+      // para que no le quiten aulas a las materias que SÍ las necesitan
       const candidateClassrooms = preferConfig?.classroomIds?.length
         ? classrooms.filter((c) => preferConfig.classroomIds.includes(c.id))
-        : classrooms;
+        : [...classrooms].sort((a, b) => {
+          const aReserved = reservedClassroomIds.has(a.id) ? 1 : 0;
+          const bReserved = reservedClassroomIds.has(b.id) ? 1 : 0;
+          return aReserved - bReserved;
+        });
 
       if (candidateClassrooms.length === 0 || availableDays.length === 0) {
         // Reportar inmediatamente: sin aulas o sin días
@@ -855,8 +992,14 @@ export function generateScheduleEvents({
         score += Math.round(hoursPerAvailableDay * 30);
       }
 
-      // Factor terciario: pocas aulas candidatas
-      score += Math.max(0, 20 - candidateClassrooms.length) * 5;
+      // Factor importante: pocas aulas candidatas
+      // Una materia con 1 sola aula posible es MUY restringida
+      // 1 aula → 190pts, 2 aulas → 90pts, 5 aulas → 30pts
+      if (candidateClassrooms.length <= 3) {
+        score += Math.round(200 / candidateClassrooms.length);
+      } else {
+        score += Math.max(0, 20 - candidateClassrooms.length) * 5;
+      }
 
       // Factor menor: horas totales (materias con más horas ligeramente más urgentes)
       score += totalHours * 3;
@@ -864,8 +1007,9 @@ export function generateScheduleEvents({
       // Factor menor: pocos slots en el turno
       score += Math.max(0, 10 - timeSlots.length) * 4;
 
-      // Indicador de si el profesor tiene restricciones (cualquiera)
+      // Indicadores de restricciones
       const hasTeacherRestrictions = restrictedDays.length > 0 || restrictedHours.length > 0;
+      const hasClassroomRestrictions = !!(preferConfig?.classroomIds?.length);
 
       return {
         subject: sub,
@@ -884,20 +1028,28 @@ export function generateScheduleEvents({
         constraintScore: score,
         preventSingleHourBlocks,
         hasTeacherRestrictions,
+        hasClassroomRestrictions,
       };
     })
     .filter(Boolean) as SubjectTask[];
 
   // ─── Step 3: Ordenar por prioridad de restricciones ───
-  // ESTRATEGIA: Las materias con profesores restringidos van PRIMERO,
+  // ESTRATEGIA: Las materias con cualquier tipo de restricción van PRIMERO,
   // ordenadas de más restringido a menos restringido.
-  // Dentro de profesores con el mismo nivel de restricción, se agrupan
-  // las materias del mismo profesor para que se coloquen consecutivamente
-  // y no se bloqueen entre sí.
+  // Dentro del mismo nivel de restricción, se agrupan por profesor.
   tasks.sort((a, b) => {
-    // Nivel 1: Profesores con restricciones SIEMPRE antes que sin restricciones
-    if (a.hasTeacherRestrictions !== b.hasTeacherRestrictions) {
-      return a.hasTeacherRestrictions ? -1 : 1;
+    // Nivel 1: Materias con CUALQUIER restricción antes que sin restricciones
+    const aHasRestrictions = a.hasTeacherRestrictions || a.hasClassroomRestrictions;
+    const bHasRestrictions = b.hasTeacherRestrictions || b.hasClassroomRestrictions;
+    if (aHasRestrictions !== bHasRestrictions) {
+      return aHasRestrictions ? -1 : 1;
+    }
+
+    // Nivel 1.5: Dentro de restringidos, priorizar los que tienen AMBOS tipos
+    if (aHasRestrictions && bHasRestrictions) {
+      const aBoth = (a.hasTeacherRestrictions && a.hasClassroomRestrictions) ? 1 : 0;
+      const bBoth = (b.hasTeacherRestrictions && b.hasClassroomRestrictions) ? 1 : 0;
+      if (aBoth !== bBoth) return bBoth - aBoth;
     }
 
     // Nivel 2: Dentro de la misma categoría, ordenar por constraintScore (más alto primero)
