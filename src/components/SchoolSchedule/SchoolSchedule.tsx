@@ -395,9 +395,6 @@ const SchoolSchedule: React.FC = () => {
     setErrors((prevErrors) => [...prevErrors, err]);
   };
 
-  // Force-insert or try to solve a subject that failed scheduling.
-  // if ignoreRestrictions is true, it ignores professor day restrictions and classroom preferences.
-  // Still always respects hard constraints: no double-booking.
   const handleForceInsert = useCallback((errorInfo: scheduleError, ignoreRestrictions: boolean = true) => {
     if (!errorInfo.subjectId) return;
 
@@ -418,248 +415,154 @@ const SchoolSchedule: React.FC = () => {
     }
 
     const professorId = errorInfo.professorId || subject.quarter[trimestre] || null;
-
-    // Determine which days and classrooms to use
-    let allowedDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
-    let allowedClassrooms = classrooms;
-
-    if (!ignoreRestrictions) {
-      // Respect professor day restrictions
-      const restriction = teacherRestrictions.find(r => String(r.teacherId) === String(professorId));
-      if (restriction && restriction.days) {
-        const blockedDays = new Set(restriction.days);
-        allowedDays = allowedDays.filter(d => !blockedDays.has(d));
-      }
-
-      // Respect classroom preferences/restrictions
-      const subjectPref = subjectRestriction.find(r =>
-        (r.subjectName === subject.subject) ||
-        (r.subjectKey === subject.subject)
-      );
-      if (subjectPref && (subjectPref.classroomIds?.length || 0) > 0) {
-        const ids = subjectPref.classroomIds || [];
-        allowedClassrooms = classrooms.filter(c => ids.includes(c.id));
-      }
-    }
-
-    if (allowedClassrooms.length === 0) {
-      message.error(ignoreRestrictions ? "No hay aulas disponibles." : "No hay aulas disponibles que cumplan con las restricciones de la materia.");
-      return;
-    }
-
-    if (allowedDays.length === 0) {
-      message.error("No hay días disponibles para este profesor según sus restricciones.");
-      return;
-    }
-
-    const allDays = allowedDays;
-    const allClassrooms = allowedClassrooms;
-
-    // Gather ALL existing events (loaded + generated) to check conflicts
+    const sectionKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
     const allEvents = [...loadedScheduleEvents, ...eventData];
-
     const hoursNeeded = errorInfo.totalHours || subject.hours[trimestre] || 0;
+
     if (hoursNeeded <= 0) {
       message.error("Esta materia no tiene horas pendientes por asignar.");
       return;
     }
 
-    // Build an occupancy map from all existing events
-    // Key: "day-startTime" → { professorIds, classroomIds, sectionKeys }
-    const occupancy = new Map<string, {
-      professorIds: Set<string>;
-      classroomIds: Set<string>;
-      sectionKeys: Set<string>;
-    }>();
+    const preventSingleBlocksGlobal = !!scheduleConfig?.prevent_single_hour_blocks;
 
-    for (const evt of allEvents) {
-      if (!evt.daysOfWeek?.length || !evt.startTime) continue;
-      const day = evt.daysOfWeek[0];
-      const key = `${day}-${evt.startTime}`;
-      if (!occupancy.has(key)) {
-        occupancy.set(key, {
-          professorIds: new Set(),
-          classroomIds: new Set(),
-          sectionKeys: new Set(),
-        });
+    // --- Core Search Function ---
+    const executeSearch = (days: number[], targetClassrooms: Classroom[], forceConsecutive: boolean) => {
+      // 1. Build occupancy map
+      const occupancy = new Map<string, { professorIds: Set<string>; classroomIds: Set<string>; sectionKeys: Set<string>; }>();
+      for (const evt of allEvents) {
+        if (!evt.daysOfWeek?.length || !evt.startTime) continue;
+        const key = `${evt.daysOfWeek[0]}-${evt.startTime}`;
+        if (!occupancy.has(key)) occupancy.set(key, { professorIds: new Set(), classroomIds: new Set(), sectionKeys: new Set(), });
+        const occ = occupancy.get(key)!;
+        if (evt.extendedProps?.professorId) occ.professorIds.add(String(evt.extendedProps.professorId));
+        if (evt.extendedProps?.classroomId) occ.classroomIds.add(String(evt.extendedProps.classroomId));
+        const sk = `${evt.extendedProps?.pnfId}-${evt.extendedProps?.trayectoId}-${evt.extendedProps?.seccion}`;
+        occ.sectionKeys.add(sk);
       }
-      const occ = occupancy.get(key)!;
-      if (evt.extendedProps?.professorId) {
-        occ.professorIds.add(evt.extendedProps.professorId);
-      }
-      if (evt.extendedProps?.classroomId) {
-        occ.classroomIds.add(evt.extendedProps.classroomId);
-      }
-      const secKey = `${evt.extendedProps?.pnfId}-${evt.extendedProps?.trayectoId}-${evt.extendedProps?.seccion}`;
-      occ.sectionKeys.add(secKey);
-    }
 
-    const sectionKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
-
-    // Try to find slots: for each day, for each slot, check if we can place
-
-    // Prefer consecutive slots on the same day for better schedule quality
-    // Helper: check if a slot is available (no hard-constraint violations)
-
-
-    // For each day, find all consecutive runs of available slots
-    type ConsecutiveRun = { day: number; startSlotIdx: number; slots: { slotIdx: number; classroom: Classroom }[] };
-    let allRuns: ConsecutiveRun[] = [];
-
-    const findAvailableRuns = () => {
-      const found: ConsecutiveRun[] = [];
-      for (const day of allDays) {
-        for (const cr of allClassrooms) {
-          let currentRun: ConsecutiveRun | null = null;
+      // 2. Find runs
+      const runs: { day: number; startSlotIdx: number; slots: { slotIdx: number; classroom: Classroom }[] }[] = [];
+      for (const day of days) {
+        for (const cr of targetClassrooms) {
+          let currentRun: any = null;
           let lastEnd: string | null = null;
-
-          for (let slotIdx = 0; slotIdx < timeSlots.length; slotIdx++) {
-            const [start, end] = timeSlots[slotIdx];
-            const key = `${day}-${start}`;
-            const occ = occupancy.get(key);
-
-            // Hard constraints check with robust ID comparison
-            const profConflict = professorId && Array.from(occ?.professorIds || []).some(id => String(id) === String(professorId));
-            const sectionConflict = occ?.sectionKeys.has(sectionKey);
-            const roomConflict = Array.from(occ?.classroomIds || []).some(id => String(id) === String(cr.id));
-
-            const isAvailable = !profConflict && !sectionConflict && !roomConflict;
+          for (let idx = 0; idx < timeSlots.length; idx++) {
+            const [start, end] = timeSlots[idx];
+            const occ = occupancy.get(`${day}-${start}`);
+            const conflict = (professorId && occ?.professorIds.has(String(professorId))) ||
+              occ?.sectionKeys.has(sectionKey) ||
+              occ?.classroomIds.has(String(cr.id));
+            const isAvailable = !conflict;
             const isConsecutive = isAvailable && (lastEnd === null || lastEnd === start);
-
             if (isConsecutive) {
-              if (!currentRun) {
-                currentRun = { day, startSlotIdx: slotIdx, slots: [] };
-              }
-              currentRun.slots.push({ slotIdx, classroom: cr });
+              if (!currentRun) currentRun = { day, startSlotIdx: idx, slots: [] };
+              currentRun.slots.push({ slotIdx: idx, classroom: cr });
               lastEnd = end;
             } else {
-              if (currentRun && currentRun.slots.length > 0) found.push(currentRun);
-              if (isAvailable) {
-                currentRun = { day, startSlotIdx: slotIdx, slots: [{ slotIdx, classroom: cr }] };
-                lastEnd = end;
-              } else {
-                currentRun = null;
-                lastEnd = null;
-              }
+              if (currentRun && currentRun.slots.length > 0) runs.push(currentRun);
+              if (isAvailable) { currentRun = { day, startSlotIdx: idx, slots: [{ slotIdx: idx, classroom: cr }] }; lastEnd = end; }
+              else { currentRun = null; lastEnd = null; }
             }
           }
-          if (currentRun && currentRun.slots.length > 0) found.push(currentRun);
+          if (currentRun && currentRun.slots.length > 0) runs.push(currentRun);
         }
       }
-      return found;
+      runs.sort((a, b) => b.slots.length - a.slots.length || a.day - b.day);
+
+      // 3. Exhaustive Placement
+      const usable = forceConsecutive ? runs.filter(r => r.slots.length >= 2) : runs;
+      let bestEvents: Event[] = [];
+      let bestCount = 0;
+
+      const backtrack = (idx: number, current: Event[], count: number) => {
+        if (count > bestCount) { bestCount = count; bestEvents = [...current]; }
+        if (bestCount >= hoursNeeded || idx >= usable.length) return;
+
+        let rem = 0;
+        for (let i = idx; i < usable.length; i++) rem += Math.min(usable[i].slots.length, hoursNeeded - count);
+        if (count + rem <= bestCount) return;
+
+        for (let i = idx; i < usable.length; i++) {
+          const r = usable[i];
+          let take = Math.min(r.slots.length, hoursNeeded - count);
+          if (forceConsecutive) {
+            if (take === 1) { if (r.slots.length >= 2) take = 2; else continue; }
+            if ((hoursNeeded - count) - take === 1) {
+              if (r.slots.length > take) take += 1;
+              else if (take - 1 >= 2) take -= 1;
+              else continue;
+            }
+          }
+          const batch: Event[] = [];
+          for (let s = 0; s < take; s++) {
+            batch.push({
+              title: subject.subject, daysOfWeek: [r.day], startTime: timeSlots[r.slots[s].slotIdx][0], endTime: timeSlots[r.slots[s].slotIdx][1],
+              extendedProps: { subjectId: subject.innerId, professorId: professorId || null, classroomId: r.slots[s].classroom.id, classroomName: r.slots[s].classroom.classroom, pnfId: subject.pnfId, trayectoId: subject.trayectoId, trayectoName: subject.trayectoName, seccion: subject.seccion, pnfName: subject.pnf, turnName: subject.turnoName, blockId: `${r.day}-${subject.innerId}` }
+            });
+          }
+          backtrack(i + 1, [...current, ...batch], count + take);
+          if (bestCount >= hoursNeeded) return;
+        }
+      };
+      backtrack(0, [], 0);
+      return { events: bestEvents, count: bestCount };
     };
 
-    allRuns = findAvailableRuns();
+    // --- Strategy Orchestration ---
+    const defaultDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
+    const profRestriction = teacherRestrictions.find(r => String(r.teacherId) === String(professorId));
+    const profDays = profRestriction?.days ? defaultDays.filter(d => !new Set(profRestriction.days).has(d)) : defaultDays;
 
-    // Sort: longest runs first, then earlier days
-    allRuns.sort((a, b) => b.slots.length - a.slots.length || a.day - b.day || a.startSlotIdx - b.startSlotIdx);
+    const subPref = subjectRestriction.find(r => r.subjectName === subject.subject || r.subjectKey === subject.subject);
+    const prefClassrooms = (subPref?.classroomIds?.length || 0) > 0 ? classrooms.filter(c => subPref!.classroomIds!.includes(c.id)) : classrooms;
 
-    const preventSingleBlocksGlobal = !!scheduleConfig?.prevent_single_hour_blocks;
-    let bypassedSingleBlocks = false;
+    let finalResult: { events: Event[]; count: number } = { events: [], count: 0 };
+    let note = "";
 
-    const attemptPlacement = (forceConsecutive: boolean) => {
-      const tempEvents: Event[] = [];
-      let tempPlaced = 0;
+    if (!ignoreRestrictions) {
+      // Pass 1: Strict (Teacher + Subject Prefs)
+      finalResult = executeSearch(profDays, prefClassrooms, preventSingleBlocksGlobal);
 
-      const usable = forceConsecutive
-        ? allRuns.filter(run => run.slots.length >= 2)
-        : allRuns;
-
-      for (const run of usable) {
-        if (tempPlaced >= hoursNeeded) break;
-
-        let slotsToUse = Math.min(run.slots.length, hoursNeeded - tempPlaced);
-
-        if (forceConsecutive) {
-          if (slotsToUse === 1) {
-            if (run.slots.length >= 2) slotsToUse = 2;
-            else continue;
-          }
-          const remaining = (hoursNeeded - tempPlaced) - slotsToUse;
-          if (remaining === 1) {
-            if (run.slots.length > slotsToUse) slotsToUse += 1;
-            else if (slotsToUse - 1 >= 2) slotsToUse -= 1;
-            else continue;
-          }
-        }
-
-        for (let i = 0; i < slotsToUse; i++) {
-          const { slotIdx, classroom } = run.slots[i];
-          const [start, end] = timeSlots[slotIdx];
-          tempEvents.push({
-            title: subject.subject,
-            daysOfWeek: [run.day],
-            startTime: start,
-            endTime: end,
-            extendedProps: {
-              subjectId: subject.innerId,
-              professorId: professorId || null,
-              classroomId: classroom.id,
-              classroomName: classroom.classroom,
-              pnfId: subject.pnfId,
-              trayectoId: subject.trayectoId,
-              trayectoName: subject.trayectoName,
-              seccion: subject.seccion,
-              pnfName: subject.pnf,
-              turnName: subject.turnoName,
-              blockId: `${run.day}-${subject.innerId}`,
-            },
-          });
-          tempPlaced++;
+      // Pass 2: Relaxed Subject (Teacher + ALL Classrooms)
+      if (finalResult.count < hoursNeeded) {
+        const fallbackClassrooms = executeSearch(profDays, classrooms, preventSingleBlocksGlobal);
+        if (fallbackClassrooms.count > finalResult.count) {
+          finalResult = fallbackClassrooms;
+          note = "⚠️ Se ignoró la preferencia de aulas para encontrar espacio.";
         }
       }
-      return { events: tempEvents, count: tempPlaced };
-    };
-
-    let result = attemptPlacement(preventSingleBlocksGlobal);
-
-    // Fallback if not all hours could be placed using the consecutive blocks rule.
-    // We ONLY allow bypassing the "no single hour blocks" rule if we are in "Force Solve" mode (ignoreRestrictions = true).
-    if (result.count < hoursNeeded && preventSingleBlocksGlobal && ignoreRestrictions) {
-      const fallback = attemptPlacement(false);
-      if (fallback.count > result.count) {
-        result = fallback;
-        bypassedSingleBlocks = true;
-      }
+    } else {
+      // PASS 3: FORCE (ALL Days + ALL Classrooms)
+      // We still respect preventSingleBlocksGlobal here because the user wants it to be absolute.
+      finalResult = executeSearch(defaultDays, classrooms, preventSingleBlocksGlobal);
+      note = "⚠️ Se ignoraron las restricciones de días del profesor y aulas preferidas.";
     }
 
-    if (result.count === 0) {
-      const msg = !ignoreRestrictions
-        ? "No se encontró espacio disponible respetando las restricciones. Pruebe usando 'Forzar solución'."
-        : "No se encontró ningún espacio disponible. Es posible que el profesor o las aulas ya estén al límite de su capacidad.";
-      message.error(msg);
+    if (finalResult.count === 0) {
+      message.error(!ignoreRestrictions ? "No se encontró espacio siguiendo las restricciones del profesor. Intente 'Forzar solución'." : "No hay espacio físico disponible para esta materia.");
       return;
     }
 
     const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-    const details = result.events.map(evt => {
-      const dayName = dayNames[evt.daysOfWeek![0]] || `Día ${evt.daysOfWeek![0]}`;
-      return `• ${dayName} ${evt.startTime} - ${evt.endTime} → ${evt.extendedProps.classroomName}`;
-    }).join("\n");
-
     Modal.info({
-      title: result.count < hoursNeeded ? `Se asignaron solo ${result.count} de ${hoursNeeded} horas` : `Se asignaron las ${result.count} horas`,
+      title: finalResult.count < hoursNeeded ? `Se asignaron ${finalResult.count} de ${hoursNeeded} horas` : `Horas asignadas con éxito`,
       content: (
         <div style={{ whiteSpace: "pre-line", marginTop: "8px", fontSize: "13px", lineHeight: "1.8" }}>
-          {bypassedSingleBlocks && (
-            <div style={{ color: "#faad14", fontWeight: "bold", marginBottom: "8px" }}>
-              ⚠️ Nota: Se ignoró la regla de "evitar horas sueltas" para poder completar la asignación.
-            </div>
-          )}
-          {details}
+          {note && <div style={{ color: "#faad14", fontWeight: "bold", marginBottom: "8px" }}>{note}</div>}
+          {finalResult.events.map(evt => `• ${dayNames[evt.daysOfWeek![0]]} ${evt.startTime} - ${evt.endTime} → ${evt.extendedProps.classroomName}`).join("\n")}
         </div>
       ),
       width: 480,
     });
 
-    setLoadedScheduleEvents(prev => [...prev, ...result.events]);
+    setLoadedScheduleEvents(prev => [...prev, ...finalResult.events]);
     setGenerationCounter(prev => prev + 1);
-  }, [eventData, loadedScheduleEvents, classrooms, activeTurnos, trimestre, scheduleConfig]);
+  }, [eventData, loadedScheduleEvents, classrooms, activeTurnos, trimestre, scheduleConfig, teacherRestrictions, subjectRestriction]);
 
   // Handler to change classroom for a specific event (specific day+time block)
   const handleChangeClassroom = () => {
     if (!classroomChangeEvent || !newClassroomId) return;
-
     const newClassroom = classrooms.find((c) => c.id === newClassroomId);
     if (!newClassroom) return;
 
