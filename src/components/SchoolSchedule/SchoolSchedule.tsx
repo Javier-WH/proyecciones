@@ -613,8 +613,9 @@ const SchoolSchedule: React.FC = () => {
 
     let result = attemptPlacement(preventSingleBlocksGlobal);
 
-    // Fallback if not all hours could be placed using the consecutive blocks rule
-    if (result.count < hoursNeeded && preventSingleBlocksGlobal) {
+    // Fallback if not all hours could be placed using the consecutive blocks rule.
+    // We ONLY allow bypassing the "no single hour blocks" rule if we are in "Force Solve" mode (ignoreRestrictions = true).
+    if (result.count < hoursNeeded && preventSingleBlocksGlobal && ignoreRestrictions) {
       const fallback = attemptPlacement(false);
       if (fallback.count > result.count) {
         result = fallback;
@@ -623,7 +624,10 @@ const SchoolSchedule: React.FC = () => {
     }
 
     if (result.count === 0) {
-      message.error("No se encontró ningún espacio disponible. Es posible que el profesor o las aulas ya estén al límite de su capacidad.");
+      const msg = !ignoreRestrictions
+        ? "No se encontró espacio disponible respetando las restricciones. Pruebe usando 'Forzar solución'."
+        : "No se encontró ningún espacio disponible. Es posible que el profesor o las aulas ya estén al límite de su capacidad.";
+      message.error(msg);
       return;
     }
 
