@@ -84,6 +84,15 @@ const hexToRgba = (hexColor: string, alpha = 0.15): string => {
 const SchoolSchedule: React.FC = () => {
   const { subjects, teachers, trayectosList, proyectionId, subjectColors } =
     useContext(MainContext) as MainContextValues;
+
+  // Use a ref for teachers so that generateScheduleEvents can access the latest
+  // value without being listed as a dependency (which would cause the schedule
+  // to regenerate every time the teacher list updates via WebSocket, producing
+  // visually shuffled professor names due to non-deterministic backtracking).
+  const teachersRef = useRef(teachers);
+  useEffect(() => {
+    teachersRef.current = teachers;
+  }, [teachers]);
   const consecutiveConfig = useMemo(
     () => ({
       minSlots: 2,
@@ -704,7 +713,7 @@ const SchoolSchedule: React.FC = () => {
       customTurnos: activeTurnos,
       distributeEquitably: scheduleConfig?.distribute_equitably,
       preventSingleHourBlocks: scheduleConfig?.prevent_single_hour_blocks,
-      teachers: teachers || [],
+      teachers: teachersRef.current || [],
     });
 
     setEventData(eventsdata);
@@ -720,7 +729,9 @@ const SchoolSchedule: React.FC = () => {
     subjectRestrictionsReady,
     consecutiveConfig,
     scheduleConfig,
-    teachers,
+    // NOTE: `teachers` is intentionally NOT a dependency here.
+    // It's accessed via teachersRef to avoid regenerating the entire schedule
+    // on every WebSocket update (which shuffles professor names visually).
     generationCounter,  // Fuerza regeneración cuando se aplican restricciones
   ]);
 

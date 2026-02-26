@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Form, InputNumber, Checkbox, Tabs, Button, message, TimePicker, Input } from "antd";
-import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlusOutlined, DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { ScheduleConfig, getScheduleConfig, updateScheduleConfig } from "../../fetch/schedule/scheduleConfigFetch";
 import fetchPhoto from "../../fetch/fetchPhoto";
@@ -214,8 +214,27 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
         }
     };
 
+    const handleRestoreDefaults = () => {
+        form.setFieldsValue({
+            header_text: null, // Set to null to trigger fallbacks in PrintableSchedule
+            logo_url: "",
+        });
+        setLogoPreview("");
+        message.info("Restauración aplicada al formulario. Haga clic en 'Guardar Cambios' para confirmar.");
+    };
+
     const headerTab = (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
+                <Button
+                    icon={<ReloadOutlined />}
+                    size="small"
+                    onClick={handleRestoreDefaults}
+                >
+                    Restaurar Predeterminados
+                </Button>
+            </div>
+
             <Form.Item label="Logo de la Institución" name="logo_url" style={{ marginBottom: "0px" }}>
                 <Input style={{ display: "none" }} />
             </Form.Item>
