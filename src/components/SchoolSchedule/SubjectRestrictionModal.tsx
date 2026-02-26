@@ -1,24 +1,21 @@
 import { useContext, useState, useMemo, useEffect } from "react";
-import { Modal, Select, Input, Button, message, Spin } from "antd";
+import { Modal, Select, Button, message, Spin } from "antd";
 import { BiSolidSchool } from "react-icons/bi";
 import styles from "./modal.module.css";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 
 import { Classroom } from "./fucntions";
-import { createClassroom } from "../../fetch/schedule/scheduleFetch";
 import { normalizeText } from "../../utils/textFilter";
 
 const SubjectRestrictionModal: React.FC<{
   putSubjectRestriction: (subjectName: string, classroomIds: string[], pnfId?: string) => Promise<void> | void;
   classrooms: Classroom[];
-  onClassroomCreated?: () => Promise<void> | void;
   subjectRestrictions: { subjectKey: string; subjectName: string; classroomIds: string[]; pnfId?: string }[];
   loadingSubjectRestrictions?: boolean;
 }> = ({
   putSubjectRestriction,
   classrooms,
-  onClassroomCreated,
   subjectRestrictions,
   loadingSubjectRestrictions = false,
 }) => {
@@ -36,8 +33,6 @@ const SubjectRestrictionModal: React.FC<{
     const [restrictedClassrooms, setRestrictedClassrooms] = useState<string[]>(
       sortedClassrooms.map((room) => room.id)
     );
-    const [newClassroomName, setNewClassroomName] = useState("");
-    const [isCreatingClassroom, setIsCreatingClassroom] = useState(false);
 
     const pnfOptions = useMemo(() => {
       if (!pnfList) return [];
@@ -148,34 +143,6 @@ const SubjectRestrictionModal: React.FC<{
       }
     };
 
-    const handleCreateClassroom = async () => {
-      const trimmedName = newClassroomName.trim();
-      if (!trimmedName) {
-        message.warning("Debe ingresar el nombre del salón");
-        return;
-      }
-
-      setIsCreatingClassroom(true);
-      try {
-        const response = await createClassroom(trimmedName);
-        if (response?.error) {
-          const errorMessage = response?.message?.message || response?.message || "No se pudo crear el salón";
-          message.error(errorMessage);
-          return;
-        }
-        message.success("Salón creado correctamente");
-        setNewClassroomName("");
-        if (typeof onClassroomCreated === "function") {
-          await onClassroomCreated();
-        }
-      } catch (error) {
-        console.error(error);
-        message.error("Error al crear el salón");
-      } finally {
-        setIsCreatingClassroom(false);
-      }
-    };
-
     const pushRestricteClassroom = (roomid: string) => {
       setRestrictedClassrooms([...restrictedClassrooms, roomid]);
     };
@@ -234,21 +201,6 @@ const SubjectRestrictionModal: React.FC<{
             </Button>,
           ]}>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <div className={styles.selectorContainer}>
-              <span className={styles.modalSectionTitle}>Agregar un nuevo salón</span>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <Input
-                  placeholder="Ej: LAB A-101"
-                  value={newClassroomName}
-                  onChange={(e) => setNewClassroomName(e.target.value)}
-                  onPressEnter={handleCreateClassroom}
-                />
-                <Button type="primary" onClick={handleCreateClassroom} loading={isCreatingClassroom}>
-                  Agregar
-                </Button>
-              </div>
-            </div>
-
             <div className={styles.selectorContainer}>
               <span className={styles.modalSectionTitle}>Seleccione el PNF</span>
               <span className={styles.helperText}>
