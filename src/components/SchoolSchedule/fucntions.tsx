@@ -1324,6 +1324,11 @@ export function generateScheduleEvents({
       pnfName: task.subject.pnf || "",
       professorName,
       trimestre,
+      subjectId: task.subject.innerId,
+      professorId: task.professorId,
+      trayectoId: task.subject.trayectoId,
+      pnfId: task.subject.pnfId,
+      totalHours: task.totalHours,
     });
   }
 
@@ -1355,6 +1360,11 @@ export function generateScheduleEvents({
       pnfName: task.subject.pnf || "",
       professorName,
       trimestre,
+      subjectId: task.subject.innerId,
+      professorId: task.professorId,
+      trayectoId: task.subject.trayectoId,
+      pnfId: task.subject.pnfId,
+      totalHours: remaining,
     });
   }
 

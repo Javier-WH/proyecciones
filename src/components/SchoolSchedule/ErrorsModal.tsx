@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
-import { Modal, Select } from "antd";
+import { Modal, Select, Button, Popconfirm } from "antd";
 import { MdOutlineErrorOutline } from "react-icons/md";
-//import { BsCalendarWeek } from "react-icons/bs";
+import { ThunderboltOutlined } from "@ant-design/icons";
 import styles from "./modal.module.css";
 
 export interface scheduleError {
@@ -13,16 +13,24 @@ export interface scheduleError {
   pnfName: string;
   professorName?: string;
   trimestre?: string;
+  // Identifiers for force-insert
+  subjectId?: string;     // innerId of the subject
+  professorId?: string;   // professor ID assigned to this subject
+  trayectoId?: string;
+  pnfId?: string;
+  totalHours?: number;    // hours that couldn't be assigned
 }
 
 interface params {
   errors: scheduleError[];
+  onForceInsert?: (error: scheduleError) => void;
 }
 
-const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
+const ScheduleErrorsModal: React.FC<params> = ({ errors, onForceInsert }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorList, setErrorList] = useState<scheduleError[]>([]);
   const [selectedPnf, setSelectedPnf] = useState<string>("all");
+  const [loadingErrorIndex, setLoadingErrorIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setErrorList(errors);
@@ -34,6 +42,16 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
 
   const handleCancel = () => {
     setIsModalOpen(false);
+  };
+
+  const handleForceInsert = (err: scheduleError, index: number) => {
+    if (!onForceInsert) return;
+    setLoadingErrorIndex(index);
+    // Use setTimeout to allow UI to update before the potentially heavy operation
+    setTimeout(() => {
+      onForceInsert(err);
+      setLoadingErrorIndex(null);
+    }, 50);
   };
 
   // Obtener lista única de PNFs para el filtro
@@ -57,7 +75,10 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
     return errorList.filter(err => err.pnfName === selectedPnf);
   }, [errorList, selectedPnf]);
 
-
+  // Check if an error has the data needed for force-insert
+  const canForceInsert = (err: scheduleError) => {
+    return !!(err.subjectId && onForceInsert);
+  };
 
   return (
     <>
@@ -90,10 +111,6 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
         okButtonProps={{ style: { display: "none" } }}
         cancelText="Cerrar"
         width={600}
-        // height property is not a valid prop for Modal in recent antd versions, but keeping if it was there or removing if invalid. 
-        // Based on previous file content, 'height' was passed. It might be a custom wrapper or ignored. 
-        // I will keep it to minimize distinct changes, but standard antd Modal doesn't use height prop directly usually (uses style or bodyStyle).
-        // effective removal of ok button:
         onCancel={handleCancel}>
 
         {/* Filtro por PNF */}
@@ -246,6 +263,30 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
                     >
                       {err.description}
                     </p>
+
+                    {/* Force Insert Button */}
+                    {canForceInsert(err) && (
+                      <div style={{ marginTop: "12px" }}>
+                        <Popconfirm
+                          title="Forzar inserción"
+                          description="Se ignorarán las restricciones de días del profesor y aulas preferidas. Se usará cualquier aula y horario disponible. ¿Continuar?"
+                          onConfirm={() => handleForceInsert(err, index)}
+                          okText="Sí, forzar"
+                          cancelText="Cancelar"
+                          okButtonProps={{ danger: true }}
+                        >
+                          <Button
+                            type="primary"
+                            danger
+                            size="small"
+                            icon={<ThunderboltOutlined />}
+                            loading={loadingErrorIndex === index}
+                          >
+                            Forzar inserción
+                          </Button>
+                        </Popconfirm>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

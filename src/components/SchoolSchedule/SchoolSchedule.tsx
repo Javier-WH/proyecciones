@@ -373,6 +373,164 @@ const SchoolSchedule: React.FC = () => {
     setErrors((prevErrors) => [...prevErrors, err]);
   };
 
+  // Force-insert a subject that failed scheduling by ignoring professor day
+  // restrictions and classroom preferences. Still respects hard constraints:
+  // no professor double-booking, no section conflicts, no classroom double-booking.
+  const handleForceInsert = useCallback((errorInfo: scheduleError) => {
+    if (!errorInfo.subjectId) return;
+
+    const currentSubjects = schedulableSubjectsRef.current;
+    const subject = currentSubjects?.find(
+      (s) => s.innerId === errorInfo.subjectId
+    );
+    if (!subject) {
+      message.error("No se encontró la materia para forzar la inserción.");
+      return;
+    }
+
+    const turnoName = subject.turnoName?.toLowerCase() || "";
+    const timeSlots = activeTurnos[turnoName];
+    if (!timeSlots || timeSlots.length === 0) {
+      message.error("No hay slots de tiempo disponibles para este turno.");
+      return;
+    }
+
+    // Use ALL days (ignore professor day restrictions)
+    const allDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
+    // Use ALL classrooms (ignore classroom restrictions)
+    const allClassrooms = classrooms;
+
+    if (allClassrooms.length === 0) {
+      message.error("No hay aulas disponibles.");
+      return;
+    }
+
+    // Gather ALL existing events (loaded + generated) to check conflicts
+    const allEvents = [...loadedScheduleEvents, ...eventData];
+
+    const hoursNeeded = errorInfo.totalHours || subject.hours[trimestre] || 0;
+    if (hoursNeeded <= 0) {
+      message.error("Esta materia no tiene horas pendientes por asignar.");
+      return;
+    }
+
+    // Build an occupancy map from all existing events
+    // Key: "day-startTime" → { professorIds, classroomIds, sectionKeys }
+    const occupancy = new Map<string, {
+      professorIds: Set<string>;
+      classroomIds: Set<string>;
+      sectionKeys: Set<string>;
+    }>();
+
+    for (const evt of allEvents) {
+      if (!evt.daysOfWeek?.length || !evt.startTime) continue;
+      const day = evt.daysOfWeek[0];
+      const key = `${day}-${evt.startTime}`;
+      if (!occupancy.has(key)) {
+        occupancy.set(key, {
+          professorIds: new Set(),
+          classroomIds: new Set(),
+          sectionKeys: new Set(),
+        });
+      }
+      const occ = occupancy.get(key)!;
+      if (evt.extendedProps?.professorId) {
+        occ.professorIds.add(evt.extendedProps.professorId);
+      }
+      if (evt.extendedProps?.classroomId) {
+        occ.classroomIds.add(evt.extendedProps.classroomId);
+      }
+      const secKey = `${evt.extendedProps?.pnfId}-${evt.extendedProps?.trayectoId}-${evt.extendedProps?.seccion}`;
+      occ.sectionKeys.add(secKey);
+    }
+
+    const professorId = errorInfo.professorId || subject.quarter[trimestre] || null;
+    const sectionKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
+
+    // Try to find slots: for each day, for each slot, check if we can place
+    const placedEvents: Event[] = [];
+    let hoursPlaced = 0;
+
+    // Prefer consecutive slots on the same day for better schedule quality
+    for (const day of allDays) {
+      if (hoursPlaced >= hoursNeeded) break;
+
+      for (let slotIdx = 0; slotIdx < timeSlots.length && hoursPlaced < hoursNeeded; slotIdx++) {
+        const [start, end] = timeSlots[slotIdx];
+        const key = `${day}-${start}`;
+        const occ = occupancy.get(key);
+
+        // Check hard constraints
+        const profConflict = professorId && occ?.professorIds.has(professorId);
+        const sectionConflict = occ?.sectionKeys.has(sectionKey);
+
+        if (profConflict || sectionConflict) continue;
+
+        // Find an available classroom for this slot
+        let chosenClassroom: Classroom | null = null;
+        for (const cr of allClassrooms) {
+          if (!occ?.classroomIds.has(cr.id)) {
+            chosenClassroom = cr;
+            break;
+          }
+        }
+        if (!chosenClassroom) continue; // All classrooms occupied
+
+        // Place it!
+        const newEvent: Event = {
+          title: subject.subject,
+          daysOfWeek: [day],
+          startTime: start,
+          endTime: end,
+          extendedProps: {
+            subjectId: subject.innerId,
+            professorId: professorId,
+            classroomId: chosenClassroom.id,
+            classroomName: chosenClassroom.classroom,
+            pnfId: subject.pnfId,
+            trayectoId: subject.trayectoId,
+            trayectoName: subject.trayectoName,
+            seccion: subject.seccion,
+            pnfName: subject.pnf,
+            turnName: subject.turnoName,
+            blockId: `${day}-${subject.innerId}`,
+          },
+        };
+
+        placedEvents.push(newEvent);
+        hoursPlaced++;
+
+        // Update occupancy for subsequent checks
+        if (!occupancy.has(key)) {
+          occupancy.set(key, {
+            professorIds: new Set(),
+            classroomIds: new Set(),
+            sectionKeys: new Set(),
+          });
+        }
+        const updatedOcc = occupancy.get(key)!;
+        if (professorId) updatedOcc.professorIds.add(professorId);
+        updatedOcc.classroomIds.add(chosenClassroom.id);
+        updatedOcc.sectionKeys.add(sectionKey);
+      }
+    }
+
+    if (placedEvents.length === 0) {
+      message.error("No se encontró ningún espacio disponible, incluso ignorando restricciones de días y aulas.");
+      return;
+    }
+
+    if (hoursPlaced < hoursNeeded) {
+      message.warning(`Se pudieron asignar solo ${hoursPlaced} de ${hoursNeeded} horas.`);
+    } else {
+      message.success(`Se forzó la inserción de "${subject.subject}" (${hoursPlaced} horas).`);
+    }
+
+    // Add as pinned events and trigger regeneration
+    setLoadedScheduleEvents(prev => [...prev, ...placedEvents]);
+    setGenerationCounter(prev => prev + 1);
+  }, [eventData, loadedScheduleEvents, classrooms, activeTurnos, trimestre, scheduleConfig]);
+
   // Handler to change classroom for a specific event (specific day+time block)
   const handleChangeClassroom = () => {
     if (!classroomChangeEvent || !newClassroomId) return;
@@ -1368,7 +1526,7 @@ const SchoolSchedule: React.FC = () => {
             />
             <TeachersRestrictionsListModal restrictions={teacherRestrictions} />
 
-            <ScheduleErrorsModal errors={errors} />
+            <ScheduleErrorsModal errors={errors} onForceInsert={handleForceInsert} />
             <FaCog title="Configuración" className={styles.icon} onClick={() => setIsConfigModalOpen(true)} />
             <ScheduleConfigModal
               visible={isConfigModalOpen}
