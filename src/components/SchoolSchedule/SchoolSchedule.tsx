@@ -1474,6 +1474,9 @@ const SchoolSchedule: React.FC = () => {
                                             </span>
                                             <span>
                                               <span style={{ fontWeight: "600" }}>Sec:</span> {cell.extendedProps?.seccion}
+                                              {cell.extendedProps?.trayectoName && (
+                                                <> | <span style={{ fontWeight: "600" }}>{cell.extendedProps.trayectoName}</span></>
+                                              )}
                                             </span>
                                           </div>
                                         )}

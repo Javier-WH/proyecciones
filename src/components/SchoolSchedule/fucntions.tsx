@@ -23,6 +23,7 @@ export interface Event {
     classroomName: string;
     pnfId: string;
     trayectoId: string;
+    trayectoName?: string;
     seccion: string;
     pnfName: string;
     turnName: string;
@@ -1182,6 +1183,7 @@ export function generateScheduleEvents({
             classroomName: bp.classroomName,
             pnfId: task.subject.pnfId,
             trayectoId: task.subject.trayectoId,
+            trayectoName: task.subject.trayectoName,
             seccion: task.subject.seccion,
             pnfName: task.subject.pnf,
             turnName: task.subject.turnoName,
