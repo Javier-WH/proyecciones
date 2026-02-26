@@ -171,32 +171,56 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
 
     const headerTab = (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <Form.Item label="Logo de la Institución (Base64)" name="logo_url">
+            <Form.Item label="Logo de la Institución">
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <input type="file" accept="image/*" onChange={handleLogoChange} />
-                    <Input placeholder="O pegue una URL/Base64 aquí" />
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                        <input type="file" id="logo-upload" style={{ display: "none" }} accept="image/*" onChange={handleLogoChange} />
+                        <Button onClick={() => document.getElementById('logo-upload')?.click()}>
+                            Seleccionar Imagen Local
+                        </Button>
+                        {watchedLogo && (
+                            <Button danger icon={<DeleteOutlined />} onClick={() => form.setFieldsValue({ logo_url: "" })}>
+                                Quitar Logo
+                            </Button>
+                        )}
+                    </div>
                     {watchedLogo && (
-                        <div style={{ marginTop: "10px", textAlign: "center", border: "1px solid #ddd", padding: "10px" }}>
+                        <div style={{ marginTop: "10px", textAlign: "center", border: "1px solid #ddd", padding: "10px", borderRadius: "4px" }}>
                             <p style={{ fontSize: "12px", color: "#666" }}>Vista previa del logo:</p>
                             <img src={watchedLogo} alt="Logo preview" style={{ maxHeight: "80px", maxWidth: "100%" }} />
                         </div>
                     )}
                 </div>
             </Form.Item>
-            <Form.Item label="Línea 1 del Encabezado" name={['header_text', 0]}>
-                <Input placeholder="Ej: UNIVERSIDAD POLITÉCNICA TERRITORIAL..." />
-            </Form.Item>
-            <Form.Item label="Línea 2 del Encabezado" name={['header_text', 1]}>
-                <Input placeholder="Ej: PROGRAMA NACIONAL DE FORMACIÓN..." />
-            </Form.Item>
-            <Form.Item label="Línea 3 del Encabezado" name={['header_text', 2]}>
-                <Input placeholder="Ej: AGROALIMENTACIÓN" />
-            </Form.Item>
-            <Form.Item label="Línea 4 del Encabezado" name={['header_text', 3]}>
-                <Input placeholder="Ej: TRAYECTO III TRIMESTRE 1" />
-            </Form.Item>
-            <p style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
-                Nota: Si deja estas líneas en blanco, se usarán los valores predeterminados (PNF y Trayecto actual).
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {[0, 1, 2, 3].map((index) => (
+                    <Form.Item
+                        key={index}
+                        label={`Línea ${index + 1} del Encabezado`}
+                        name={['header_text', index]}
+                        style={{ marginBottom: "0" }}
+                    >
+                        <Input
+                            placeholder={`Línea ${index + 1}...`}
+                            suffix={
+                                <DeleteOutlined
+                                    style={{ color: "#ff4d4f", cursor: "pointer" }}
+                                    onClick={() => {
+                                        const current = form.getFieldValue("header_text") || ["", "", "", ""];
+                                        const next = [...current];
+                                        next[index] = "";
+                                        form.setFieldsValue({ header_text: next });
+                                    }}
+                                />
+                            }
+                        />
+                    </Form.Item>
+                ))}
+            </div>
+
+            <p style={{ fontSize: "12px", color: "#666", marginTop: "15px", fontStyle: "italic" }}>
+                Nota: Si borra una línea (dejándola vacía), esta no aparecerá en la impresión. Los valores automáticos (PNF/Trayecto) solo se muestran si la configuración nunca se ha tocado o se restauran manualmente.
             </p>
         </div>
     );

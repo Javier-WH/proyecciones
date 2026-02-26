@@ -215,28 +215,60 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
           {/* Title section */}
           <div style={{ flex: 1, textAlign: "center" }}>
             {/* Line 1: Main Title */}
-            <div style={{ fontSize: "4mm", fontWeight: "bold", marginBottom: "1mm", textTransform: "uppercase" }}>
-              {headerText?.[0] && headerText[0].trim() !== "" ? headerText[0] :
-                ((viewMode !== "professor" && viewMode !== "classroom") ? "HORARIO DE CLASES" : "")}
-            </div>
+            {headerText ? (
+              headerText[0]?.trim() && (
+                <div style={{ fontSize: "4mm", fontWeight: "bold", marginBottom: "1mm", textTransform: "uppercase" }}>
+                  {headerText[0]}
+                </div>
+              )
+            ) : (
+              (viewMode !== "professor" && viewMode !== "classroom") && (
+                <div style={{ fontSize: "4mm", fontWeight: "bold", marginBottom: "1mm", textTransform: "uppercase" }}>
+                  HORARIO DE CLASES
+                </div>
+              )
+            )}
 
             {/* Line 2: Institution/PNF Title */}
-            <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "0.5mm" }}>
-              {headerText?.[1] && headerText[1].trim() !== "" ? headerText[1] :
-                ((viewMode !== "professor" && viewMode !== "classroom") ? "PROGRAMA NACIONAL DE FORMACIÓN" : "")}
-            </div>
+            {headerText ? (
+              headerText[1]?.trim() && (
+                <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "0.5mm" }}>
+                  {headerText[1]}
+                </div>
+              )
+            ) : (
+              (viewMode !== "professor" && viewMode !== "classroom") && (
+                <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "0.5mm" }}>
+                  PROGRAMA NACIONAL DE FORMACIÓN
+                </div>
+              )
+            )}
 
             {/* Line 3: Department/PNF Name */}
-            <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
-              {headerText?.[2] && headerText[2].trim() !== "" ? headerText[2] :
-                pnfName.replace("Horario de P.N.F. en ", "").toUpperCase()}
-            </div>
+            {headerText ? (
+              headerText[2]?.trim() && (
+                <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
+                  {headerText[2]}
+                </div>
+              )
+            ) : (
+              <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
+                {pnfName.replace("Horario de P.N.F. en ", "").toUpperCase()}
+              </div>
+            )}
 
             {/* Line 4: Trayecto/Trimestre */}
-            <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
-              {headerText?.[3] && headerText[3].trim() !== "" ? headerText[3] :
-                `${trayecto.toUpperCase()} ${trimestre.toUpperCase()}`}
-            </div>
+            {headerText ? (
+              headerText[3]?.trim() && (
+                <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
+                  {headerText[3]}
+                </div>
+              )
+            ) : (
+              <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
+                {`${trayecto.toUpperCase()} ${trimestre.toUpperCase()}`}
+              </div>
+            )}
           </div>
 
           {/* Section info */}
