@@ -434,13 +434,13 @@ function tryPlaceDecomposition(
 
   for (const day of sortedDays) {
     // ENFORCE RULE: Las materias deben verse de corrido y en la misma aula el mismo día.
-    // Si ya existe alguna hora de esta materia en este día (ya sea manual o por backtracking),
-    // saltamos este día para que el siguiente bloque de la descomposición vaya obligatoriamente a otro día.
+    // Si ya existe alguna hora de esta materia en este día, saltamos este día
+    // EXCEPTO si el profesor solo tiene 1 día disponible (no hay alternativa).
     const currentOnDay = occupancy.getSubjectDayHours(
       task.subject.innerId,
       day,
     );
-    if (currentOnDay > 0) continue;
+    if (currentOnDay > 0 && task.availableDays.length > 1) continue;
 
     // Verificar el límite máximo por día
     if (blockLen > task.effectiveConserveSlots) continue;
@@ -920,10 +920,17 @@ export function generateScheduleEvents({
       const availableDays = days.filter((d) => !restrictedDays.includes(d));
 
       // Aulas candidatas
-      const preferConfig = preferredClassrooms?.find(
-        (p) =>
-          p.subjectKey === subjectKey && (!p.pnfId || p.pnfId === sub.pnfId),
-      );
+      // IMPORTANTE: Primero buscar restricción con pnfId exacto, luego genérica sin pnfId
+      // Esto evita que una restricción genérica (sin pnfId) se aplique en lugar de
+      // la restricción específica del PNF correcto.
+      const preferConfig =
+        preferredClassrooms?.find(
+          (p) => p.subjectKey === subjectKey && p.pnfId === sub.pnfId,
+        ) ??
+        preferredClassrooms?.find(
+          (p) => p.subjectKey === subjectKey && !p.pnfId,
+        );
+
       // Para materias CON restricción de aula: solo usar las aulas asignadas
       // Para materias SIN restricción: usar todas, pero deprioritizar las reservadas
       // para que no le quiten aulas a las materias que SÍ las necesitan
@@ -1077,8 +1084,17 @@ export function generateScheduleEvents({
   // ─── Step 5: Fase de relajación para materias no asignadas ───
   const stillUnassigned: number[] = [];
 
-  for (const idx of unassigned) {
+  // Ordenar unassigned: materias más pequeñas primero para maximizar
+  // cuántas materias caben (estrategia greedy por tamaño)
+  const sortedUnassigned = [...unassigned].sort(
+    (a, b) => tasks[a].totalHours - tasks[b].totalHours,
+  );
+
+  for (const idx of sortedUnassigned) {
     const task = tasks[idx];
+
+    // Reset backtrack counter para cada intento de relajación
+    backtrackCounter = 0;
 
     // Fase 2: Relajar conserveSlots (permitir más horas por día)
     // IMPORTANTE: preservar preventSingleHourBlocks explícitamente
