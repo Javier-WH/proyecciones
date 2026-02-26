@@ -470,8 +470,6 @@ const SchoolSchedule: React.FC = () => {
     const sectionKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
 
     // Try to find slots: for each day, for each slot, check if we can place
-    const placedEvents: Event[] = [];
-    let hoursPlaced = 0;
 
     // Prefer consecutive slots on the same day for better schedule quality
     // Helper: check if a slot is available (no hard-constraint violations)
@@ -479,172 +477,151 @@ const SchoolSchedule: React.FC = () => {
 
     // For each day, find all consecutive runs of available slots
     type ConsecutiveRun = { day: number; startSlotIdx: number; slots: { slotIdx: number; classroom: Classroom }[] };
-    const allRuns: ConsecutiveRun[] = [];
+    let allRuns: ConsecutiveRun[] = [];
 
-    for (const day of allDays) {
-      // Find runs per day AND per classroom to ensure they are actually together
-      for (const cr of allClassrooms) {
-        let currentRun: ConsecutiveRun | null = null;
-        let lastEnd: string | null = null;
+    const findAvailableRuns = () => {
+      const found: ConsecutiveRun[] = [];
+      for (const day of allDays) {
+        for (const cr of allClassrooms) {
+          let currentRun: ConsecutiveRun | null = null;
+          let lastEnd: string | null = null;
 
-        for (let slotIdx = 0; slotIdx < timeSlots.length; slotIdx++) {
-          const [start, end] = timeSlots[slotIdx];
-          const key = `${day}-${start}`;
-          const occ = occupancy.get(key);
+          for (let slotIdx = 0; slotIdx < timeSlots.length; slotIdx++) {
+            const [start, end] = timeSlots[slotIdx];
+            const key = `${day}-${start}`;
+            const occ = occupancy.get(key);
 
-          // Check hard constraints for this specific teacher/section and THIS classroom
-          const profConflict = professorId && occ?.professorIds.has(professorId);
-          const sectionConflict = occ?.sectionKeys.has(sectionKey);
-          const roomConflict = occ?.classroomIds.has(cr.id);
+            // Hard constraints check with robust ID comparison
+            const profConflict = professorId && Array.from(occ?.professorIds || []).some(id => String(id) === String(professorId));
+            const sectionConflict = occ?.sectionKeys.has(sectionKey);
+            const roomConflict = Array.from(occ?.classroomIds || []).some(id => String(id) === String(cr.id));
 
-          const isAvailable = !profConflict && !sectionConflict && !roomConflict;
+            const isAvailable = !profConflict && !sectionConflict && !roomConflict;
+            const isConsecutive = isAvailable && (lastEnd === null || lastEnd === start);
 
-          // Consecutive means: same day, same classroom, AND end of previous == start of current
-          const isConsecutive = isAvailable && (lastEnd === null || lastEnd === start);
-
-          if (isConsecutive) {
-            if (!currentRun) {
-              currentRun = { day, startSlotIdx: slotIdx, slots: [] };
-            }
-            currentRun.slots.push({ slotIdx, classroom: cr });
-            lastEnd = end;
-          } else {
-            // End of run
-            if (currentRun && currentRun.slots.length > 0) {
-              allRuns.push(currentRun);
-            }
-            if (isAvailable) {
-              // Start a NEW run with this slot if available but not consecutive
-              currentRun = { day, startSlotIdx: slotIdx, slots: [{ slotIdx, classroom: cr }] };
+            if (isConsecutive) {
+              if (!currentRun) {
+                currentRun = { day, startSlotIdx: slotIdx, slots: [] };
+              }
+              currentRun.slots.push({ slotIdx, classroom: cr });
               lastEnd = end;
             } else {
-              currentRun = null;
-              lastEnd = null;
+              if (currentRun && currentRun.slots.length > 0) found.push(currentRun);
+              if (isAvailable) {
+                currentRun = { day, startSlotIdx: slotIdx, slots: [{ slotIdx, classroom: cr }] };
+                lastEnd = end;
+              } else {
+                currentRun = null;
+                lastEnd = null;
+              }
             }
           }
-        }
-        if (currentRun && currentRun.slots.length > 0) {
-          allRuns.push(currentRun);
+          if (currentRun && currentRun.slots.length > 0) found.push(currentRun);
         }
       }
-    }
+      return found;
+    };
 
-    // Sort runs: prefer longer runs first (can fit more hours), then earlier days
+    allRuns = findAvailableRuns();
+
+    // Sort: longest runs first, then earlier days
     allRuns.sort((a, b) => b.slots.length - a.slots.length || a.day - b.day || a.startSlotIdx - b.startSlotIdx);
 
-    const preventSingleBlocks = !!scheduleConfig?.prevent_single_hour_blocks;
+    const preventSingleBlocksGlobal = !!scheduleConfig?.prevent_single_hour_blocks;
+    let bypassedSingleBlocks = false;
 
-    // If prevent_single_hour_blocks is on, filter out runs with only 1 slot
-    const usableRuns = preventSingleBlocks
-      ? allRuns.filter(run => run.slots.length >= 2)
-      : allRuns;
+    const attemptPlacement = (forceConsecutive: boolean) => {
+      const tempEvents: Event[] = [];
+      let tempPlaced = 0;
 
-    // Place hours using consecutive runs
-    for (const run of usableRuns) {
-      if (hoursPlaced >= hoursNeeded) break;
+      const usable = forceConsecutive
+        ? allRuns.filter(run => run.slots.length >= 2)
+        : allRuns;
 
-      let slotsToUse = Math.min(run.slots.length, hoursNeeded - hoursPlaced);
+      for (const run of usable) {
+        if (tempPlaced >= hoursNeeded) break;
 
-      if (preventSingleBlocks) {
-        // Rule 1: Never place just 1 slot (creates a single-hour block now)
-        if (slotsToUse === 1) {
-          if (run.slots.length >= 2) {
-            slotsToUse = 2;
-          } else {
-            continue;
+        let slotsToUse = Math.min(run.slots.length, hoursNeeded - tempPlaced);
+
+        if (forceConsecutive) {
+          if (slotsToUse === 1) {
+            if (run.slots.length >= 2) slotsToUse = 2;
+            else continue;
+          }
+          const remaining = (hoursNeeded - tempPlaced) - slotsToUse;
+          if (remaining === 1) {
+            if (run.slots.length > slotsToUse) slotsToUse += 1;
+            else if (slotsToUse - 1 >= 2) slotsToUse -= 1;
+            else continue;
           }
         }
 
-        // Rule 2: Never leave exactly 1 remaining hour (would be impossible to place later)
-        // Example: 3 hours needed, taking 2 leaves 1 → take 3 instead or reduce to 0
-        const remaining = (hoursNeeded - hoursPlaced) - slotsToUse;
-        if (remaining === 1) {
-          // Option A: take one more slot from this run (if available)
-          if (run.slots.length > slotsToUse) {
-            slotsToUse += 1;
-          }
-          // Option B: take one fewer, but only if that still leaves us with >= 2
-          else if (slotsToUse - 1 >= 2) {
-            slotsToUse -= 1;
-          }
-          // Option C: skip this run entirely — placing here guarantees an orphan
-          else {
-            continue;
-          }
+        for (let i = 0; i < slotsToUse; i++) {
+          const { slotIdx, classroom } = run.slots[i];
+          const [start, end] = timeSlots[slotIdx];
+          tempEvents.push({
+            title: subject.subject,
+            daysOfWeek: [run.day],
+            startTime: start,
+            endTime: end,
+            extendedProps: {
+              subjectId: subject.innerId,
+              professorId: professorId || null,
+              classroomId: classroom.id,
+              classroomName: classroom.classroom,
+              pnfId: subject.pnfId,
+              trayectoId: subject.trayectoId,
+              trayectoName: subject.trayectoName,
+              seccion: subject.seccion,
+              pnfName: subject.pnf,
+              turnName: subject.turnoName,
+              blockId: `${run.day}-${subject.innerId}`,
+            },
+          });
+          tempPlaced++;
         }
       }
+      return { events: tempEvents, count: tempPlaced };
+    };
 
-      for (let i = 0; i < slotsToUse; i++) {
-        const { slotIdx, classroom } = run.slots[i];
-        const [start, end] = timeSlots[slotIdx];
-        const key = `${run.day}-${start}`;
+    let result = attemptPlacement(preventSingleBlocksGlobal);
 
-        const newEvent: Event = {
-          title: subject.subject,
-          daysOfWeek: [run.day],
-          startTime: start,
-          endTime: end,
-          extendedProps: {
-            subjectId: subject.innerId,
-            professorId: professorId,
-            classroomId: classroom.id,
-            classroomName: classroom.classroom,
-            pnfId: subject.pnfId,
-            trayectoId: subject.trayectoId,
-            trayectoName: subject.trayectoName,
-            seccion: subject.seccion,
-            pnfName: subject.pnf,
-            turnName: subject.turnoName,
-            blockId: `${run.day}-${subject.innerId}`,
-          },
-        };
-
-        placedEvents.push(newEvent);
-        hoursPlaced++;
-
-        // Update occupancy
-        if (!occupancy.has(key)) {
-          occupancy.set(key, {
-            professorIds: new Set(),
-            classroomIds: new Set(),
-            sectionKeys: new Set(),
-          });
-        }
-        const updatedOcc = occupancy.get(key)!;
-        if (professorId) updatedOcc.professorIds.add(professorId);
-        updatedOcc.classroomIds.add(classroom.id);
-        updatedOcc.sectionKeys.add(sectionKey);
+    // Fallback if not all hours could be placed using the consecutive blocks rule
+    if (result.count < hoursNeeded && preventSingleBlocksGlobal) {
+      const fallback = attemptPlacement(false);
+      if (fallback.count > result.count) {
+        result = fallback;
+        bypassedSingleBlocks = true;
       }
     }
 
-    if (placedEvents.length === 0) {
-      message.error("No se encontró ningún espacio disponible, incluso ignorando restricciones de días y aulas.");
+    if (result.count === 0) {
+      message.error("No se encontró ningún espacio disponible. Es posible que el profesor o las aulas ya estén al límite de su capacidad.");
       return;
     }
 
-    // Build a detailed summary of where each hour was placed
     const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-    const details = placedEvents.map(evt => {
-      const dayName = dayNames[evt.daysOfWeek[0]] || `Día ${evt.daysOfWeek[0]}`;
+    const details = result.events.map(evt => {
+      const dayName = dayNames[evt.daysOfWeek![0]] || `Día ${evt.daysOfWeek![0]}`;
       return `• ${dayName} ${evt.startTime} - ${evt.endTime} → ${evt.extendedProps.classroomName}`;
     }).join("\n");
 
-    const title = hoursPlaced < hoursNeeded
-      ? `Se asignaron ${hoursPlaced} de ${hoursNeeded} horas de "${subject.subject}"`
-      : `Se asignaron las ${hoursPlaced} horas de "${subject.subject}"`;
-
     Modal.info({
-      title,
+      title: result.count < hoursNeeded ? `Se asignaron solo ${result.count} de ${hoursNeeded} horas` : `Se asignaron las ${result.count} horas`,
       content: (
         <div style={{ whiteSpace: "pre-line", marginTop: "8px", fontSize: "13px", lineHeight: "1.8" }}>
+          {bypassedSingleBlocks && (
+            <div style={{ color: "#faad14", fontWeight: "bold", marginBottom: "8px" }}>
+              ⚠️ Nota: Se ignoró la regla de "evitar horas sueltas" para poder completar la asignación.
+            </div>
+          )}
           {details}
         </div>
       ),
       width: 480,
     });
 
-    // Add as pinned events and trigger regeneration
-    setLoadedScheduleEvents(prev => [...prev, ...placedEvents]);
+    setLoadedScheduleEvents(prev => [...prev, ...result.events]);
     setGenerationCounter(prev => prev + 1);
   }, [eventData, loadedScheduleEvents, classrooms, activeTurnos, trimestre, scheduleConfig]);
 
