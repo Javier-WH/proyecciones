@@ -35,6 +35,11 @@ const TeachersRestrictionsListModal: React.FC<{
         // The teacher.PNF field seems to contain the ID based on user feedback/screenshot
         const teacherPnfId = teacher.PNF;
 
+        // Filter out those with NO restrictions at all (empty days and empty hours)
+        const hasDays = r.days && r.days.length > 0;
+        const hasHours = r.hours && r.hours.length > 0;
+        if (!hasDays && !hasHours) return null;
+
         // Filter by PNF if selected.
         if (selectedPnfId && teacherPnfId !== selectedPnfId) {
           return null;
@@ -123,14 +128,14 @@ const TeachersRestrictionsListModal: React.FC<{
               key: String(day),
               label: dayLabels[day],
               children: (
-                <div style={{ 
-                  display: "flex", 
-                  flexWrap: "wrap", 
-                  gap: "4px", 
+                <div style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "4px",
                   padding: "8px 0",
                   height: "100px",  // Altura fija
                   overflowY: "auto", // Scroll si hay muchas horas
-                  alignContent: "flex-start" 
+                  alignContent: "flex-start"
                 }}>
                   {hoursByDay[day].map((h, i) => (
                     <Tag key={i} style={{ margin: 0, height: "fit-content" }}>
