@@ -11,9 +11,11 @@ interface PrintableScheduleProps {
   headerInfo: string;
   seccion: string;
   activeTurnos?: Record<string, [string, string][]> | null;
+  headerText?: string[];
+  logoUrl?: string;
 }
 
-const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ events, viewMode, turn, headerInfo, seccion, activeTurnos }, ref) => {
+const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ events, viewMode, turn, headerInfo, seccion, activeTurnos, headerText, logoUrl }, ref) => {
   // Generate time slots based on view mode
   // Generate time slots based on view mode
   let timeSlots: [string, string][] = [];
@@ -202,47 +204,38 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
           padding: "2mm 0"
         }}>
           {/* Logo */}
-          <div style={{ width: "35mm", marginRight: "5mm" }}>
+          <div style={{ width: "35mm", marginRight: "5mm", display: "flex", alignItems: "center" }}>
             <img
-              src={uptllLogo}
-              alt="UPTLL Logo"
-              style={{ width: "100%", height: "auto" }}
+              src={logoUrl || uptllLogo}
+              alt="Logo"
+              style={{ width: "100%", height: "auto", maxHeight: "25mm", objectFit: "contain" }}
             />
           </div>
 
           {/* Title section */}
           <div style={{ flex: 1, textAlign: "center" }}>
-            {(viewMode !== "professor" && viewMode !== "classroom") && <>
-              <div style={{
-                fontSize: "4mm",
-                fontWeight: "bold",
-                marginBottom: "1mm",
-                textTransform: "uppercase"
-              }}>
-                HORARIO DE CLASES
-              </div>
-              <div style={{
-                fontSize: "3.5mm",
-                fontWeight: "bold",
-                marginBottom: "0.5mm"
-              }}>
-                PROGRAMA NACIONAL DE FORMACIÓN
-              </div>
-            </>
-            }
-            <div style={{
-              fontSize: "3.5mm",
-              fontWeight: "bold",
-              marginBottom: "1mm"
-            }}>
-              {pnfName.replace("Horario de P.N.F. en ", "").toUpperCase()}
+            {/* Line 1: Main Title */}
+            <div style={{ fontSize: "4mm", fontWeight: "bold", marginBottom: "1mm", textTransform: "uppercase" }}>
+              {headerText?.[0] && headerText[0].trim() !== "" ? headerText[0] :
+                ((viewMode !== "professor" && viewMode !== "classroom") ? "HORARIO DE CLASES" : "")}
             </div>
-            <div style={{
-              fontSize: "3.5mm",
-              fontWeight: "bold",
-              marginBottom: "1mm"
-            }}>
-              {trayecto.toUpperCase()} {trimestre.toUpperCase()}
+
+            {/* Line 2: Institution/PNF Title */}
+            <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "0.5mm" }}>
+              {headerText?.[1] && headerText[1].trim() !== "" ? headerText[1] :
+                ((viewMode !== "professor" && viewMode !== "classroom") ? "PROGRAMA NACIONAL DE FORMACIÓN" : "")}
+            </div>
+
+            {/* Line 3: Department/PNF Name */}
+            <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
+              {headerText?.[2] && headerText[2].trim() !== "" ? headerText[2] :
+                pnfName.replace("Horario de P.N.F. en ", "").toUpperCase()}
+            </div>
+
+            {/* Line 4: Trayecto/Trimestre */}
+            <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
+              {headerText?.[3] && headerText[3].trim() !== "" ? headerText[3] :
+                `${trayecto.toUpperCase()} ${trimestre.toUpperCase()}`}
             </div>
           </div>
 

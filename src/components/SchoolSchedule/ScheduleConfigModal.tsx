@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Form, InputNumber, Checkbox, Tabs, Button, message, TimePicker } from "antd";
+import { Modal, Form, InputNumber, Checkbox, Tabs, Button, message, TimePicker, Input } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { ScheduleConfig, getScheduleConfig, updateScheduleConfig } from "../../fetch/schedule/scheduleConfigFetch";
@@ -25,6 +25,9 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
     const [config, setConfig] = useState<ScheduleConfig | null>(null);
     const [loading, setLoading] = useState(false);
 
+    // Watch logo for preview
+    const watchedLogo = Form.useWatch("logo_url", form);
+
     useEffect(() => {
         if (visible) {
             fetchConfig();
@@ -42,6 +45,8 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                 min_consecutive_slots: data.min_consecutive_slots,
                 distribute_equitably: data.distribute_equitably,
                 prevent_single_hour_blocks: data.prevent_single_hour_blocks,
+                header_text: data.header_text || ["", "", "", ""],
+                logo_url: data.logo_url || "",
             });
         }
         setLoading(false);
@@ -152,17 +157,56 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
         children: renderTurnoEditor(key)
     })) : [];
 
-    return (
-        <Modal
-            title="Configuración de Horarios"
-            open={visible}
-            onCancel={onClose}
-            onOk={handleSave}
-            width={600}
-            confirmLoading={loading}
-        >
-            {config ? (
-                <Form form={form} layout="vertical">
+    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64 = event.target?.result as string;
+                form.setFieldsValue({ logo_url: base64 });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const headerTab = (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <Form.Item label="Logo de la Institución (Base64)" name="logo_url">
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <input type="file" accept="image/*" onChange={handleLogoChange} />
+                    <Input placeholder="O pegue una URL/Base64 aquí" />
+                    {watchedLogo && (
+                        <div style={{ marginTop: "10px", textAlign: "center", border: "1px solid #ddd", padding: "10px" }}>
+                            <p style={{ fontSize: "12px", color: "#666" }}>Vista previa del logo:</p>
+                            <img src={watchedLogo} alt="Logo preview" style={{ maxHeight: "80px", maxWidth: "100%" }} />
+                        </div>
+                    )}
+                </div>
+            </Form.Item>
+            <Form.Item label="Línea 1 del Encabezado" name={['header_text', 0]}>
+                <Input placeholder="Ej: UNIVERSIDAD POLITÉCNICA TERRITORIAL..." />
+            </Form.Item>
+            <Form.Item label="Línea 2 del Encabezado" name={['header_text', 1]}>
+                <Input placeholder="Ej: PROGRAMA NACIONAL DE FORMACIÓN..." />
+            </Form.Item>
+            <Form.Item label="Línea 3 del Encabezado" name={['header_text', 2]}>
+                <Input placeholder="Ej: AGROALIMENTACIÓN" />
+            </Form.Item>
+            <Form.Item label="Línea 4 del Encabezado" name={['header_text', 3]}>
+                <Input placeholder="Ej: TRAYECTO III TRIMESTRE 1" />
+            </Form.Item>
+            <p style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
+                Nota: Si deja estas líneas en blanco, se usarán los valores predeterminados (PNF y Trayecto actual).
+            </p>
+        </div>
+    );
+
+    const mainItems = [
+        {
+            key: "general",
+            label: "General",
+            children: (
+                <>
                     <Form.Item label="Días Hábiles" name="days">
                         <Checkbox.Group options={DAYS_OPTIONS} />
                     </Form.Item>
@@ -176,17 +220,44 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                     </Form.Item>
 
                     <div style={{ display: "flex", gap: "16px" }}>
-                        <Form.Item label="Max. Horas Consecutivas (Conserve Slots)" name="conserve_slots">
+                        <Form.Item label="Max. Horas Consecutivas" name="conserve_slots">
                             <InputNumber min={1} max={10} />
                         </Form.Item>
                         <Form.Item label="Min. Horas Consecutivas" name="min_consecutive_slots">
                             <InputNumber min={1} max={10} />
                         </Form.Item>
                     </div>
+                </>
+            )
+        },
+        {
+            key: "turnos",
+            label: "Turnos y Horarios",
+            children: (
+                <>
+                    <Tabs type="card" items={turnosTabs} />
+                </>
+            )
+        },
+        {
+            key: "encabezado",
+            label: "Encabezado Impresión",
+            children: headerTab
+        }
+    ];
 
-                    <h3>Configuración de Turnos</h3>
-                    <Tabs defaultActiveKey="mañana" items={turnosTabs} />
-
+    return (
+        <Modal
+            title="Configuración de Horarios"
+            open={visible}
+            onCancel={onClose}
+            onOk={handleSave}
+            width={700}
+            confirmLoading={loading}
+        >
+            {config ? (
+                <Form form={form} layout="vertical">
+                    <Tabs items={mainItems} />
                 </Form>
             ) : (
                 <p>Cargando configuración...</p>

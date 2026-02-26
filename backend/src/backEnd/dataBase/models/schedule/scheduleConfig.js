@@ -40,6 +40,15 @@ ScheduleConfig.init(
         prevent_single_hour_blocks: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
+        },
+        header_text: {
+            type: DataTypes.JSON,
+            allowNull: true,
+            defaultValue: ["", "", "", ""]
+        },
+        logo_url: {
+            type: DataTypes.TEXT('long'),
+            allowNull: true
         }
     },
     {

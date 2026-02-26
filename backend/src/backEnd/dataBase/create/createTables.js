@@ -5,6 +5,7 @@ import updateSubjectProfileColumns from '../alters/updateSubjectProfileColumns.j
 import updateTeacherRestrictionsColumns from '../alters/updateTeacherRestrictionsColumns.js'
 import updateSubjectRestrictionsColumns from '../alters/updateSubjectRestrictionsColumns.js'
 import addIsPlaceholderColumnToTeacherTable from '../alters/addIsPlaceholderColumnToTeacherTable.js'
+import updateScheduleConfigColumns from '../alters/updateScheduleConfigColumns.js'
 
 export const createTables = async () => {
   await updateSubjectRestrictionsColumns()
@@ -15,6 +16,7 @@ export const createTables = async () => {
   await updateSubjectProfileColumns()
   await updateTeacherRestrictionsColumns()
   await addIsPlaceholderColumnToTeacherTable()
+  await updateScheduleConfigColumns()
 }
 
 export const dropTables = async () => {

@@ -1548,6 +1548,8 @@ const SchoolSchedule: React.FC = () => {
                 headerInfo={getHeaderInfo()}
                 seccion={seccion}
                 activeTurnos={activeTurnos}
+                headerText={scheduleConfig?.header_text}
+                logoUrl={scheduleConfig?.logo_url}
               />
             </div>
           </div>
