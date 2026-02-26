@@ -88,21 +88,9 @@ export const turnos: Record<string, [string, string][]> = {
     ["19:00", "19:45"],
     ["19:45", "20:30"],
   ],
-  diurno: [
-    ["07:00", "07:45"],
-    ["07:45", "08:30"],
-    ["08:30", "09:15"],
-    ["09:15", "10:00"],
-    ["10:00", "10:45"],
-    ["10:45", "11:30"],
-    ["11:30", "12:15"],
-    ["12:15", "13:00"],
-    ["13:00", "13:45"],
-    ["13:45", "14:30"],
-    ["14:30", "15:15"],
-    ["15:15", "16:00"],
-    ["16:00", "16:45"],
-  ],
+  // NOTE: "diurno" is NOT hardcoded here. It is always auto-generated
+  // as the union of mañana + tarde in SchoolSchedule.tsx (activeTurnos).
+  // This guarantees the hours always match.
 };
 
 // =====================================================

@@ -151,7 +151,7 @@ const SchoolSchedule: React.FC = () => {
   const activeTurnos = useMemo(() => {
     const base = scheduleConfig?.turnos || turnos;
 
-    // Filtrar slots inválidos (duración cero donde start === end) de TODOS los turnos
+    // Filtrar slots inválidos (duración cero donde start === end)
     const sanitized: Record<string, [string, string][]> = {};
     for (const [key, slots] of Object.entries(base)) {
       sanitized[key] = (slots as [string, string][]).filter(
@@ -159,15 +159,35 @@ const SchoolSchedule: React.FC = () => {
       );
     }
 
-    // Only auto-generate "diurno" from mañana+tarde when the saved config
-    // does NOT already have a diurno entry. This way, if the user explicitly
-    // edits diurno in the config modal, their changes are preserved.
-    // When using the hardcoded defaults (no scheduleConfig), always auto-combine.
-    const savedHasDiurno = scheduleConfig?.turnos?.diurno !== undefined;
-    if (!savedHasDiurno && sanitized.mañana && sanitized.tarde) {
-      const combined = [...sanitized.mañana, ...sanitized.tarde].sort((a, b) => a[0].localeCompare(b[0]));
-      return { ...sanitized, diurno: combined };
+    // Build "diurno" carefully. Mañana and Tarde are the primary sources of truth.
+    // We only keep slots from the saved diurno config if they don't overlap 
+    // with any mañana/tarde slots. This handles the case where diurno has 
+    // "extra" hours but prevents duplicate rows when times are slightly off.
+    if (sanitized.mañana || sanitized.tarde) {
+      const masterSlots = [...(sanitized.mañana || []), ...(sanitized.tarde || [])];
+
+      // Helper to check if two time ranges overlap
+      const isOverlap = (s1: string, e1: string, s2: string, e2: string) => {
+        return s1 < e2 && e1 > s2;
+      };
+
+      // Filter saved diurno: keep only slots that are NOT overlapping with mañana/tarde
+      const diurnoExtras = (sanitized.diurno || []).filter(([dStart, dEnd]) => {
+        const overlaps = masterSlots.some(([mStart, mEnd]) => isOverlap(dStart, dEnd, mStart, mEnd));
+        return !overlaps;
+      });
+
+      const slotSet = new Set<string>();
+      // Always include master (mañana/tarde) slots
+      masterSlots.forEach(slot => slotSet.add(JSON.stringify(slot)));
+      // Include non-overlapping diurno extras
+      diurnoExtras.forEach(slot => slotSet.add(JSON.stringify(slot)));
+
+      sanitized.diurno = Array.from(slotSet)
+        .map(s => JSON.parse(s) as [string, string])
+        .sort((a, b) => a[0].localeCompare(b[0]));
     }
+
     return sanitized;
   }, [scheduleConfig]);
   const activeDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
@@ -1131,14 +1151,12 @@ const SchoolSchedule: React.FC = () => {
 
     // Logic from PrintableSchedule for slots
     if (viewMode === "professor" || viewMode === "classroom") {
-      // Use union of all unique slots from the SOURCE turns (mañana, tarde, nocturno)
-      // Exclude composite turns like "diurno" since they may have different boundaries
-      // that don't match the actual scheduling slots.
+      // Use union of all unique slots from all configured turns for these global views.
+      // "diurno" is always auto-generated as mañana+tarde, so its hours are guaranteed
+      // to match. We still deduplicate via Set in case of overlaps.
       const allSlots = new Set<string>();
       if (activeTurnos) {
-        Object.entries(activeTurnos).forEach(([key, turnSlots]) => {
-          // Skip "diurno" — it's a derived/composite turn
-          if (key === "diurno") return;
+        Object.values(activeTurnos).forEach((turnSlots) => {
           if (Array.isArray(turnSlots)) {
             turnSlots.forEach((slot) => allSlots.add(JSON.stringify(slot)));
           }
