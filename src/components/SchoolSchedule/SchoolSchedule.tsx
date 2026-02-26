@@ -184,6 +184,27 @@ const SchoolSchedule: React.FC = () => {
     );
   }, [subjects]);
 
+  // Keep a ref so the generation effect can access the latest data
+  // without needing the array reference as a dependency.
+  const schedulableSubjectsRef = useRef(schedulableSubjects);
+  useEffect(() => {
+    schedulableSubjectsRef.current = schedulableSubjects;
+  }, [schedulableSubjects]);
+
+  // A content-based fingerprint of the scheduling-relevant data.
+  // Only changes when actual subject data changes (professor assignment,
+  // hours, sections, etc.), NOT on every WebSocket reference change.
+  // This prevents the schedule from regenerating needlessly.
+  const subjectsSchedulingKey = useMemo(() => {
+    if (!schedulableSubjects.length) return "";
+    return schedulableSubjects
+      .map(s =>
+        `${s.innerId}|${s.pnfId}|${s.trayectoId}|${s.seccion}|${s.turnoName}|${s.subject}|${JSON.stringify(s.quarter)}|${JSON.stringify(s.hours)}`
+      )
+      .sort()
+      .join("||");
+  }, [schedulableSubjects]);
+
   // Helper to get names for the header
   const getHeaderInfo = () => {
     const trimestreLabel =
@@ -692,11 +713,14 @@ const SchoolSchedule: React.FC = () => {
   // Genera los eventos del horario.
   // Se re-ejecuta cuando cambian las restricciones, el trimestre, las materias,
   // las aulas, o el generationCounter (forzado al aplicar restricciones).
+  // IMPORTANT: subjects and teachers are accessed via refs and compared via
+  // content-based keys to avoid unnecessary regeneration from WebSocket updates.
   useEffect(() => {
+    const currentSubjects = schedulableSubjectsRef.current;
     if (
       !classrooms ||
       classrooms.length === 0 ||
-      schedulableSubjects.length === 0 ||
+      !currentSubjects || currentSubjects.length === 0 ||
       !teacherRestrictionsReady ||
       !subjectRestrictionsReady
     ) {
@@ -704,7 +728,7 @@ const SchoolSchedule: React.FC = () => {
     }
     setErrors([]);
     const eventsdata = generateScheduleEvents({
-      subjects: schedulableSubjects,
+      subjects: currentSubjects,
       classrooms: classrooms,
       trimestre: trimestre,
       preferredClassrooms: subjectRestriction,
@@ -724,7 +748,7 @@ const SchoolSchedule: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     classrooms,
-    schedulableSubjects,
+    subjectsSchedulingKey, // Content-based key: only triggers when actual subject data changes
     teacherRestrictions,
     trimestre,
     subjectRestriction,
@@ -734,9 +758,10 @@ const SchoolSchedule: React.FC = () => {
     consecutiveConfig,
     scheduleConfig,
     activeTurnos,
-    // NOTE: `teachers` is intentionally NOT a dependency here.
-    // It's accessed via teachersRef to avoid regenerating the entire schedule
-    // on every WebSocket update (which shuffles professor names visually).
+    // NOTE: `teachers` and `schedulableSubjects` are intentionally NOT dependencies.
+    // They are accessed via refs to avoid regenerating the entire schedule
+    // on every WebSocket update (which shuffles the schedule visually due to
+    // non-deterministic backtracking in the scheduling algorithm).
     generationCounter,  // Fuerza regeneración cuando se aplican restricciones
   ]);
 
