@@ -51,7 +51,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
   const getTeacherName = (professorId: string | null | undefined) => {
     if (!professorId || !teachers) return "Profesor";
     const teacher = teachers.find(t => t.id === professorId);
-    if (!teacher) return "Profesor";
+    if (!teacher || teacher.is_placeholder) return "SIN PROFESOR";
     return `${teacher.name} ${teacher.lastName}`;
   };
 

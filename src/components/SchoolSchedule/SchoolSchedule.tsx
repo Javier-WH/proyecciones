@@ -1847,14 +1847,18 @@ const SchoolSchedule: React.FC = () => {
                                               <div style={{ fontSize: "0.75rem", color: "#999" }}>Sin Profesor Asignado</div>
                                             );
                                             const prof = teachers?.find((t: any) => t.id === profId);
-                                            if (!prof || prof.is_placeholder) return (
+                                            if (!prof) return (
                                               <div style={{ fontSize: "0.75rem", color: "#999" }}>Sin Profesor Asignado</div>
                                             );
                                             const fullName = `${prof.name || ""} ${prof.lastName || ""}`.trim();
                                             const academicTitle = prof.title || "Profesor";
                                             return (
                                               <div style={{ fontSize: "0.75rem", color: "#495057" }}>
-                                                <span style={{ fontWeight: "600" }}>{academicTitle}:</span> {fullName || "Sin Profesor Asignado"}
+                                                {prof.is_placeholder ? (
+                                                  <span style={{ fontStyle: "italic", color: "#666" }}>{fullName} (Propuesta)</span>
+                                                ) : (
+                                                  <><span style={{ fontWeight: "600" }}>{academicTitle}:</span> {fullName}</>
+                                                )}
                                               </div>
                                             );
                                           })()
