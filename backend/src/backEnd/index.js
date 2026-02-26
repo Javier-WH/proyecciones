@@ -66,9 +66,10 @@ app.use(Routes)
 setupSocket(server, sessionMiddleware)
 
 const port = process.env.PORT || 3000
-const host = process.env.IP || '0.0.0.0'
+// no es necesario especificar host, dejaremos el default para que Node.js escuche en IPv4 e IPv6
+// const host = process.env.IP || '0.0.0.0'
 
-server.listen(port, host, () => {
+server.listen(port, () => {
   // console.clear()
-  console.log(`Servidor corriendo en el socket http://${getServerIP()}:${port}`)
+  console.log(`Servidor corriendo en el puerto ${port}`)
 })

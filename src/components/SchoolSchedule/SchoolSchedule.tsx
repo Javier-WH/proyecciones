@@ -139,13 +139,21 @@ const SchoolSchedule: React.FC = () => {
 
   const activeTurnos = useMemo(() => {
     const base = scheduleConfig?.turnos || turnos;
-    // Dynamically update "diurno" if "mañana" and "tarde" exist, to reflect individual updates
-    if (base.mañana && base.tarde) {
-      const combined = [...base.mañana, ...base.tarde].sort((a, b) => a[0].localeCompare(b[0]));
-      // Use a new object to avoid mutating the original
-      return { ...base, diurno: combined };
+
+    // Filtrar slots inválidos (duración cero donde start === end) de TODOS los turnos
+    const sanitized: Record<string, [string, string][]> = {};
+    for (const [key, slots] of Object.entries(base)) {
+      sanitized[key] = (slots as [string, string][]).filter(
+        ([start, end]) => start !== end
+      );
     }
-    return base;
+
+    // Dynamically update "diurno" if "mañana" and "tarde" exist, to reflect individual updates
+    if (sanitized.mañana && sanitized.tarde) {
+      const combined = [...sanitized.mañana, ...sanitized.tarde].sort((a, b) => a[0].localeCompare(b[0]));
+      return { ...sanitized, diurno: combined };
+    }
+    return sanitized;
   }, [scheduleConfig]);
   const activeDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
@@ -687,7 +695,7 @@ const SchoolSchedule: React.FC = () => {
       existingEvents: loadedScheduleEvents,
       setErrors: addError,
       customDays: scheduleConfig?.days,
-      customTurnos: scheduleConfig?.turnos,
+      customTurnos: activeTurnos,
       distributeEquitably: scheduleConfig?.distribute_equitably,
       preventSingleHourBlocks: scheduleConfig?.prevent_single_hour_blocks,
       teachers: teachers || [],

@@ -52,11 +52,13 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
             const values = await form.validateFields();
             if (!config) return;
 
+            // Asegurar que los checkboxes siempre envíen un boolean explícito
+            // (Antd puede devolver undefined para checkboxes no tocados)
             const updatedConfig = {
                 ...config,
                 ...values,
-                // Turnos are handled separately in state mostly, but we can verify if we need to merge anything
-                // turnos: config.turnos (already in state)
+                distribute_equitably: !!values.distribute_equitably,
+                prevent_single_hour_blocks: !!values.prevent_single_hour_blocks,
             };
 
             const result = await updateScheduleConfig(config.id, updatedConfig);

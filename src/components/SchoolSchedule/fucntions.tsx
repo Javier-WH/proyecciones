@@ -232,6 +232,14 @@ function generateDecompositions(
   distributeEquitably: boolean,
   preventSingleHourBlocks: boolean = false,
 ): number[][] {
+  // Si preventSingleHourBlocks, el tamaño mínimo de bloque es 2
+  const absoluteMinBlockSize = preventSingleHourBlocks ? 2 : 1;
+
+  // Caso especial: si el total es menor que el mínimo de bloque, no hay descomposiciones válidas
+  if (total < absoluteMinBlockSize) {
+    return [];
+  }
+
   const results: number[][] = [];
 
   function gen(remaining: number, cur: number[]) {
@@ -241,11 +249,15 @@ function generateDecompositions(
     }
     if (cur.length >= maxBlocks) return;
 
+    // Si lo que queda es menor que el mínimo de bloque, no podemos formar un bloque válido
+    if (remaining < absoluteMinBlockSize) return;
+
     const maxSize = Math.min(remaining, maxPerDay);
-    // Allow blocks of 1 as last resort (the sort will deprioritize them)
-    for (let size = maxSize; size >= 1; size--) {
+    for (let size = maxSize; size >= absoluteMinBlockSize; size--) {
       // Don't create splits that would leave an impossible remainder
       const after = remaining - size;
+      // Si el resto es mayor que 0 pero menor que el mínimo, sería imposible
+      if (after > 0 && after < absoluteMinBlockSize) continue;
       if (after > 0 && after > maxPerDay * (maxBlocks - cur.length - 1))
         continue;
       cur.push(size);
@@ -259,8 +271,6 @@ function generateDecompositions(
   // Deduplicate (sorted form as key)
   const seen = new Set<string>();
   const unique = results.filter((d) => {
-    if (preventSingleHourBlocks && total > 1 && d.includes(1)) return false;
-
     const key = [...d].sort((a, b) => b - a).join(",");
     if (seen.has(key)) return false;
     seen.add(key);
@@ -747,6 +757,26 @@ export function generateScheduleEvents({
 
       if (totalHours <= 0 || !professorId) return null;
 
+      // Si preventSingleHourBlocks está activo y solo queda 1 hora, reportar error inmediatamente
+      if (preventSingleHourBlocks && totalHours === 1) {
+        const teacherObj = teachers?.find((t: any) => t.id === professorId);
+        const professorName = teacherObj
+          ? `${teacherObj.name} ${teacherObj.lastName}`
+          : professorId;
+
+        setErrors({
+          name: sub.subject,
+          description: `${sub.subject} — Solo necesita 1 hora pero la configuración impide asignar bloques de 1 sola hora. Considere desactivar la restricción o ajustar las horas de la materia.`,
+          seccion: sub.seccion,
+          year: sub.trayectoName,
+          turn: sub.turnoName,
+          pnfName: sub.pnf || "",
+          professorName,
+          trimestre,
+        });
+        return null;
+      }
+
       const timeSlots = activeTurnos[turnoName];
       if (!timeSlots || timeSlots.length === 0) return null;
 
@@ -836,10 +866,12 @@ export function generateScheduleEvents({
     const task = tasks[idx];
 
     // Fase 2: Relajar conserveSlots (permitir más horas por día)
+    // IMPORTANTE: preservar preventSingleHourBlocks explícitamente
     const relaxedTask: SubjectTask = {
       ...task,
       effectiveConserveSlots: task.totalHours,
-      effectiveMinConsecutive: 1,
+      effectiveMinConsecutive: task.preventSingleHourBlocks ? 2 : 1,
+      preventSingleHourBlocks: task.preventSingleHourBlocks,
     };
     const placements = assignTask(relaxedTask, occupancy, distributeEquitably);
     if (placements) {
@@ -847,19 +879,9 @@ export function generateScheduleEvents({
       continue;
     }
 
-    // Fase 3: Ignorar restricciones de profesor + relajar slots
-    const allDaysTask: SubjectTask = {
-      ...task,
-      availableDays: customDays || [1, 2, 3, 4, 5],
-      restrictedHours: [],
-      effectiveConserveSlots: task.totalHours,
-      effectiveMinConsecutive: 1,
-    };
-    const placements2 = assignTask(allDaysTask, occupancy, distributeEquitably);
-    if (placements2) {
-      assigned.set(idx, placements2);
-      continue;
-    }
+    // Fase 3 ELIMINADA: Las restricciones de días/horas del profesor son absolutas.
+    // Si no se puede asignar respetando las restricciones del profesor, se reporta error.
+    // No se fuerza la asignación en días restringidos.
 
     stillUnassigned.push(idx);
   }
@@ -910,7 +932,16 @@ export function generateScheduleEvents({
     if (task.restrictedHours.length > 0) {
       reasons.push(`${task.restrictedHours.length} horas restringidas`);
     }
-    reasons.push("horarios y aulas ocupados por otras materias");
+
+    if (task.preventSingleHourBlocks) {
+      if (task.totalHours === 1) {
+        reasons.push("Es una materia de 1 sola hora y la configuración impide asignarla");
+      } else {
+        reasons.push("La configuración impide asignar bloques de 1 sola hora (no se encontraron suficientes horas continuas)");
+      }
+    } else {
+      reasons.push("horarios y aulas ocupados por otras materias");
+    }
 
     const originalHours = task.subject.hours[trimestre] || task.totalHours;
     const teacherObj = teachers?.find((t: any) => t.id === task.professorId);
