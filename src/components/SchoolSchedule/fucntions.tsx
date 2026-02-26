@@ -1202,9 +1202,9 @@ export function generateScheduleEvents({
     const task = tasks[idx];
     const originalHours = task.subject.hours[trimestre] || task.totalHours;
     const teacherObj = teachers?.find((t: any) => t.id === task.professorId);
-    const professorName = teacherObj
+    const professorName = (teacherObj && !teacherObj.is_placeholder)
       ? `${teacherObj.name} ${teacherObj.lastName}`
-      : task.professorId;
+      : "Sin Profesor Asignado";
 
     // Construir descripción clara del problema y sugerencia de solución
     const availableDayNames = task.availableDays.map((d: number) => dayNames[d] || `Día ${d}`).join(", ");
@@ -1270,9 +1270,9 @@ export function generateScheduleEvents({
   for (const [idx, partial] of partialAssignments.entries()) {
     const task = tasks[idx];
     const teacherObj = teachers?.find((t: any) => t.id === task.professorId);
-    const professorName = teacherObj
+    const professorName = (teacherObj && !teacherObj.is_placeholder)
       ? `${teacherObj.name} ${teacherObj.lastName}`
-      : task.professorId;
+      : "Sin Profesor Asignado";
 
     const remaining = partial.total - partial.placed;
     const availableDayNames = task.availableDays.map((d: number) => dayNames[d] || `Día ${d}`).join(", ");

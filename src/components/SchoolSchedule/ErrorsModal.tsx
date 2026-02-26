@@ -187,7 +187,10 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
                             color: "#389e0d"
                           }}
                         >
-                          {err.trimestre}
+                          {err.trimestre === "q1" ? "Trimestre 1" :
+                            err.trimestre === "q2" ? "Trimestre 2" :
+                              err.trimestre === "q3" ? "Trimestre 3" :
+                                err.trimestre}
                         </span>
                       )}
                     </div>
