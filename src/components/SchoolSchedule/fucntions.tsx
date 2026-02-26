@@ -822,24 +822,35 @@ export function generateScheduleEvents({
         subjectId,
       } = event.extendedProps;
 
-      // Clave compuesta para contar horas por materia y sección
-      const title = event.title;
-      if (title && seccion && pnfId && trayectoId) {
-        const key = `${title.trim().toLowerCase()}-${seccion}-${pnfId}-${trayectoId}`;
-        existingSubjectHours.set(key, (existingSubjectHours.get(key) || 0) + 1);
-      }
+      // Check if the classroom is active (present in the classrooms list)
+      const isActiveRoom = classrooms.some(c => c.id === classroomId);
 
-      // Registrar ocupación
-      occupancy.occupy(
-        day,
-        start,
-        professorId,
-        classroomId,
-        pnfId,
-        trayectoId,
-        seccion,
-        subjectId,
-      );
+      // Clave compuesta para detectar la materia y sección
+      const title = event.title;
+
+      // SOLO procesar el evento si el aula está activa
+      if (isActiveRoom) {
+        // 1. Contar horas asignadas (pinned)
+        if (title && seccion && pnfId && trayectoId) {
+          const key = `${title.trim().toLowerCase()}-${seccion}-${pnfId}-${trayectoId}`;
+          existingSubjectHours.set(key, (existingSubjectHours.get(key) || 0) + 1);
+        }
+
+        // 2. Registrar ocupación para evitar solapamientos
+        occupancy.occupy(
+          day,
+          start,
+          professorId,
+          classroomId,
+          pnfId,
+          trayectoId,
+          seccion,
+          subjectId,
+        );
+      }
+      // Si el aula NO está activa, ignoramos el evento por completo. 
+      // Al no estar en existingSubjectHours, el solver detectará que faltan esas horas
+      // y buscará un nuevo lugar para ellas en aulas abiertas.
     }
   }
 
@@ -1322,7 +1333,7 @@ export function generateScheduleEvents({
       professorName,
       trimestre,
       subjectId: task.subject.innerId,
-      professorId: task.professorId,
+      professorId: task.professorId || undefined,
       trayectoId: task.subject.trayectoId,
       pnfId: task.subject.pnfId,
       totalHours: task.totalHours,
@@ -1358,7 +1369,7 @@ export function generateScheduleEvents({
       professorName,
       trimestre,
       subjectId: task.subject.innerId,
-      professorId: task.professorId,
+      professorId: task.professorId || undefined,
       trayectoId: task.subject.trayectoId,
       pnfId: task.subject.pnfId,
       totalHours: remaining,

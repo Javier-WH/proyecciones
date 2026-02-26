@@ -262,7 +262,12 @@ const SchoolSchedule: React.FC = () => {
       console.error(classroomsData.message);
       return;
     }
-    setClassrooms(classroomsData);
+    // Normalize active state to boolean
+    const normalized = (classroomsData || []).map((c: any) => ({
+      ...c,
+      active: c.active !== false && c.active !== 0 && c.active !== "0" && c.active !== "false"
+    }));
+    setClassrooms(normalized);
   }, []);
 
   const loadTeacherRestrictionsFromApi = useCallback(async () => {
@@ -456,6 +461,7 @@ const SchoolSchedule: React.FC = () => {
       const runs: { day: number; startSlotIdx: number; slots: { slotIdx: number; classroom: Classroom }[] }[] = [];
       for (const day of days) {
         for (const cr of targetClassrooms) {
+          if (cr.active === false) continue;
           let currentRun: any = null;
           let lastEnd: string | null = null;
           for (let idx = 0; idx < timeSlots.length; idx++) {
@@ -568,7 +574,7 @@ const SchoolSchedule: React.FC = () => {
   const handleChangeClassroom = () => {
     if (!classroomChangeEvent || !newClassroomId) return;
     const newClassroom = classrooms.find((c) => c.id === newClassroomId);
-    if (!newClassroom || newClassroom.active === false) {
+    if (!newClassroom || newClassroom.active == false) {
       message.error("El aula seleccionada está cerrada.");
       return;
     }
