@@ -1,7 +1,6 @@
 import { useContext, useState, useMemo } from "react";
 import { Modal, Select, Table, Tag, Empty, Button, Tabs } from "antd";
 import { FaUsers } from "react-icons/fa6";
-import styles from "./modal.module.css";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import { TeacherRestriction } from "../../interfaces/teacher";

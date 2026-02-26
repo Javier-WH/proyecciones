@@ -434,14 +434,8 @@ function tryPlaceDecomposition(
   });
 
   for (const day of sortedDays) {
-    // ENFORCE RULE: Las materias deben verse de corrido y en la misma aula el mismo día.
-    // Si ya existe alguna hora de esta materia en este día, saltamos este día
-    // EXCEPTO si el profesor solo tiene 1 día disponible (no hay alternativa).
-    const currentOnDay = occupancy.getSubjectDayHours(
-      task.subject.innerId,
-      day,
-    );
-    if (currentOnDay > 0 && task.availableDays.length > 1) continue;
+    // Ya no saltamos el día si ya hay horas de esta materia, dejando que maxBlocks 
+    // y el orden de días (que prioriza días vacíos) controlen la distribución.
 
     // Verificar el límite máximo por día
     if (blockLen > task.effectiveConserveSlots) continue;
@@ -530,9 +524,12 @@ function assignTask(
   // tryPlaceDecomposition ya permite colocar múltiples bloques el mismo día
   // cuando availableDays.length === 1, pero generateDecompositions necesita
   // saber que puede generar decomposiciones con más de 1 bloque.
-  const maxBlocks = task.availableDays.length === 1
-    ? Math.ceil(task.totalHours / (task.preventSingleHourBlocks ? 2 : 1))
-    : task.availableDays.length;
+  // Calculamos cuántos bloques podríamos necesitar como máximo para que quepa la materia.
+  // Si tenemos muchas horas y pocos días, o muchos huecos pequeños, necesitamos permitir más bloques.
+  // Regla: max(días_disponibles, horas_totales / min_bloque)
+  const minBlock = task.preventSingleHourBlocks ? 2 : 1;
+  const theoreticalMaxBlocks = Math.ceil(task.totalHours / minBlock);
+  const maxBlocks = Math.max(task.availableDays.length, theoreticalMaxBlocks);
 
   const decomps = generateDecompositions(
     task.totalHours,
@@ -1002,11 +999,12 @@ export function generateScheduleEvents({
       score += restrictedHours.length * 50;
 
       // Factor secundario: ratio horas/días — cuánto "aprieta" la materia
-      // Un profesor con 1 día disponible y 4 horas necesarias es más urgente
-      // que uno con 1 día disponible y 2 horas
+      // Un profesor con 1 día disponible y 6 horas necesarias es CRÍTICO
+      // 6h / 1d -> 6 * 100 = 600pts
+      // 2h / 5d -> 0.4 * 100 = 40pts
       if (availableDays.length > 0) {
         const hoursPerAvailableDay = totalHours / availableDays.length;
-        score += Math.round(hoursPerAvailableDay * 30);
+        score += Math.round(hoursPerAvailableDay * 100);
       }
 
       // Factor importante: pocas aulas candidatas
@@ -1086,12 +1084,73 @@ export function generateScheduleEvents({
   });
 
   // ─── Step 4: Resolver con backtracking ───
-  const { assigned, unassigned } = solveAll(
+  let { assigned, unassigned } = solveAll(
     tasks,
     occupancy,
-    4,
+    5,
     distributeEquitably,
   );
+
+  // ─── Step 4b: Re-solve con prioridad invertida ───
+  // Si hay materias sin asignar, intentar un segundo solve completo
+  // poniendo las materias fallidas al frente (máxima prioridad).
+  // Esto resuelve casos donde el orden inicial bloquea espacios que
+  // las materias más restringidas necesitan.
+  if (unassigned.length > 0) {
+    // Guardar el resultado actual
+    const prevAssigned = new Map(assigned);
+    const prevUnassignedCount = unassigned.length;
+
+    // Deshacer todas las asignaciones del primer intento
+    for (const [idx, placements] of prevAssigned.entries()) {
+      for (const bp of placements) {
+        undoBlock(bp, tasks[idx], occupancy);
+      }
+    }
+
+    // Crear nuevo orden: materias fallidas primero, luego el resto en orden original
+    const unassignedSet = new Set(unassigned);
+    const reorderedIndices = [
+      ...unassigned, // Primero las que fallaron
+      ...tasks.map((_, i) => i).filter(i => !unassignedSet.has(i)), // Luego las demás
+    ];
+
+    // Crear array de tasks reordenado
+    const reorderedTasks = reorderedIndices.map(i => tasks[i]);
+
+    // Re-solve con el nuevo orden
+    backtrackCounter = 0;
+    const retry = solveAll(reorderedTasks, occupancy, 6, distributeEquitably);
+
+    // Mapear los índices de vuelta al array original
+    const retryAssigned = new Map<number, BlockPlacement[]>();
+    for (const [retryIdx, placements] of retry.assigned.entries()) {
+      retryAssigned.set(reorderedIndices[retryIdx], placements);
+    }
+    const retryUnassigned = retry.unassigned.map(retryIdx => reorderedIndices[retryIdx]);
+
+    // ¿El segundo intento es mejor?
+    if (retryUnassigned.length < prevUnassignedCount) {
+      // Usar el resultado del segundo intento
+      assigned = retryAssigned;
+      unassigned = retryUnassigned;
+    } else {
+      // El primer intento era igual o mejor: restaurar
+      // Primero deshacer el segundo intento
+      for (const [retryIdx, placements] of retry.assigned.entries()) {
+        for (const bp of placements) {
+          undoBlock(bp, reorderedTasks[retryIdx], occupancy);
+        }
+      }
+      // Restaurar el primer intento
+      for (const [idx, placements] of prevAssigned.entries()) {
+        for (const bp of placements) {
+          applyBlock(bp, tasks[idx], occupancy);
+        }
+      }
+      assigned = prevAssigned;
+    }
+  }
 
   // ─── Step 5: Fase de relajación para materias no asignadas ───
   const stillUnassigned: number[] = [];
