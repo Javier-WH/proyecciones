@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Form, InputNumber, Checkbox, Tabs, Button, message, TimePicker, Input } from "antd";
-import { PlusOutlined, DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
+import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, ReloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { ScheduleConfig, getScheduleConfig, updateScheduleConfig } from "../../fetch/schedule/scheduleConfigFetch";
 import fetchPhoto from "../../fetch/fetchPhoto";
+import { turnos as defaultTurnos } from "./fucntions";
 
 interface ScheduleConfigModalProps {
     visible: boolean;
@@ -215,25 +216,62 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
     };
 
     const handleRestoreDefaults = () => {
-        form.setFieldsValue({
-            header_text: null, // Set to null to trigger fallbacks in PrintableSchedule
-            logo_url: "",
+        if (!config) return;
+
+        Modal.confirm({
+            title: "¿Restaurar valores predeterminados?",
+            icon: <ExclamationCircleOutlined />,
+            content: "Esto restaurará todos los turnos, horarios, días, encabezado y logo a sus valores originales. Esta acción se guardará inmediatamente.",
+            okText: "Sí, restaurar",
+            cancelText: "Cancelar",
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                const defaultConfig: Partial<ScheduleConfig> = {
+                    days: [1, 2, 3, 4, 5],
+                    turnos: { ...defaultTurnos },
+                    conserve_slots: 3,
+                    min_consecutive_slots: 2,
+                    distribute_equitably: false,
+                    prevent_single_hour_blocks: false,
+                    header_text: ["", "", ""],
+                    logo_url: "",
+                };
+
+                // Update form fields
+                form.setFieldsValue({
+                    days: defaultConfig.days,
+                    conserve_slots: defaultConfig.conserve_slots,
+                    min_consecutive_slots: defaultConfig.min_consecutive_slots,
+                    distribute_equitably: defaultConfig.distribute_equitably,
+                    prevent_single_hour_blocks: defaultConfig.prevent_single_hour_blocks,
+                    header_text: defaultConfig.header_text,
+                    logo_url: defaultConfig.logo_url,
+                });
+
+                // Update config state (which holds turnos)
+                const restoredConfig = { ...config, ...defaultConfig };
+                setConfig(restoredConfig);
+                setLogoPreview("");
+
+                // Save immediately
+                try {
+                    const result = await updateScheduleConfig(config.id, restoredConfig);
+                    if ('error' in result) {
+                        message.error(result.message);
+                    } else {
+                        message.success("Configuración restaurada a valores predeterminados");
+                        onConfigUpdate(result);
+                    }
+                } catch (error) {
+                    console.error(error);
+                    message.error("Error al restaurar la configuración");
+                }
+            },
         });
-        setLogoPreview("");
-        message.info("Restauración aplicada al formulario. Haga clic en 'Guardar Cambios' para confirmar.");
     };
 
     const headerTab = (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
-                <Button
-                    icon={<ReloadOutlined />}
-                    size="small"
-                    onClick={handleRestoreDefaults}
-                >
-                    Restaurar Predeterminados
-                </Button>
-            </div>
 
             <Form.Item label="Logo de la Institución" name="logo_url" style={{ marginBottom: "0px" }}>
                 <Input style={{ display: "none" }} />
@@ -347,6 +385,22 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
             onOk={handleSave}
             width={700}
             confirmLoading={loading}
+            footer={(_, { OkBtn, CancelBtn }) => (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Button
+                        icon={<ReloadOutlined />}
+                        size="small"
+                        onClick={handleRestoreDefaults}
+                        disabled={!config}
+                    >
+                        Restaurar Predeterminados
+                    </Button>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                        <CancelBtn />
+                        <OkBtn />
+                    </div>
+                </div>
+            )}
         >
             {config ? (
                 <Form form={form} layout="vertical">
