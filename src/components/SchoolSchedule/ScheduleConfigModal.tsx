@@ -3,6 +3,7 @@ import { Modal, Form, InputNumber, Checkbox, Tabs, Button, message, TimePicker, 
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { ScheduleConfig, getScheduleConfig, updateScheduleConfig } from "../../fetch/schedule/scheduleConfigFetch";
+import fetchPhoto from "../../fetch/fetchPhoto";
 
 interface ScheduleConfigModalProps {
     visible: boolean;
@@ -24,6 +25,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
     const [form] = Form.useForm();
     const [config, setConfig] = useState<ScheduleConfig | null>(null);
     const [loading, setLoading] = useState(false);
+    const [logoPreview, setLogoPreview] = useState<string>("");
 
     // Watch logo for preview
     const watchedLogo = Form.useWatch("logo_url", form);
@@ -48,6 +50,15 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                 header_text: data.header_text || ["", "", "", ""],
                 logo_url: data.logo_url || "",
             });
+
+            if (data.logo_url) {
+                if (data.logo_url.startsWith("data:")) {
+                    setLogoPreview(data.logo_url);
+                } else {
+                    const url = await fetchPhoto(data.logo_url);
+                    if (url) setLogoPreview(url);
+                }
+            }
         }
         setLoading(false);
     };
@@ -157,15 +168,49 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
         children: renderTurnoEditor(key)
     })) : [];
 
-    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const base64 = event.target?.result as string;
-                form.setFieldsValue({ logo_url: base64 });
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+
+        // Validar tamaño máximo 5MB (igual que el backend)
+        if (file.size > 5 * 1024 * 1024) {
+            message.error("La imagen es demasiado grande. Máximo 5MB.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('name', 'logo_impresion_horario');
+        formData.append('foto', file);
+
+        setLoading(true);
+        try {
+            const apiUrl = import.meta.env.MODE === 'development'
+                ? 'http://localhost:3000/photo'
+                : '/photo';
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                message.success("Logo subido correctamente al servidor");
+                form.setFieldsValue({ logo_url: "logo_impresion_horario" });
+
+                // Actualizar vista previa
+                const url = await fetchPhoto("logo_impresion_horario");
+                if (url) {
+                    setLogoPreview(url);
+                }
+            } else {
+                const errData = await response.json();
+                message.error(errData.error || "Error al subir el logo");
+            }
+        } catch (error) {
+            console.error(error);
+            message.error("Error de conexión al subir el logo");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -179,15 +224,18 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                             Seleccionar Imagen Local
                         </Button>
                         {watchedLogo && (
-                            <Button danger icon={<DeleteOutlined />} onClick={() => form.setFieldsValue({ logo_url: "" })}>
+                            <Button danger icon={<DeleteOutlined />} onClick={() => {
+                                form.setFieldsValue({ logo_url: "" });
+                                setLogoPreview("");
+                            }}>
                                 Quitar Logo
                             </Button>
                         )}
                     </div>
-                    {watchedLogo && (
+                    {logoPreview && (
                         <div style={{ marginTop: "10px", textAlign: "center", border: "1px solid #ddd", padding: "10px", borderRadius: "4px" }}>
                             <p style={{ fontSize: "12px", color: "#666" }}>Vista previa del logo:</p>
-                            <img src={watchedLogo} alt="Logo preview" style={{ maxHeight: "80px", maxWidth: "100%" }} />
+                            <img src={logoPreview} alt="Logo preview" style={{ maxHeight: "80px", maxWidth: "100%" }} />
                         </div>
                     )}
                 </div>

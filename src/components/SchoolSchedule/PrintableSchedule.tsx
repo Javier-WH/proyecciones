@@ -55,6 +55,18 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
     return `${teacher.name} ${teacher.lastName}`;
   };
 
+  const getLogoSrc = () => {
+    if (!logoUrl) return uptllLogo;
+    if (logoUrl.startsWith("data:")) return logoUrl;
+    if (logoUrl === "logo_impresion_horario") {
+      const baseUrl = import.meta.env.MODE === 'development'
+        ? 'http://localhost:3000/photo'
+        : '/photo';
+      return `${baseUrl}/logo_impresion_horario`;
+    }
+    return logoUrl;
+  };
+
   // Parse headerInfo - Format: "PNF Name, TRAYECTO X, Trimestre Y, Turno Z"
   const headerParts = headerInfo.split(',').map(p => p.trim());
   const pnfName = headerParts[0] || "PROGRAMA NACIONAL DE FORMACIÓN";
@@ -206,7 +218,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
           {/* Logo */}
           <div style={{ width: "35mm", marginRight: "5mm", display: "flex", alignItems: "center" }}>
             <img
-              src={logoUrl || uptllLogo}
+              src={getLogoSrc()}
               alt="Logo"
               style={{ width: "100%", height: "auto", maxHeight: "25mm", objectFit: "contain" }}
             />

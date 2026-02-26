@@ -4,7 +4,7 @@ import fs from 'fs'
 import multer from 'multer'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-export function getPhoto (req, res) {
+export function getPhoto(req, res) {
   const nombreImagen = req.params.nombre
   const rutaImagen = path.join(__dirname, '..', '..', '..', 'photos', nombreImagen) + '.jpg'
 
@@ -32,12 +32,13 @@ const storage = multer.diskStorage({
   }
 })
 
-// Filtro para aceptar solo imágenes
+// Filtro para aceptar imágenes comunes
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype === 'image/jpeg') {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  if (allowedTypes.includes(file.mimetype)) {
     cb(null, true)
   } else {
-    cb(new Error('Solo se permiten imágenes JPG XD'), false)
+    cb(new Error('Solo se permiten imágenes (JPG, PNG, GIF, WEBP)'), false)
   }
 }
 
@@ -47,7 +48,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // Límite de 5MB
 }).single('foto')
 
-export function uploadPhoto (req, res) {
+export function uploadPhoto(req, res) {
   upload(req, res, (err) => {
     if (err) {
       // Manejo de errores
