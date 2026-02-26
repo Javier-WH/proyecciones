@@ -242,7 +242,7 @@ export default function Config() {
           </div>
         }
         style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}
-        bodyStyle={{ padding: 0 }}
+        styles={{ body: { padding: 0 } }}
       >
         <Table<ProyectionDataType>
           columns={columns}

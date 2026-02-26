@@ -1,7 +1,7 @@
 import sequelize from "#dataBaseConnection";
 import { DataTypes, Model } from "sequelize";
 
-class Classrooms extends Model {}
+class Classrooms extends Model { }
 Classrooms.init(
   {
     id: {
@@ -13,6 +13,11 @@ Classrooms.init(
       type: DataTypes.STRING(50),
       allowNull: false,
       unique: true,
+    },
+    active: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
     },
   },
   {

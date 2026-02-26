@@ -5,7 +5,7 @@ export interface ScheduleDataBase {
   proyection_id: string;
 }
 
-export async function createClassroom(classroom: string) {
+export async function createClassroom(classroom: string, active: boolean = true) {
   const headersList = {
     Accept: "*/*",
     "Content-Type": "application/json",
@@ -16,11 +16,52 @@ export async function createClassroom(classroom: string) {
   const response = await fetch(url, {
     method: "POST",
     headers: headersList,
-    body: JSON.stringify({ classroom }),
+    body: JSON.stringify({ classroom, active }),
   });
 
   if (!response.ok) {
     return { error: true, status: response.status, message: await response.json() };
+  }
+
+  return response.json();
+}
+
+export async function updateClassroom(id: string, classroom: string, active: boolean) {
+  const headersList = {
+    Accept: "*/*",
+    "Content-Type": "application/json",
+  };
+
+  const url = import.meta.env.MODE === "development" ? `http://localhost:3000/classroom/${id}` : `/classroom/${id}`;
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: headersList,
+    body: JSON.stringify({ classroom, active }),
+  });
+
+  if (!response.ok) {
+    return { error: true, status: response.status, message: await response.json() };
+  }
+
+  return response.json();
+}
+
+export async function deleteClassroom(id: string) {
+  const headersList = {
+    Accept: "*/*",
+  };
+
+  const url = import.meta.env.MODE === "development" ? `http://localhost:3000/classroom/${id}` : `/classroom/${id}`;
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: headersList,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({ message: "Error desconocido" }));
+    return { error: true, status: response.status, message: errorBody };
   }
 
   return response.json();

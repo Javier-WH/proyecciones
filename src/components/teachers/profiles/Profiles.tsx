@@ -382,7 +382,7 @@ export default function Profiles() {
               title={<span><BookOutlined /> Materias en este Perfil</span>}
               bordered={false}
               style={{ height: '100%', minHeight: '400px' }}
-              bodyStyle={{ padding: '0 10px', height: 'calc(100% - 58px)', overflowY: 'auto' }}
+              styles={{ body: { padding: '0 10px', height: 'calc(100% - 58px)', overflowY: 'auto' } }}
             >
               {subjectsINperfil.length > 0 ? (
                 <List

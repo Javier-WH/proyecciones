@@ -28,7 +28,8 @@ Router.post("/classroom", express.json(), async (req, res) => {
     if (existingClassroom) {
       return res.status(400).json({ error: true, message: "ya existe una aula de clase con ese nombre" });
     }
-    await Classrooms.create({ classroom, id });
+    const active = req.body.active !== undefined ? req.body.active : true;
+    await Classrooms.create({ classroom, id, active });
     res.status(201).json({ message: "aula de clase creada exitosamente" });
   } catch (error) {
     console.log(error);
@@ -53,9 +54,9 @@ Router.delete("/classroom/:id", async (req, res) => {
 
 Router.put("/classroom/:id", express.json(), async (req, res) => {
   const classroomId = req.params.id;
-  const { classroom } = req.body;
-  if (!classroom) {
-    return res.status(400).json({ error: true, message: "Se requiere un nombre para el aula." });
+  const { classroom, active } = req.body;
+  if (classroom === undefined && active === undefined) {
+    return res.status(400).json({ error: true, message: "Se requiere un nombre o estado para el aula." });
   }
   try {
     // 1. Verificar si el nombre del aula ya existe en OTRA aula
@@ -73,7 +74,11 @@ Router.put("/classroom/:id", express.json(), async (req, res) => {
     }
 
     // 2. Intentar actualizar el aula
-    const [updatedRowsCount] = await Classrooms.update({ classroom }, { where: { id: classroomId } });
+    const updateData = {};
+    if (classroom !== undefined) updateData.classroom = classroom;
+    if (active !== undefined) updateData.active = active;
+
+    const [updatedRowsCount] = await Classrooms.update(updateData, { where: { id: classroomId } });
 
     if (updatedRowsCount === 0) {
       return res

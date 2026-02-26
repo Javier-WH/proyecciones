@@ -9,6 +9,7 @@ import { normalizeText } from "../../utils/textFilter";
 export interface Classroom {
   id: string;
   classroom: string;
+  active?: boolean;
 }
 
 export interface Event {

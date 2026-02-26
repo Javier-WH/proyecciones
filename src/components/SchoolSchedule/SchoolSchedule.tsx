@@ -30,6 +30,7 @@ import styles from "./modal.module.css";
 import { normalizeText } from "../../utils/textFilter";
 import ScheduleConfigModal from "./ScheduleConfigModal";
 import { getScheduleConfig, ScheduleConfig } from "../../fetch/schedule/scheduleConfigFetch";
+import ClassroomManagerModal from "./ClassroomManagerModal";
 
 
 type RawSubjectRestriction = {
@@ -222,7 +223,7 @@ const SchoolSchedule: React.FC = () => {
     if (!schedulableSubjects.length) return "";
     return schedulableSubjects
       .map(s =>
-        `${s.innerId}|${s.pnfId}|${s.trayectoId}|${s.seccion}|${s.turnoName}|${s.subject}|${JSON.stringify(s.quarter)}|${JSON.stringify(s.hours)}`
+        `${s.innerId}| ${s.pnfId}| ${s.trayectoId}| ${s.seccion}| ${s.turnoName}| ${s.subject}| ${JSON.stringify(s.quarter)}| ${JSON.stringify(s.hours)} `
       )
       .sort()
       .join("||");
@@ -235,17 +236,17 @@ const SchoolSchedule: React.FC = () => {
 
     if (viewMode === "professor") {
       const teacher = teachers?.find((t) => t.id === selectedProfessorId);
-      const teacherName = teacher ? `${teacher.name} ${teacher.lastName}` : "Profesor no seleccionado";
-      return `Horario para el profesor ${teacherName}, ${trimestreLabel}`;
+      const teacherName = teacher ? `${teacher.name} ${teacher.lastName} ` : "Profesor no seleccionado";
+      return `Horario para el profesor ${teacherName}, ${trimestreLabel} `;
     } else if (viewMode === "classroom") {
       const classroom = classrooms?.find((c) => c.id === selectedClassroomId);
       const classroomName = classroom ? classroom.classroom : "Aula no seleccionada";
-      return `Horario del Aula ${classroomName.replace("Aula ", "")}, ${trimestreLabel}`;
+      return `Horario del Aula ${classroomName.replace("Aula ", "")}, ${trimestreLabel} `;
     } else {
       const pnfNameFound =
         eventData.find((e) => e.extendedProps.pnfId === pnf)?.extendedProps.pnfName || "PNF";
       const trayectoName = trayectosList?.find((t) => t.id === trayectoId)?.name || "Trayecto";
-      return `Horario de ${pnfNameFound}, ${trayectoName}, ${trimestreLabel}, Turno ${turn}`;
+      return `Horario de ${pnfNameFound}, ${trayectoName}, ${trimestreLabel}, Turno ${turn} `;
     }
   };
 
@@ -416,7 +417,7 @@ const SchoolSchedule: React.FC = () => {
     }
 
     const professorId = errorInfo.professorId || subject.quarter[trimestre] || null;
-    const sectionKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
+    const sectionKey = `${subject.pnfId} -${subject.trayectoId} -${subject.seccion} `;
     const allEvents = [...loadedScheduleEvents, ...eventData];
     const hoursNeeded = errorInfo.totalHours || subject.hours[trimestre] || 0;
 
@@ -427,18 +428,27 @@ const SchoolSchedule: React.FC = () => {
 
     const preventSingleBlocksGlobal = !!scheduleConfig?.prevent_single_hour_blocks;
 
+    // Determine which days and classrooms to use
+    const defaultDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
+    const activeClassrooms = classrooms.filter(c => c.active !== false);
+    const profRestriction = teacherRestrictions.find(r => String(r.teacherId) === String(professorId));
+    const profDays = profRestriction?.days ? defaultDays.filter(d => !new Set(profRestriction.days).has(d)) : defaultDays;
+
+    const subPref = subjectRestriction.find(r => r.subjectName === subject.subject || r.subjectKey === subject.subject);
+    const prefClassrooms = (subPref?.classroomIds?.length || 0) > 0 ? activeClassrooms.filter(c => subPref!.classroomIds!.includes(c.id)) : activeClassrooms;
+
     // --- Core Search Function ---
     const executeSearch = (days: number[], targetClassrooms: Classroom[], forceConsecutive: boolean) => {
       // 1. Build occupancy map
       const occupancy = new Map<string, { professorIds: Set<string>; classroomIds: Set<string>; sectionKeys: Set<string>; }>();
       for (const evt of allEvents) {
         if (!evt.daysOfWeek?.length || !evt.startTime) continue;
-        const key = `${evt.daysOfWeek[0]}-${evt.startTime}`;
+        const key = `${evt.daysOfWeek[0]} -${evt.startTime} `;
         if (!occupancy.has(key)) occupancy.set(key, { professorIds: new Set(), classroomIds: new Set(), sectionKeys: new Set(), });
         const occ = occupancy.get(key)!;
         if (evt.extendedProps?.professorId) occ.professorIds.add(String(evt.extendedProps.professorId));
         if (evt.extendedProps?.classroomId) occ.classroomIds.add(String(evt.extendedProps.classroomId));
-        const sk = `${evt.extendedProps?.pnfId}-${evt.extendedProps?.trayectoId}-${evt.extendedProps?.seccion}`;
+        const sk = `${evt.extendedProps?.pnfId} -${evt.extendedProps?.trayectoId} -${evt.extendedProps?.seccion} `;
         occ.sectionKeys.add(sk);
       }
 
@@ -450,7 +460,7 @@ const SchoolSchedule: React.FC = () => {
           let lastEnd: string | null = null;
           for (let idx = 0; idx < timeSlots.length; idx++) {
             const [start, end] = timeSlots[idx];
-            const occ = occupancy.get(`${day}-${start}`);
+            const occ = occupancy.get(`${day} -${start} `);
             const conflict = (professorId && occ?.professorIds.has(String(professorId))) ||
               occ?.sectionKeys.has(sectionKey) ||
               occ?.classroomIds.has(String(cr.id));
@@ -499,7 +509,7 @@ const SchoolSchedule: React.FC = () => {
           for (let s = 0; s < take; s++) {
             batch.push({
               title: subject.subject, daysOfWeek: [r.day], startTime: timeSlots[r.slots[s].slotIdx][0], endTime: timeSlots[r.slots[s].slotIdx][1],
-              extendedProps: { subjectId: subject.innerId, professorId: professorId || null, classroomId: r.slots[s].classroom.id, classroomName: r.slots[s].classroom.classroom, pnfId: subject.pnfId, trayectoId: subject.trayectoId, trayectoName: subject.trayectoName, seccion: subject.seccion, pnfName: subject.pnf, turnName: subject.turnoName, blockId: `${r.day}-${subject.innerId}` }
+              extendedProps: { subjectId: subject.innerId, professorId: professorId || null, classroomId: r.slots[s].classroom.id, classroomName: r.slots[s].classroom.classroom, pnfId: subject.pnfId, trayectoId: subject.trayectoId, trayectoName: subject.trayectoName, seccion: subject.seccion, pnfName: subject.pnf, turnName: subject.turnoName, blockId: `${r.day} -${subject.innerId} ` }
             });
           }
           backtrack(i + 1, [...current, ...batch], count + take);
@@ -511,13 +521,6 @@ const SchoolSchedule: React.FC = () => {
     };
 
     // --- Strategy Orchestration ---
-    const defaultDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
-    const profRestriction = teacherRestrictions.find(r => String(r.teacherId) === String(professorId));
-    const profDays = profRestriction?.days ? defaultDays.filter(d => !new Set(profRestriction.days).has(d)) : defaultDays;
-
-    const subPref = subjectRestriction.find(r => r.subjectName === subject.subject || r.subjectKey === subject.subject);
-    const prefClassrooms = (subPref?.classroomIds?.length || 0) > 0 ? classrooms.filter(c => subPref!.classroomIds!.includes(c.id)) : classrooms;
-
     let finalResult: { events: Event[]; count: number } = { events: [], count: 0 };
     let note = "";
 
@@ -525,18 +528,17 @@ const SchoolSchedule: React.FC = () => {
       // Pass 1: Strict (Teacher + Subject Prefs)
       finalResult = executeSearch(profDays, prefClassrooms, preventSingleBlocksGlobal);
 
-      // Pass 2: Relaxed Subject (Teacher + ALL Classrooms)
+      // Pass 2: Relaxed Subject (Teacher + ALL Active Classrooms)
       if (finalResult.count < hoursNeeded) {
-        const fallbackClassrooms = executeSearch(profDays, classrooms, preventSingleBlocksGlobal);
+        const fallbackClassrooms = executeSearch(profDays, activeClassrooms, preventSingleBlocksGlobal);
         if (fallbackClassrooms.count > finalResult.count) {
           finalResult = fallbackClassrooms;
           note = "⚠️ Se ignoró la preferencia de aulas para encontrar espacio.";
         }
       }
     } else {
-      // PASS 3: FORCE (ALL Days + ALL Classrooms)
-      // We still respect preventSingleBlocksGlobal here because the user wants it to be absolute.
-      finalResult = executeSearch(defaultDays, classrooms, preventSingleBlocksGlobal);
+      // PASS 3: FORCE (ALL Days + ALL Active Classrooms)
+      finalResult = executeSearch(defaultDays, activeClassrooms, preventSingleBlocksGlobal);
       note = "⚠️ Se ignoraron las restricciones de días del profesor y aulas preferidas.";
     }
 
@@ -551,7 +553,7 @@ const SchoolSchedule: React.FC = () => {
       content: (
         <div style={{ whiteSpace: "pre-line", marginTop: "8px", fontSize: "13px", lineHeight: "1.8" }}>
           {note && <div style={{ color: "#faad14", fontWeight: "bold", marginBottom: "8px" }}>{note}</div>}
-          {finalResult.events.map(evt => `• ${dayNames[evt.daysOfWeek![0]]} ${evt.startTime} - ${evt.endTime} → ${evt.extendedProps.classroomName}`).join("\n")}
+          {finalResult.events.map(evt => `• ${dayNames[evt.daysOfWeek![0]]} ${evt.startTime} - ${evt.endTime} → ${evt.extendedProps.classroomName} `).join("\n")}
         </div>
       ),
       width: 480,
@@ -561,11 +563,15 @@ const SchoolSchedule: React.FC = () => {
     setGenerationCounter(prev => prev + 1);
   }, [eventData, loadedScheduleEvents, classrooms, activeTurnos, trimestre, scheduleConfig, teacherRestrictions, subjectRestriction]);
 
+
   // Handler to change classroom for a specific event (specific day+time block)
   const handleChangeClassroom = () => {
     if (!classroomChangeEvent || !newClassroomId) return;
     const newClassroom = classrooms.find((c) => c.id === newClassroomId);
-    if (!newClassroom) return;
+    if (!newClassroom || newClassroom.active === false) {
+      message.error("El aula seleccionada está cerrada.");
+      return;
+    }
 
     // Check if the new classroom is already occupied by another event
     const allEventsForConflict = [...loadedScheduleEvents, ...eventData];
@@ -651,7 +657,7 @@ const SchoolSchedule: React.FC = () => {
       const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
       Modal.confirm({
         title: "Aula Ocupada",
-        content: `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. ¿Deseas reasignar de todos modos y recalcular el horario alrededor de este cambio?`,
+        content: `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. ¿Deseas reasignar de todos modos y recalcular el horario alrededor de este cambio ? `,
         okText: "Sí, cambiar aula y recalcular",
         cancelText: "Deshacer",
         okButtonProps: { danger: true },
@@ -768,7 +774,7 @@ const SchoolSchedule: React.FC = () => {
             id="schedule-name-input"
             type="text"
             placeholder="Nombre del Horario"
-            defaultValue={`Horario ${new Date().toLocaleDateString()}`}
+            defaultValue={`Horario ${new Date().toLocaleDateString()} `}
             style={{ width: "100%", padding: "8px", marginTop: "10px" }}
           />
         </div>
@@ -794,7 +800,7 @@ const SchoolSchedule: React.FC = () => {
 
         if (error) {
           // Muestra un mensaje de error si la inserción/actualización falla
-          message.error(`Error al guardar el horario: ${msg || "Error desconocido."}`);
+          message.error(`Error al guardar el horario: ${msg || "Error desconocido."} `);
           // Evita que el modal se cierre si la acción asíncrona falla
           return Promise.reject(new Error("Error de guardado"));
         } else {
@@ -919,7 +925,7 @@ const SchoolSchedule: React.FC = () => {
     setErrors([]);
     const eventsdata = generateScheduleEvents({
       subjects: currentSubjects,
-      classrooms: classrooms,
+      classrooms: classrooms.filter(c => c.active !== false),
       trimestre: trimestre,
       preferredClassrooms: subjectRestriction,
       unavailableDays: teacherRestrictions,
@@ -1276,7 +1282,7 @@ const SchoolSchedule: React.FC = () => {
     if (conflictFound) {
       Modal.confirm({
         title: "Conflicto de Horario Detectado",
-        content: `La posición que deseas asignar tiene conflictos o restricciones ocupadas. ¿Deseas forzar el cambio de todos modos y recalcular automáticamente el resto del horario alrededor de esta nueva posición?`,
+        content: `La posición que deseas asignar tiene conflictos o restricciones ocupadas. ¿Deseas forzar el cambio de todos modos y recalcular automáticamente el resto del horario alrededor de esta nueva posición ? `,
         okText: "Sí, forzar y recalcular",
         cancelText: "Deshacer",
         okButtonProps: { danger: true },
@@ -1328,24 +1334,24 @@ const SchoolSchedule: React.FC = () => {
       <div className="schedule-select-main-container">
         <div className="schedule-select-container">
           <div className="schedule-status-indicator">
-            <div className={`dot ${activeScheduleName === "Horario fresco" ? "fresh" : "loaded"}`} />
+            <div className={`dot ${activeScheduleName === "Horario fresco" ? "fresh" : "loaded"} `} />
             <span className="status-text">{activeScheduleName === "Horario fresco" ? "Nuevo" : "Cargado"}</span>
             <span className="schedule-name">{activeScheduleName}</span>
           </div>
           {/* TABS FOR VIEW MODE */}
           <div className="view-mode-tabs">
             <div
-              className={`view-mode-tab ${viewMode === "pnf" ? "active" : ""}`}
+              className={`view - mode - tab ${viewMode === "pnf" ? "active" : ""} `}
               onClick={() => handleViewModeChange("pnf")}>
               Por PNF
             </div>
             <div
-              className={`view-mode-tab ${viewMode === "professor" ? "active" : ""}`}
+              className={`view - mode - tab ${viewMode === "professor" ? "active" : ""} `}
               onClick={() => handleViewModeChange("professor")}>
               Por Profesor
             </div>
             <div
-              className={`view-mode-tab ${viewMode === "classroom" ? "active" : ""}`}
+              className={`view - mode - tab ${viewMode === "classroom" ? "active" : ""} `}
               onClick={() => handleViewModeChange("classroom")}>
               Por Aula
             </div>
@@ -1404,7 +1410,7 @@ const SchoolSchedule: React.FC = () => {
                     .sort()
                     .map((seccion) => ({
                       value: seccion,
-                      label: `Sección ${seccion}`,
+                      label: `Sección ${seccion} `,
                     }))}
                 />
               </div>
@@ -1492,7 +1498,7 @@ const SchoolSchedule: React.FC = () => {
                   onChange={setSelectedProfessorId}
                   options={teachers?.map((teacher) => ({
                     value: teacher.id,
-                    label: `${teacher.name} ${teacher.lastName}`,
+                    label: `${teacher.name} ${teacher.lastName} `,
                   }))}
                 />
               </div>
@@ -1589,6 +1595,7 @@ const SchoolSchedule: React.FC = () => {
               restrictions={teacherRestrictions}
               onEditTeacher={(teacherId) => setEditingTeacherId(teacherId)}
             />
+            <ClassroomManagerModal classrooms={classrooms} onClassroomsUpdated={loadClassrooms} />
 
             <ScheduleErrorsModal errors={errors} onForceInsert={handleForceInsert} />
             <FaCog title="Configuración" className={styles.icon} onClick={() => setIsConfigModalOpen(true)} />
@@ -1601,7 +1608,7 @@ const SchoolSchedule: React.FC = () => {
         </div>
 
         <div className="schedule-content-wrapper">
-          <div className={`calendar-container view-${viewMode}`} style={{ padding: "0", overflowY: "auto" }}>
+          <div className={`calendar - container view - ${viewMode} `} style={{ padding: "0", overflowY: "auto" }}>
             {tableSlots.length > 0 ? (
               <table style={{
                 width: "100%",
@@ -1660,7 +1667,7 @@ const SchoolSchedule: React.FC = () => {
                             const tooltipContent = (
                               <div style={{ textAlign: "center" }}>
                                 <div style={{ fontWeight: "bold", marginBottom: "4px" }}>{cell.title}</div>
-                                <div>{`${tableSlots[rowIndex][0]} - ${endTime}`}</div>
+                                <div>{`${tableSlots[rowIndex][0]} - ${endTime} `}</div>
                                 <div>{dayNames[day]}</div>
                               </div>
                             );
@@ -1719,7 +1726,7 @@ const SchoolSchedule: React.FC = () => {
                                   padding: "6px",
                                   verticalAlign: "top",
                                   backgroundColor: bgColor,
-                                  borderLeft: `4px solid ${baseColor}`,
+                                  borderLeft: `4px solid ${baseColor} `,
                                   height: "100%",
                                   cursor: "grab",
                                   opacity: draggedEventInfo?.title === cell.title && draggedEventInfo?.sourceDay === day && draggedEventInfo?.sourceStartTime === slot[0] ? 0.3 : 1
@@ -1766,7 +1773,7 @@ const SchoolSchedule: React.FC = () => {
                                             if (!prof) return (
                                               <div style={{ fontSize: "0.75rem", color: "#999" }}>Sin Profesor Asignado</div>
                                             );
-                                            const fullName = `${prof.name || ""} ${prof.lastName || ""}`.trim();
+                                            const fullName = `${prof.name || ""} ${prof.lastName || ""} `.trim();
                                             const academicTitle = prof.title || "Profesor";
                                             return (
                                               <div style={{ fontSize: "0.75rem", color: "#495057" }}>
