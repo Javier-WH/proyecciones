@@ -399,7 +399,7 @@ function findSlotPlacements(
 
 /** Global backtrack counter to limit computation */
 let backtrackCounter = 0;
-const MAX_BACKTRACKS = 2000;
+const MAX_BACKTRACKS = 5000;
 
 /**
  * Intenta colocar los bloques de una descomposición en los días disponibles.
@@ -1087,7 +1087,7 @@ export function generateScheduleEvents({
   let { assigned, unassigned } = solveAll(
     tasks,
     occupancy,
-    5,
+    10,
     distributeEquitably,
   );
 
@@ -1120,7 +1120,7 @@ export function generateScheduleEvents({
 
     // Re-solve con el nuevo orden
     backtrackCounter = 0;
-    const retry = solveAll(reorderedTasks, occupancy, 6, distributeEquitably);
+    const retry = solveAll(reorderedTasks, occupancy, 12, distributeEquitably);
 
     // Mapear los índices de vuelta al array original
     const retryAssigned = new Map<number, BlockPlacement[]>();
