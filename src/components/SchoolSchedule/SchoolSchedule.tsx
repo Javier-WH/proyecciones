@@ -195,6 +195,7 @@ const SchoolSchedule: React.FC = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
   const [loadedScheduleEvents, setLoadedScheduleEvents] = useState<Event[]>([]); // Eventos del horario cargado
+  const [activeScheduleName, setActiveScheduleName] = useState<string>("Horario fresco");
 
   // Ref for the printable component
   const printableRef = useRef<HTMLDivElement>(null);
@@ -798,6 +799,7 @@ const SchoolSchedule: React.FC = () => {
           return Promise.reject(new Error("Error de guardado"));
         } else {
           // Muestra un mensaje de éxito
+          setActiveScheduleName(scheduleName);
           message.success(`Horario "${scheduleName}" guardado con éxito.`);
         }
       },
@@ -843,6 +845,7 @@ const SchoolSchedule: React.FC = () => {
   // Función para crear un nuevo horario (limpiar eventos cargados)
   const newSchedule = () => {
     setLoadedScheduleEvents([]);
+    setActiveScheduleName("Horario fresco");
     message.info("Creando nuevo horario. Los eventos cargados han sido limpiados.");
   };
 
@@ -873,6 +876,7 @@ const SchoolSchedule: React.FC = () => {
 
       // 5. Cerrar el modal y notificar éxito
       setIsScheduleModalOpen(false);
+      setActiveScheduleName(_selectedSchedule.name);
       message.success(`Horario "${_selectedSchedule.name}" cargado con éxito.`);
     } catch (error) {
       console.error("Error parsing schedule data:", error);
@@ -1323,6 +1327,11 @@ const SchoolSchedule: React.FC = () => {
     <>
       <div className="schedule-select-main-container">
         <div className="schedule-select-container">
+          <div className="schedule-status-indicator">
+            <div className={`dot ${activeScheduleName === "Horario fresco" ? "fresh" : "loaded"}`} />
+            <span className="status-text">{activeScheduleName === "Horario fresco" ? "Nuevo" : "Cargado"}</span>
+            <span className="schedule-name">{activeScheduleName}</span>
+          </div>
           {/* TABS FOR VIEW MODE */}
           <div className="view-mode-tabs">
             <div
