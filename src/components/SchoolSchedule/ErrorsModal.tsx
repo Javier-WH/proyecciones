@@ -268,21 +268,21 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors, onForceInsert }) => {
                     {canForceInsert(err) && (
                       <div style={{ marginTop: "12px" }}>
                         <Popconfirm
-                          title="Forzar inserción"
+                          title="Intentar solucionar"
                           description="Se ignorarán las restricciones de días del profesor y aulas preferidas. Se usará cualquier aula y horario disponible. ¿Continuar?"
                           onConfirm={() => handleForceInsert(err, index)}
-                          okText="Sí, forzar"
+                          okText="Sí, intentar"
                           cancelText="Cancelar"
                           okButtonProps={{ danger: true }}
                         >
                           <Button
                             type="primary"
-                            danger
                             size="small"
                             icon={<ThunderboltOutlined />}
                             loading={loadingErrorIndex === index}
+                            style={{ backgroundColor: "#faad14", borderColor: "#faad14" }}
                           >
-                            Forzar inserción
+                            Intentar solucionar
                           </Button>
                         </Popconfirm>
                       </div>

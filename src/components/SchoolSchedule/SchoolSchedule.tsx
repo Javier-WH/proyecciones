@@ -452,55 +452,92 @@ const SchoolSchedule: React.FC = () => {
     let hoursPlaced = 0;
 
     // Prefer consecutive slots on the same day for better schedule quality
+    // Helper: check if a slot is available (no hard-constraint violations)
+    const isSlotAvailable = (day: number, slotIdx: number): { available: boolean; classroom: Classroom | null } => {
+      const [start] = timeSlots[slotIdx];
+      const key = `${day}-${start}`;
+      const occ = occupancy.get(key);
+
+      const profConflict = professorId && occ?.professorIds.has(professorId);
+      const sectionConflict = occ?.sectionKeys.has(sectionKey);
+      if (profConflict || sectionConflict) return { available: false, classroom: null };
+
+      // Find an available classroom
+      for (const cr of allClassrooms) {
+        if (!occ || !occ.classroomIds.has(cr.id)) {
+          return { available: true, classroom: cr };
+        }
+      }
+      return { available: false, classroom: null }; // All classrooms occupied
+    };
+
+    // For each day, find all consecutive runs of available slots
+    type ConsecutiveRun = { day: number; startSlotIdx: number; slots: { slotIdx: number; classroom: Classroom }[] };
+    const allRuns: ConsecutiveRun[] = [];
+
     for (const day of allDays) {
+      let currentRun: ConsecutiveRun | null = null;
+
+      for (let slotIdx = 0; slotIdx < timeSlots.length; slotIdx++) {
+        const { available, classroom } = isSlotAvailable(day, slotIdx);
+
+        if (available && classroom) {
+          if (!currentRun) {
+            currentRun = { day, startSlotIdx: slotIdx, slots: [] };
+          }
+          currentRun.slots.push({ slotIdx, classroom });
+        } else {
+          // End of a consecutive run
+          if (currentRun && currentRun.slots.length > 0) {
+            allRuns.push(currentRun);
+          }
+          currentRun = null;
+        }
+      }
+      // Don't forget the last run in the day
+      if (currentRun && currentRun.slots.length > 0) {
+        allRuns.push(currentRun);
+      }
+    }
+
+    // Sort runs: prefer longer runs first (can fit more hours), then earlier days
+    allRuns.sort((a, b) => b.slots.length - a.slots.length || a.day - b.day || a.startSlotIdx - b.startSlotIdx);
+
+    // Place hours using consecutive runs
+    for (const run of allRuns) {
       if (hoursPlaced >= hoursNeeded) break;
 
-      for (let slotIdx = 0; slotIdx < timeSlots.length && hoursPlaced < hoursNeeded; slotIdx++) {
+      const slotsToUse = Math.min(run.slots.length, hoursNeeded - hoursPlaced);
+
+      for (let i = 0; i < slotsToUse; i++) {
+        const { slotIdx, classroom } = run.slots[i];
         const [start, end] = timeSlots[slotIdx];
-        const key = `${day}-${start}`;
-        const occ = occupancy.get(key);
+        const key = `${run.day}-${start}`;
 
-        // Check hard constraints
-        const profConflict = professorId && occ?.professorIds.has(professorId);
-        const sectionConflict = occ?.sectionKeys.has(sectionKey);
-
-        if (profConflict || sectionConflict) continue;
-
-        // Find an available classroom for this slot
-        let chosenClassroom: Classroom | null = null;
-        for (const cr of allClassrooms) {
-          if (!occ?.classroomIds.has(cr.id)) {
-            chosenClassroom = cr;
-            break;
-          }
-        }
-        if (!chosenClassroom) continue; // All classrooms occupied
-
-        // Place it!
         const newEvent: Event = {
           title: subject.subject,
-          daysOfWeek: [day],
+          daysOfWeek: [run.day],
           startTime: start,
           endTime: end,
           extendedProps: {
             subjectId: subject.innerId,
             professorId: professorId,
-            classroomId: chosenClassroom.id,
-            classroomName: chosenClassroom.classroom,
+            classroomId: classroom.id,
+            classroomName: classroom.classroom,
             pnfId: subject.pnfId,
             trayectoId: subject.trayectoId,
             trayectoName: subject.trayectoName,
             seccion: subject.seccion,
             pnfName: subject.pnf,
             turnName: subject.turnoName,
-            blockId: `${day}-${subject.innerId}`,
+            blockId: `${run.day}-${subject.innerId}`,
           },
         };
 
         placedEvents.push(newEvent);
         hoursPlaced++;
 
-        // Update occupancy for subsequent checks
+        // Update occupancy
         if (!occupancy.has(key)) {
           occupancy.set(key, {
             professorIds: new Set(),
@@ -510,7 +547,7 @@ const SchoolSchedule: React.FC = () => {
         }
         const updatedOcc = occupancy.get(key)!;
         if (professorId) updatedOcc.professorIds.add(professorId);
-        updatedOcc.classroomIds.add(chosenClassroom.id);
+        updatedOcc.classroomIds.add(classroom.id);
         updatedOcc.sectionKeys.add(sectionKey);
       }
     }
@@ -520,11 +557,26 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
 
-    if (hoursPlaced < hoursNeeded) {
-      message.warning(`Se pudieron asignar solo ${hoursPlaced} de ${hoursNeeded} horas.`);
-    } else {
-      message.success(`Se forzó la inserción de "${subject.subject}" (${hoursPlaced} horas).`);
-    }
+    // Build a detailed summary of where each hour was placed
+    const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+    const details = placedEvents.map(evt => {
+      const dayName = dayNames[evt.daysOfWeek[0]] || `Día ${evt.daysOfWeek[0]}`;
+      return `• ${dayName} ${evt.startTime} - ${evt.endTime} → ${evt.extendedProps.classroomName}`;
+    }).join("\n");
+
+    const title = hoursPlaced < hoursNeeded
+      ? `Se asignaron ${hoursPlaced} de ${hoursNeeded} horas de "${subject.subject}"`
+      : `Se asignaron las ${hoursPlaced} horas de "${subject.subject}"`;
+
+    Modal.info({
+      title,
+      content: (
+        <div style={{ whiteSpace: "pre-line", marginTop: "8px", fontSize: "13px", lineHeight: "1.8" }}>
+          {details}
+        </div>
+      ),
+      width: 480,
+    });
 
     // Add as pinned events and trigger regeneration
     setLoadedScheduleEvents(prev => [...prev, ...placedEvents]);
