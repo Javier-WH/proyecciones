@@ -1080,7 +1080,9 @@ export function generateScheduleEvents({
       return a.professorId.localeCompare(b.professorId);
     }
 
-    return 0;
+    // Nivel 4: Desempate determinista por ID único de materia
+    // Garantiza que el orden sea siempre el mismo independientemente del orden de llegada de los datos
+    return (a.subject.innerId || "").localeCompare(b.subject.innerId || "");
   });
 
   // ─── Step 4: Resolver con backtracking ───
