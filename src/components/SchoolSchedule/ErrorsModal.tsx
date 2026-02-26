@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Modal, Select, Button, Popconfirm } from "antd";
 import { MdOutlineErrorOutline } from "react-icons/md";
+import { FaHammer } from "react-icons/fa6";
 import { ThunderboltOutlined } from "@ant-design/icons";
 import styles from "./modal.module.css";
 
@@ -289,7 +290,7 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors, onForceInsert }) => {
                             type="default"
                             size="small"
                             danger
-                            icon={<ThunderboltOutlined />}
+                            icon={<FaHammer />}
                             loading={loadingErrorIndex === index}
                           >
                             Forzar solución
