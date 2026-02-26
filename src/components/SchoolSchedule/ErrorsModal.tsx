@@ -197,6 +197,7 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
                         fontSize: "14px",
                         color: "#434343",
                         lineHeight: "1.5",
+                        whiteSpace: "pre-line",
                       }}
                     >
                       {err.description}

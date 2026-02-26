@@ -766,7 +766,7 @@ export function generateScheduleEvents({
 
         setErrors({
           name: sub.subject,
-          description: `${sub.subject} — Solo necesita 1 hora pero la configuración impide asignar bloques de 1 sola hora. Considere desactivar la restricción o ajustar las horas de la materia.`,
+          description: `Esta materia solo tiene 1 hora asignada en el trimestre, pero está activada la opción "Evitar bloques de 1 sola hora". Para solucionarlo: desactive esa opción en la Configuración (⚙️), o aumente las horas de esta materia a 2 o más.`,
           seccion: sub.seccion,
           year: sub.trayectoName,
           turn: sub.turnoName,
@@ -804,12 +804,21 @@ export function generateScheduleEvents({
           ? `${teacherObj.name} ${teacherObj.lastName}`
           : professorId;
 
+        const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+        const restrictedDayNames = restrictedDays.map((d: number) => dayNames[d] || `Día ${d}`).join(", ");
+
+        let errorDesc = "";
+        if (availableDays.length === 0) {
+          errorDesc = `El profesor tiene restringidos todos los días hábiles (${restrictedDayNames}), por lo que no hay ningún día disponible para asignar esta materia. Para solucionarlo: edite las restricciones del profesor y habilite al menos un día.`;
+        } else {
+          errorDesc = preferConfig
+            ? `Las aulas asignadas como preferidas para esta materia no están disponibles o no existen. Para solucionarlo: revise las restricciones de aulas de esta materia y seleccione aulas válidas.`
+            : `No hay aulas disponibles para asignar esta materia. Para solucionarlo: agregue más aulas en el sistema.`;
+        }
+
         setErrors({
           name: sub.subject,
-          description: `${sub.subject} — ${availableDays.length === 0
-            ? `Sin días disponibles (restringidos: ${restrictedDays.join(", ")})`
-            : `Sin aulas disponibles${preferConfig ? " (las aulas preferidas no existen)" : ""}`
-            }`,
+          description: errorDesc,
           seccion: sub.seccion,
           year: sub.trayectoName,
           turn: sub.turnoName,
@@ -917,41 +926,67 @@ export function generateScheduleEvents({
   }
 
   // ─── Step 7: Reportar errores ───
+  const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
   for (const idx of stillUnassigned) {
     const task = tasks[idx];
-
-    const reasons: string[] = [];
-    if (task.availableDays.length < days.length) {
-      reasons.push(
-        `solo ${task.availableDays.length} de ${days.length} días disponibles`,
-      );
-    }
-    if (task.candidateClassrooms.length < classrooms.length) {
-      reasons.push(`solo ${task.candidateClassrooms.length} aulas permitidas`);
-    }
-    if (task.restrictedHours.length > 0) {
-      reasons.push(`${task.restrictedHours.length} horas restringidas`);
-    }
-
-    if (task.preventSingleHourBlocks) {
-      if (task.totalHours === 1) {
-        reasons.push("Es una materia de 1 sola hora y la configuración impide asignarla");
-      } else {
-        reasons.push("La configuración impide asignar bloques de 1 sola hora (no se encontraron suficientes horas continuas)");
-      }
-    } else {
-      reasons.push("horarios y aulas ocupados por otras materias");
-    }
-
     const originalHours = task.subject.hours[trimestre] || task.totalHours;
     const teacherObj = teachers?.find((t: any) => t.id === task.professorId);
     const professorName = teacherObj
       ? `${teacherObj.name} ${teacherObj.lastName}`
       : task.professorId;
 
+    // Construir descripción clara del problema y sugerencia de solución
+    const availableDayNames = task.availableDays.map((d: number) => dayNames[d] || `Día ${d}`).join(", ");
+    const problems: string[] = [];
+    const suggestions: string[] = [];
+
+    // Problema: pocos días disponibles
+    if (task.availableDays.length < days.length) {
+      const restrictedDayNames = days
+        .filter(d => !task.availableDays.includes(d))
+        .map((d: number) => dayNames[d] || `Día ${d}`)
+        .join(", ");
+      problems.push(`El profesor solo puede dar clases los: ${availableDayNames} (tiene restringidos: ${restrictedDayNames})`);
+      suggestions.push(`Revise las restricciones del profesor y habilite más días`);
+    }
+
+    // Problema: pocas aulas
+    if (task.candidateClassrooms.length < classrooms.length && task.candidateClassrooms.length <= 2) {
+      const classroomNames = task.candidateClassrooms.map(c => c.classroom).join(", ");
+      problems.push(`Solo puede usar las aulas: ${classroomNames}`);
+      suggestions.push(`Agregue más aulas permitidas para esta materia en las restricciones de materias`);
+    }
+
+    // Problema: horas restringidas
+    if (task.restrictedHours.length > 0) {
+      problems.push(`El profesor tiene ${task.restrictedHours.length} horas específicas restringidas`);
+      suggestions.push(`Revise las horas restringidas del profesor`);
+    }
+
+    // Problema: bloques de 1 hora
+    if (task.preventSingleHourBlocks) {
+      problems.push(`La opción \"Evitar bloques de 1 hora\" está activa y no se encontró espacio para bloques de 2+ horas consecutivas`);
+      suggestions.push(`Desactive la opción en Configuración (⚙️) o libere más espacio en el horario`);
+    }
+
+    // Si no hay problemas específicos, es un conflicto general de espacio
+    if (problems.length === 0) {
+      problems.push(`Todas las aulas y horarios disponibles ya están ocupados por otras materias`);
+      suggestions.push(`Agregue más aulas o ajuste las horas de otras materias para liberar espacio`);
+    }
+
+    const description = [
+      `No se pudo asignar: faltan ${task.totalHours} de ${originalHours} horas.`,
+      ``,
+      `⚠️ Problema: ${problems.join(". ")}`,
+      ``,
+      `💡 Sugerencia: ${suggestions.join(". ")}`,
+    ].join("\n");
+
     setErrors({
       name: task.subject.subject,
-      description: `${task.subject.subject} — No se pudo asignar completamente. (Faltan: ${task.totalHours}h, Total: ${originalHours}h). Razones: ${reasons.join(", ")}`,
+      description,
       seccion: task.subject.seccion,
       year: task.subject.trayectoName,
       turn: task.subject.turnoName,
