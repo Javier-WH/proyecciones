@@ -1243,7 +1243,7 @@ const SchoolSchedule: React.FC = () => {
                 filterOption={(input, option) =>
                   (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                 }
-                style={{ width: 250 }}
+                style={{ width: 500 }}
                 onChange={setSelectedProfessorId}
                 options={teachers?.map((teacher) => ({
                   value: teacher.id,
@@ -1268,10 +1268,15 @@ const SchoolSchedule: React.FC = () => {
                   }
                   style={{ width: 250 }}
                   onChange={setSelectedClassroomId}
-                  options={classrooms?.map((classroom) => ({
-                    value: classroom.id,
-                    label: classroom.classroom,
-                  }))}
+                  options={(classrooms || [])
+                    .slice()
+                    .sort((a, b) =>
+                      a.classroom.localeCompare(b.classroom, undefined, { numeric: true, sensitivity: "base" })
+                    )
+                    .map((classroom) => ({
+                      value: classroom.id,
+                      label: classroom.classroom,
+                    }))}
                 />
               </div>
 
