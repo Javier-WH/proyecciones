@@ -216,30 +216,32 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
 
     const headerTab = (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <Form.Item label="Logo de la Institución">
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                        <input type="file" id="logo-upload" style={{ display: "none" }} accept="image/*" onChange={handleLogoChange} />
-                        <Button onClick={() => document.getElementById('logo-upload')?.click()}>
-                            Seleccionar Imagen Local
+            <Form.Item label="Logo de la Institución" name="logo_url" style={{ marginBottom: "0px" }}>
+                <Input style={{ display: "none" }} />
+            </Form.Item>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "15px" }}>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                    <input type="file" id="logo-upload" style={{ display: "none" }} accept="image/*" onChange={handleLogoChange} />
+                    <Button onClick={() => document.getElementById('logo-upload')?.click()}>
+                        Seleccionar Imagen Local
+                    </Button>
+                    {watchedLogo && (
+                        <Button danger icon={<DeleteOutlined />} onClick={() => {
+                            form.setFieldsValue({ logo_url: "" });
+                            setLogoPreview("");
+                        }}>
+                            Quitar Logo
                         </Button>
-                        {watchedLogo && (
-                            <Button danger icon={<DeleteOutlined />} onClick={() => {
-                                form.setFieldsValue({ logo_url: "" });
-                                setLogoPreview("");
-                            }}>
-                                Quitar Logo
-                            </Button>
-                        )}
-                    </div>
-                    {logoPreview && (
-                        <div style={{ marginTop: "10px", textAlign: "center", border: "1px solid #ddd", padding: "10px", borderRadius: "4px" }}>
-                            <p style={{ fontSize: "12px", color: "#666" }}>Vista previa del logo:</p>
-                            <img src={logoPreview} alt="Logo preview" style={{ maxHeight: "80px", maxWidth: "100%" }} />
-                        </div>
                     )}
                 </div>
-            </Form.Item>
+                {logoPreview && (
+                    <div style={{ marginTop: "10px", textAlign: "center", border: "1px solid #ddd", padding: "10px", borderRadius: "4px" }}>
+                        <p style={{ fontSize: "12px", color: "#666" }}>Vista previa del logo:</p>
+                        <img src={logoPreview} alt="Logo preview" style={{ maxHeight: "80px", maxWidth: "100%" }} />
+                    </div>
+                )}
+            </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {[0, 1, 2, 3].map((index) => (
