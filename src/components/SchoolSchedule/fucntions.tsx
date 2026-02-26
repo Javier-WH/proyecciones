@@ -205,6 +205,7 @@ interface SubjectTask {
   preferLastSlot: boolean;
   constraintScore: number;
   preventSingleHourBlocks: boolean;
+  hasTeacherRestrictions: boolean;
 }
 
 interface BlockPlacement {
@@ -830,12 +831,41 @@ export function generateScheduleEvents({
       }
 
       // Constraint score: más alto = más restringido = se asigna primero (MRV)
+      // PRIORIDAD PRINCIPAL: restricciones de profesor (días disponibles)
+      // Un profesor con 1 día disponible DEBE colocarse antes que uno con 5 días
       let score = 0;
-      score += (7 - availableDays.length) * 100;
-      score += Math.max(0, 20 - candidateClassrooms.length) * 10;
-      score += totalHours * 5;
-      score += restrictedHours.length * 8;
-      score += Math.max(0, 10 - timeSlots.length) * 6;
+
+      // Factor dominante: días disponibles del profesor
+      // Escala exponencial para que las restricciones más severas tengan prioridad abrumadora
+      // 1 día disponible → 1000pts, 2 días → 500pts, 3 días → 333pts, 5 días → 200pts
+      const dayRestrictionScore = availableDays.length > 0
+        ? Math.round(1000 / availableDays.length)
+        : 2000; // Sin días = máxima urgencia (se reportará error)
+      score += dayRestrictionScore;
+
+      // Horas restringidas del profesor (slots específicos bloqueados)
+      // Cada hora restringida reduce significativamente las opciones
+      score += restrictedHours.length * 50;
+
+      // Factor secundario: ratio horas/días — cuánto "aprieta" la materia
+      // Un profesor con 1 día disponible y 4 horas necesarias es más urgente
+      // que uno con 1 día disponible y 2 horas
+      if (availableDays.length > 0) {
+        const hoursPerAvailableDay = totalHours / availableDays.length;
+        score += Math.round(hoursPerAvailableDay * 30);
+      }
+
+      // Factor terciario: pocas aulas candidatas
+      score += Math.max(0, 20 - candidateClassrooms.length) * 5;
+
+      // Factor menor: horas totales (materias con más horas ligeramente más urgentes)
+      score += totalHours * 3;
+
+      // Factor menor: pocos slots en el turno
+      score += Math.max(0, 10 - timeSlots.length) * 4;
+
+      // Indicador de si el profesor tiene restricciones (cualquiera)
+      const hasTeacherRestrictions = restrictedDays.length > 0 || restrictedHours.length > 0;
 
       return {
         subject: sub,
@@ -853,12 +883,36 @@ export function generateScheduleEvents({
         preferLastSlot: preferConfig?.preferLastSlot || false,
         constraintScore: score,
         preventSingleHourBlocks,
+        hasTeacherRestrictions,
       };
     })
     .filter(Boolean) as SubjectTask[];
 
-  // ─── Step 3: Ordenar por constraint score (MRV heuristic) ───
-  tasks.sort((a, b) => b.constraintScore - a.constraintScore);
+  // ─── Step 3: Ordenar por prioridad de restricciones ───
+  // ESTRATEGIA: Las materias con profesores restringidos van PRIMERO,
+  // ordenadas de más restringido a menos restringido.
+  // Dentro de profesores con el mismo nivel de restricción, se agrupan
+  // las materias del mismo profesor para que se coloquen consecutivamente
+  // y no se bloqueen entre sí.
+  tasks.sort((a, b) => {
+    // Nivel 1: Profesores con restricciones SIEMPRE antes que sin restricciones
+    if (a.hasTeacherRestrictions !== b.hasTeacherRestrictions) {
+      return a.hasTeacherRestrictions ? -1 : 1;
+    }
+
+    // Nivel 2: Dentro de la misma categoría, ordenar por constraintScore (más alto primero)
+    if (a.constraintScore !== b.constraintScore) {
+      return b.constraintScore - a.constraintScore;
+    }
+
+    // Nivel 3: A igual score, agrupar materias del mismo profesor juntas
+    // para que se asignen consecutivamente y no se bloqueen entre sí
+    if (a.professorId !== b.professorId) {
+      return a.professorId.localeCompare(b.professorId);
+    }
+
+    return 0;
+  });
 
   // ─── Step 4: Resolver con backtracking ───
   const { assigned, unassigned } = solveAll(
