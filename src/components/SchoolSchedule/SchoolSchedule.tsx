@@ -1480,13 +1480,23 @@ const SchoolSchedule: React.FC = () => {
 
                                         {/* Professor Name */}
                                         {viewMode !== "professor" && (
-                                          <div style={{ fontSize: "0.75rem", color: "#495057" }}>
-                                            <span style={{ fontWeight: "600" }}>Profesor:</span> {
-                                              teachers?.find(t => t.id === cell.extendedProps?.professorId)
-                                                ? `${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.name} ${teachers?.find(t => t.id === cell.extendedProps?.professorId)?.lastName}`
-                                                : "Sin Asignar"
-                                            }
-                                          </div>
+                                          (() => {
+                                            const profId = cell.extendedProps?.professorId;
+                                            if (!profId) return (
+                                              <div style={{ fontSize: "0.75rem", color: "#999" }}>Sin Profesor Asignado</div>
+                                            );
+                                            const prof = teachers?.find((t: any) => t.id === profId);
+                                            if (!prof || prof.is_placeholder) return (
+                                              <div style={{ fontSize: "0.75rem", color: "#999" }}>Sin Profesor Asignado</div>
+                                            );
+                                            const fullName = `${prof.name || ""} ${prof.lastName || ""}`.trim();
+                                            const academicTitle = prof.title || "Profesor";
+                                            return (
+                                              <div style={{ fontSize: "0.75rem", color: "#495057" }}>
+                                                <span style={{ fontWeight: "600" }}>{academicTitle}:</span> {fullName || "Sin Profesor Asignado"}
+                                              </div>
+                                            );
+                                          })()
                                         )}
                                       </div>
                                     </div>
