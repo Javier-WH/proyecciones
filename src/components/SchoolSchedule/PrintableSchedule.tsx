@@ -256,7 +256,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
               )
             )}
 
-            {/* Line 3: Department/PNF Name */}
+            {/* Line 3: Trayecto/Trimestre */}
             {headerText ? (
               headerText[2]?.trim() && (
                 <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
@@ -265,22 +265,14 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
               )
             ) : (
               <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
-                {pnfName.replace("Horario de P.N.F. en ", "").toUpperCase()}
-              </div>
-            )}
-
-            {/* Line 4: Trayecto/Trimestre */}
-            {headerText ? (
-              headerText[3]?.trim() && (
-                <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
-                  {headerText[3]}
-                </div>
-              )
-            ) : (
-              <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
                 {`${trayecto.toUpperCase()} ${trimestre.toUpperCase()}`}
               </div>
             )}
+
+            {/* Line 4: Cleaned PNF Name (Always Automatic) */}
+            <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
+              {pnfName.replace(/(?:Horario\s+de\s+)?(?:P\.?N\.?F\.?\s*en\s+)/gi, "").trim().toUpperCase()}
+            </div>
           </div>
 
           {/* Section info */}

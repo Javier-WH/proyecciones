@@ -244,7 +244,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {[0, 1, 2, 3].map((index) => (
+                {[0, 1, 2].map((index) => (
                     <Form.Item
                         key={index}
                         label={`Línea ${index + 1} del Encabezado`}
@@ -267,10 +267,23 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                         />
                     </Form.Item>
                 ))}
+
+                {/* Fixed Automático Line 4 (Name del PNF) */}
+                <Form.Item
+                    label="Línea 4 del Encabezado (Automática)"
+                    style={{ marginBottom: "0" }}
+                >
+                    <Input
+                        disabled
+                        value="[ NOMBRE DEL PNF SELECCIONADO ]"
+                        style={{ backgroundColor: "#f5f5f5", color: "#8c8c8c" }}
+                        suffix={<span style={{ fontSize: "10px", color: "#bfbfbf" }}>AUTOMÁTICO</span>}
+                    />
+                </Form.Item>
             </div>
 
             <p style={{ fontSize: "12px", color: "#666", marginTop: "15px", fontStyle: "italic" }}>
-                Nota: Si borra una línea (dejándola vacía), esta no aparecerá en la impresión. Los valores automáticos (PNF/Trayecto) solo se muestran si la configuración nunca se ha tocado o se restauran manualmente.
+                Nota: La línea 4 siempre mostrará el nombre del PNF actualmente seleccionado, limpiando prefijos como "P.N.F." y convirtiéndolo a MAYÚSCULAS.
             </p>
         </div>
     );
