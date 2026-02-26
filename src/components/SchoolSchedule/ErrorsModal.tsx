@@ -23,7 +23,7 @@ export interface scheduleError {
 
 interface params {
   errors: scheduleError[];
-  onForceInsert?: (error: scheduleError) => void;
+  onForceInsert?: (error: scheduleError, ignoreRestrictions: boolean) => void;
 }
 
 const ScheduleErrorsModal: React.FC<params> = ({ errors, onForceInsert }) => {
@@ -44,12 +44,12 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors, onForceInsert }) => {
     setIsModalOpen(false);
   };
 
-  const handleForceInsert = (err: scheduleError, index: number) => {
+  const handleForceInsert = (err: scheduleError, index: number, ignoreRestrictions: boolean) => {
     if (!onForceInsert) return;
     setLoadingErrorIndex(index);
     // Use setTimeout to allow UI to update before the potentially heavy operation
     setTimeout(() => {
-      onForceInsert(err);
+      onForceInsert(err, ignoreRestrictions);
       setLoadingErrorIndex(null);
     }, 50);
   };
@@ -264,25 +264,35 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors, onForceInsert }) => {
                       {err.description}
                     </p>
 
-                    {/* Force Insert Button */}
+                    {/* Solving Buttons */}
                     {canForceInsert(err) && (
-                      <div style={{ marginTop: "12px" }}>
+                      <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<ThunderboltOutlined />}
+                          loading={loadingErrorIndex === index}
+                          onClick={() => handleForceInsert(err, index, false)}
+                          style={{ backgroundColor: "#1890ff", borderColor: "#1890ff" }}
+                        >
+                          Intentar solucionar
+                        </Button>
                         <Popconfirm
-                          title="Intentar solucionar"
-                          description="Se ignorarán las restricciones de días del profesor y aulas preferidas. Se usará cualquier aula y horario disponible. ¿Continuar?"
-                          onConfirm={() => handleForceInsert(err, index)}
-                          okText="Sí, intentar"
+                          title="Forzar solución"
+                          description="Se ignorarán las restricciones de días del profesor y aulas preferidas. ¿Continuar?"
+                          onConfirm={() => handleForceInsert(err, index, true)}
+                          okText="Sí, forzar"
                           cancelText="Cancelar"
                           okButtonProps={{ danger: true }}
                         >
                           <Button
-                            type="primary"
+                            type="default"
                             size="small"
+                            danger
                             icon={<ThunderboltOutlined />}
                             loading={loadingErrorIndex === index}
-                            style={{ backgroundColor: "#faad14", borderColor: "#faad14" }}
                           >
-                            Intentar solucionar
+                            Forzar solución
                           </Button>
                         </Popconfirm>
                       </div>

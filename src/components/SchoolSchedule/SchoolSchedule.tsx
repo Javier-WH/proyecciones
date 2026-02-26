@@ -395,10 +395,10 @@ const SchoolSchedule: React.FC = () => {
     setErrors((prevErrors) => [...prevErrors, err]);
   };
 
-  // Force-insert a subject that failed scheduling by ignoring professor day
-  // restrictions and classroom preferences. Still respects hard constraints:
-  // no professor double-booking, no section conflicts, no classroom double-booking.
-  const handleForceInsert = useCallback((errorInfo: scheduleError) => {
+  // Force-insert or try to solve a subject that failed scheduling.
+  // if ignoreRestrictions is true, it ignores professor day restrictions and classroom preferences.
+  // Still always respects hard constraints: no double-booking.
+  const handleForceInsert = useCallback((errorInfo: scheduleError, ignoreRestrictions: boolean = true) => {
     if (!errorInfo.subjectId) return;
 
     const currentSubjects = schedulableSubjectsRef.current;
@@ -417,15 +417,43 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
 
-    // Use ALL days (ignore professor day restrictions)
-    const allDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
-    // Use ALL classrooms (ignore classroom restrictions)
-    const allClassrooms = classrooms;
+    const professorId = errorInfo.professorId || subject.quarter[trimestre] || null;
 
-    if (allClassrooms.length === 0) {
-      message.error("No hay aulas disponibles.");
+    // Determine which days and classrooms to use
+    let allowedDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
+    let allowedClassrooms = classrooms;
+
+    if (!ignoreRestrictions) {
+      // Respect professor day restrictions
+      const restriction = teacherRestrictions.find(r => String(r.teacherId) === String(professorId));
+      if (restriction && restriction.days) {
+        const blockedDays = new Set(restriction.days);
+        allowedDays = allowedDays.filter(d => !blockedDays.has(d));
+      }
+
+      // Respect classroom preferences/restrictions
+      const subjectPref = subjectRestriction.find(r =>
+        (r.subjectName === subject.subject) ||
+        (r.subjectKey === subject.subject)
+      );
+      if (subjectPref && (subjectPref.classroomIds?.length || 0) > 0) {
+        const ids = subjectPref.classroomIds || [];
+        allowedClassrooms = classrooms.filter(c => ids.includes(c.id));
+      }
+    }
+
+    if (allowedClassrooms.length === 0) {
+      message.error(ignoreRestrictions ? "No hay aulas disponibles." : "No hay aulas disponibles que cumplan con las restricciones de la materia.");
       return;
     }
+
+    if (allowedDays.length === 0) {
+      message.error("No hay días disponibles para este profesor según sus restricciones.");
+      return;
+    }
+
+    const allDays = allowedDays;
+    const allClassrooms = allowedClassrooms;
 
     // Gather ALL existing events (loaded + generated) to check conflicts
     const allEvents = [...loadedScheduleEvents, ...eventData];
@@ -466,7 +494,6 @@ const SchoolSchedule: React.FC = () => {
       occ.sectionKeys.add(secKey);
     }
 
-    const professorId = errorInfo.professorId || subject.quarter[trimestre] || null;
     const sectionKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
 
     // Try to find slots: for each day, for each slot, check if we can place
