@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Modal } from "antd";
+import { useEffect, useState, useMemo } from "react";
+import { Modal, Select } from "antd";
 import { MdOutlineErrorOutline } from "react-icons/md";
 //import { BsCalendarWeek } from "react-icons/bs";
 import styles from "./modal.module.css";
@@ -22,6 +22,7 @@ interface params {
 const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorList, setErrorList] = useState<scheduleError[]>([]);
+  const [selectedPnf, setSelectedPnf] = useState<string>("all");
 
   useEffect(() => {
     setErrorList(errors);
@@ -34,6 +35,27 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
   const handleCancel = () => {
     setIsModalOpen(false);
   };
+
+  // Obtener lista única de PNFs para el filtro
+  const pnfOptions = useMemo(() => {
+    const pnfs = new Set<string>();
+    errors.forEach(err => {
+      if (err.pnfName) pnfs.add(err.pnfName);
+    });
+
+    const options = Array.from(pnfs).sort().map(pnf => ({
+      value: pnf,
+      label: pnf
+    }));
+
+    return [{ value: "all", label: "Todos los PNF" }, ...options];
+  }, [errors]);
+
+  // Filtrar la lista de errores según el PNF seleccionado
+  const filteredErrors = useMemo(() => {
+    if (selectedPnf === "all") return errorList;
+    return errorList.filter(err => err.pnfName === selectedPnf);
+  }, [errorList, selectedPnf]);
 
 
 
@@ -73,14 +95,33 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors }) => {
         // I will keep it to minimize distinct changes, but standard antd Modal doesn't use height prop directly usually (uses style or bodyStyle).
         // effective removal of ok button:
         onCancel={handleCancel}>
+
+        {/* Filtro por PNF */}
+        <div style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontWeight: "600", fontSize: "14px" }}>Filtrar por PNF:</span>
+          <Select
+            style={{ flex: 1 }}
+            value={selectedPnf}
+            onChange={setSelectedPnf}
+            options={pnfOptions}
+            placeholder="Seleccione un PNF"
+            showSearch
+            filterOption={(input, option) =>
+              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+            }
+          />
+        </div>
+
         <div style={{ maxHeight: "500px", overflowY: "auto", paddingRight: "8px" }}>
-          {errorList?.length === 0 ? (
+          {filteredErrors?.length === 0 ? (
             <div style={{ textAlign: "center", padding: "20px", color: "gray" }}>
-              No hay errores registrados.
+              {selectedPnf !== "all"
+                ? `No hay errores para el PNF: ${selectedPnf}`
+                : "No hay errores registrados."}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {errorList.map((err, index) => (
+              {filteredErrors.map((err, index) => (
                 <div
                   key={index}
                   style={{
