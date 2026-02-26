@@ -157,8 +157,12 @@ const SchoolSchedule: React.FC = () => {
       );
     }
 
-    // Dynamically update "diurno" if "mañana" and "tarde" exist, to reflect individual updates
-    if (sanitized.mañana && sanitized.tarde) {
+    // Only auto-generate "diurno" from mañana+tarde when the saved config
+    // does NOT already have a diurno entry. This way, if the user explicitly
+    // edits diurno in the config modal, their changes are preserved.
+    // When using the hardcoded defaults (no scheduleConfig), always auto-combine.
+    const savedHasDiurno = scheduleConfig?.turnos?.diurno !== undefined;
+    if (!savedHasDiurno && sanitized.mañana && sanitized.tarde) {
       const combined = [...sanitized.mañana, ...sanitized.tarde].sort((a, b) => a[0].localeCompare(b[0]));
       return { ...sanitized, diurno: combined };
     }
@@ -729,6 +733,7 @@ const SchoolSchedule: React.FC = () => {
     subjectRestrictionsReady,
     consecutiveConfig,
     scheduleConfig,
+    activeTurnos,
     // NOTE: `teachers` is intentionally NOT a dependency here.
     // It's accessed via teachersRef to avoid regenerating the entire schedule
     // on every WebSocket update (which shuffles professor names visually).
