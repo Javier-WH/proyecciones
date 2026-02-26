@@ -524,11 +524,20 @@ function assignTask(
   occupancy: OccupancyTracker,
   distributeEquitably = false,
 ): BlockPlacement[] | null {
+  // Cuando el profesor solo tiene 1 día disponible, necesitamos permitir
+  // múltiples bloques en ese mismo día (ej: [3,2] para 5 horas con max 3/día).
+  // tryPlaceDecomposition ya permite colocar múltiples bloques el mismo día
+  // cuando availableDays.length === 1, pero generateDecompositions necesita
+  // saber que puede generar decomposiciones con más de 1 bloque.
+  const maxBlocks = task.availableDays.length === 1
+    ? Math.ceil(task.totalHours / (task.preventSingleHourBlocks ? 2 : 1))
+    : task.availableDays.length;
+
   const decomps = generateDecompositions(
     task.totalHours,
     task.effectiveConserveSlots,
     task.effectiveMinConsecutive,
-    task.availableDays.length,
+    maxBlocks,
     distributeEquitably,
     task.preventSingleHourBlocks,
   );
@@ -1117,6 +1126,42 @@ export function generateScheduleEvents({
     stillUnassigned.push(idx);
   }
 
+  // ─── Step 5b: Asignación parcial para materias que no caben completas ───
+  // Si una materia necesita 5 horas pero solo caben 2, asignar las 2 que caben
+  // y reportar las 3 restantes como error.
+  const finalUnassigned: number[] = [];
+  const partialAssignments = new Map<number, { placed: number; total: number }>();
+
+  for (const idx of stillUnassigned) {
+    const task = tasks[idx];
+    const minBlock = task.preventSingleHourBlocks ? 2 : 1;
+    let placed = false;
+
+    // Intentar con horas decrecientes: totalHours-1, totalHours-2, ..., minBlock
+    for (let tryHours = task.totalHours - 1; tryHours >= minBlock; tryHours--) {
+      backtrackCounter = 0;
+
+      const partialTask: SubjectTask = {
+        ...task,
+        totalHours: tryHours,
+        effectiveConserveSlots: tryHours,
+        effectiveMinConsecutive: minBlock,
+      };
+
+      const placements = assignTask(partialTask, occupancy, distributeEquitably);
+      if (placements) {
+        assigned.set(idx, placements);
+        partialAssignments.set(idx, { placed: tryHours, total: task.totalHours });
+        placed = true;
+        break;
+      }
+    }
+
+    if (!placed) {
+      finalUnassigned.push(idx);
+    }
+  }
+
   // ─── Step 6: Convertir a Event[] ───
   const events: Event[] = [];
 
@@ -1150,7 +1195,8 @@ export function generateScheduleEvents({
   // ─── Step 7: Reportar errores ───
   const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
-  for (const idx of stillUnassigned) {
+  // Reportar errores para materias completamente no asignadas
+  for (const idx of finalUnassigned) {
     const task = tasks[idx];
     const originalHours = task.subject.hours[trimestre] || task.totalHours;
     const teacherObj = teachers?.find((t: any) => t.id === task.professorId);
@@ -1204,6 +1250,37 @@ export function generateScheduleEvents({
       `⚠️ Problema: ${problems.join(". ")}`,
       ``,
       `💡 Sugerencia: ${suggestions.join(". ")}`,
+    ].join("\n");
+
+    setErrors({
+      name: task.subject.subject,
+      description,
+      seccion: task.subject.seccion,
+      year: task.subject.trayectoName,
+      turn: task.subject.turnoName,
+      pnfName: task.subject.pnf || "",
+      professorName,
+      trimestre,
+    });
+  }
+
+  // Reportar errores para materias parcialmente asignadas
+  for (const [idx, partial] of partialAssignments.entries()) {
+    const task = tasks[idx];
+    const teacherObj = teachers?.find((t: any) => t.id === task.professorId);
+    const professorName = teacherObj
+      ? `${teacherObj.name} ${teacherObj.lastName}`
+      : task.professorId;
+
+    const remaining = partial.total - partial.placed;
+    const availableDayNames = task.availableDays.map((d: number) => dayNames[d] || `Día ${d}`).join(", ");
+
+    const description = [
+      `⚠️ Asignación parcial: se asignaron ${partial.placed} de ${partial.total} horas. Faltan ${remaining} horas.`,
+      ``,
+      `El profesor solo puede dar clases los: ${availableDayNames}, y no hay suficiente espacio disponible para todas las horas.`,
+      ``,
+      `💡 Sugerencia: Habilite más días para el profesor, agregue más aulas, o redistribuya otras materias para liberar espacio.`,
     ].join("\n");
 
     setErrors({
