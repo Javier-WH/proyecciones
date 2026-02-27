@@ -1097,9 +1097,7 @@ const SchoolSchedule: React.FC = () => {
 
       setTimeout(() => {
         if (solvedCount > 0 || newlySolvedEvents.length > 0) {
-          if (unresolvedErrors.length === 0) {
-            message.success(`Auto-solución: Se solucionaron todos los conflictos de forma automática.`);
-          } else {
+          if (unresolvedErrors.length > 0) {
             message.warning(`Auto-solución: Se solucionaron algunos problemas, pero todavía quedan ${unresolvedErrors.length} conflictos.`);
           }
         }
