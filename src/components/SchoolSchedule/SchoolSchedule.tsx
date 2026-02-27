@@ -403,9 +403,6 @@ const SchoolSchedule: React.FC = () => {
     [proyectionId]
   );
 
-  const addError = (err: scheduleError) => {
-    setErrors((prevErrors) => [...prevErrors, err]);
-  };
 
   const handleForceInsert = useCallback((errorInfo: scheduleError, ignoreRestrictions: boolean = true) => {
     if (!errorInfo.subjectId) return;
@@ -942,7 +939,7 @@ const SchoolSchedule: React.FC = () => {
     ) {
       return;
     }
-    setErrors([]);
+    const localErrors: scheduleError[] = [];
     const eventsdata = generateScheduleEvents({
       subjects: currentSubjects,
       classrooms: classrooms.filter(c => c.active !== false),
@@ -952,13 +949,165 @@ const SchoolSchedule: React.FC = () => {
       conserveSlots: scheduleConfig?.conserve_slots || consecutiveConfig.maxSlots,
       minConsecutiveSlots: scheduleConfig?.min_consecutive_slots || consecutiveConfig.minSlots,
       existingEvents: loadedScheduleEvents,
-      setErrors: addError,
+      setErrors: (err) => localErrors.push(err),
       customDays: scheduleConfig?.days,
       customTurnos: activeTurnos,
       distributeEquitably: scheduleConfig?.distribute_equitably,
       preventSingleHourBlocks: scheduleConfig?.prevent_single_hour_blocks,
       teachers: teachersRef.current || [],
     });
+
+    if (scheduleConfig?.auto_solve && localErrors.length > 0) {
+      let currentAllEvents = [...loadedScheduleEvents, ...eventsdata];
+      const newlySolvedEvents: Event[] = [];
+      let solvedCount = 0;
+      let unresolvedErrors: scheduleError[] = [];
+
+      for (const errorInfo of localErrors) {
+        if (!errorInfo.subjectId) { unresolvedErrors.push(errorInfo); continue; }
+
+        const subject = currentSubjects?.find(
+          (s) => s.innerId === errorInfo.subjectId
+        );
+        if (!subject) { unresolvedErrors.push(errorInfo); continue; }
+
+        const turnoName = subject.turnoName?.toLowerCase() || "";
+        const timeSlots = activeTurnos[turnoName];
+        if (!timeSlots || timeSlots.length === 0) { unresolvedErrors.push(errorInfo); continue; }
+
+        const professorId = errorInfo.professorId || subject.quarter[trimestre] || null;
+        const sectionKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
+        const hoursNeeded = errorInfo.totalHours || subject.hours[trimestre] || 0;
+
+        if (hoursNeeded <= 0) { unresolvedErrors.push(errorInfo); continue; }
+
+        const preventSingleBlocksGlobal = !!scheduleConfig?.prevent_single_hour_blocks;
+        const defaultDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
+        const activeClassrooms = classrooms.filter(c => c.active !== false);
+        const profRestriction = teacherRestrictions.find(r => String(r.teacherId) === String(professorId));
+        const profDays = profRestriction?.days ? defaultDays.filter(d => !new Set(profRestriction.days).has(d)) : defaultDays;
+
+        const subPref = subjectRestriction.find(r => r.subjectName === subject.subject || r.subjectKey === subject.subject);
+        const prefClassrooms = (subPref?.classroomIds?.length || 0) > 0 ? activeClassrooms.filter(c => subPref!.classroomIds!.includes(c.id)) : activeClassrooms;
+
+        const executeSearch = (days: number[], targetClassrooms: Classroom[], forceConsecutive: boolean) => {
+          const occupancy = new Map<string, { professorIds: Set<string>; classroomIds: Set<string>; sectionKeys: Set<string>; }>();
+          for (const evt of currentAllEvents) {
+            if (!evt.daysOfWeek?.length || !evt.startTime) continue;
+            const key = `${evt.daysOfWeek[0]}-${evt.startTime}`;
+            if (!occupancy.has(key)) occupancy.set(key, { professorIds: new Set(), classroomIds: new Set(), sectionKeys: new Set(), });
+            const occ = occupancy.get(key)!;
+            if (evt.extendedProps?.professorId) occ.professorIds.add(String(evt.extendedProps.professorId));
+            if (evt.extendedProps?.classroomId) occ.classroomIds.add(String(evt.extendedProps.classroomId));
+            const sk = `${evt.extendedProps?.pnfId}-${evt.extendedProps?.trayectoId}-${evt.extendedProps?.seccion}`;
+            occ.sectionKeys.add(sk);
+          }
+
+          const runs: { day: number; startSlotIdx: number; slots: { slotIdx: number; classroom: Classroom }[] }[] = [];
+          for (const day of days) {
+            for (const cr of targetClassrooms) {
+              if (cr.active === false) continue;
+              let currentRun: any = null;
+              let lastEnd: string | null = null;
+              for (let idx = 0; idx < timeSlots.length; idx++) {
+                const [start, end] = timeSlots[idx];
+                const occ = occupancy.get(`${day}-${start}`);
+                const conflict = (professorId && occ?.professorIds.has(String(professorId))) ||
+                  occ?.sectionKeys.has(sectionKey) ||
+                  occ?.classroomIds.has(String(cr.id));
+                const isAvailable = !conflict;
+                const isConsecutive = isAvailable && (lastEnd === null || lastEnd === start);
+                if (isConsecutive) {
+                  if (!currentRun) currentRun = { day, startSlotIdx: idx, slots: [] };
+                  currentRun.slots.push({ slotIdx: idx, classroom: cr });
+                  lastEnd = end;
+                } else {
+                  if (currentRun && currentRun.slots.length > 0) runs.push(currentRun);
+                  if (isAvailable) { currentRun = { day, startSlotIdx: idx, slots: [{ slotIdx: idx, classroom: cr }] }; lastEnd = end; }
+                  else { currentRun = null; lastEnd = null; }
+                }
+              }
+              if (currentRun && currentRun.slots.length > 0) runs.push(currentRun);
+            }
+          }
+          runs.sort((a, b) => b.slots.length - a.slots.length || a.day - b.day);
+
+          const usable = forceConsecutive ? runs.filter(r => r.slots.length >= 2) : runs;
+          let bestEvents: Event[] = [];
+          let bestCount = 0;
+
+          const backtrack = (idx: number, current: Event[], count: number) => {
+            if (count > bestCount) { bestCount = count; bestEvents = [...current]; }
+            if (bestCount >= hoursNeeded || idx >= usable.length) return;
+
+            let rem = 0;
+            for (let i = idx; i < usable.length; i++) rem += Math.min(usable[i].slots.length, hoursNeeded - count);
+            if (count + rem <= bestCount) return;
+
+            for (let i = idx; i < usable.length; i++) {
+              const r = usable[i];
+              let take = Math.min(r.slots.length, hoursNeeded - count);
+              if (forceConsecutive) {
+                if (take === 1) { if (r.slots.length >= 2) take = 2; else continue; }
+                if ((hoursNeeded - count) - take === 1) {
+                  if (r.slots.length > take) take += 1;
+                  else if (take - 1 >= 2) take -= 1;
+                  else continue;
+                }
+              }
+              const batch: Event[] = [];
+              for (let s = 0; s < take; s++) {
+                batch.push({
+                  title: subject.subject, daysOfWeek: [r.day], startTime: timeSlots[r.slots[s].slotIdx][0], endTime: timeSlots[r.slots[s].slotIdx][1],
+                  extendedProps: { subjectId: subject.innerId, professorId: professorId || null, classroomId: r.slots[s].classroom.id, classroomName: r.slots[s].classroom.classroom, pnfId: subject.pnfId, trayectoId: subject.trayectoId, trayectoName: subject.trayectoName, seccion: subject.seccion, pnfName: subject.pnf, turnName: subject.turnoName, blockId: `${r.day}-${subject.innerId}` }
+                });
+              }
+              backtrack(i + 1, [...current, ...batch], count + take);
+              if (bestCount >= hoursNeeded) return;
+            }
+          };
+          backtrack(0, [], 0);
+          return { events: bestEvents, count: bestCount };
+        };
+
+        let finalResult = executeSearch(profDays, prefClassrooms, preventSingleBlocksGlobal);
+
+        if (finalResult.count < hoursNeeded && !subPref?.isExclusive) {
+          const fallbackClassrooms = executeSearch(profDays, activeClassrooms, preventSingleBlocksGlobal);
+          if (fallbackClassrooms.count > finalResult.count) {
+            finalResult = fallbackClassrooms;
+          }
+        }
+
+        if (finalResult.count === 0) {
+          unresolvedErrors.push(errorInfo);
+        } else {
+          if (finalResult.count < hoursNeeded) {
+            unresolvedErrors.push({ ...errorInfo, totalHours: hoursNeeded - finalResult.count, description: `Se asignaron parcialmente ${finalResult.count} horas. Faltan ${hoursNeeded - finalResult.count} horas. ${errorInfo.description}` });
+          } else {
+            solvedCount++;
+          }
+          newlySolvedEvents.push(...finalResult.events);
+          currentAllEvents.push(...finalResult.events);
+        }
+      }
+
+      eventsdata.push(...newlySolvedEvents);
+      setErrors(unresolvedErrors);
+
+      setTimeout(() => {
+        if (solvedCount > 0 || newlySolvedEvents.length > 0) {
+          if (unresolvedErrors.length === 0) {
+            message.success(`Auto-solución: Se solucionaron todos los conflictos de forma automática.`);
+          } else {
+            message.warning(`Auto-solución: Se solucionaron algunos problemas, pero todavía quedan ${unresolvedErrors.length} conflictos.`);
+          }
+        }
+      }, 300);
+
+    } else {
+      setErrors(localErrors);
+    }
 
     setEventData(eventsdata);
     // eslint-disable-next-line react-hooks/exhaustive-deps

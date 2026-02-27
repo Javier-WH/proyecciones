@@ -49,6 +49,11 @@ ScheduleConfig.init(
         logo_url: {
             type: DataTypes.TEXT('long'),
             allowNull: true
+        },
+        auto_solve: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            allowNull: false
         }
     },
     {

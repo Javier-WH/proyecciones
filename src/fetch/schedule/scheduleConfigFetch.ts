@@ -9,6 +9,7 @@ export interface ScheduleConfig {
     prevent_single_hour_blocks?: boolean;
     header_text?: string[];
     logo_url?: string;
+    auto_solve?: boolean;
 }
 
 const API_BASE_URL = import.meta.env.MODE === 'development'

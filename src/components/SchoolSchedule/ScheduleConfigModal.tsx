@@ -50,6 +50,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                 prevent_single_hour_blocks: data.prevent_single_hour_blocks,
                 header_text: data.header_text || ["", "", "", ""],
                 logo_url: data.logo_url || "",
+                auto_solve: data.auto_solve,
             });
 
             if (data.logo_url) {
@@ -76,6 +77,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                 ...values,
                 distribute_equitably: !!values.distribute_equitably,
                 prevent_single_hour_blocks: !!values.prevent_single_hour_blocks,
+                auto_solve: !!values.auto_solve,
             };
 
             const result = await updateScheduleConfig(config.id, updatedConfig);
@@ -235,6 +237,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                     prevent_single_hour_blocks: false,
                     header_text: ["", "", ""],
                     logo_url: "",
+                    auto_solve: false,
                 };
 
                 // Update form fields
@@ -246,6 +249,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                     prevent_single_hour_blocks: defaultConfig.prevent_single_hour_blocks,
                     header_text: defaultConfig.header_text,
                     logo_url: defaultConfig.logo_url,
+                    auto_solve: defaultConfig.auto_solve,
                 });
 
                 // Update config state (which holds turnos)
@@ -348,6 +352,10 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
 
                     <Form.Item name="prevent_single_hour_blocks" valuePropName="checked">
                         <Checkbox>Evitar que las materias queden con bloques de solo 1 hora</Checkbox>
+                    </Form.Item>
+
+                    <Form.Item name="auto_solve" valuePropName="checked">
+                        <Checkbox>Auto solucionar al final de cada iteración</Checkbox>
                     </Form.Item>
 
                     <div style={{ display: "flex", gap: "16px" }}>
