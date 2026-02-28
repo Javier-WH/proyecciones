@@ -1506,10 +1506,11 @@ const SchoolSchedule: React.FC = () => {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     if (viewMode === "professor") {
-      // Check if the selected professor still exists in the current grid after filters (like profPnf)
-      if (scrollToProfessorId && professorGrids) {
-        const exists = professorGrids.some(pg => pg.profId === scrollToProfessorId);
-        if (!exists) {
+      // Check if the selected professor still exists in the current target set after filters (like profPnf)
+      if (scrollToProfessorId && teachers) {
+        const t = teachers.find((teacher: any) => String(teacher.id) === String(scrollToProfessorId));
+        // If a specific PNF is selected, clear if the selected professor doesn't belong to it
+        if (profPnf && t && t.PNF !== profPnf) {
           setScrollToProfessorId(null);
           localStorage.removeItem("schedule_scrollToProfessorId");
           setIsScrollingToProf(false);
@@ -1520,15 +1521,22 @@ const SchoolSchedule: React.FC = () => {
 
       if (scrollToProfessorId && !hasScrolledRef.current && professorGrids && professorGrids.length > 0) {
         setIsScrollingToProf(true);
-        // Small timeout to ensure DOM is updated after the professorGrids render
-        timer = setTimeout(() => {
+        // Función de reintento para dar margen a que el DOM se dibuje
+        const tryScroll = (attempts = 0) => {
           const el = document.getElementById(`prof-grid-${scrollToProfessorId}`);
           if (el) {
             el.scrollIntoView({ behavior: 'auto', block: 'start' });
+            hasScrolledRef.current = true;
+            setIsScrollingToProf(false);
+          } else if (attempts < 10) {
+            timer = setTimeout(() => tryScroll(attempts + 1), 50);
+          } else {
+            // Si después de varios intentos no lo encuentra, aborta para no dejar el spinner infinito
+            hasScrolledRef.current = true;
+            setIsScrollingToProf(false);
           }
-          hasScrolledRef.current = true;
-          setIsScrollingToProf(false);
-        }, 50);
+        };
+        timer = setTimeout(() => tryScroll(0), 50);
       } else if (!scrollToProfessorId) {
         setIsScrollingToProf(false);
       }
