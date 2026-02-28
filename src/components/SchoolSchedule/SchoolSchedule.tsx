@@ -15,7 +15,6 @@ import {
 } from "../../fetch/schedule/scheduleFetch";
 import { getTeacherRestrictionsList } from "../../fetch/schedule/teacherRestrictions";
 import { Select, Modal, message, List, Tooltip, Dropdown } from "antd";
-import type { MenuProps } from "antd";
 import { SwapOutlined } from "@ant-design/icons";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
@@ -158,7 +157,6 @@ const SchoolSchedule: React.FC = () => {
 
   // New state for view mode and selected professor
   const [viewMode, setViewMode] = useState<"pnf" | "professor" | "classroom">(() => (localStorage.getItem("schedule_viewMode") as "pnf" | "professor" | "classroom") || "pnf");
-  const [selectedProfessorId, setSelectedProfessorId] = useState<string | null>(() => localStorage.getItem("schedule_selectedProfessorId") || null);
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(() => localStorage.getItem("schedule_selectedClassroomId") || null);
 
   // Persist selections in localStorage when they change
@@ -170,12 +168,9 @@ const SchoolSchedule: React.FC = () => {
     localStorage.setItem("schedule_trimestre", trimestre);
     localStorage.setItem("schedule_viewMode", viewMode);
     
-    if (selectedProfessorId) localStorage.setItem("schedule_selectedProfessorId", selectedProfessorId);
-    else localStorage.removeItem("schedule_selectedProfessorId");
-    
     if (selectedClassroomId) localStorage.setItem("schedule_selectedClassroomId", selectedClassroomId);
     else localStorage.removeItem("schedule_selectedClassroomId");
-  }, [turn, seccion, pnf, trayectoId, trimestre, viewMode, selectedProfessorId, selectedClassroomId]);
+  }, [turn, seccion, pnf, trayectoId, trimestre, viewMode, selectedClassroomId]);
 
   const activeTurnos = useMemo(() => {
     const base = scheduleConfig?.turnos || turnos;
@@ -268,9 +263,7 @@ const SchoolSchedule: React.FC = () => {
       trimestre === "q1" ? "Trimestre 1" : trimestre === "q2" ? "Trimestre 2" : "Trimestre 3";
 
     if (viewMode === "professor") {
-      const teacher = teachers?.find((t) => t.id === selectedProfessorId);
-      const teacherName = teacher ? `${teacher.name} ${teacher.lastName} ` : "Profesor no seleccionado";
-      return `Horario para el profesor ${teacherName}, ${trimestreLabel} `;
+      return `Horario para todos los profesores, ${trimestreLabel}`;
     } else if (viewMode === "classroom") {
       const classroom = classrooms?.find((c) => c.id === selectedClassroomId);
       const classroomName = classroom ? classroom.classroom : "Aula no seleccionada";
@@ -1313,16 +1306,12 @@ const SchoolSchedule: React.FC = () => {
           event.extendedProps.turnName.toLowerCase() === turn
       );
     } else if (viewMode === "professor") {
-      if (!selectedProfessorId) {
-        setEvents([]);
-        return;
-      }
-      // Filtrar por profesor
+      // Filtrar por profesor (solo los que tienen asignación)
       filteredLoaded = loadedScheduleEvents.filter(
-        (event) => event.extendedProps.professorId === selectedProfessorId
+        (event) => !!event.extendedProps.professorId
       );
       filteredGenerated = eventData.filter(
-        (event) => event.extendedProps.professorId === selectedProfessorId
+        (event) => !!event.extendedProps.professorId
       );
     } else if (viewMode === "classroom") {
       if (!selectedClassroomId) {
@@ -1352,7 +1341,6 @@ const SchoolSchedule: React.FC = () => {
     pnf,
     trayectoId,
     viewMode,
-    selectedProfessorId,
     selectedClassroomId,
   ]);
 
@@ -1373,9 +1361,8 @@ const SchoolSchedule: React.FC = () => {
         if (sections.length > 0) setSeccion(sections[0] as string);
       }
     } else if (viewMode === "professor") {
-      if (!selectedProfessorId && teachers && teachers.length > 0) {
-        setSelectedProfessorId(teachers[0].id);
-      }
+      // No necesitamos un profesor por defecto para la vista de profesor general
+
     } else if (viewMode === "classroom") {
       if (!selectedClassroomId && classrooms && classrooms.length > 0) {
         setSelectedClassroomId(classrooms[0].id);
@@ -1390,19 +1377,15 @@ const SchoolSchedule: React.FC = () => {
     pnf,
     trayectoId,
     seccion,
-    selectedProfessorId,
     selectedClassroomId,
   ]);
 
   // --- TABLE DATA PREPARATION ---
-  const { tableSlots, tableGrid } = useMemo(() => {
+  const { tableSlots, tableGrid, professorGrids } = useMemo(() => {
     let slots: string[][] = [];
 
     // Logic from PrintableSchedule for slots
     if (viewMode === "professor" || viewMode === "classroom") {
-      // Use union of all unique slots from all configured turns for these global views.
-      // "diurno" is always auto-generated as mañana+tarde, so its hours are guaranteed
-      // to match. We still deduplicate via Set in case of overlaps.
       const allSlots = new Set<string>();
       if (activeTurnos) {
         Object.values(activeTurnos).forEach((turnSlots) => {
@@ -1411,97 +1394,94 @@ const SchoolSchedule: React.FC = () => {
           }
         });
       }
-
       slots = Array.from(allSlots)
         .map((s) => JSON.parse(s) as [string, string])
         .sort((a, b) => a[0].localeCompare(b[0]));
     } else {
-      // For PNF/Student view, utilize the active turn slots config
       slots = activeTurnos?.[turn] || [];
     }
 
-    // Build Grid
-    // Rows: Slots
-    // Cols: Days 1..7 (Monday to Sunday)
-    const g = Array(slots.length).fill(null).map(() => Array(8).fill(null));
+    const buildGrid = (targetSlots: string[][], targetEvents: any[]) => {
+      const g = Array(targetSlots.length).fill(null).map(() => Array(8).fill(null));
+      const sortedEvents = [...targetEvents].sort((a: any, b: any) =>
+        a.startTime.localeCompare(b.startTime)
+      );
 
-    // Sort events by start time to ensure sequential processing
-    const sortedEvents = [...(events || [])].sort((a: any, b: any) =>
-      a.startTime.localeCompare(b.startTime)
-    );
+      sortedEvents.forEach((event: any) => {
+        if (!event.daysOfWeek || !event.daysOfWeek.length) return;
+        const day = event.daysOfWeek[0];
+        if (day < 1 || day > 7) return;
 
-    sortedEvents.forEach((event: any) => {
-      if (!event.daysOfWeek || !event.daysOfWeek.length) return;
-      const day = event.daysOfWeek[0];
-      if (day < 1 || day > 7) return;
+        const slotIndex = targetSlots.findIndex((s) => s[0] === event.startTime);
+        if (slotIndex === -1) return;
 
-      const slotIndex = slots.findIndex((s) => s[0] === event.startTime);
-      if (slotIndex === -1) return;
-
-      // Calculate Span
-      let span = 1;
-      for (let i = slotIndex; i < slots.length; i++) {
-        if (slots[i][1] === event.endTime) {
-          span = i - slotIndex + 1;
-          break;
-        }
-      }
-
-      // Check if we can merge with the event above
-      // We look for the "head" of the event covering the previous slot
-      const prevSlotIndex = slotIndex - 1;
-      let merged = false;
-
-      if (prevSlotIndex >= 0) {
-        let headIndex = prevSlotIndex;
-        // Search upwards for the head block
-        while (headIndex >= 0 && g[headIndex][day]?.occupied) {
-          headIndex--;
+        let span = 1;
+        for (let i = slotIndex; i < targetSlots.length; i++) {
+          if (targetSlots[i][1] === event.endTime) {
+            span = i - slotIndex + 1;
+            break;
+          }
         }
 
-        if (headIndex >= 0 && g[headIndex][day] && !g[headIndex][day].occupied) {
-          const prevEvent = g[headIndex][day];
+        const prevSlotIndex = slotIndex - 1;
+        let merged = false;
 
-          // Check if contiguous: (headIndex + rowSpan) should equal current slotIndex
-          if (headIndex + prevEvent.rowSpan === slotIndex) {
-            // Check identity
-            const sameTitle = prevEvent.title === event.title;
-            const sameProf = prevEvent.extendedProps?.professorId === event.extendedProps?.professorId;
-            const sameClassroom = prevEvent.extendedProps?.classroomId === event.extendedProps?.classroomId;
-            const sameSection = prevEvent.extendedProps?.seccion === event.extendedProps?.seccion;
+        if (prevSlotIndex >= 0) {
+          let headIndex = prevSlotIndex;
+          while (headIndex >= 0 && g[headIndex][day]?.occupied) {
+            headIndex--;
+          }
+          if (headIndex >= 0 && g[headIndex][day] && !g[headIndex][day].occupied) {
+            const prevEvent = g[headIndex][day];
+            if (headIndex + prevEvent.rowSpan === slotIndex) {
+              const sameTitle = prevEvent.title === event.title;
+              const sameProf = prevEvent.extendedProps?.professorId === event.extendedProps?.professorId;
+              const sameClassroom = prevEvent.extendedProps?.classroomId === event.extendedProps?.classroomId;
+              const sameSection = prevEvent.extendedProps?.seccion === event.extendedProps?.seccion;
 
-            if (sameTitle && sameProf && sameClassroom && sameSection) {
-              // Merge it!
-              prevEvent.rowSpan += span;
-              merged = true;
-
-              // Mark current slots as occupied
-              for (let k = 0; k < span; k++) {
-                if (g[slotIndex + k]) {
-                  g[slotIndex + k][day] = { occupied: true };
+              if (sameTitle && sameProf && sameClassroom && sameSection) {
+                prevEvent.rowSpan += span;
+                merged = true;
+                for (let k = 0; k < span; k++) {
+                  if (g[slotIndex + k]) g[slotIndex + k][day] = { occupied: true };
                 }
               }
             }
           }
         }
-      }
-
-      if (!merged) {
-        // If cell is empty, place event
-        if (!g[slotIndex][day]) {
-          g[slotIndex][day] = { ...event, rowSpan: span };
-          // Mark spanned cells as occupied
-          for (let k = 1; k < span; k++) {
-            if (g[slotIndex + k]) {
-              g[slotIndex + k][day] = { occupied: true };
+        if (!merged) {
+          if (!g[slotIndex][day]) {
+            g[slotIndex][day] = { ...event, rowSpan: span };
+            for (let k = 1; k < span; k++) {
+              if (g[slotIndex + k]) g[slotIndex + k][day] = { occupied: true };
             }
           }
         }
-      }
-    });
+      });
+      return g;
+    };
 
-    return { tableSlots: slots, tableGrid: g };
-  }, [viewMode, activeTurnos, turn, events]);
+    let pGrids: { profId: string; profName: string; grid: any[][] }[] | null = null;
+    let mainGrid: any[][] = [];
+
+    if (viewMode === "professor") {
+      const profIds = Array.from(new Set((events || []).map((e) => e.extendedProps?.professorId).filter(Boolean)));
+      pGrids = profIds.map((pid) => {
+        const profEvents = (events || []).filter((e) => e.extendedProps?.professorId === pid);
+        const t = teachers?.find((t: any) => String(t.id) === String(pid));
+        const profName = t ? `${t.name} ${t.lastName}` : `Profesor (ID: ${pid})`;
+        return {
+          profId: String(pid),
+          profName,
+          grid: buildGrid(slots, profEvents),
+        };
+      }).sort((a, b) => a.profName.localeCompare(b.profName));
+    } else {
+      mainGrid = buildGrid(slots, events || []);
+    }
+
+    return { tableSlots: slots, tableGrid: mainGrid, professorGrids: pGrids };
+  }, [viewMode, activeTurnos, turn, events, teachers]);
   // ------------------------------
 
   const handleDrop = (targetRowIndex: number, targetDay: number) => {
@@ -1809,22 +1789,26 @@ const SchoolSchedule: React.FC = () => {
             {viewMode === "professor" && (
               <>
                 <div className="schedule-select">
-                  <span>Profesor:</span>
+                  <span>Ir a Profesor:</span>
                   <Select
+                    allowClear
                     size="small"
                     showSearch
-                    value={selectedProfessorId}
-                    placeholder="Seleccione un profesor"
+                    placeholder="Buscar profesor..."
                     optionFilterProp="children"
                     filterOption={(input, option) =>
                       (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                     }
-                    style={{ width: 500 }}
-                    onChange={setSelectedProfessorId}
-                    options={teachers?.map((teacher) => ({
-                      value: teacher.id,
-                      label: `${teacher.name} ${teacher.lastName}`,
-                    }))}
+                    style={{ width: 350 }}
+                    onChange={(val) => {
+                      if (val) {
+                        const el = document.getElementById(`prof-grid-${val}`);
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }
+                    }}
+                    options={professorGrids?.map(pg => ({ value: pg.profId, label: pg.profName })) || []}
                   />
                 </div>
                 <div className="schedule-select">
@@ -1984,203 +1968,216 @@ const SchoolSchedule: React.FC = () => {
         <div className="schedule-content-wrapper">
           <div className={`calendar - container view - ${viewMode} `} style={{ padding: "0", overflowY: "auto" }}>
             {tableSlots.length > 0 ? (
-              <table style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                border: "1px solid #dee2e6",
-                fontSize: "0.85rem",
-                tableLayout: "fixed"
-              }}>
-                <thead style={{ position: "sticky", top: 0, zIndex: 5, backgroundColor: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>
-                  <tr>
-                    <th style={{ border: "1px solid #dee2e6", padding: "12px", width: "100px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>HORA</th>
-                    {(scheduleConfig?.days || [1, 2, 3, 4, 5]).map(day => (
-                      <th key={day} style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa", textTransform: "uppercase" }}>
-                        {["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][day]}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableSlots.map((slot, rowIndex) => {
-                    const formatTime = (t: string) => {
-                      // Format HH:MM to readable string if needed, or keeping it as is 
-                      // The input is already HH:MM
-                      return t;
-                    };
+              (() => {
+                const renderScheduleGrid = (gridToRender: any[][], title?: string, id?: string) => (
+                  <div key={title || "main-grid"} id={id} style={{ marginBottom: title ? "50px" : "0" }}>
+                    {title && (
+                      <h3 style={{ 
+                        margin: "0 0 16px 0", 
+                        padding: "8px 16px", 
+                        backgroundColor: "#f0f5ff", 
+                        color: "#0050b3", 
+                        borderLeft: "5px solid #1890ff",
+                        borderRadius: "4px"
+                      }}>
+                        {title}
+                      </h3>
+                    )}
+                    <table style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      border: "1px solid #dee2e6",
+                      fontSize: "0.85rem",
+                      tableLayout: "fixed"
+                    }}>
+                      <thead style={{ position: "sticky", top: 0, zIndex: 5, backgroundColor: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>
+                        <tr>
+                          <th style={{ border: "1px solid #dee2e6", padding: "12px", width: "100px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa" }}>HORA</th>
+                          {(scheduleConfig?.days || [1, 2, 3, 4, 5]).map(day => (
+                            <th key={day} style={{ border: "1px solid #dee2e6", padding: "12px", textAlign: "center", color: "#495057", backgroundColor: "#f8f9fa", textTransform: "uppercase" }}>
+                              {["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][day]}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tableSlots.map((slot, rowIndex) => {
+                          const formatTime = (t: string) => t;
 
-                    return (
-                      <tr key={rowIndex} style={{ height: "1px" /* let content dictate height, but min-height via css */ }}>
-                        <td
-
-                          style={{
-                            border: "1px solid #dee2e6",
-                            padding: "8px",
-                            textAlign: "center",
-                            fontWeight: "bold",
-                            color: "#555",
-                            backgroundColor: "#fff",
-                            verticalAlign: "middle",
-                            whiteSpace: "nowrap"
-                          }}>
-                          {formatTime(slot[0])} <br /> - <br /> {formatTime(slot[1])}
-                        </td>
-                        {(scheduleConfig?.days || [1, 2, 3, 4, 5]).map((day) => {
-                          const cell = tableGrid[rowIndex][day];
-                          if (cell?.occupied) return null;
-
-                          if (cell) {
-                            const pnfId = cell.extendedProps?.pnfId;
-                            const baseColor = (pnfId && subjectColors?.[pnfId]) || "#1a73e8";
-                            const bgColor = hexToRgba(baseColor, 0.12);
-
-                            const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-                            const endTimeIndex = rowIndex + cell.rowSpan - 1;
-                            const endTime = tableSlots[endTimeIndex] ? tableSlots[endTimeIndex][1] : "";
-
-                            const tooltipContent = (
-                              <div style={{ textAlign: "center" }}>
-                                <div style={{ fontWeight: "bold", marginBottom: "4px" }}>{cell.title}</div>
-                                <div>{`${tableSlots[rowIndex][0]} - ${endTime} `}</div>
-                                <div>{dayNames[day]}</div>
-                              </div>
-                            );
-
-                            const contextMenuItems: MenuProps["items"] = [
-                              {
-                                key: "change-classroom",
-                                icon: <SwapOutlined />,
-                                label: "Cambiar Aula",
-                                onClick: () => {
-                                  const endTimeIdx = rowIndex + cell.rowSpan - 1;
-                                  const evtEndTime = tableSlots[endTimeIdx] ? tableSlots[endTimeIdx][1] : "";
-                                  setClassroomChangeEvent({
-                                    eventIndex: rowIndex,
-                                    day,
-                                    startTime: slot[0],
-                                    endTime: evtEndTime,
-                                    title: cell.title,
-                                    currentClassroomId: cell.extendedProps?.classroomId || "",
-                                    currentClassroomName: cell.extendedProps?.classroomName || "",
-                                  });
-                                  setNewClassroomId(cell.extendedProps?.classroomId || "");
-                                },
-                              },
-                            ];
-
-                            return (
+                          return (
+                            <tr key={rowIndex} style={{ height: "1px" }}>
                               <td
-                                className="schedule-time-cell"
-                                key={day}
-                                rowSpan={cell.rowSpan}
-                                draggable
-                                onDragStart={(e) => {
-                                  e.dataTransfer.effectAllowed = "move";
-                                  e.dataTransfer.setData("text/plain", cell.title || "");
-                                  setDraggedEventInfo({
-                                    sourceDay: day,
-                                    sourceStartTime: slot[0],
-                                    rowSpan: cell.rowSpan,
-                                    title: cell.title || "",
-                                    classroomId: cell.extendedProps?.classroomId || "",
-                                    seccion: cell.extendedProps?.seccion || "",
-                                    pnfName: cell.extendedProps?.pnfName || "",
-                                  });
-                                }}
-                                onDragOver={(e) => {
-                                  e.preventDefault();
-                                  e.dataTransfer.dropEffect = "move";
-                                }}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  handleDrop(rowIndex, day);
-                                }}
                                 style={{
                                   border: "1px solid #dee2e6",
-                                  padding: "6px",
-                                  verticalAlign: "top",
-                                  backgroundColor: bgColor,
-                                  borderLeft: `4px solid ${baseColor} `,
-                                  height: "100%",
-                                  cursor: "grab",
-                                  opacity: draggedEventInfo?.title === cell.title && draggedEventInfo?.sourceDay === day && draggedEventInfo?.sourceStartTime === slot[0] ? 0.3 : 1
-                                }}
-                              >
-                                <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]}>
-                                  <Tooltip title={tooltipContent}>
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "2px", height: "100%", cursor: "context-menu" }}>
-                                      <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                                        <span>{cell.title}</span>
-                                        {overrideKeys.has(`${cell.title}|${day}|${slot[0]}`) && (
-                                          <TbPinFilled style={{ color: "#1890ff", fontSize: "0.8rem", flexShrink: 0, marginLeft: "2px", marginTop: "1px" }} title="Aula fijada manualmente" />
-                                        )}
-                                      </div>
-
-                                      {/* Chip for PNF/Section/Classroom */}
-                                      <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
-
-                                        {cell.extendedProps?.classroomName && viewMode !== "classroom" && (
-                                          <div style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333" }}>
-                                            <span style={{ fontWeight: "600" }}></span> {cell.extendedProps.classroomName}
-                                          </div>
-                                        )}
-
-                                        {(viewMode === "professor" || viewMode === "classroom") && (
-                                          <div style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333", display: "flex", flexDirection: "column" }}>
-                                            <span>
-                                              <span style={{ fontWeight: "600" }}></span> {cell.extendedProps?.pnfName}
-                                            </span>
-                                            <span>
-                                              <span style={{ fontWeight: "600" }}>Sec:</span> {cell.extendedProps?.seccion}
-                                              {cell.extendedProps?.trayectoName && (
-                                                <> | <span style={{ fontWeight: "600" }}>{cell.extendedProps.trayectoName}</span></>
-                                              )}
-                                            </span>
-                                          </div>
-                                        )}
-
-                                        {/* Professor Name */}
-                                        {viewMode !== "professor" && (
-                                          (() => {
-                                            const profId = cell.extendedProps?.professorId;
-                                            if (!profId) return (
-                                              <div style={{ fontSize: "0.75rem", color: "#999" }}>Sin Profesor Asignado</div>
-                                            );
-                                            const prof = teachers?.find((t: any) => t.id === profId);
-                                            if (!prof) return (
-                                              <div style={{ fontSize: "0.75rem", color: "#999" }}>Sin Profesor Asignado</div>
-                                            );
-                                            const fullName = `${prof.name || ""} ${prof.lastName || ""} `.trim();
-                                            const academicTitle = prof.title || "Profesor";
-                                            return (
-                                              <div style={{ fontSize: "0.75rem", color: "#495057" }}>
-                                                {prof.is_placeholder ? (
-                                                  <span style={{ fontStyle: "italic", color: "#666" }}>{fullName} (Propuesta)</span>
-                                                ) : (
-                                                  <><span style={{ fontWeight: "600" }}>{academicTitle}:</span> {fullName}</>
-                                                )}
-                                              </div>
-                                            );
-                                          })()
-                                        )}
-                                      </div>
-                                    </div>
-                                  </Tooltip>
-                                </Dropdown>
+                                  padding: "8px",
+                                  textAlign: "center",
+                                  fontWeight: "bold",
+                                  color: "#555",
+                                  backgroundColor: "#fff",
+                                  verticalAlign: "middle",
+                                  whiteSpace: "nowrap"
+                                }}>
+                                {formatTime(slot[0])} <br /> - <br /> {formatTime(slot[1])}
                               </td>
-                            );
-                          } else {
-                            return <td key={day} style={{ border: "1px solid #dee2e6" }}
-                              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
-                              onDrop={(e) => { e.preventDefault(); handleDrop(rowIndex, day); }}
-                            ></td>;
-                          }
+                              {(scheduleConfig?.days || [1, 2, 3, 4, 5]).map((day) => {
+                                const cell = gridToRender[rowIndex][day];
+                                if (cell?.occupied) return null;
+
+                                if (cell) {
+                                  const pnfId = cell.extendedProps?.pnfId;
+                                  const baseColor = (pnfId && subjectColors?.[pnfId]) || "#1a73e8";
+                                  const bgColor = hexToRgba(baseColor, 0.12);
+                                  const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+                                  const endTimeIndex = rowIndex + cell.rowSpan - 1;
+                                  const endTime = tableSlots[endTimeIndex] ? tableSlots[endTimeIndex][1] : "";
+
+                                  const tooltipContent = (
+                                    <div style={{ textAlign: "center" }}>
+                                      <div style={{ fontWeight: "bold", marginBottom: "4px" }}>{cell.title}</div>
+                                      <div>{`${tableSlots[rowIndex][0]} - ${endTime}`}</div>
+                                      <div>{dayNames[day]}</div>
+                                    </div>
+                                  );
+
+                                  const contextMenuItems = [
+                                    {
+                                      key: "change-classroom",
+                                      icon: <SwapOutlined />,
+                                      label: "Cambiar Aula",
+                                      onClick: () => {
+                                        const endTimeIdx = rowIndex + cell.rowSpan - 1;
+                                        const evtEndTime = tableSlots[endTimeIdx] ? tableSlots[endTimeIdx][1] : "";
+                                        setClassroomChangeEvent({
+                                          eventIndex: rowIndex,
+                                          day,
+                                          startTime: slot[0],
+                                          endTime: evtEndTime,
+                                          title: cell.title,
+                                          currentClassroomId: cell.extendedProps?.classroomId || "",
+                                          currentClassroomName: cell.extendedProps?.classroomName || "",
+                                        });
+                                        setNewClassroomId(cell.extendedProps?.classroomId || "");
+                                      },
+                                    },
+                                  ];
+
+                                  return (
+                                    <td
+                                      className="schedule-time-cell"
+                                      key={day}
+                                      rowSpan={cell.rowSpan}
+                                      draggable
+                                      onDragStart={(e) => {
+                                        e.dataTransfer.effectAllowed = "move";
+                                        e.dataTransfer.setData("text/plain", cell.title || "");
+                                        setDraggedEventInfo({
+                                          sourceDay: day,
+                                          sourceStartTime: slot[0],
+                                          rowSpan: cell.rowSpan,
+                                          title: cell.title || "",
+                                          classroomId: cell.extendedProps?.classroomId || "",
+                                          seccion: cell.extendedProps?.seccion || "",
+                                          pnfName: cell.extendedProps?.pnfName || "",
+                                        });
+                                      }}
+                                      onDragOver={(e) => {
+                                        e.preventDefault();
+                                        e.dataTransfer.dropEffect = "move";
+                                      }}
+                                      onDrop={(e) => {
+                                        e.preventDefault();
+                                        handleDrop(rowIndex, day);
+                                      }}
+                                      style={{
+                                        border: "1px solid #dee2e6",
+                                        padding: "6px",
+                                        verticalAlign: "top",
+                                        backgroundColor: bgColor,
+                                        borderLeft: `4px solid ${baseColor}`,
+                                        height: "100%",
+                                        cursor: "grab",
+                                        opacity: draggedEventInfo?.title === cell.title && draggedEventInfo?.sourceDay === day && draggedEventInfo?.sourceStartTime === slot[0] ? 0.3 : 1
+                                      }}
+                                    >
+                                      <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]}>
+                                        <Tooltip title={tooltipContent}>
+                                          <div style={{ display: "flex", flexDirection: "column", gap: "2px", height: "100%", cursor: "context-menu" }}>
+                                            <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                                              <span>{cell.title}</span>
+                                              {overrideKeys.has(`${cell.title}|${day}|${slot[0]}`) && (
+                                                <TbPinFilled style={{ color: "#1890ff", fontSize: "0.8rem", flexShrink: 0, marginLeft: "2px", marginTop: "1px" }} title="Aula fijada manualmente" />
+                                              )}
+                                            </div>
+
+                                            <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
+                                              {cell.extendedProps?.classroomName && viewMode !== "classroom" && (
+                                                <div style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333" }}>
+                                                  {cell.extendedProps.classroomName}
+                                                </div>
+                                              )}
+
+                                              {(viewMode === "professor" || viewMode === "classroom") && (
+                                                <div style={{ fontSize: "0.65rem", padding: "1px 5px", color: "#333", display: "flex", flexDirection: "column" }}>
+                                                  <span>{cell.extendedProps?.pnfName}</span>
+                                                  <span>
+                                                    <span style={{ fontWeight: "600" }}>Sec:</span> {cell.extendedProps?.seccion}
+                                                    {cell.extendedProps?.trayectoName && (
+                                                      <> | <span style={{ fontWeight: "600" }}>{cell.extendedProps.trayectoName}</span></>
+                                                    )}
+                                                  </span>
+                                                </div>
+                                              )}
+
+                                              {viewMode !== "professor" && (
+                                                (() => {
+                                                  const profId = cell.extendedProps?.professorId;
+                                                  if (!profId) return <div style={{ fontSize: "0.75rem", color: "#999" }}>Sin Profesor Asignado</div>;
+                                                  const prof = teachers?.find((t: any) => t.id === profId);
+                                                  if (!prof) return <div style={{ fontSize: "0.75rem", color: "#999" }}>Sin Profesor Asignado</div>;
+                                                  const fullName = `${prof.name || ""} ${prof.lastName || ""}`.trim();
+                                                  const academicTitle = prof.title || "Profesor";
+                                                  return (
+                                                    <div style={{ fontSize: "0.75rem", color: "#495057" }}>
+                                                      {prof.is_placeholder ? (
+                                                        <span style={{ fontStyle: "italic", color: "#666" }}>{fullName} (Propuesta)</span>
+                                                      ) : (
+                                                        <><span style={{ fontWeight: "600" }}>{academicTitle}:</span> {fullName}</>
+                                                      )}
+                                                    </div>
+                                                  );
+                                                })()
+                                              )}
+                                            </div>
+                                          </div>
+                                        </Tooltip>
+                                      </Dropdown>
+                                    </td>
+                                  );
+                                } else {
+                                  return (
+                                    <td key={day} style={{ border: "1px solid #dee2e6" }}
+                                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                                      onDrop={(e) => { e.preventDefault(); handleDrop(rowIndex, day); }}
+                                    ></td>
+                                  );
+                                }
+                              })}
+                            </tr>
+                          );
                         })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                      </tbody>
+                    </table>
+                  </div>
+                );
+
+                if (viewMode === "professor") {
+                  return professorGrids && professorGrids.length > 0 
+                    ? professorGrids.map((pg) => renderScheduleGrid(pg.grid, pg.profName, `prof-grid-${pg.profId}`))
+                    : <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Ningún profesor tiene materias asignadas este trimestre.</div>;
+                }
+                
+                return renderScheduleGrid(tableGrid);
+              })()
             ) : (
               <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>
                 No hay horarios configurados para este turno
