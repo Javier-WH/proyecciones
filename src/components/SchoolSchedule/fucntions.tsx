@@ -2,6 +2,8 @@ import { Subject } from "../../interfaces/subject";
 import { scheduleError } from "./ErrorsModal";
 import { normalizeText } from "../../utils/textFilter";
 
+import { ClassroomOverride } from "../../fetch/schedule/classroomOverrideFetch";
+
 // =====================================================
 // Types & Interfaces (unchanged for compatibility)
 // =====================================================
@@ -51,7 +53,7 @@ export interface generateScheduleParams {
     isExclusive?: boolean;
     splitHours?: boolean;
   }[];
-  existingEvents?: Event[];
+  classroomOverrides?: ClassroomOverride[];
   conserveSlots?: number;
   minConsecutiveSlots?: number;
   preferredConsecutiveSlots?: number;
@@ -787,8 +789,8 @@ export function generateScheduleEvents({
   classrooms,
   trimestre,
   unavailableDays,
-  existingEvents,
   preferredClassrooms,
+  classroomOverrides,
   conserveSlots = 3,
   minConsecutiveSlots = 2,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -806,56 +808,6 @@ export function generateScheduleEvents({
   const days = customDays || [1, 2, 3, 4, 5];
   const activeTurnos = customTurnos || turnos;
   const occupancy = new OccupancyTracker();
-
-  // ─── Step 1: Cargar eventos existentes ───
-  const existingSubjectHours = new Map<string, number>();
-
-  if (existingEvents?.length) {
-    for (const event of existingEvents) {
-      if (!event?.extendedProps || !event?.daysOfWeek?.length) continue;
-
-      const day = event.daysOfWeek[0];
-      const start = event.startTime;
-      const {
-        professorId,
-        classroomId,
-        trayectoId,
-        seccion,
-        pnfId,
-        subjectId,
-      } = event.extendedProps;
-
-      // Check if the classroom is active (present in the classrooms list)
-      const isActiveRoom = classrooms.some(c => c.id === classroomId);
-
-      // Clave compuesta para detectar la materia y sección
-      const title = event.title;
-
-      // SOLO procesar el evento si el aula está activa
-      if (isActiveRoom) {
-        // 1. Contar horas asignadas (pinned)
-        if (title && seccion && pnfId && trayectoId) {
-          const key = `${title.trim().toLowerCase()}-${seccion}-${pnfId}-${trayectoId}`;
-          existingSubjectHours.set(key, (existingSubjectHours.get(key) || 0) + 1);
-        }
-
-        // 2. Registrar ocupación para evitar solapamientos
-        occupancy.occupy(
-          day,
-          start,
-          professorId,
-          classroomId,
-          pnfId,
-          trayectoId,
-          seccion,
-          subjectId,
-        );
-      }
-      // Si el aula NO está activa, ignoramos el evento por completo. 
-      // Al no estar en existingSubjectHours, el solver detectará que faltan esas horas
-      // y buscará un nuevo lugar para ellas en aulas abiertas.
-    }
-  }
 
   // ─── Build set of reserved classrooms ───
   // Classrooms that are explicitly assigned to specific subjects
@@ -877,29 +829,23 @@ export function generateScheduleEvents({
       Object.keys(sub.quarter).includes(trimestre) &&
       sub?.hours?.[trimestre] &&
       sub.hours[trimestre]! > 0;
-    if (!isQuarterMatch) return false;
-
-    // Calcular cuántas horas faltan por asignar
-    const compositeKey = `${sub.subject.trim().toLowerCase()}-${sub.seccion}-${sub.pnfId}-${sub.trayectoId}`;
-    const pinnedHours = existingSubjectHours.get(compositeKey) || 0;
-
-    return sub.hours[trimestre]! > pinnedHours;
+    return isQuarterMatch;
   });
 
   const tasks: SubjectTask[] = filteredSubjects
     .flatMap((sub): SubjectTask[] => {
-      const compositeKey = `${sub.subject.trim().toLowerCase()}-${sub.seccion}-${sub.pnfId}-${sub.trayectoId}`;
-      const pinnedHours = existingSubjectHours.get(compositeKey) || 0;
-      const totalHours = sub.hours[trimestre]! - pinnedHours;
-
       const professorId = sub.quarter[trimestre];
       const turnoName = sub.turnoName?.toLowerCase() || "";
       const subjectKey = normalizeText(sub.subject);
+      const originalTotalHours = sub.hours[trimestre]!;
 
-      if (totalHours <= 0 || !professorId) return [];
+      if (originalTotalHours <= 0 || !professorId) return [];
 
-      // Si preventSingleHourBlocks está activo y solo queda 1 hora, reportar error inmediatamente
-      if (preventSingleHourBlocks && totalHours === 1) {
+      const timeSlots = activeTurnos[turnoName];
+      if (!timeSlots || timeSlots.length === 0) return [];
+
+      // Si preventSingleHourBlocks está activo y solo tiene 1 hora TOTAL, reportar error
+      if (preventSingleHourBlocks && originalTotalHours === 1) {
         const teacherObj = teachers?.find((t: any) => t.id === professorId);
         const professorName = teacherObj
           ? `${teacherObj.name} ${teacherObj.lastName}`
@@ -917,9 +863,6 @@ export function generateScheduleEvents({
         });
         return [];
       }
-
-      const timeSlots = activeTurnos[turnoName];
-      if (!timeSlots || timeSlots.length === 0) return [];
 
       // Restricciones de profesor
       const teacherRest = unavailableDays?.find(
@@ -1019,7 +962,7 @@ export function generateScheduleEvents({
       // 6h / 1d -> 6 * 100 = 600pts
       // 2h / 5d -> 0.4 * 100 = 40pts
       if (availableDays.length > 0) {
-        const hoursPerAvailableDay = totalHours / availableDays.length;
+        const hoursPerAvailableDay = sub.hours[trimestre]! / availableDays.length;
         score += Math.round(hoursPerAvailableDay * 100);
       }
 
@@ -1033,21 +976,64 @@ export function generateScheduleEvents({
       }
 
       // Factor menor: horas totales (materias con más horas ligeramente más urgentes)
-      score += totalHours * 3;
+      score += sub.hours[trimestre]! * 3;
 
       // Factor menor: pocos slots en el turno
       score += Math.max(0, 10 - timeSlots.length) * 4;
 
-      // Indicadores de restricciones
       const hasTeacherRestrictions = restrictedDays.length > 0 || restrictedHours.length > 0;
       const hasClassroomRestrictions = !!(preferConfig?.classroomIds?.length);
+
+      // ─── Classroom Overrides: Convert overrides to strictly forced tasks ───
+      const subjectOverrides = classroomOverrides?.filter(
+        (ov: ClassroomOverride) =>
+          sub.subject === ov.subject_name &&
+          (!ov.seccion || sub.seccion === ov.seccion) &&
+          (!ov.pnf_id || sub.pnfId === ov.pnf_id) &&
+          (!ov.trayecto_id || sub.trayectoId === ov.trayecto_id)
+      ) || [];
+
+      let remainingHours = originalTotalHours;
+      const results: SubjectTask[] = [];
+
+      for (const ov of subjectOverrides) {
+        // Encontrar los slots
+        const startIndex = timeSlots.findIndex(t => t[0] === ov.start_time);
+        const endIndex = timeSlots.findIndex(t => t[1] === ov.end_time);
+        if (startIndex === -1 || endIndex === -1) continue;
+        const length = endIndex - startIndex + 1;
+        
+        remainingHours -= length;
+
+        results.push({
+          subject: sub,
+          totalHours: length,
+          professorId,
+          turnoName,
+          timeSlots: timeSlots.slice(startIndex, endIndex + 1), // Only those exact slots!
+          availableDays: [ov.day], // Restrict to exact day
+          restrictedHours: [],
+          candidateClassrooms: classrooms.filter(c => c.id === ov.classroom_id),
+          effectiveConserveSlots: length,
+          effectiveMinConsecutive: length,
+          preferLastSlot: false,
+          constraintScore: score + 10000, // VERY HIGH PRIORITY
+          preventSingleHourBlocks: false,
+          hasTeacherRestrictions: true,
+          hasClassroomRestrictions: true,
+        });
+      }
+
+      if (remainingHours <= 0) {
+        return results;
+      }
 
       // ─── Split Hours: dividir la materia en dos tasks ───
       // Si splitHours está activo, la parte mayor de las horas va en las aulas
       // seleccionadas y la parte menor en cualquier aula no exclusiva.
-      if (preferConfig?.splitHours && preferConfig.classroomIds?.length && totalHours >= 2) {
-        const preferredHours = Math.ceil(totalHours / 2);
-        const otherHours = totalHours - preferredHours;
+      if (preferConfig?.splitHours && preferConfig.classroomIds?.length && remainingHours >= 2) {
+        const preferredHours = Math.ceil(remainingHours / 2);
+        const otherHours = remainingHours - preferredHours;
 
         // Task A: horas en las aulas seleccionadas (parte mayor)
         const preferredRooms = classrooms.filter((c) => preferConfig.classroomIds.includes(c.id));
@@ -1059,8 +1045,6 @@ export function generateScheduleEvents({
         });
 
         const baseSlotsConfig = preferConfig?.preferLastSlot ? [...timeSlots].reverse() : timeSlots;
-
-        const results: SubjectTask[] = [];
 
         if (preferredRooms.length > 0 && preferredHours > 0) {
           results.push({
@@ -1105,9 +1089,9 @@ export function generateScheduleEvents({
         return results.length > 0 ? results : [];
       }
 
-      return [{
+      results.push({
         subject: sub,
-        totalHours: totalHours,
+        totalHours: remainingHours,
         professorId,
         turnoName,
         timeSlots: preferConfig?.preferLastSlot
@@ -1117,13 +1101,15 @@ export function generateScheduleEvents({
         restrictedHours,
         candidateClassrooms,
         effectiveConserveSlots: conserveSlots,
-        effectiveMinConsecutive: Math.min(minConsecutiveSlots, totalHours),
+        effectiveMinConsecutive: Math.min(minConsecutiveSlots, remainingHours),
         preferLastSlot: preferConfig?.preferLastSlot || false,
         constraintScore: score,
-        preventSingleHourBlocks,
+        preventSingleHourBlocks: preventSingleHourBlocks && remainingHours >= 2,
         hasTeacherRestrictions,
         hasClassroomRestrictions,
-      }];
+      });
+
+      return results;
     });
 
   // ─── Step 3: Ordenar por prioridad de restricciones ───

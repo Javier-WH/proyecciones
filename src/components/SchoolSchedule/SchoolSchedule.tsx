@@ -446,73 +446,10 @@ const SchoolSchedule: React.FC = () => {
       const loaded = Array.isArray(response?.overrides) ? response.overrides : [];
       setClassroomOverrides(loaded);
       setHasUnsavedOverrides(false);
-
-      // Convertir overrides a eventos pinned
-      if (loaded.length > 0 && classrooms.length > 0) {
-        const pinnedFromOverrides: Event[] = loaded.map((ov: ClassroomOverride) => {
-          const classroom = classrooms.find((c) => c.id === ov.classroom_id);
-          
-          let pnfId = ov.pnf_id || "";
-          let trayectoId = ov.trayecto_id || "";
-          let seccion = ov.seccion || "";
-          let pnfName = "";
-          let turnName = "";
-          let subjectId = "";
-          let trayectoName = "";
-          let professorId: string | null = null;
-          
-          const subject = subjects?.find(s => 
-            s.subject === ov.subject_name &&
-            (ov.seccion ? s.seccion === ov.seccion : true) &&
-            (ov.pnf_id ? s.pnfId === ov.pnf_id : true) &&
-            (ov.trayecto_id ? s.trayectoId === ov.trayecto_id : true)
-          );
-
-          if (subject) {
-            pnfId = pnfId || subject.pnfId || "";
-            trayectoId = trayectoId || subject.trayectoId || "";
-            seccion = seccion || subject.seccion || "";
-            pnfName = subject.pnf || "";
-            turnName = subject.turnoName || "";
-            subjectId = subject.innerId || "";
-            trayectoName = subject.trayectoName || "";
-            // Get the professor assigned for the current trimester
-            professorId = subject.quarter?.[trimestre] || null;
-          }
-
-          return {
-            title: ov.subject_name,
-            daysOfWeek: [ov.day],
-            startTime: ov.start_time,
-            endTime: ov.end_time,
-            extendedProps: {
-              subjectId,
-              professorId,
-              classroomId: ov.classroom_id,
-              classroomName: classroom?.classroom || "",
-              pnfId,
-              trayectoId,
-              trayectoName,
-              seccion,
-              pnfName,
-              turnName,
-              blockId: `override-${ov.id}`,
-            },
-          } as Event;
-        });
-
-        setLoadedScheduleEvents((prev) => {
-          // Quitar overrides previos y agregar los nuevos
-          const withoutOldOverrides = prev.filter(
-            (e) => !e.extendedProps.blockId?.startsWith("override-")
-          );
-          return [...withoutOldOverrides, ...pinnedFromOverrides];
-        });
-      }
     } catch (err) {
       console.error("Error loading classroom overrides:", err);
     }
-  }, [proyectionId, classrooms, subjects, trimestre]);
+  }, [proyectionId]);
 
   useEffect(() => {
     loadClassroomOverrides();
@@ -538,28 +475,31 @@ const SchoolSchedule: React.FC = () => {
         message.error("Error al guardar los cambios de aula");
         return;
       }
-      message.success("Cambios de aula guardados correctamente");
+      message.success("Cambios de aula guardados exitosamente");
       setHasUnsavedOverrides(false);
     } catch (err) {
-      console.error(err);
+      console.error("Error salvando overrides:", err);
       message.error("Error al guardar los cambios de aula");
     }
   };
 
-  const handleDeleteOverride = (override: ClassroomOverride) => {
-    setClassroomOverrides((prev) => prev.filter((o) => o !== override));
-    // Quitar el evento pinned correspondiente
-    setLoadedScheduleEvents((prev) =>
-      prev.filter((e) => !(
-        e.extendedProps.blockId === `override-${override.id}` ||
-        (e.title === override.subject_name &&
-          e.daysOfWeek.includes(override.day) &&
-          e.startTime === override.start_time &&
-          e.extendedProps.classroomId === override.classroom_id)
-      ))
-    );
-    setHasUnsavedOverrides(true);
+  const handleDeleteOverride = async (override: ClassroomOverride) => {
+    const newOverrides = classroomOverrides.filter((o) => o !== override);
+    setClassroomOverrides(newOverrides);
     setGenerationCounter((prev) => prev + 1);
+
+    // Guardar directamente en la base de datos
+    if (proyectionId) {
+      try {
+        await saveClassroomOverrides(proyectionId, newOverrides);
+        message.success("Cambio de aula eliminado");
+        setHasUnsavedOverrides(false);
+      } catch (err) {
+        console.error(err);
+        message.error("Error al guardar los cambios");
+        setHasUnsavedOverrides(true);
+      }
+    }
   };
 
   const handleDeleteAllOverrides = () => {
@@ -569,13 +509,21 @@ const SchoolSchedule: React.FC = () => {
       okText: "Sí, eliminar todos",
       cancelText: "Cancelar",
       okButtonProps: { danger: true },
-      onOk: () => {
+      onOk: async () => {
         setClassroomOverrides([]);
-        setLoadedScheduleEvents((prev) =>
-          prev.filter((e) => !e.extendedProps.blockId?.startsWith("override-"))
-        );
-        setHasUnsavedOverrides(true);
         setGenerationCounter((prev) => prev + 1);
+
+        if (proyectionId) {
+          try {
+            await saveClassroomOverrides(proyectionId, []);
+            message.success("Todos los cambios de aula eliminados");
+            setHasUnsavedOverrides(false);
+          } catch (err) {
+            console.error(err);
+            message.error("Error al guardar los cambios");
+            setHasUnsavedOverrides(true);
+          }
+        }
       },
     });
   };
@@ -815,29 +763,6 @@ const SchoolSchedule: React.FC = () => {
         return;
       }
 
-      // Remover cualquier versión previa de esta materia de los eventos clavados (pinned)
-      setLoadedScheduleEvents((prev) => {
-        const title = classroomChangeEvent.title;
-        const day = classroomChangeEvent.day;
-        const startTime = classroomChangeEvent.startTime;
-        const endTime = classroomChangeEvent.endTime;
-
-        const filteredPrev = prev.filter(
-          (e) =>
-            !(
-              e.title === title &&
-              e.daysOfWeek.includes(day) &&
-              e.startTime >= startTime &&
-              e.startTime < endTime
-            )
-        );
-
-        return [...filteredPrev, ...modifiedEvents];
-      });
-
-      // Recalcular todo el horario alrededor de este nuevo evento fijo
-      setGenerationCounter((prev) => prev + 1);
-
       // Registrar el override localmente
       const firstModified = modifiedEvents[0];
       if (firstModified) {
@@ -860,6 +785,11 @@ const SchoolSchedule: React.FC = () => {
         });
         setHasUnsavedOverrides(true);
       }
+
+      // Recalcular todo el horario alrededor de este nuevo evento fijo
+      setGenerationCounter((prev) => prev + 1);
+
+
 
       message.success(
         `Aula cambiada a "${newClassroom.classroom}" para ${classroomChangeEvent.title} el día seleccionado.`
@@ -1148,7 +1078,7 @@ const SchoolSchedule: React.FC = () => {
       unavailableDays: teacherRestrictions,
       conserveSlots: scheduleConfig?.conserve_slots || consecutiveConfig.maxSlots,
       minConsecutiveSlots: scheduleConfig?.min_consecutive_slots || consecutiveConfig.minSlots,
-      existingEvents: loadedScheduleEvents,
+      classroomOverrides: classroomOverrides,
       setErrors: (err) => localErrors.push(err),
       customDays: scheduleConfig?.days,
       customTurnos: activeTurnos,
@@ -1628,21 +1558,28 @@ const SchoolSchedule: React.FC = () => {
     }
 
     const pinDraggedEventsAndRecalculate = () => {
-      const newPinnedEvents = movingEvents.map((evt, idx) => {
+      const targetOverrides: ClassroomOverride[] = movingEvents.map((evt, idx) => {
         const newSlot = targetSlots[idx];
         return {
-          ...evt,
-          daysOfWeek: [targetDay],
-          startTime: newSlot[0],
-          endTime: newSlot[1]
+          subject_name: title,
+          day: targetDay,
+          start_time: newSlot[0],
+          end_time: newSlot[1],
+          classroom_id: classroomId,
+          seccion: evt.extendedProps?.seccion || null,
+          pnf_id: evt.extendedProps?.pnfId || null,
+          trayecto_id: evt.extendedProps?.trayectoId || null,
         };
       });
 
-      // Remover cualquier versión previa de esta misma sección de los eventos clavados (pinned)
-      setLoadedScheduleEvents(prev => [
-        ...prev.filter(e => !(e.title === title && e.extendedProps.pnfName === pnfName && e.extendedProps.seccion === seccion)),
-        ...newPinnedEvents
-      ]);
+      setClassroomOverrides(prev => {
+        // Remover cualquier versión previa de estos slots arrastrados
+        const filtered = prev.filter(o => 
+          !(o.subject_name === title && o.day === targetDay && targetOverrides.some(t => t.start_time === o.start_time))
+        );
+        return [...filtered, ...targetOverrides];
+      });
+      setHasUnsavedOverrides(true);
       setGenerationCounter(prev => prev + 1);
     };
 

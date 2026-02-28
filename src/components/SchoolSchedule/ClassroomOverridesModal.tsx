@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, List, Button, Empty, Tag } from "antd";
+import { Modal, List, Button, Empty, Tag, Popconfirm } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import type { ClassroomOverride } from "../../fetch/schedule/classroomOverrideFetch";
 import type { Classroom } from "./fucntions";
@@ -38,9 +38,19 @@ const ClassroomOverridesModal: React.FC<ClassroomOverridesModalProps> = ({
       onCancel={onClose}
       footer={[
         overrides.length > 0 && (
-          <Button key="deleteAll" danger onClick={onDeleteAll}>
-            Eliminar Todos
-          </Button>
+          <Popconfirm
+            key="deleteAll"
+            title="Eliminar todos los cambios"
+            description="¿Estás seguro de que deseas eliminar todos los cambios de aula fijados? Esta acción no se puede deshacer."
+            onConfirm={onDeleteAll}
+            okText="Sí, eliminar todos"
+            cancelText="Cancelar"
+            okButtonProps={{ danger: true }}
+          >
+            <Button danger>
+              Eliminar Todos
+            </Button>
+          </Popconfirm>
         ),
         <Button key="close" type="primary" onClick={onClose}>
           Cerrar
@@ -58,14 +68,22 @@ const ClassroomOverridesModal: React.FC<ClassroomOverridesModalProps> = ({
             renderItem={(override) => (
               <List.Item
                 actions={[
-                  <Button
+                  <Popconfirm
                     key="delete"
-                    type="text"
-                    danger
-                    size="small"
-                    icon={<DeleteOutlined />}
-                    onClick={() => onDelete(override)}
-                  />,
+                    title="Eliminar cambio de aula"
+                    description={`¿Eliminar el cambio de aula de "${override.subject_name}" el ${dayNames[override.day]}?`}
+                    onConfirm={() => onDelete(override)}
+                    okText="Sí, eliminar"
+                    cancelText="Cancelar"
+                    okButtonProps={{ danger: true }}
+                  >
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      icon={<DeleteOutlined />}
+                    />
+                  </Popconfirm>,
                 ]}
               >
                 <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
