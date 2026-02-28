@@ -9,9 +9,9 @@ import { Classroom } from "./fucntions";
 import { normalizeText } from "../../utils/textFilter";
 
 const SubjectRestrictionModal: React.FC<{
-  putSubjectRestriction: (subjectName: string, classroomIds: string[], pnfId?: string, isExclusive?: boolean) => Promise<void> | void;
+  putSubjectRestriction: (subjectName: string, classroomIds: string[], pnfId?: string, isExclusive?: boolean, splitHours?: boolean) => Promise<void> | void;
   classrooms: Classroom[];
-  subjectRestrictions: { subjectKey: string; subjectName: string; classroomIds: string[]; pnfId?: string; isExclusive?: boolean }[];
+  subjectRestrictions: { subjectKey: string; subjectName: string; classroomIds: string[]; pnfId?: string; isExclusive?: boolean; splitHours?: boolean }[];
   loadingSubjectRestrictions?: boolean;
 }> = ({
   putSubjectRestriction,
@@ -25,6 +25,7 @@ const SubjectRestrictionModal: React.FC<{
     const [selectedPnf, setSelectedPnf] = useState<string>("");
     const [selectedSubject, setSelectedSubject] = useState<string>("");
     const [isExclusive, setIsExclusive] = useState(false);
+    const [splitHours, setSplitHours] = useState(false);
 
     const sortedClassrooms = useMemo(() => {
       const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
@@ -106,9 +107,11 @@ const SubjectRestrictionModal: React.FC<{
       if (existing) {
         setRestrictedClassrooms(existing.classroomIds);
         setIsExclusive(!!existing.isExclusive);
+        setSplitHours(!!existing.splitHours);
       } else {
         setRestrictedClassrooms(sortedClassrooms.map((room) => room.id));
         setIsExclusive(false);
+        setSplitHours(false);
       }
     };
 
@@ -132,7 +135,7 @@ const SubjectRestrictionModal: React.FC<{
       }
       setIsSaving(true);
       try {
-        await putSubjectRestriction(selectedSubject, restrictedClassrooms, selectedPnf || undefined, isExclusive);
+        await putSubjectRestriction(selectedSubject, restrictedClassrooms, selectedPnf || undefined, isExclusive, splitHours);
         message.success("Restricciones guardadas correctamente");
         if (shouldClose) {
           setIsModalOpen(false);
@@ -275,6 +278,20 @@ const SubjectRestrictionModal: React.FC<{
               </Space>
               <div className={styles.helperText} style={{ marginTop: "4px" }}>
                 Si está activado, el sistema NO buscará otras aulas si las seleccionadas están llenas.
+              </div>
+            </div>
+
+            <div className={styles.selectorContainer}>
+              <Space align="center">
+                <span className={styles.modalSectionTitle} style={{ marginBottom: 0 }}>Dividir horas entre aulas</span>
+                <Switch
+                  checked={splitHours}
+                  onChange={setSplitHours}
+                  disabled={!selectedSubject}
+                />
+              </Space>
+              <div className={styles.helperText} style={{ marginTop: "4px" }}>
+                Si está activado, la mitad mayor de las horas se asignará en las aulas seleccionadas y el resto en cualquier aula no exclusiva.
               </div>
             </div>
           </div>

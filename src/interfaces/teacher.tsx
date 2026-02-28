@@ -39,4 +39,5 @@ export interface SubjectRestriction {
   classroomIds: string[];
   pnfId?: string;
   isExclusive?: boolean;
+  splitHours?: boolean;
 }

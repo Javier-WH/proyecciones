@@ -61,6 +61,7 @@ function formatSubjectRestriction(restriction) {
     classroom_ids: Array.isArray(cIds) ? cIds : [],
     pnf_id: restriction.pnf_id || undefined,
     is_exclusive: Boolean(restriction.is_exclusive),
+    split_hours: Boolean(restriction.split_hours),
   };
 }
 
@@ -271,7 +272,7 @@ Router.get("/subject-restrictions/:proyectionId", async (req, res) => {
 
     const restrictions = await SubjectRestrictions.findAll({
       where: { proyection_id: proyectionId },
-      attributes: ["subject_key", "subject_name", "classroom_ids", "pnf_id", "is_exclusive"],
+      attributes: ["subject_key", "subject_name", "classroom_ids", "pnf_id", "is_exclusive", "split_hours"],
       raw: true,
     });
 
@@ -311,6 +312,7 @@ Router.post("/subject-restrictions", express.json(), async (req, res) => {
       const subjectNameInput = restriction?.subject_name ?? restriction?.subjectName ?? "";
       const classroomIdsInput = restriction?.classroom_ids ?? restriction?.classroomIds;
       const isExclusiveInput = restriction?.is_exclusive ?? restriction?.isExclusive ?? false;
+      const splitHoursInput = restriction?.split_hours ?? restriction?.splitHours ?? false;
 
       const subjectKey = normalizeSubjectKey(subjectKeyInput);
       if (!subjectKey) {
@@ -346,6 +348,7 @@ Router.post("/subject-restrictions", express.json(), async (req, res) => {
         classroom_ids: classroomIds,
         pnf_id: normalizedPnfId,
         is_exclusive: Boolean(isExclusiveInput),
+        split_hours: Boolean(splitHoursInput),
       };
 
       if (existingIndex >= 0) {

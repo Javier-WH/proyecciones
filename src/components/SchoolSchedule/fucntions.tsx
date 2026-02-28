@@ -49,6 +49,7 @@ export interface generateScheduleParams {
     preferLastSlot?: boolean;
     pnfId?: string;
     isExclusive?: boolean;
+    splitHours?: boolean;
   }[];
   existingEvents?: Event[];
   conserveSlots?: number;
@@ -886,7 +887,7 @@ export function generateScheduleEvents({
   });
 
   const tasks: SubjectTask[] = filteredSubjects
-    .map((sub): SubjectTask | null => {
+    .flatMap((sub): SubjectTask[] => {
       const compositeKey = `${sub.subject.trim().toLowerCase()}-${sub.seccion}-${sub.pnfId}-${sub.trayectoId}`;
       const pinnedHours = existingSubjectHours.get(compositeKey) || 0;
       const totalHours = sub.hours[trimestre]! - pinnedHours;
@@ -895,7 +896,7 @@ export function generateScheduleEvents({
       const turnoName = sub.turnoName?.toLowerCase() || "";
       const subjectKey = normalizeText(sub.subject);
 
-      if (totalHours <= 0 || !professorId) return null;
+      if (totalHours <= 0 || !professorId) return [];
 
       // Si preventSingleHourBlocks está activo y solo queda 1 hora, reportar error inmediatamente
       if (preventSingleHourBlocks && totalHours === 1) {
@@ -914,11 +915,11 @@ export function generateScheduleEvents({
           professorName,
           trimestre,
         });
-        return null;
+        return [];
       }
 
       const timeSlots = activeTurnos[turnoName];
-      if (!timeSlots || timeSlots.length === 0) return null;
+      if (!timeSlots || timeSlots.length === 0) return [];
 
       // Restricciones de profesor
       const teacherRest = unavailableDays?.find(
@@ -993,7 +994,7 @@ export function generateScheduleEvents({
           professorName,
           trimestre,
         });
-        return null;
+        return [];
       }
 
       // Constraint score: más alto = más restringido = se asigna primero (MRV)
@@ -1041,7 +1042,70 @@ export function generateScheduleEvents({
       const hasTeacherRestrictions = restrictedDays.length > 0 || restrictedHours.length > 0;
       const hasClassroomRestrictions = !!(preferConfig?.classroomIds?.length);
 
-      return {
+      // ─── Split Hours: dividir la materia en dos tasks ───
+      // Si splitHours está activo, la parte mayor de las horas va en las aulas
+      // seleccionadas y la parte menor en cualquier aula no exclusiva.
+      if (preferConfig?.splitHours && preferConfig.classroomIds?.length && totalHours >= 2) {
+        const preferredHours = Math.ceil(totalHours / 2);
+        const otherHours = totalHours - preferredHours;
+
+        // Task A: horas en las aulas seleccionadas (parte mayor)
+        const preferredRooms = classrooms.filter((c) => preferConfig.classroomIds.includes(c.id));
+        // Task B: horas en aulas no exclusivas (parte menor)
+        const nonExclusiveRooms = classrooms.filter((c) => !c.exclusive && !preferConfig.classroomIds.includes(c.id)).sort((a, b) => {
+          const aReserved = reservedClassroomIds.has(a.id) ? 1 : 0;
+          const bReserved = reservedClassroomIds.has(b.id) ? 1 : 0;
+          return aReserved - bReserved;
+        });
+
+        const baseSlotsConfig = preferConfig?.preferLastSlot ? [...timeSlots].reverse() : timeSlots;
+
+        const results: SubjectTask[] = [];
+
+        if (preferredRooms.length > 0 && preferredHours > 0) {
+          results.push({
+            subject: sub,
+            totalHours: preferredHours,
+            professorId,
+            turnoName,
+            timeSlots: baseSlotsConfig,
+            availableDays,
+            restrictedHours,
+            candidateClassrooms: preferredRooms,
+            effectiveConserveSlots: conserveSlots,
+            effectiveMinConsecutive: Math.min(minConsecutiveSlots, preferredHours),
+            preferLastSlot: preferConfig?.preferLastSlot || false,
+            constraintScore: score + 100, // Prioridad más alta para la parte de aula preferida
+            preventSingleHourBlocks,
+            hasTeacherRestrictions,
+            hasClassroomRestrictions: true,
+          });
+        }
+
+        if (nonExclusiveRooms.length > 0 && otherHours > 0) {
+          results.push({
+            subject: sub,
+            totalHours: otherHours,
+            professorId,
+            turnoName,
+            timeSlots: baseSlotsConfig,
+            availableDays,
+            restrictedHours,
+            candidateClassrooms: nonExclusiveRooms,
+            effectiveConserveSlots: conserveSlots,
+            effectiveMinConsecutive: Math.min(minConsecutiveSlots, otherHours),
+            preferLastSlot: preferConfig?.preferLastSlot || false,
+            constraintScore: score + 50,
+            preventSingleHourBlocks: preventSingleHourBlocks && otherHours >= 2,
+            hasTeacherRestrictions,
+            hasClassroomRestrictions: false,
+          });
+        }
+
+        return results.length > 0 ? results : [];
+      }
+
+      return [{
         subject: sub,
         totalHours: totalHours,
         professorId,
@@ -1059,9 +1123,8 @@ export function generateScheduleEvents({
         preventSingleHourBlocks,
         hasTeacherRestrictions,
         hasClassroomRestrictions,
-      };
-    })
-    .filter(Boolean) as SubjectTask[];
+      }];
+    });
 
   // ─── Step 3: Ordenar por prioridad de restricciones ───
   // ESTRATEGIA: Las materias con cualquier tipo de restricción van PRIMERO,

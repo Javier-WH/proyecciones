@@ -44,6 +44,8 @@ type RawSubjectRestriction = {
   pnfId?: string;
   is_exclusive?: boolean;
   isExclusive?: boolean;
+  split_hours?: boolean;
+  splitHours?: boolean;
 };
 
 type RawTeacherRestriction = {
@@ -366,6 +368,7 @@ const SchoolSchedule: React.FC = () => {
           const classroomIds = item?.classroom_ids ?? item?.classroomIds ?? [];
           const pnfId = item?.pnf_id ?? item?.pnfId;
           const isExclusive = item?.is_exclusive ?? item?.isExclusive ?? false;
+          const splitHours = item?.split_hours ?? item?.splitHours ?? false;
 
           if (!subjectKey) return null;
 
@@ -375,6 +378,7 @@ const SchoolSchedule: React.FC = () => {
             classroomIds,
             pnfId: pnfId || undefined,
             isExclusive: Boolean(isExclusive),
+            splitHours: Boolean(splitHours),
           };
         })
         .filter(Boolean) as SubjectRestriction[];
@@ -404,6 +408,7 @@ const SchoolSchedule: React.FC = () => {
           classroom_ids: rest.classroomIds,
           pnf_id: rest.pnfId,
           is_exclusive: rest.isExclusive,
+          split_hours: rest.splitHours,
         })),
       };
 
@@ -703,7 +708,7 @@ const SchoolSchedule: React.FC = () => {
     applyClassroomChangeAndRecalculate();
   };
 
-  const putSubjectRestriction = async (subjectName: string, classroomIds: string[], pnfId?: string, isExclusive: boolean = false) => {
+  const putSubjectRestriction = async (subjectName: string, classroomIds: string[], pnfId?: string, isExclusive: boolean = false, splitHours: boolean = false) => {
     if (!subjectRestrictionsReady) {
       throw new Error("Las restricciones aún se están cargando. Intente nuevamente en unos segundos");
     }
@@ -734,8 +739,9 @@ const SchoolSchedule: React.FC = () => {
         existing.classroomIds = classroomIds;
         existing.subjectName = subjectName;
         existing.isExclusive = isExclusive;
+        existing.splitHours = splitHours;
       } else {
-        updatedRestrictions.push({ subjectKey: normalizedName, subjectName, classroomIds, pnfId, isExclusive });
+        updatedRestrictions.push({ subjectKey: normalizedName, subjectName, classroomIds, pnfId, isExclusive, splitHours });
       }
     }
 
