@@ -464,6 +464,37 @@ const SchoolSchedule: React.FC = () => {
     return keys;
   }, [classroomOverrides]);
 
+  const groupedOverridesCount = useMemo(() => {
+    const timeToMinutes = (timeStr: string) => {
+      const [h, m] = timeStr.split(":").map(Number);
+      return h * 60 + m;
+    };
+
+    const sorted = [...classroomOverrides].sort((a, b) => {
+      if (a.day !== b.day) return a.day - b.day;
+      if (a.subject_name !== b.subject_name) return a.subject_name.localeCompare(b.subject_name);
+      return a.start_time.localeCompare(b.start_time);
+    });
+
+    let count = 0;
+    let lastGroup: { key: string; end_time: string } | null = null;
+
+    for (const ov of sorted) {
+      const matchKey = `${ov.subject_name}|${ov.day}|${ov.classroom_id}|${ov.seccion || ''}|${ov.pnf_id || ''}|${ov.trayecto_id || ''}`;
+      const isSameGroup = lastGroup && lastGroup.key === matchKey;
+      const gapMinutes = isSameGroup ? timeToMinutes(ov.start_time) - timeToMinutes(lastGroup!.end_time) : Infinity;
+
+      if (isSameGroup && gapMinutes >= 0 && gapMinutes <= 30) {
+        lastGroup!.end_time = ov.end_time;
+      } else {
+        count++;
+        lastGroup = { key: matchKey, end_time: ov.end_time };
+      }
+    }
+
+    return count;
+  }, [classroomOverrides]);
+
   const handleSaveOverrides = async () => {
     if (!proyectionId) {
       message.error("No se pudo identificar la proyección");
@@ -483,8 +514,8 @@ const SchoolSchedule: React.FC = () => {
     }
   };
 
-  const handleDeleteOverride = async (override: ClassroomOverride) => {
-    const newOverrides = classroomOverrides.filter((o) => o !== override);
+  const handleDeleteOverrides = async (overridesToDelete: ClassroomOverride[]) => {
+    const newOverrides = classroomOverrides.filter((o) => !overridesToDelete.includes(o));
     setClassroomOverrides(newOverrides);
     setGenerationCounter((prev) => prev + 1);
 
@@ -492,7 +523,7 @@ const SchoolSchedule: React.FC = () => {
     if (proyectionId) {
       try {
         await saveClassroomOverrides(proyectionId, newOverrides);
-        message.success("Cambio de aula eliminado");
+        message.success(`Cambio${overridesToDelete.length > 1 ? 's' : ''} de aula eliminado${overridesToDelete.length > 1 ? 's' : ''}`);
         setHasUnsavedOverrides(false);
       } catch (err) {
         console.error(err);
@@ -1573,10 +1604,19 @@ const SchoolSchedule: React.FC = () => {
       });
 
       setClassroomOverrides(prev => {
-        // Remover cualquier versión previa de estos slots arrastrados
-        const filtered = prev.filter(o => 
-          !(o.subject_name === title && o.day === targetDay && targetOverrides.some(t => t.start_time === o.start_time))
-        );
+        // Remover cualquier versión previa en la posición de origen (source) o destino (target)
+        const filtered = prev.filter(o => {
+          const isFromSource = o.subject_name === title && 
+                               o.day === sourceDay && 
+                               movingEvents.some(m => m.startTime === o.start_time);
+          
+          const isAtTarget = o.subject_name === title &&
+                             o.day === targetDay && 
+                             targetOverrides.some(t => t.start_time === o.start_time);
+          
+          return !isFromSource && !isAtTarget;
+        });
+        
         return [...filtered, ...targetOverrides];
       });
       setHasUnsavedOverrides(true);
@@ -1880,14 +1920,14 @@ const SchoolSchedule: React.FC = () => {
                   )}
                 </span>
               </Tooltip>
-              <Tooltip title={`Ver cambios de aula fijados (${classroomOverrides.length})`}>
+              <Tooltip title={`Ver cambios de aula fijados (${groupedOverridesCount})`}>
                 <span
                   className={styles.icon}
                   onClick={() => setIsOverridesModalOpen(true)}
                   style={{ cursor: "pointer", position: "relative", display: "inline-flex", alignItems: "center", fontSize: "1rem" }}
                 >
                   📌
-                  {classroomOverrides.length > 0 && (
+                  {groupedOverridesCount > 0 && (
                     <span style={{
                       position: "absolute",
                       top: "-4px",
@@ -1903,7 +1943,7 @@ const SchoolSchedule: React.FC = () => {
                       justifyContent: "center",
                       fontWeight: 700,
                     }}>
-                      {classroomOverrides.length}
+                      {groupedOverridesCount}
                     </span>
                   )}
                 </span>
@@ -2290,7 +2330,7 @@ const SchoolSchedule: React.FC = () => {
         onClose={() => setIsOverridesModalOpen(false)}
         overrides={classroomOverrides}
         classrooms={classrooms}
-        onDelete={handleDeleteOverride}
+        onDelete={handleDeleteOverrides}
         onDeleteAll={handleDeleteAllOverrides}
       />
     </>
@@ -2298,4 +2338,3 @@ const SchoolSchedule: React.FC = () => {
 };
 
 export default SchoolSchedule;
-
