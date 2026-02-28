@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Modal, Button, Input, Table, Space, Tag, Popconfirm, message, Switch, Tooltip } from "antd";
+import { Modal, Button, Input, Table, Space, Tag, Popconfirm, message, Switch, Tooltip, Checkbox } from "antd";
 import { SiGoogleclassroom } from "react-icons/si";
 import { FaTrash, FaEdit, FaPlus, FaCheck, FaTimes } from "react-icons/fa";
 import { Classroom } from "./fucntions";
@@ -18,6 +18,7 @@ const ClassroomManagerModal: React.FC<ClassroomManagerModalProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
+  const [newRoomExclusive, setNewRoomExclusive] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
@@ -40,10 +41,11 @@ const ClassroomManagerModal: React.FC<ClassroomManagerModalProps> = ({
     }
     setIsLoading(true);
     try {
-      const res = await createClassroom(trimmed, true);
+      const res = await createClassroom(trimmed, true, newRoomExclusive);
       if (res.error) throw new Error(res.message?.message || res.message || "Error al crear");
       message.success("Aula creada");
       setNewRoomName("");
+      setNewRoomExclusive(false);
       await onClassroomsUpdated();
     } catch (err: any) {
       message.error(err.message);
@@ -69,9 +71,23 @@ const ClassroomManagerModal: React.FC<ClassroomManagerModalProps> = ({
   const handleToggleActive = async (record: Classroom) => {
     setIsLoading(true);
     try {
-      const res = await updateClassroom(record.id, record.classroom, !record.active);
+      const res = await updateClassroom(record.id, record.classroom, !record.active, record.exclusive);
       if (res.error) throw new Error(res.message?.message || res.message || "Error al actualizar");
       message.success(`Aula ${!record.active ? "abierta" : "cerrada"}`);
+      await onClassroomsUpdated();
+    } catch (err: any) {
+      message.error(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleExclusive = async (record: Classroom) => {
+    setIsLoading(true);
+    try {
+      const res = await updateClassroom(record.id, record.classroom, record.active ?? true, !record.exclusive);
+      if (res.error) throw new Error(res.message?.message || res.message || "Error al actualizar");
+      message.success(`Aula ${!record.exclusive ? "marcada como exclusiva" : "desmarcada como exclusiva"}`);
       await onClassroomsUpdated();
     } catch (err: any) {
       message.error(err.message);
@@ -93,7 +109,7 @@ const ClassroomManagerModal: React.FC<ClassroomManagerModalProps> = ({
     }
     setIsLoading(true);
     try {
-      const res = await updateClassroom(record.id, trimmed, record.active ?? true);
+      const res = await updateClassroom(record.id, trimmed, record.active ?? true, record.exclusive);
       if (res.error) throw new Error(res.message?.message || res.message || "Error al guardar");
       message.success("Aula actualizada");
       setEditingKey(null);
@@ -138,6 +154,22 @@ const ClassroomManagerModal: React.FC<ClassroomManagerModalProps> = ({
             size="small"
             checked={active}
             onChange={() => handleToggleActive(record)}
+            style={{ marginTop: "4px" }}
+          />
+        </Space>
+      ),
+    },
+    {
+      title: "Exclusivo",
+      dataIndex: "exclusive",
+      key: "exclusive",
+      width: 100,
+      render: (exclusive: boolean = false, record: Classroom) => (
+        <Space direction="vertical" size={0}>
+          <Switch
+            size="small"
+            checked={exclusive}
+            onChange={() => handleToggleExclusive(record)}
             style={{ marginTop: "4px" }}
           />
         </Space>
@@ -217,6 +249,13 @@ const ClassroomManagerModal: React.FC<ClassroomManagerModalProps> = ({
             onChange={(e) => setNewRoomName(e.target.value)}
             onPressEnter={handleCreate}
           />
+          <Checkbox 
+            checked={newRoomExclusive} 
+            onChange={(e) => setNewRoomExclusive(e.target.checked)}
+            style={{ alignSelf: 'center', whiteSpace: 'nowrap' }}
+          >
+            Exclusivo
+          </Checkbox>
           <Button type="primary" icon={<FaPlus />} onClick={handleCreate} loading={isLoading}>
             Agregar Aula
           </Button>

@@ -5,7 +5,7 @@ export interface ScheduleDataBase {
   proyection_id: string;
 }
 
-export async function createClassroom(classroom: string, active: boolean = true) {
+export async function createClassroom(classroom: string, active: boolean = true, exclusive: boolean = false) {
   const headersList = {
     Accept: "*/*",
     "Content-Type": "application/json",
@@ -16,7 +16,7 @@ export async function createClassroom(classroom: string, active: boolean = true)
   const response = await fetch(url, {
     method: "POST",
     headers: headersList,
-    body: JSON.stringify({ classroom, active }),
+    body: JSON.stringify({ classroom, active, exclusive }),
   });
 
   if (!response.ok) {
@@ -26,7 +26,7 @@ export async function createClassroom(classroom: string, active: boolean = true)
   return response.json();
 }
 
-export async function updateClassroom(id: string, classroom: string, active: boolean) {
+export async function updateClassroom(id: string, classroom: string, active: boolean, exclusive?: boolean) {
   const headersList = {
     Accept: "*/*",
     "Content-Type": "application/json",
@@ -37,7 +37,7 @@ export async function updateClassroom(id: string, classroom: string, active: boo
   const response = await fetch(url, {
     method: "PUT",
     headers: headersList,
-    body: JSON.stringify({ classroom, active }),
+    body: JSON.stringify({ classroom, active, exclusive }),
   });
 
   if (!response.ok) {

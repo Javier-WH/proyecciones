@@ -1,7 +1,7 @@
 import sequelize from "#dataBaseConnection";
 import { DataTypes, Model } from "sequelize";
 
-class Classrooms extends Model { }
+class Classrooms extends Model {}
 Classrooms.init(
   {
     id: {
@@ -19,6 +19,11 @@ Classrooms.init(
       allowNull: false,
       defaultValue: true,
     },
+    exclusive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
   },
   {
     sequelize,
@@ -26,7 +31,7 @@ Classrooms.init(
     timestamps: false,
     charset: "utf8mb4",
     collate: "utf8mb4_unicode_ci",
-  }
+  },
 );
 
 export default Classrooms;

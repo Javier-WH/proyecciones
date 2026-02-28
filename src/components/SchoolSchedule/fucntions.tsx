@@ -10,6 +10,7 @@ export interface Classroom {
   id: string;
   classroom: string;
   active?: boolean;
+  exclusive?: boolean;
 }
 
 export interface Event {
