@@ -158,6 +158,7 @@ const SchoolSchedule: React.FC = () => {
   // New state for view mode and selected professor
   const [viewMode, setViewMode] = useState<"pnf" | "professor" | "classroom">(() => (localStorage.getItem("schedule_viewMode") as "pnf" | "professor" | "classroom") || "pnf");
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(() => localStorage.getItem("schedule_selectedClassroomId") || null);
+  const [profPnf, setProfPnf] = useState(() => localStorage.getItem("schedule_profPnf") || "");
   const [scrollToProfessorId, setScrollToProfessorId] = useState<string | null>(() => localStorage.getItem("schedule_scrollToProfessorId") || null);
   const [isScrollingToProf, setIsScrollingToProf] = useState<boolean>(() => localStorage.getItem("schedule_viewMode") === "professor" && !!localStorage.getItem("schedule_scrollToProfessorId"));
   const hasScrolledRef = useRef<boolean>(false);
@@ -173,7 +174,13 @@ const SchoolSchedule: React.FC = () => {
     
     if (selectedClassroomId) localStorage.setItem("schedule_selectedClassroomId", selectedClassroomId);
     else localStorage.removeItem("schedule_selectedClassroomId");
-  }, [turn, seccion, pnf, trayectoId, trimestre, viewMode, selectedClassroomId]);
+
+    if (profPnf) localStorage.setItem("schedule_profPnf", profPnf);
+    else localStorage.removeItem("schedule_profPnf");
+
+    if (scrollToProfessorId) localStorage.setItem("schedule_scrollToProfessorId", scrollToProfessorId);
+    else localStorage.removeItem("schedule_scrollToProfessorId");
+  }, [turn, seccion, pnf, trayectoId, trimestre, viewMode, selectedClassroomId, profPnf, scrollToProfessorId]);
 
   const activeTurnos = useMemo(() => {
     const base = scheduleConfig?.turnos || turnos;
@@ -1309,12 +1316,19 @@ const SchoolSchedule: React.FC = () => {
           event.extendedProps.turnName.toLowerCase() === turn
       );
     } else if (viewMode === "professor") {
-      // Filtrar por profesor (solo los que tienen asignación)
+      // 1. Identificar qué profesores pertenecen al PNF seleccionado
+      const targetTeacherIds = new Set(
+        (teachers || [])
+          .filter((t: any) => !profPnf || t.PNF === profPnf)
+          .map((t: any) => String(t.id))
+      );
+
+      // 2. Mostrar TODAS las materias de esos profesores (sin importar el PNF de la materia)
       filteredLoaded = loadedScheduleEvents.filter(
-        (event) => !!event.extendedProps.professorId
+        (event) => !!event.extendedProps.professorId && targetTeacherIds.has(String(event.extendedProps.professorId))
       );
       filteredGenerated = eventData.filter(
-        (event) => !!event.extendedProps.professorId
+        (event) => !!event.extendedProps.professorId && targetTeacherIds.has(String(event.extendedProps.professorId))
       );
     } else if (viewMode === "classroom") {
       if (!selectedClassroomId) {
@@ -1489,8 +1503,20 @@ const SchoolSchedule: React.FC = () => {
   // Effect to automatically scroll to professor if stored in state/localStorage
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
-    if (viewMode === "professor" && scrollToProfessorId) {
-      if (!hasScrolledRef.current && professorGrids && professorGrids.length > 0) {
+    if (viewMode === "professor") {
+      // Check if the selected professor still exists in the current grid after filters (like profPnf)
+      if (scrollToProfessorId && professorGrids) {
+        const exists = professorGrids.some(pg => pg.profId === scrollToProfessorId);
+        if (!exists) {
+          setScrollToProfessorId(null);
+          localStorage.removeItem("schedule_scrollToProfessorId");
+          setIsScrollingToProf(false);
+          hasScrolledRef.current = true;
+          return;
+        }
+      }
+
+      if (scrollToProfessorId && !hasScrolledRef.current && professorGrids && professorGrids.length > 0) {
         setIsScrollingToProf(true);
         // Small timeout to ensure DOM is updated after the professorGrids render
         timer = setTimeout(() => {
@@ -1501,6 +1527,8 @@ const SchoolSchedule: React.FC = () => {
           hasScrolledRef.current = true;
           setIsScrollingToProf(false);
         }, 50);
+      } else if (!scrollToProfessorId) {
+        setIsScrollingToProf(false);
       }
     } else {
       setIsScrollingToProf(false);
@@ -1819,6 +1847,30 @@ const SchoolSchedule: React.FC = () => {
             {viewMode === "professor" && (
               <>
                 <div className="schedule-select">
+                  <span>PNF:</span>
+                  <Select
+                    size="small"
+                    allowClear
+                    placeholder="Todos los PNF"
+                    value={profPnf || undefined}
+                    style={{ width: 250 }}
+                    onChange={(val) => {
+                      setProfPnf(val || "");
+                      setErrors([]); // Clear errors if any on repopulate
+                    }}
+                    options={Array.from(
+                      new Map(
+                        (subjects || [])
+                          .filter((subject) => subject.pnfId && subject.pnf && subject.pnf !== "ADMIN")
+                          .map((subject) => [subject.pnfId, subject.pnf])
+                      )
+                    ).map(([value, label]) => ({
+                      value,
+                      label,
+                    }))}
+                  />
+                </div>
+                <div className="schedule-select">
                   <span>Ir a Profesor:</span>
                   <Select
                     allowClear
@@ -1842,15 +1894,25 @@ const SchoolSchedule: React.FC = () => {
                       }
                     }}
                     options={(() => {
-                      const baseOptions = professorGrids?.map(pg => ({ value: pg.profId, label: pg.profName })) || [];
-                      // Prevent UUID flashes: Include the cached professor name if grid is still calculating
+                      // Usar professorGrids como fuente principal (ya filtrado por materias)
+                      let baseOptions = professorGrids?.map(pg => ({ value: pg.profId, label: pg.profName })) || [];
+                      
+                      // Si no hay grids (cargando o filtrado), pero hay profesores que coinciden con el profPnf,
+                      // los mostramos como fallback para que el select no se vea con puros UUIDs
+                      if (baseOptions.length === 0 && teachers) {
+                        baseOptions = teachers
+                          .filter((t: any) => !profPnf || t.PNF === profPnf)
+                          .map((t: any) => ({ value: String(t.id), label: `${t.name} ${t.lastName}` }));
+                      }
+
+                      // Asegurar que el seleccionado actualmente siempre tenga su label (evita flash de UUID)
                       if (scrollToProfessorId && !baseOptions.some(o => o.value === scrollToProfessorId) && teachers) {
                         const t = teachers.find(t => String(t.id) === String(scrollToProfessorId));
                         if (t) {
                           baseOptions.push({ value: scrollToProfessorId, label: `${t.name} ${t.lastName}` });
                         }
                       }
-                      return baseOptions;
+                      return baseOptions.sort((a, b) => a.label.localeCompare(b.label));
                     })()}
                   />
                 </div>
