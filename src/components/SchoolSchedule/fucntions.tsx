@@ -390,7 +390,7 @@ function findSlotPlacements(
 
 /** Global backtrack counter to limit computation */
 let backtrackCounter = 0;
-const MAX_BACKTRACKS = 5000;
+const MAX_BACKTRACKS = 20000;
 
 /**
  * Intenta colocar los bloques de una descomposición en los días disponibles.
@@ -947,7 +947,7 @@ export function generateScheduleEvents({
       const candidateClassrooms = preferConfig?.classroomIds?.length
         ? (preferConfig.isExclusive
           ? classrooms.filter((c) => preferConfig.classroomIds.includes(c.id))
-          : [...classrooms].sort((a, b) => {
+          : classrooms.filter((c) => preferConfig.classroomIds.includes(c.id) || !c.exclusive).sort((a, b) => {
             const aInPref = preferConfig.classroomIds.includes(a.id);
             const bInPref = preferConfig.classroomIds.includes(b.id);
             if (aInPref && !bInPref) return -1;
@@ -958,7 +958,7 @@ export function generateScheduleEvents({
             return aReserved - bReserved;
           })
         )
-        : [...classrooms].sort((a, b) => {
+        : classrooms.filter((c) => !c.exclusive).sort((a, b) => {
           const aReserved = reservedClassroomIds.has(a.id) ? 1 : 0;
           const bReserved = reservedClassroomIds.has(b.id) ? 1 : 0;
           return aReserved - bReserved;

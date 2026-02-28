@@ -106,15 +106,15 @@ const SchoolSchedule: React.FC = () => {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [eventData, setEventData] = useState<Event[]>([]);
   const [events, setEvents] = useState<EventInput[]>([]);
-  const [turn, setTurn] = useState("mañana");
-  const [seccion, setSeccion] = useState("1");
-  const [pnf, setPnf] = useState("");
-  const [trayectoId, setTrayectoId] = useState("");
+  const [turn, setTurn] = useState(() => localStorage.getItem("schedule_turn") || "mañana");
+  const [seccion, setSeccion] = useState(() => localStorage.getItem("schedule_seccion") || "1");
+  const [pnf, setPnf] = useState(() => localStorage.getItem("schedule_pnf") || "");
+  const [trayectoId, setTrayectoId] = useState(() => localStorage.getItem("schedule_trayectoId") || "");
   const [teacherRestrictions, setTeacherRestrictions] = useState<TeacherRestriction[]>([]);
   const [teacherRestrictionsReady, setTeacherRestrictionsReady] = useState(false);
   const [subjectRestriction, setSubjectRestriction] = useState<SubjectRestriction[]>([]);
   const [subjectRestrictionsReady, setSubjectRestrictionsReady] = useState(false);
-  const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">("q1");
+  const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">(() => (localStorage.getItem("schedule_trimestre") as "q1" | "q2" | "q3") || "q1");
   const [errors, setErrors] = useState<scheduleError[]>([]);
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
@@ -147,9 +147,25 @@ const SchoolSchedule: React.FC = () => {
   } | null>(null);
 
   // New state for view mode and selected professor
-  const [viewMode, setViewMode] = useState<"pnf" | "professor" | "classroom">("pnf");
-  const [selectedProfessorId, setSelectedProfessorId] = useState<string | null>(null);
-  const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"pnf" | "professor" | "classroom">(() => (localStorage.getItem("schedule_viewMode") as "pnf" | "professor" | "classroom") || "pnf");
+  const [selectedProfessorId, setSelectedProfessorId] = useState<string | null>(() => localStorage.getItem("schedule_selectedProfessorId") || null);
+  const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(() => localStorage.getItem("schedule_selectedClassroomId") || null);
+
+  // Persist selections in localStorage when they change
+  useEffect(() => {
+    localStorage.setItem("schedule_turn", turn);
+    localStorage.setItem("schedule_seccion", seccion);
+    localStorage.setItem("schedule_pnf", pnf);
+    localStorage.setItem("schedule_trayectoId", trayectoId);
+    localStorage.setItem("schedule_trimestre", trimestre);
+    localStorage.setItem("schedule_viewMode", viewMode);
+    
+    if (selectedProfessorId) localStorage.setItem("schedule_selectedProfessorId", selectedProfessorId);
+    else localStorage.removeItem("schedule_selectedProfessorId");
+    
+    if (selectedClassroomId) localStorage.setItem("schedule_selectedClassroomId", selectedClassroomId);
+    else localStorage.removeItem("schedule_selectedClassroomId");
+  }, [turn, seccion, pnf, trayectoId, trimestre, viewMode, selectedProfessorId, selectedClassroomId]);
 
   const activeTurnos = useMemo(() => {
     const base = scheduleConfig?.turnos || turnos;
@@ -1472,28 +1488,6 @@ const SchoolSchedule: React.FC = () => {
 
   const handleViewModeChange = (mode: "pnf" | "professor" | "classroom") => {
     setViewMode(mode);
-    // Reset states when switching views
-    if (mode === "pnf") {
-      setSelectedProfessorId(null);
-      setSelectedClassroomId(null);
-      // Trigger re-evaluation of defaults
-      setPnf("");
-      setTrayectoId("");
-      setSeccion("");
-    } else if (mode === "professor") {
-      setPnf("");
-      setTrayectoId("");
-      setSeccion("");
-      setSelectedClassroomId(null);
-      setSelectedProfessorId(null);
-    } else {
-      // classroom
-      setPnf("");
-      setTrayectoId("");
-      setSeccion("");
-      setSelectedProfessorId(null);
-      setSelectedClassroomId(null);
-    }
   };
 
   return (
