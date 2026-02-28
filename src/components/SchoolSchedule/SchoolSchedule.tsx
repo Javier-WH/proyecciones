@@ -2078,11 +2078,40 @@ const SchoolSchedule: React.FC = () => {
                 placeholder="Seleccione un aula"
                 onChange={(value) => setNewClassroomId(value)}
                 showSearch
-                optionFilterProp="label"
-                options={classrooms.map(c => ({
-                  value: c.id,
-                  label: c.classroom,
-                }))}
+                optionFilterProp="title"
+                options={classrooms.map(c => {
+                  let isOccupied = false;
+                  if (classroomChangeEvent) {
+                    const allEventsForConflict = [...loadedScheduleEvents, ...(eventData || [])];
+                    isOccupied = allEventsForConflict.some((evt) => {
+                      const sameDay = evt.daysOfWeek?.includes(classroomChangeEvent.day);
+                      const usesTargetClassroom = evt.extendedProps?.classroomId === c.id;
+                      const overlapsTime =
+                        evt.startTime >= classroomChangeEvent.startTime &&
+                        evt.startTime < classroomChangeEvent.endTime;
+                      const isOtherEvent =
+                        evt.title !== classroomChangeEvent.title ||
+                        evt.extendedProps?.classroomId !== classroomChangeEvent.currentClassroomId;
+                      
+                      return sameDay && usesTargetClassroom && overlapsTime && isOtherEvent;
+                    });
+                  }
+
+                  return {
+                    value: c.id,
+                    title: c.classroom,
+                    label: (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>{c.classroom}</span>
+                        {isOccupied ? (
+                          <span style={{ fontSize: '10px', color: '#ff4d4f', background: '#fff2f0', padding: '0px 6px', borderRadius: '4px', border: '1px solid #ffccc7', lineHeight: '1.4', display: 'inline-block' }}>Ocupada</span>
+                        ) : (
+                          <span style={{ fontSize: '10px', color: '#52c41a', background: '#f6ffed', padding: '0px 6px', borderRadius: '4px', border: '1px solid #b7eb8f', lineHeight: '1.4', display: 'inline-block' }}>Libre</span>
+                        )}
+                      </div>
+                    ),
+                  };
+                })}
               />
             </div>
           </div>
