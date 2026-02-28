@@ -23,6 +23,8 @@ import SubjectRestrictionModal from "./SubjectRestrictionModal";
 import TeachersRestrictionsListModal from "./TeachersRestrictionsListModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
 import { FaRegSave, FaRegFolderOpen, FaPlus, FaPrint, FaCog } from "react-icons/fa";
+import { TbPinFilled } from "react-icons/tb";
+import { BsPinAngleFill } from "react-icons/bs";
 import { useReactToPrint } from "react-to-print";
 import PrintableSchedule from "./PrintableSchedule";
 
@@ -31,6 +33,12 @@ import { normalizeText } from "../../utils/textFilter";
 import ScheduleConfigModal from "./ScheduleConfigModal";
 import { getScheduleConfig, ScheduleConfig } from "../../fetch/schedule/scheduleConfigFetch";
 import ClassroomManagerModal from "./ClassroomManagerModal";
+import ClassroomOverridesModal from "./ClassroomOverridesModal";
+import {
+  getClassroomOverrides,
+  saveClassroomOverrides,
+  type ClassroomOverride,
+} from "../../fetch/schedule/classroomOverrideFetch";
 
 
 type RawSubjectRestriction = {
@@ -217,6 +225,11 @@ const SchoolSchedule: React.FC = () => {
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
   const [loadedScheduleEvents, setLoadedScheduleEvents] = useState<Event[]>([]); // Eventos del horario cargado
   const [activeScheduleName, setActiveScheduleName] = useState<string>("Horario fresco");
+
+  // Classroom overrides state
+  const [classroomOverrides, setClassroomOverrides] = useState<ClassroomOverride[]>([]);
+  const [isOverridesModalOpen, setIsOverridesModalOpen] = useState(false);
+  const [hasUnsavedOverrides, setHasUnsavedOverrides] = useState(false);
 
   // Ref for the printable component
   const printableRef = useRef<HTMLDivElement>(null);
@@ -424,6 +437,145 @@ const SchoolSchedule: React.FC = () => {
     [proyectionId]
   );
 
+  // ─── Classroom Overrides: cargar al inicio ───
+  const loadClassroomOverrides = useCallback(async () => {
+    if (!proyectionId) return;
+    try {
+      const response = await getClassroomOverrides(proyectionId);
+      if (response?.error) return;
+      const loaded = Array.isArray(response?.overrides) ? response.overrides : [];
+      setClassroomOverrides(loaded);
+      setHasUnsavedOverrides(false);
+
+      // Convertir overrides a eventos pinned
+      if (loaded.length > 0 && classrooms.length > 0) {
+        const pinnedFromOverrides: Event[] = loaded.map((ov: ClassroomOverride) => {
+          const classroom = classrooms.find((c) => c.id === ov.classroom_id);
+          
+          let pnfId = ov.pnf_id || "";
+          let trayectoId = ov.trayecto_id || "";
+          let seccion = ov.seccion || "";
+          let pnfName = "";
+          let turnName = "";
+          let subjectId = "";
+          let trayectoName = "";
+          
+          const subject = subjects?.find(s => 
+            s.subject === ov.subject_name &&
+            (ov.seccion ? s.seccion === ov.seccion : true) &&
+            (ov.pnf_id ? s.pnfId === ov.pnf_id : true) &&
+            (ov.trayecto_id ? s.trayectoId === ov.trayecto_id : true)
+          );
+
+          if (subject) {
+            pnfId = pnfId || subject.pnfId || "";
+            trayectoId = trayectoId || subject.trayectoId || "";
+            seccion = seccion || subject.seccion || "";
+            pnfName = subject.pnf || "";
+            turnName = subject.turnoName || "";
+            subjectId = subject.innerId || "";
+            trayectoName = subject.trayectoName || "";
+          }
+
+          return {
+            title: ov.subject_name,
+            daysOfWeek: [ov.day],
+            startTime: ov.start_time,
+            endTime: ov.end_time,
+            extendedProps: {
+              subjectId,
+              professorId: null,
+              classroomId: ov.classroom_id,
+              classroomName: classroom?.classroom || "",
+              pnfId,
+              trayectoId,
+              trayectoName,
+              seccion,
+              pnfName,
+              turnName,
+              blockId: `override-${ov.id}`,
+            },
+          } as Event;
+        });
+
+        setLoadedScheduleEvents((prev) => {
+          // Quitar overrides previos y agregar los nuevos
+          const withoutOldOverrides = prev.filter(
+            (e) => !e.extendedProps.blockId?.startsWith("override-")
+          );
+          return [...withoutOldOverrides, ...pinnedFromOverrides];
+        });
+      }
+    } catch (err) {
+      console.error("Error loading classroom overrides:", err);
+    }
+  }, [proyectionId, classrooms, subjects]);
+
+  useEffect(() => {
+    loadClassroomOverrides();
+  }, [loadClassroomOverrides]);
+
+  // Set de overrides activos para mostrar el pin icon
+  const overrideKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const ov of classroomOverrides) {
+      keys.add(`${ov.subject_name}|${ov.day}|${ov.start_time}`);
+    }
+    return keys;
+  }, [classroomOverrides]);
+
+  const handleSaveOverrides = async () => {
+    if (!proyectionId) {
+      message.error("No se pudo identificar la proyección");
+      return;
+    }
+    try {
+      const response = await saveClassroomOverrides(proyectionId, classroomOverrides);
+      if (response?.error) {
+        message.error("Error al guardar los cambios de aula");
+        return;
+      }
+      message.success("Cambios de aula guardados correctamente");
+      setHasUnsavedOverrides(false);
+    } catch (err) {
+      console.error(err);
+      message.error("Error al guardar los cambios de aula");
+    }
+  };
+
+  const handleDeleteOverride = (override: ClassroomOverride) => {
+    setClassroomOverrides((prev) => prev.filter((o) => o !== override));
+    // Quitar el evento pinned correspondiente
+    setLoadedScheduleEvents((prev) =>
+      prev.filter((e) => !(
+        e.extendedProps.blockId === `override-${override.id}` ||
+        (e.title === override.subject_name &&
+          e.daysOfWeek.includes(override.day) &&
+          e.startTime === override.start_time &&
+          e.extendedProps.classroomId === override.classroom_id)
+      ))
+    );
+    setHasUnsavedOverrides(true);
+    setGenerationCounter((prev) => prev + 1);
+  };
+
+  const handleDeleteAllOverrides = () => {
+    Modal.confirm({
+      title: "Eliminar todos los cambios de aula",
+      content: "¿Estás seguro de que deseas eliminar todos los cambios de aula fijados?",
+      okText: "Sí, eliminar todos",
+      cancelText: "Cancelar",
+      okButtonProps: { danger: true },
+      onOk: () => {
+        setClassroomOverrides([]);
+        setLoadedScheduleEvents((prev) =>
+          prev.filter((e) => !e.extendedProps.blockId?.startsWith("override-"))
+        );
+        setHasUnsavedOverrides(true);
+        setGenerationCounter((prev) => prev + 1);
+      },
+    });
+  };
 
   const handleForceInsert = useCallback((errorInfo: scheduleError, ignoreRestrictions: boolean = true) => {
     if (!errorInfo.subjectId) return;
@@ -682,6 +834,29 @@ const SchoolSchedule: React.FC = () => {
 
       // Recalcular todo el horario alrededor de este nuevo evento fijo
       setGenerationCounter((prev) => prev + 1);
+
+      // Registrar el override localmente
+      const firstModified = modifiedEvents[0];
+      if (firstModified) {
+        const newOverride: ClassroomOverride = {
+          subject_name: classroomChangeEvent.title,
+          day: classroomChangeEvent.day,
+          start_time: classroomChangeEvent.startTime,
+          end_time: classroomChangeEvent.endTime,
+          classroom_id: newClassroomId,
+          seccion: firstModified.extendedProps?.seccion || null,
+          pnf_id: firstModified.extendedProps?.pnfId || null,
+          trayecto_id: firstModified.extendedProps?.trayectoId || null,
+        };
+        setClassroomOverrides((prev) => {
+          // Reemplazar si ya existe un override para esta materia/día/hora
+          const filtered = prev.filter(
+            (o) => !(o.subject_name === newOverride.subject_name && o.day === newOverride.day && o.start_time === newOverride.start_time)
+          );
+          return [...filtered, newOverride];
+        });
+        setHasUnsavedOverrides(true);
+      }
 
       message.success(
         `Aula cambiada a "${newClassroom.classroom}" para ${classroomChangeEvent.title} el día seleccionado.`
@@ -1744,6 +1919,55 @@ const SchoolSchedule: React.FC = () => {
               <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
               <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
               <FaPrint title="Imprimir Horario" className={styles.icon} onClick={handlePrint} />
+              <Tooltip title={hasUnsavedOverrides ? "Guardar cambios de aula (sin guardar)" : "Guardar cambios de aula"}>
+                <span style={{ position: "relative", display: "inline-flex" }}>
+                  <BsPinAngleFill
+                    title="Guardar Cambios de Aula"
+                    className={styles.icon}
+                    onClick={handleSaveOverrides}
+                    style={{ color: hasUnsavedOverrides ? "#ff4d4f" : undefined }}
+                  />
+                  {hasUnsavedOverrides && (
+                    <span style={{
+                      position: "absolute",
+                      top: "-2px",
+                      right: "-2px",
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      backgroundColor: "#ff4d4f",
+                    }} />
+                  )}
+                </span>
+              </Tooltip>
+              <Tooltip title={`Ver cambios de aula fijados (${classroomOverrides.length})`}>
+                <span
+                  className={styles.icon}
+                  onClick={() => setIsOverridesModalOpen(true)}
+                  style={{ cursor: "pointer", position: "relative", display: "inline-flex", alignItems: "center", fontSize: "1rem" }}
+                >
+                  📌
+                  {classroomOverrides.length > 0 && (
+                    <span style={{
+                      position: "absolute",
+                      top: "-4px",
+                      right: "-8px",
+                      background: "#1890ff",
+                      color: "#fff",
+                      borderRadius: "50%",
+                      fontSize: "0.6rem",
+                      width: "14px",
+                      height: "14px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 700,
+                    }}>
+                      {classroomOverrides.length}
+                    </span>
+                  )}
+                </span>
+              </Tooltip>
               <TeacherRestrictionModal
                 putTeacherRestriction={putTeacherRestriction}
                 teacherRestrictions={teacherRestrictions}
@@ -1905,8 +2129,11 @@ const SchoolSchedule: React.FC = () => {
                                 <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]}>
                                   <Tooltip title={tooltipContent}>
                                     <div style={{ display: "flex", flexDirection: "column", gap: "2px", height: "100%", cursor: "context-menu" }}>
-                                      <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px" }}>
-                                        {cell.title}
+                                      <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                                        <span>{cell.title}</span>
+                                        {overrideKeys.has(`${cell.title}|${day}|${slot[0]}`) && (
+                                          <TbPinFilled style={{ color: "#1890ff", fontSize: "0.8rem", flexShrink: 0, marginLeft: "2px", marginTop: "1px" }} title="Aula fijada manualmente" />
+                                        )}
                                       </div>
 
                                       {/* Chip for PNF/Section/Classroom */}
@@ -2117,6 +2344,15 @@ const SchoolSchedule: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      <ClassroomOverridesModal
+        open={isOverridesModalOpen}
+        onClose={() => setIsOverridesModalOpen(false)}
+        overrides={classroomOverrides}
+        classrooms={classrooms}
+        onDelete={handleDeleteOverride}
+        onDeleteAll={handleDeleteAllOverrides}
+      />
     </>
   );
 };
