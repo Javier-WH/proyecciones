@@ -1841,7 +1841,17 @@ const SchoolSchedule: React.FC = () => {
                         localStorage.removeItem("schedule_scrollToProfessorId");
                       }
                     }}
-                    options={professorGrids?.map(pg => ({ value: pg.profId, label: pg.profName })) || []}
+                    options={(() => {
+                      const baseOptions = professorGrids?.map(pg => ({ value: pg.profId, label: pg.profName })) || [];
+                      // Prevent UUID flashes: Include the cached professor name if grid is still calculating
+                      if (scrollToProfessorId && !baseOptions.some(o => o.value === scrollToProfessorId) && teachers) {
+                        const t = teachers.find(t => String(t.id) === String(scrollToProfessorId));
+                        if (t) {
+                          baseOptions.push({ value: scrollToProfessorId, label: `${t.name} ${t.lastName}` });
+                        }
+                      }
+                      return baseOptions;
+                    })()}
                   />
                 </div>
                 <div className="schedule-select">
