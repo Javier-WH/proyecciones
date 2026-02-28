@@ -14,7 +14,7 @@ import {
   getSubjectRestrictions,
 } from "../../fetch/schedule/scheduleFetch";
 import { getTeacherRestrictionsList } from "../../fetch/schedule/teacherRestrictions";
-import { Select, Modal, message, List, Tooltip, Dropdown } from "antd";
+import { Select, Modal, message, List, Tooltip, Dropdown, Spin } from "antd";
 import { SwapOutlined } from "@ant-design/icons";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
@@ -158,6 +158,9 @@ const SchoolSchedule: React.FC = () => {
   // New state for view mode and selected professor
   const [viewMode, setViewMode] = useState<"pnf" | "professor" | "classroom">(() => (localStorage.getItem("schedule_viewMode") as "pnf" | "professor" | "classroom") || "pnf");
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(() => localStorage.getItem("schedule_selectedClassroomId") || null);
+  const [scrollToProfessorId, setScrollToProfessorId] = useState<string | null>(() => localStorage.getItem("schedule_scrollToProfessorId") || null);
+  const [isScrollingToProf, setIsScrollingToProf] = useState<boolean>(() => localStorage.getItem("schedule_viewMode") === "professor" && !!localStorage.getItem("schedule_scrollToProfessorId"));
+  const hasScrolledRef = useRef<boolean>(false);
 
   // Persist selections in localStorage when they change
   useEffect(() => {
@@ -1482,6 +1485,29 @@ const SchoolSchedule: React.FC = () => {
 
     return { tableSlots: slots, tableGrid: mainGrid, professorGrids: pGrids };
   }, [viewMode, activeTurnos, turn, events, teachers]);
+  
+  // Effect to automatically scroll to professor if stored in state/localStorage
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    if (viewMode === "professor" && scrollToProfessorId) {
+      if (!hasScrolledRef.current && professorGrids && professorGrids.length > 0) {
+        setIsScrollingToProf(true);
+        // Small timeout to ensure DOM is updated after the professorGrids render
+        timer = setTimeout(() => {
+          const el = document.getElementById(`prof-grid-${scrollToProfessorId}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'auto', block: 'start' });
+          }
+          hasScrolledRef.current = true;
+          setIsScrollingToProf(false);
+        }, 50);
+      }
+    } else {
+      setIsScrollingToProf(false);
+    }
+    return () => clearTimeout(timer);
+  }, [viewMode, scrollToProfessorId, professorGrids]);
+
   // ------------------------------
 
   const handleDrop = (targetRowIndex: number, targetDay: number) => {
@@ -1629,6 +1655,10 @@ const SchoolSchedule: React.FC = () => {
 
   const handleViewModeChange = (mode: "pnf" | "professor" | "classroom") => {
     setViewMode(mode);
+    if (mode === "professor" && scrollToProfessorId) {
+      hasScrolledRef.current = false;
+      setIsScrollingToProf(true);
+    }
   };
 
   return (
@@ -1795,17 +1825,20 @@ const SchoolSchedule: React.FC = () => {
                     size="small"
                     showSearch
                     placeholder="Buscar profesor..."
+                    value={scrollToProfessorId}
                     optionFilterProp="children"
                     filterOption={(input, option) =>
                       (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                     }
                     style={{ width: 350 }}
                     onChange={(val) => {
+                      setScrollToProfessorId(val || null);
                       if (val) {
-                        const el = document.getElementById(`prof-grid-${val}`);
-                        if (el) {
-                          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
+                        hasScrolledRef.current = false;
+                        setIsScrollingToProf(true);
+                        localStorage.setItem("schedule_scrollToProfessorId", val);
+                      } else {
+                        localStorage.removeItem("schedule_scrollToProfessorId");
                       }
                     }}
                     options={professorGrids?.map(pg => ({ value: pg.profId, label: pg.profName })) || []}
@@ -1965,7 +1998,22 @@ const SchoolSchedule: React.FC = () => {
           </div>
         </div>
 
-        <div className="schedule-content-wrapper">
+        <div className="schedule-content-wrapper" style={{ position: "relative" }}>
+          {isScrollingToProf && (
+            <div style={{
+              position: "absolute",
+              top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: "rgba(255, 255, 255, 1)",
+              zIndex: 1000,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              flexDirection: "column"
+            }}>
+              <Spin size="large" />
+              <div style={{ marginTop: 16, color: "#1890ff", fontWeight: "bold", fontSize: "1.2rem" }}>Ubicando profesor...</div>
+            </div>
+          )}
           <div className={`calendar - container view - ${viewMode} `} style={{ padding: "0", overflowY: "auto" }}>
             {tableSlots.length > 0 ? (
               (() => {
