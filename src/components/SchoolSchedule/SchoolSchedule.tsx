@@ -1866,7 +1866,18 @@ const SchoolSchedule: React.FC = () => {
                     style={{ width: 250 }}
                     onChange={(val) => {
                       setProfPnf(val || "");
-                      setErrors([]); // Clear errors if any on repopulate
+                      // Limpiar profesor seleccionado y hacer scroll al top
+                      setScrollToProfessorId(null);
+                      localStorage.removeItem("schedule_scrollToProfessorId");
+                      hasScrolledRef.current = true;
+                      setIsScrollingToProf(false);
+                      setErrors([]);
+                      setTimeout(() => {
+                        const scrollContainer = document.getElementById('professor-scroll-container');
+                        if (scrollContainer) {
+                          scrollContainer.scrollTop = 0;
+                        }
+                      }, 50);
                     }}
                     options={Array.from(
                       new Set(
@@ -1906,6 +1917,10 @@ const SchoolSchedule: React.FC = () => {
                         localStorage.setItem("schedule_scrollToProfessorId", val);
                       } else {
                         localStorage.removeItem("schedule_scrollToProfessorId");
+                        const scrollContainer = document.getElementById('professor-scroll-container');
+                        if (scrollContainer) {
+                          scrollContainer.scrollTop = 0;
+                        }
                       }
                     }}
                     options={(() => {
@@ -2101,7 +2116,7 @@ const SchoolSchedule: React.FC = () => {
               <div style={{ marginTop: 16, color: "#1890ff", fontWeight: "bold", fontSize: "1.2rem" }}>Ubicando profesor...</div>
             </div>
           )}
-          <div className={`calendar - container view - ${viewMode} `} style={{ padding: "0", overflowY: "auto" }}>
+          <div id="professor-scroll-container" className={`calendar - container view - ${viewMode} `} style={{ padding: "0", overflowY: "auto" }}>
             {tableSlots.length > 0 ? (
               (() => {
                 const renderScheduleGrid = (gridToRender: any[][], title?: string, id?: string) => (
