@@ -1356,6 +1356,8 @@ const SchoolSchedule: React.FC = () => {
     turn,
     seccion,
     pnf,
+    profPnf,
+    teachers,
     trayectoId,
     viewMode,
     selectedClassroomId,
@@ -1859,15 +1861,20 @@ const SchoolSchedule: React.FC = () => {
                       setErrors([]); // Clear errors if any on repopulate
                     }}
                     options={Array.from(
-                      new Map(
-                        (subjects || [])
-                          .filter((subject) => subject.pnfId && subject.pnf && subject.pnf !== "ADMIN")
-                          .map((subject) => [subject.pnfId, subject.pnf])
+                      new Set(
+                        (teachers || [])
+                          .map((t: any) => t.PNF)
+                          .filter(Boolean)
                       )
-                    ).map(([value, label]) => ({
-                      value,
-                      label,
-                    }))}
+                    )
+                      .sort()
+                      .map((pnfVal) => {
+                        const match = (subjects || []).find(s => s.pnfId === pnfVal && s.pnf !== "ADMIN");
+                        return {
+                          value: pnfVal,
+                          label: match ? match.pnf : pnfVal,
+                        };
+                      })}
                   />
                 </div>
                 <div className="schedule-select">
