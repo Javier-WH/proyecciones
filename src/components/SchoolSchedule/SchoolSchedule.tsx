@@ -459,6 +459,7 @@ const SchoolSchedule: React.FC = () => {
           let turnName = "";
           let subjectId = "";
           let trayectoName = "";
+          let professorId: string | null = null;
           
           const subject = subjects?.find(s => 
             s.subject === ov.subject_name &&
@@ -475,6 +476,8 @@ const SchoolSchedule: React.FC = () => {
             turnName = subject.turnoName || "";
             subjectId = subject.innerId || "";
             trayectoName = subject.trayectoName || "";
+            // Get the professor assigned for the current trimester
+            professorId = subject.quarter?.[trimestre] || null;
           }
 
           return {
@@ -484,7 +487,7 @@ const SchoolSchedule: React.FC = () => {
             endTime: ov.end_time,
             extendedProps: {
               subjectId,
-              professorId: null,
+              professorId,
               classroomId: ov.classroom_id,
               classroomName: classroom?.classroom || "",
               pnfId,
@@ -509,7 +512,7 @@ const SchoolSchedule: React.FC = () => {
     } catch (err) {
       console.error("Error loading classroom overrides:", err);
     }
-  }, [proyectionId, classrooms, subjects]);
+  }, [proyectionId, classrooms, subjects, trimestre]);
 
   useEffect(() => {
     loadClassroomOverrides();
