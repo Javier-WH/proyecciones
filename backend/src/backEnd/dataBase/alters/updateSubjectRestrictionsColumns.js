@@ -40,7 +40,7 @@ export default async function updateSubjectRestrictionsColumns() {
     })
 
     await ensureColumn(tableInfo, 'subject_key', {
-      type: DataTypes.STRING(36),
+      type: DataTypes.STRING(255),
       allowNull: false
     })
 

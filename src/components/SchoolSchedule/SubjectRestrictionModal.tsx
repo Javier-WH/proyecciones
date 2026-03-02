@@ -9,7 +9,7 @@ import { Classroom } from "./fucntions";
 import { normalizeText } from "../../utils/textFilter";
 
 const SubjectRestrictionModal: React.FC<{
-  putSubjectRestriction: (subjectName: string, classroomIds: string[], pnfId?: string, isExclusive?: boolean, splitHours?: boolean) => Promise<void> | void;
+  putSubjectRestriction: (subjectName: string, classroomIds: string[], pnfId?: string, isExclusive?: boolean, splitHours?: boolean, trayectoName?: string) => Promise<void> | void;
   classrooms: Classroom[];
   subjectRestrictions: { subjectKey: string; subjectName: string; classroomIds: string[]; pnfId?: string; isExclusive?: boolean; splitHours?: boolean }[];
   loadingSubjectRestrictions?: boolean;
@@ -24,6 +24,7 @@ const SubjectRestrictionModal: React.FC<{
     const [isSaving, setIsSaving] = useState(false);
     const [selectedPnf, setSelectedPnf] = useState<string>("");
     const [selectedSubject, setSelectedSubject] = useState<string>("");
+    const [selectedTrayectoName, setSelectedTrayectoName] = useState<string>("");
     const [isExclusive, setIsExclusive] = useState(false);
     const [splitHours, setSplitHours] = useState(false);
 
@@ -46,7 +47,8 @@ const SubjectRestrictionModal: React.FC<{
 
     const subjectOptions = useMemo(() => {
       if (!subjects) return [];
-      const uniqueSubjects = new Map<string, { label: string; pnfId: string }>();
+      // Deduplicate by subject name + trayecto name (since a trayecto can have multiple sections)
+      const uniqueSubjects = new Map<string, { label: string; pnfId: string; trayectoName: string }>();
 
       subjects.forEach((subject) => {
         if (subject.linkedToSection) return;
@@ -55,26 +57,32 @@ const SubjectRestrictionModal: React.FC<{
 
         const label = subject.subject?.trim();
         if (!label) return;
-        const key = normalizeText(label);
-        if (!key) return;
-        if (!uniqueSubjects.has(key)) {
-          uniqueSubjects.set(key, { label, pnfId: String(subject.pnfId) });
+        const subjectNorm = normalizeText(label);
+        if (!subjectNorm) return;
+        const trayectoName = subject.trayectoName || "";
+        const trayectoNorm = normalizeText(trayectoName);
+        // Compound key: subject + trayecto
+        const compoundKey = `${subjectNorm}_t_${trayectoNorm}`;
+        if (!uniqueSubjects.has(compoundKey)) {
+          uniqueSubjects.set(compoundKey, { label, pnfId: String(subject.pnfId), trayectoName });
         }
       });
 
-      return Array.from(uniqueSubjects.entries()).map(([key, data]) => {
+      return Array.from(uniqueSubjects.entries()).map(([compoundKey, data]) => {
         const existing = subjectRestrictions?.find(
-          (rest) => rest.subjectKey === key && rest.pnfId === data.pnfId
+          (rest) => rest.subjectKey === compoundKey && rest.pnfId === data.pnfId
         ) || subjectRestrictions?.find(
-          (rest) => rest.subjectKey === key && !rest.pnfId
+          (rest) => rest.subjectKey === compoundKey && !rest.pnfId
         );
         const hasRestriction = !!existing;
         const count = existing ? existing.classroomIds.length : 0;
         const color = subjectColors?.[data.pnfId] || "#ccc";
 
         return {
-          value: data.label,
+          value: `${data.label}|||${data.trayectoName}`,
           label: data.label,
+          trayectoName: data.trayectoName,
+          compoundKey,
           hasRestriction,
           count,
           color,
@@ -87,10 +95,16 @@ const SubjectRestrictionModal: React.FC<{
       const cleanUserPNF = userPNF?.replace(/"/g, "");
       setSelectedPnf(cleanUserPNF || "");
       setSelectedSubject("");
+      setSelectedTrayectoName("");
       setIsModalOpen(true);
     };
 
-    const selectedSubjectKey = selectedSubject ? normalizeText(selectedSubject) : "";
+    const selectedSubjectKey = useMemo(() => {
+      if (!selectedSubject) return "";
+      const subjectNorm = normalizeText(selectedSubject);
+      const trayectoNorm = normalizeText(selectedTrayectoName);
+      return `${subjectNorm}_t_${trayectoNorm}`;
+    }, [selectedSubject, selectedTrayectoName]);
 
     const syncRestrictionsWithSelection = () => {
       if (!selectedSubjectKey) {
@@ -135,7 +149,7 @@ const SubjectRestrictionModal: React.FC<{
       }
       setIsSaving(true);
       try {
-        await putSubjectRestriction(selectedSubject, restrictedClassrooms, selectedPnf || undefined, isExclusive, splitHours);
+        await putSubjectRestriction(selectedSubject, restrictedClassrooms, selectedPnf || undefined, isExclusive, splitHours, selectedTrayectoName);
         message.success("Restricciones guardadas correctamente");
         if (shouldClose) {
           setIsModalOpen(false);
@@ -221,6 +235,7 @@ const SubjectRestrictionModal: React.FC<{
                 onChange={(value) => {
                   setSelectedPnf(value ?? "");
                   setSelectedSubject(""); // Reset subject when PNF changes
+                  setSelectedTrayectoName("");
                 }}
                 options={pnfOptions}
                 filterOption={(input, option) =>
@@ -234,13 +249,24 @@ const SubjectRestrictionModal: React.FC<{
               <Select
                 allowClear
                 showSearch
-                value={selectedSubject || undefined}
+                value={selectedSubject ? `${selectedSubject}|||${selectedTrayectoName}` : undefined}
                 style={{ width: "100%" }}
-                onChange={(value) => setSelectedSubject(value ?? "")}
+                onChange={(value) => {
+                  if (!value) {
+                    setSelectedSubject("");
+                    setSelectedTrayectoName("");
+                    return;
+                  }
+                  const [subjectName, trayectoName] = value.split("|||");
+                  setSelectedSubject(subjectName || "");
+                  setSelectedTrayectoName(trayectoName || "");
+                }}
                 options={subjectOptions}
-                filterOption={(input, option) =>
-                  !!option?.label?.toString()?.toLowerCase()?.includes(input.toLowerCase())
-                }
+                filterOption={(input, option) => {
+                  const labelMatch = !!option?.label?.toString()?.toLowerCase()?.includes(input.toLowerCase());
+                  const trayectoMatch = !!(option as any)?.trayectoName?.toString()?.toLowerCase()?.includes(input.toLowerCase());
+                  return labelMatch || trayectoMatch;
+                }}
                 optionRender={(option) => (
                   <div style={{ display: "flex", alignItems: "stretch", gap: "8px", padding: "4px 0" }}>
                     <div
@@ -252,6 +278,11 @@ const SubjectRestrictionModal: React.FC<{
                     />
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       <span style={{ fontWeight: 500 }}>{option.data.label}</span>
+                      {option.data.trayectoName && (
+                        <span style={{ fontSize: "11px", color: "#9ca3af", lineHeight: 1.2 }}>
+                          {option.data.trayectoName}
+                        </span>
+                      )}
                       <span style={{ fontSize: "12px", color: option.data.hasRestriction ? "rgb(55, 174, 221)" : "#6b7280" }}>
                         {option.data.hasRestriction ? (
                           <>

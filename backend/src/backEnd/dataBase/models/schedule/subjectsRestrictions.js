@@ -1,7 +1,7 @@
 import sequelize from "#dataBaseConnection";
 import { DataTypes, Model } from "sequelize";
 
-class SubjectRestrictions extends Model {}
+class SubjectRestrictions extends Model { }
 SubjectRestrictions.init(
   {
     id: {
@@ -18,7 +18,7 @@ SubjectRestrictions.init(
       },
     },
     subject_key: {
-      type: DataTypes.STRING(36),
+      type: DataTypes.STRING(255),
       allowNull: false,
     },
     subject_name: {

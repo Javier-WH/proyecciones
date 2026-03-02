@@ -171,7 +171,7 @@ const SchoolSchedule: React.FC = () => {
     localStorage.setItem("schedule_trayectoId", trayectoId);
     localStorage.setItem("schedule_trimestre", trimestre);
     localStorage.setItem("schedule_viewMode", viewMode);
-    
+
     if (selectedClassroomId) localStorage.setItem("schedule_selectedClassroomId", selectedClassroomId);
     else localStorage.removeItem("schedule_selectedClassroomId");
 
@@ -377,9 +377,9 @@ const SchoolSchedule: React.FC = () => {
       const formatted: SubjectRestriction[] = rawRestrictions
         .map((item: RawSubjectRestriction) => {
           const subjectName = item?.subject_name ?? item?.subjectName ?? "";
-          // Always normalize the key from the name if possible for consistency, 
-          // or use the stored key as fallback.
-          const subjectKey = (subjectName ? normalizeText(subjectName) : (item?.subject_key ?? item?.subjectKey));
+          // Use the stored key directly — it now contains the compound key with trayecto info
+          // (format: "subjectname_t_trayectoname")
+          const subjectKey = item?.subject_key ?? item?.subjectKey ?? (subjectName ? normalizeText(subjectName) : "");
 
           const classroomIds = item?.classroom_ids ?? item?.classroomIds ?? [];
           const pnfId = item?.pnf_id ?? item?.pnfId;
@@ -599,7 +599,8 @@ const SchoolSchedule: React.FC = () => {
     const profRestriction = teacherRestrictions.find(r => String(r.teacherId) === String(professorId));
     const profDays = profRestriction?.days ? defaultDays.filter(d => !new Set(profRestriction.days).has(d)) : defaultDays;
 
-    const subPref = subjectRestriction.find(r => r.subjectName === subject.subject || r.subjectKey === subject.subject);
+    const subPrefKey = `${normalizeText(subject.subject)}_t_${normalizeText(subject.trayectoName || "")}`;
+    const subPref = subjectRestriction.find(r => r.subjectKey === subPrefKey);
     const prefClassrooms = (subPref?.classroomIds?.length || 0) > 0 ? activeClassrooms.filter(c => subPref!.classroomIds!.includes(c.id)) : activeClassrooms;
 
     // --- Core Search Function ---
@@ -850,7 +851,7 @@ const SchoolSchedule: React.FC = () => {
     applyClassroomChangeAndRecalculate();
   };
 
-  const putSubjectRestriction = async (subjectName: string, classroomIds: string[], pnfId?: string, isExclusive: boolean = false, splitHours: boolean = false) => {
+  const putSubjectRestriction = async (subjectName: string, classroomIds: string[], pnfId?: string, isExclusive: boolean = false, splitHours: boolean = false, trayectoName: string = "") => {
     if (!subjectRestrictionsReady) {
       throw new Error("Las restricciones aún se están cargando. Intente nuevamente en unos segundos");
     }
@@ -864,18 +865,22 @@ const SchoolSchedule: React.FC = () => {
       throw new Error("El nombre de la materia no es válido");
     }
 
+    // Build compound key: subjectName_t_trayectoName
+    const trayectoNorm = normalizeText(trayectoName);
+    const compoundKey = `${normalizedName}_t_${trayectoNorm}`;
+
     const previousRestrictions = subjectRestriction;
     let updatedRestrictions: SubjectRestriction[] = JSON.parse(JSON.stringify(subjectRestriction));
 
     if (classroomIds.length === 0) {
       updatedRestrictions = updatedRestrictions.filter(
-        (rest: SubjectRestriction) => !(rest.subjectKey === normalizedName && rest.pnfId === pnfId)
+        (rest: SubjectRestriction) => !(rest.subjectKey === compoundKey && rest.pnfId === pnfId)
       );
     } else {
       const existing = updatedRestrictions.find(
-        (rest) => rest.subjectKey === normalizedName && rest.pnfId === pnfId
+        (rest) => rest.subjectKey === compoundKey && rest.pnfId === pnfId
       ) || updatedRestrictions.find(
-        (rest) => rest.subjectKey === normalizedName && !rest.pnfId
+        (rest) => rest.subjectKey === compoundKey && !rest.pnfId
       );
       if (existing) {
         existing.classroomIds = classroomIds;
@@ -883,7 +888,7 @@ const SchoolSchedule: React.FC = () => {
         existing.isExclusive = isExclusive;
         existing.splitHours = splitHours;
       } else {
-        updatedRestrictions.push({ subjectKey: normalizedName, subjectName, classroomIds, pnfId, isExclusive, splitHours });
+        updatedRestrictions.push({ subjectKey: compoundKey, subjectName, classroomIds, pnfId, isExclusive, splitHours });
       }
     }
 
@@ -1151,7 +1156,8 @@ const SchoolSchedule: React.FC = () => {
         const profRestriction = teacherRestrictions.find(r => String(r.teacherId) === String(professorId));
         const profDays = profRestriction?.days ? defaultDays.filter(d => !new Set(profRestriction.days).has(d)) : defaultDays;
 
-        const subPref = subjectRestriction.find(r => r.subjectName === subject.subject || r.subjectKey === subject.subject);
+        const autoSubPrefKey = `${normalizeText(subject.subject)}_t_${normalizeText(subject.trayectoName || "")}`;
+        const subPref = subjectRestriction.find(r => r.subjectKey === autoSubPrefKey);
         const prefClassrooms = (subPref?.classroomIds?.length || 0) > 0 ? activeClassrooms.filter(c => subPref!.classroomIds!.includes(c.id)) : activeClassrooms;
 
         const executeSearch = (days: number[], targetClassrooms: Classroom[], forceConsecutive: boolean) => {
@@ -1501,7 +1507,7 @@ const SchoolSchedule: React.FC = () => {
 
     return { tableSlots: slots, tableGrid: mainGrid, professorGrids: pGrids };
   }, [viewMode, activeTurnos, turn, events, teachers]);
-  
+
   // Effect to automatically scroll to professor if stored in state/localStorage
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
@@ -1650,17 +1656,17 @@ const SchoolSchedule: React.FC = () => {
       setClassroomOverrides(prev => {
         // Remover cualquier versión previa en la posición de origen (source) o destino (target)
         const filtered = prev.filter(o => {
-          const isFromSource = o.subject_name === title && 
-                               o.day === sourceDay && 
-                               movingEvents.some(m => m.startTime === o.start_time);
-          
+          const isFromSource = o.subject_name === title &&
+            o.day === sourceDay &&
+            movingEvents.some(m => m.startTime === o.start_time);
+
           const isAtTarget = o.subject_name === title &&
-                             o.day === targetDay && 
-                             targetOverrides.some(t => t.start_time === o.start_time);
-          
+            o.day === targetDay &&
+            targetOverrides.some(t => t.start_time === o.start_time);
+
           return !isFromSource && !isAtTarget;
         });
-        
+
         return [...filtered, ...targetOverrides];
       });
       setHasUnsavedOverrides(true);
@@ -1926,7 +1932,7 @@ const SchoolSchedule: React.FC = () => {
                     options={(() => {
                       // Usar professorGrids como fuente principal (ya filtrado por materias)
                       let baseOptions = professorGrids?.map(pg => ({ value: pg.profId, label: pg.profName })) || [];
-                      
+
                       // Si no hay grids (cargando o filtrado), pero hay profesores que coinciden con el profPnf,
                       // los mostramos como fallback para que el select no se vea con puros UUIDs
                       if (baseOptions.length === 0 && teachers) {
@@ -2122,11 +2128,11 @@ const SchoolSchedule: React.FC = () => {
                 const renderScheduleGrid = (gridToRender: any[][], title?: string, id?: string) => (
                   <div key={title || "main-grid"} id={id} style={{ marginBottom: title ? "50px" : "0" }}>
                     {title && (
-                      <h3 style={{ 
-                        margin: "0 0 16px 0", 
-                        padding: "8px 16px", 
-                        backgroundColor: "#f0f5ff", 
-                        color: "#0050b3", 
+                      <h3 style={{
+                        margin: "0 0 16px 0",
+                        padding: "8px 16px",
+                        backgroundColor: "#f0f5ff",
+                        color: "#0050b3",
                         borderLeft: "5px solid #1890ff",
                         borderRadius: "4px"
                       }}>
@@ -2321,11 +2327,11 @@ const SchoolSchedule: React.FC = () => {
                 );
 
                 if (viewMode === "professor") {
-                  return professorGrids && professorGrids.length > 0 
+                  return professorGrids && professorGrids.length > 0
                     ? professorGrids.map((pg) => renderScheduleGrid(pg.grid, pg.profName, `prof-grid-${pg.profId}`))
                     : <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Ningún profesor tiene materias asignadas este trimestre.</div>;
                 }
-                
+
                 return renderScheduleGrid(tableGrid);
               })()
             ) : (
@@ -2446,7 +2452,7 @@ const SchoolSchedule: React.FC = () => {
                       const isOtherEvent =
                         evt.title !== classroomChangeEvent.title ||
                         evt.extendedProps?.classroomId !== classroomChangeEvent.currentClassroomId;
-                      
+
                       return sameDay && usesTargetClassroom && overlapsTime && isOtherEvent;
                     });
                   }

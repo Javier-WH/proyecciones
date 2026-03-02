@@ -836,7 +836,10 @@ export function generateScheduleEvents({
     .flatMap((sub): SubjectTask[] => {
       const professorId = sub.quarter[trimestre];
       const turnoName = sub.turnoName?.toLowerCase() || "";
-      const subjectKey = normalizeText(sub.subject);
+      const subjectNorm = normalizeText(sub.subject);
+      const trayectoNorm = normalizeText(sub.trayectoName || "");
+      // Compound key: includes trayecto for per-trayecto classroom restrictions
+      const subjectKey = `${subjectNorm}_t_${trayectoNorm}`;
       const originalTotalHours = sub.hours[trimestre]!;
 
       if (originalTotalHours <= 0 || !professorId) return [];
@@ -1002,7 +1005,7 @@ export function generateScheduleEvents({
         const endIndex = timeSlots.findIndex(t => t[1] === ov.end_time);
         if (startIndex === -1 || endIndex === -1) continue;
         const length = endIndex - startIndex + 1;
-        
+
         remainingHours -= length;
 
         results.push({
