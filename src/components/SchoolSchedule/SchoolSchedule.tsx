@@ -21,7 +21,7 @@ import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
 import TeachersRestrictionsListModal from "./TeachersRestrictionsListModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
-import { FaRegSave, FaRegFolderOpen, FaPlus, FaPrint, FaCog } from "react-icons/fa";
+import { FaRegSave, FaRegFolderOpen, FaPlus, FaCog, FaFilePdf, FaPrint } from "react-icons/fa";
 import { TbPinFilled } from "react-icons/tb";
 import { BsPinAngleFill } from "react-icons/bs";
 import { FaBuildingLock } from "react-icons/fa6";
@@ -165,11 +165,19 @@ const SchoolSchedule: React.FC = () => {
   const [isScrollingToClassroom, setIsScrollingToClassroom] = useState<boolean>(() => localStorage.getItem("schedule_viewMode") === "classroom" && !!localStorage.getItem("schedule_selectedClassroomId"));
   const hasScrolledRef = useRef<boolean>(false);
   const [printEntityId, setPrintEntityId] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const triggerPrint = (id: string) => {
     setPrintEntityId(id);
     setTimeout(() => {
       handlePrint();
+    }, 100);
+  };
+
+  const triggerDownload = (id: string) => {
+    setPrintEntityId(id);
+    setTimeout(() => {
+      handleDownloadPdf();
     }, 100);
   };
 
@@ -308,6 +316,67 @@ const SchoolSchedule: React.FC = () => {
     onAfterPrint: () => setPrintEntityId(null),
     onPrintError: () => setPrintEntityId(null),
   });
+
+  const handleDownloadPdf = async () => {
+    if (!printableRef.current) return;
+    const element = printableRef.current;
+
+    setIsGeneratingPdf(true);
+    message.loading({ content: 'Generando PDF (esto puede tomar un minuto)...', key: 'pdfGen', duration: 0 });
+
+    try {
+      // @ts-ignore
+      const html2canvas = (await import('html2canvas')).default;
+      // @ts-ignore
+      const { jsPDF } = await import('jspdf');
+
+      const opt = {
+        margin: 3, // mm
+        width: 279, // letter landscape width mm
+        height: 216 // letter landscape height mm
+      };
+
+      const pages = Array.from(element.getElementsByClassName('printable-page')) as HTMLElement[];
+      if (pages.length === 0) {
+        throw new Error("No hay páginas para generar.");
+      }
+
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'letter'
+      });
+
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+
+        // Wait a small moment to let the browser breathe between heavy canvas operations
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const canvas = await html2canvas(page, { scale: 2, useCORS: true, logging: false });
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        // Adjust dimensions maintaining aspect ratio to fit the page considering margins
+        const pdfWidth = opt.width - (opt.margin * 2);
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        pdf.addImage(imgData, 'JPEG', opt.margin, opt.margin, pdfWidth, Math.min(pdfHeight, opt.height - (opt.margin * 2)));
+      }
+
+      pdf.save(`${getHeaderInfo().replace(/ /g, '_')}.pdf`);
+      message.success({ content: 'PDF descargado exitosamente!', key: 'pdfGen', duration: 2 });
+    } catch (e) {
+      console.error(e);
+      message.error({ content: 'Error al generar el PDF', key: 'pdfGen', duration: 3 });
+    } finally {
+      setIsGeneratingPdf(false);
+      setPrintEntityId(null);
+    }
+  };
 
   const loadClassrooms = useCallback(async (): Promise<void> => {
     const classroomsData = await getClassrooms();
@@ -1114,6 +1183,7 @@ const SchoolSchedule: React.FC = () => {
   // las aulas, o el generationCounter (forzado al aplicar restricciones).
   // IMPORTANT: subjects and teachers are accessed via refs and compared via
   // content-based keys to avoid unnecessary regeneration from WebSocket updates.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const currentSubjects = schedulableSubjectsRef.current;
     if (
@@ -1711,31 +1781,31 @@ const SchoolSchedule: React.FC = () => {
       }
     }
 
+    const sourceSlots = tableSlots.slice(sourceStartIdx, sourceStartIdx + rowSpan);
+    const sourceSlotStarts = sourceSlots.map(s => s[0]);
+
     const pinDraggedEventsAndRecalculate = () => {
-      const targetOverrides: ClassroomOverride[] = movingEvents.map((evt, idx) => {
-        const newSlot = targetSlots[idx];
-        return {
-          subject_name: title,
-          day: targetDay,
-          start_time: newSlot[0],
-          end_time: newSlot[1],
-          classroom_id: classroomId,
-          seccion: evt.extendedProps?.seccion || null,
-          pnf_id: evt.extendedProps?.pnfId || null,
-          trayecto_id: evt.extendedProps?.trayectoId || null,
-        };
-      });
+      const targetOverrides: ClassroomOverride[] = [{
+        subject_name: title,
+        day: targetDay,
+        start_time: targetSlots[0][0],
+        end_time: targetSlots[targetSlots.length - 1][1],
+        classroom_id: classroomId,
+        seccion: firstMovingEvent.extendedProps?.seccion || null,
+        pnf_id: firstMovingEvent.extendedProps?.pnfId || null,
+        trayecto_id: firstMovingEvent.extendedProps?.trayectoId || null,
+      }];
 
       setClassroomOverrides(prev => {
         // Remover cualquier versión previa en la posición de origen (source) o destino (target)
         const filtered = prev.filter(o => {
           const isFromSource = o.subject_name === title &&
             o.day === sourceDay &&
-            movingEvents.some(m => m.startTime === o.start_time);
+            sourceSlotStarts.includes(o.start_time);
 
           const isAtTarget = o.subject_name === title &&
             o.day === targetDay &&
-            targetOverrides.some(t => t.start_time === o.start_time);
+            targetSlotStarts.includes(o.start_time);
 
           return !isFromSource && !isAtTarget;
         });
@@ -2109,9 +2179,19 @@ const SchoolSchedule: React.FC = () => {
               <FaPlus title="Nuevo Horario" className={styles.icon} onClick={newSchedule} />
               <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
               <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
-              {viewMode === "pnf" && (
-                <FaPrint title="Imprimir Horario" className={styles.icon} onClick={() => { setPrintEntityId(null); setTimeout(() => handlePrint(), 100); }} />
-              )}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <FaPrint
+                  title={viewMode === "pnf" ? "Imprimir Horario" : "Imprimir Todos los Horarios"}
+                  className={styles.icon}
+                  onClick={() => { setPrintEntityId(null); setTimeout(() => handlePrint(), 100); }}
+                />
+                <FaFilePdf
+                  title={viewMode === "pnf" ? "Descargar PDF del Horario" : "Descargar PDF de Todos los Horarios"}
+                  className={styles.icon}
+                  style={{ color: "#d32f2f" }}
+                  onClick={() => { setPrintEntityId(null); setTimeout(() => handleDownloadPdf(), 100); }}
+                />
+              </div>
               <Tooltip title={hasUnsavedOverrides ? "Guardar cambios de aula (sin guardar)" : "Guardar cambios de aula"}>
                 <span style={{ position: "relative", display: "inline-flex" }}>
                   <BsPinAngleFill
@@ -2243,24 +2323,44 @@ const SchoolSchedule: React.FC = () => {
                       }}>
                         <span>{title}</span>
                         {entityId && (
-                          <Tooltip title={`Imprimir horario de ${title}`}>
-                            <div
-                              onClick={() => triggerPrint(entityId)}
-                              style={{
-                                cursor: "pointer",
-                                color: "#666",
-                                display: "flex",
-                                alignItems: "center",
-                                padding: "4px",
-                                borderRadius: "4px",
-                                transition: "background-color 0.2s"
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
-                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                            >
-                              <FaPrint size={18} />
-                            </div>
-                          </Tooltip>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <Tooltip title={`Imprimir horario de ${title}`}>
+                              <div
+                                onClick={() => triggerPrint(entityId)}
+                                style={{
+                                  cursor: "pointer",
+                                  color: "#666",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  padding: "4px",
+                                  borderRadius: "4px",
+                                  transition: "background-color 0.2s"
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                              >
+                                <FaPrint size={18} />
+                              </div>
+                            </Tooltip>
+                            <Tooltip title={`Descargar PDF de ${title}`}>
+                              <div
+                                onClick={() => triggerDownload(entityId)}
+                                style={{
+                                  cursor: "pointer",
+                                  color: "#d32f2f",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  padding: "4px",
+                                  borderRadius: "4px",
+                                  transition: "background-color 0.2s"
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(211,47,47,0.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                              >
+                                {isGeneratingPdf && printEntityId === entityId ? <Spin size="small" /> : <FaFilePdf size={18} />}
+                              </div>
+                            </Tooltip>
+                          </div>
                         )}
                       </h3>
                     )}
@@ -2474,7 +2574,7 @@ const SchoolSchedule: React.FC = () => {
 
           {/* Hidden Printable Schedule */}
           <div
-            style={{ display: "block", position: "absolute", left: "-10000px", width: "0px", height: "0px" }}>
+            style={{ display: "block", position: "absolute", left: "-10000px", top: 0, width: "auto", height: "auto", overflow: "visible", zIndex: -1000 }}>
             <div ref={printableRef}>
               <PrintableSchedule
                 events={printEntityId
