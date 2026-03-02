@@ -1238,11 +1238,33 @@ const SchoolSchedule: React.FC = () => {
 
             for (let i = idx; i < usable.length; i++) {
               const r = usable[i];
-              let take = Math.min(r.slots.length, hoursNeeded - count);
+
+              // Calculate already placed hours for this subject on this day (from previous passes)
+              let existingHoursOnDay = 0;
+              for (const [start] of timeSlots) {
+                if (occupancy.get(`${r.day}-${start}`)?.sectionKeys.has(sectionKey)) {
+                  existingHoursOnDay++;
+                }
+              }
+
+              // Calcular cuántas horas ya asignamos este día en la solución actual
+              const currentHoursOnDay = current.filter(e => e.daysOfWeek.includes(r.day)).length;
+
+              // El límite por día es normalmente conserveSlots, pero se permite más si el profesor tiene muy pocos días
+              const maxAllowedToday = Math.max(
+                scheduleConfig?.conserve_slots || consecutiveConfig.maxSlots,
+                Math.ceil(hoursNeeded / Math.max(1, profDays.length))
+              );
+
+              const limit = maxAllowedToday - (currentHoursOnDay + existingHoursOnDay);
+              if (limit <= 0) continue; // Ya se alcanzó el límite para este día
+
+              let take = Math.min(r.slots.length, hoursNeeded - count, limit);
+
               if (forceConsecutive) {
                 if (take === 1) { if (r.slots.length >= 2) take = 2; else continue; }
                 if ((hoursNeeded - count) - take === 1) {
-                  if (r.slots.length > take) take += 1;
+                  if (r.slots.length > take && limit > take) take += 1; // Needs limit > take to bump it up
                   else if (take - 1 >= 2) take -= 1;
                   else continue;
                 }

@@ -445,8 +445,17 @@ function tryPlaceDecomposition(
     // Ya no saltamos el día si ya hay horas de esta materia, dejando que maxBlocks 
     // y el orden de días (que prioriza días vacíos) controlen la distribución.
 
-    // Verificar el límite máximo por día
-    if (blockLen > task.effectiveConserveSlots) continue;
+    // Calcular cuántas horas de esta materia ya se asignaron este día
+    const currentHours = occupancy.getSubjectDayHours(task.subject.innerId, day);
+
+    // El límite por día es normalmente effectiveConserveSlots, pero se permite más si el profesor tiene muy pocos días
+    const maxAllowedOnDay = Math.max(
+      task.effectiveConserveSlots,
+      task.availableDays.length > 0 ? Math.ceil(task.totalHours / task.availableDays.length) : 10
+    );
+
+    // Verificar el límite máximo por día combinado (lo que ya hay + lo nuevo)
+    if (currentHours + blockLen > maxAllowedOnDay) continue;
 
     const slotOptions = findSlotPlacements(day, blockLen, task, occupancy);
 
