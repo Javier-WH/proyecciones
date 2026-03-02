@@ -203,6 +203,7 @@ interface SubjectTask {
   preventSingleHourBlocks: boolean;
   hasTeacherRestrictions: boolean;
   hasClassroomRestrictions: boolean;
+  isClassroomExclusive: boolean;
   breaks?: { start: string; end: string }[];
 }
 
@@ -1048,6 +1049,7 @@ export function generateScheduleEvents({
           preventSingleHourBlocks: false,
           hasTeacherRestrictions: true,
           hasClassroomRestrictions: true,
+          isClassroomExclusive: true,
         });
       }
 
@@ -1090,6 +1092,7 @@ export function generateScheduleEvents({
             preventSingleHourBlocks,
             hasTeacherRestrictions,
             hasClassroomRestrictions: true,
+            isClassroomExclusive: true,
             breaks,
           });
         }
@@ -1111,6 +1114,7 @@ export function generateScheduleEvents({
             preventSingleHourBlocks: preventSingleHourBlocks && otherHours >= 2,
             hasTeacherRestrictions,
             hasClassroomRestrictions: false,
+            isClassroomExclusive: false,
             breaks,
           });
         }
@@ -1136,6 +1140,7 @@ export function generateScheduleEvents({
         preventSingleHourBlocks: preventSingleHourBlocks && remainingHours >= 2,
         hasTeacherRestrictions,
         hasClassroomRestrictions,
+        isClassroomExclusive: !!(preferConfig?.classroomIds?.length && preferConfig.isExclusive),
         breaks,
       });
 
@@ -1147,6 +1152,11 @@ export function generateScheduleEvents({
   // ordenadas de más restringido a menos restringido.
   // Dentro del mismo nivel de restricción, se agrupan por profesor.
   tasks.sort((a, b) => {
+    // Nivel 0: Exclusividad estricta de aula MANDA (siempre priorizar materias que NECESITAN un aula específica)
+    if (a.isClassroomExclusive !== b.isClassroomExclusive) {
+      return a.isClassroomExclusive ? -1 : 1;
+    }
+
     // Nivel 1: Materias con CUALQUIER restricción antes que sin restricciones
     const aHasRestrictions = a.hasTeacherRestrictions || a.hasClassroomRestrictions;
     const bHasRestrictions = b.hasTeacherRestrictions || b.hasClassroomRestrictions;
