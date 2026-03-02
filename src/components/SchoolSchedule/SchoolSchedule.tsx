@@ -2185,12 +2185,12 @@ const SchoolSchedule: React.FC = () => {
                   className={styles.icon}
                   onClick={() => { setPrintEntityId(null); setTimeout(() => handlePrint(), 100); }}
                 />
-                <FaFilePdf
+                {/* <FaFilePdf
                   title={viewMode === "pnf" ? "Descargar PDF del Horario" : "Descargar PDF de Todos los Horarios"}
                   className={styles.icon}
                   style={{ color: "#d32f2f" }}
                   onClick={() => { setPrintEntityId(null); setTimeout(() => handleDownloadPdf(), 100); }}
-                />
+                /> */}
               </div>
               <Tooltip title={hasUnsavedOverrides ? "Guardar cambios de aula (sin guardar)" : "Guardar cambios de aula"}>
                 <span style={{ position: "relative", display: "inline-flex" }}>
@@ -2342,7 +2342,7 @@ const SchoolSchedule: React.FC = () => {
                                 <FaPrint size={18} />
                               </div>
                             </Tooltip>
-                            <Tooltip title={`Descargar PDF de ${title}`}>
+                            {/* <Tooltip title={`Descargar PDF de ${title}`}>
                               <div
                                 onClick={() => triggerDownload(entityId)}
                                 style={{
@@ -2359,7 +2359,7 @@ const SchoolSchedule: React.FC = () => {
                               >
                                 {isGeneratingPdf && printEntityId === entityId ? <Spin size="small" /> : <FaFilePdf size={18} />}
                               </div>
-                            </Tooltip>
+                            </Tooltip> */}
                           </div>
                         )}
                       </h3>
