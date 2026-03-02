@@ -13,6 +13,7 @@ import addClassroomExclusiveColumn from "../alters/addClassroomExclusiveColumn.j
 import addSplitHoursToSubjectRestrictions from "../alters/addSplitHoursToSubjectRestrictions.js";
 import migrateSubjectRestrictionKeys from "../alters/migrateSubjectRestrictionKeys.js";
 import addEmailColumnToTeacherTable from "../alters/addEmailColumnToTeacherTable.js";
+import addBreaksToScheduleConfig from "../alters/addBreaksToScheduleConfig.js";
 
 export const createTables = async () => {
   console.log("--- Verificando base de datos y esquemas ---");
@@ -38,6 +39,7 @@ export const createTables = async () => {
   await addAutoSolveToScheduleConfig();
   await migrateSubjectRestrictionKeys();
   await addEmailColumnToTeacherTable();
+  await addBreaksToScheduleConfig();
 
   console.log("--- Verificación de base de datos completada ---");
 };

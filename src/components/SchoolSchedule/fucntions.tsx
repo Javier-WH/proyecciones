@@ -63,6 +63,7 @@ export interface generateScheduleParams {
   distributeEquitably?: boolean;
   teachers?: any[];
   preventSingleHourBlocks?: boolean;
+  breaks?: { start: string; end: string }[];
 }
 
 // =====================================================
@@ -202,6 +203,7 @@ interface SubjectTask {
   preventSingleHourBlocks: boolean;
   hasTeacherRestrictions: boolean;
   hasClassroomRestrictions: boolean;
+  breaks?: { start: string; end: string }[];
 }
 
 interface BlockPlacement {
@@ -324,6 +326,7 @@ function findSlotPlacements(
     professorId,
     subject,
     candidateClassrooms,
+    breaks,
   } = task;
   const placements: Omit<BlockPlacement, "day">[] = [];
 
@@ -343,6 +346,17 @@ function findSlotPlacements(
         runValid = false;
         break;
       }
+
+      // Crosses a break restriction?
+      if (offset > 0 && breaks && breaks.length > 0) {
+        const prevEnd = timeSlots[startIdx + offset - 1][1];
+        const currentStart = slotStart;
+        if (breaks.some((b) => prevEnd <= b.start && currentStart >= b.end)) {
+          runValid = false;
+          break;
+        }
+      }
+
       // Professor busy?
       if (occupancy.hasProfConflict(day, slotStart, professorId)) {
         runValid = false;
@@ -801,6 +815,7 @@ export function generateScheduleEvents({
   distributeEquitably = false,
   teachers = [],
   preventSingleHourBlocks = false,
+  breaks = [],
 }: generateScheduleParams): Event[] {
   // Reset global backtrack counter
   backtrackCounter = 0;
@@ -1066,6 +1081,7 @@ export function generateScheduleEvents({
             preventSingleHourBlocks,
             hasTeacherRestrictions,
             hasClassroomRestrictions: true,
+            breaks,
           });
         }
 
@@ -1086,6 +1102,7 @@ export function generateScheduleEvents({
             preventSingleHourBlocks: preventSingleHourBlocks && otherHours >= 2,
             hasTeacherRestrictions,
             hasClassroomRestrictions: false,
+            breaks,
           });
         }
 
@@ -1110,6 +1127,7 @@ export function generateScheduleEvents({
         preventSingleHourBlocks: preventSingleHourBlocks && remainingHours >= 2,
         hasTeacherRestrictions,
         hasClassroomRestrictions,
+        breaks,
       });
 
       return results;

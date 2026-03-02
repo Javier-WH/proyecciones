@@ -16,7 +16,7 @@ export const getScheduleConfig = async (req, res) => {
 export const updateScheduleConfig = async (req, res) => {
     try {
         const { id } = req.params
-        const { days, turnos, conserve_slots, min_consecutive_slots, distribute_equitably, prevent_single_hour_blocks, auto_solve, header_text, logo_url } = req.body
+        const { days, turnos, conserve_slots, min_consecutive_slots, distribute_equitably, prevent_single_hour_blocks, auto_solve, header_text, logo_url, breaks } = req.body
 
         const config = await ScheduleConfig.findByPk(id)
         if (!config) {
@@ -32,6 +32,7 @@ export const updateScheduleConfig = async (req, res) => {
         config.auto_solve = auto_solve
         config.header_text = header_text
         config.logo_url = logo_url
+        config.breaks = breaks
         await config.save()
 
         return res.status(200).json(config)
@@ -43,7 +44,7 @@ export const updateScheduleConfig = async (req, res) => {
 
 export const createScheduleConfig = async (req, res) => {
     try {
-        const { days, turnos, conserve_slots, min_consecutive_slots, distribute_equitably, prevent_single_hour_blocks, auto_solve, header_text, logo_url } = req.body
+        const { days, turnos, conserve_slots, min_consecutive_slots, distribute_equitably, prevent_single_hour_blocks, auto_solve, header_text, logo_url, breaks } = req.body
 
         // Deactivate previous configs
         await ScheduleConfig.update({ active: false }, { where: { active: true } })
@@ -58,6 +59,7 @@ export const createScheduleConfig = async (req, res) => {
             auto_solve,
             header_text,
             logo_url,
+            breaks,
             active: true
         })
 

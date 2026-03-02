@@ -54,6 +54,11 @@ ScheduleConfig.init(
             type: DataTypes.BOOLEAN,
             defaultValue: false,
             allowNull: false
+        },
+        breaks: {
+            type: DataTypes.JSON,
+            allowNull: true,
+            defaultValue: []
         }
     },
     {

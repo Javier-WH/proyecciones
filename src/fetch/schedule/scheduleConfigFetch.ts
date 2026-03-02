@@ -10,6 +10,7 @@ export interface ScheduleConfig {
     header_text?: string[];
     logo_url?: string;
     auto_solve?: boolean;
+    breaks?: { start: string; end: string }[];
 }
 
 const API_BASE_URL = import.meta.env.MODE === 'development'
@@ -28,6 +29,7 @@ export const getScheduleConfig = async (): Promise<ScheduleConfig | null> => {
             if (typeof data.turnos === 'string') data.turnos = JSON.parse(data.turnos);
             if (typeof data.days === 'string') data.days = JSON.parse(data.days);
             if (typeof data.header_text === 'string') data.header_text = JSON.parse(data.header_text);
+            if (typeof data.breaks === 'string') data.breaks = JSON.parse(data.breaks);
         }
         return data;
     } catch (error) {
@@ -59,6 +61,7 @@ export const updateScheduleConfig = async (
             if (typeof result.turnos === 'string') result.turnos = JSON.parse(result.turnos);
             if (typeof result.days === 'string') result.days = JSON.parse(result.days);
             if (typeof result.header_text === 'string') result.header_text = JSON.parse(result.header_text);
+            if (typeof result.breaks === 'string') result.breaks = JSON.parse(result.breaks);
         }
         return result;
     } catch (error) {

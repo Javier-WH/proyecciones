@@ -1140,6 +1140,7 @@ const SchoolSchedule: React.FC = () => {
       customTurnos: activeTurnos,
       distributeEquitably: scheduleConfig?.distribute_equitably,
       preventSingleHourBlocks: scheduleConfig?.prevent_single_hour_blocks,
+      breaks: scheduleConfig?.breaks,
       teachers: teachersRef.current || [],
     });
 
@@ -1203,7 +1204,11 @@ const SchoolSchedule: React.FC = () => {
                   occ?.sectionKeys.has(sectionKey) ||
                   occ?.classroomIds.has(String(cr.id));
                 const isAvailable = !conflict;
-                const isConsecutive = isAvailable && (lastEnd === null || lastEnd === start);
+                let crossesBreak = false;
+                if (lastEnd !== null && scheduleConfig?.breaks && scheduleConfig.breaks.length > 0) {
+                  crossesBreak = scheduleConfig.breaks.some((b: any) => lastEnd! <= b.start && start >= b.end);
+                }
+                const isConsecutive = isAvailable && (lastEnd === null || !crossesBreak);
                 if (isConsecutive) {
                   if (!currentRun) currentRun = { day, startSlotIdx: idx, slots: [] };
                   currentRun.slots.push({ slotIdx: idx, classroom: cr });

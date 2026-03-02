@@ -52,6 +52,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                 logo_url: data.logo_url || "",
                 auto_solve: data.auto_solve,
             });
+            setConfig({ ...data, breaks: data.breaks || [] });
 
             if (data.logo_url) {
                 if (data.logo_url.startsWith("data:")) {
@@ -124,6 +125,68 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
 
         newTurnos[turnoKey] = blocks.filter((_, i) => i !== index);
         setConfig({ ...config, turnos: newTurnos });
+    };
+
+    const addBreak = () => {
+        if (!config) return;
+        const newBreaks = [...(config.breaks || [])];
+        newBreaks.push({ start: "11:45", end: "13:00" });
+        setConfig({ ...config, breaks: newBreaks });
+    };
+
+    const updateBreak = (index: number, field: "start" | "end", value: string) => {
+        if (!config) return;
+        const newBreaks = [...(config.breaks || [])];
+        newBreaks[index] = { ...newBreaks[index], [field]: value };
+        setConfig({ ...config, breaks: newBreaks });
+    };
+
+    const removeBreak = (index: number) => {
+        if (!config) return;
+        const newBreaks = [...(config.breaks || [])].filter((_, i) => i !== index);
+        setConfig({ ...config, breaks: newBreaks });
+    };
+
+    const renderBreaksEditor = () => {
+        const breaks = config?.breaks || [];
+
+        return (
+            <div style={{ maxHeight: "300px", overflowY: "auto", padding: "10px" }}>
+                <p style={{ fontSize: "14px", color: "#555", marginBottom: "15px" }}>
+                    Especifica las horas de descanso (ej. almuerzo). Si una clase abarca múltiples bloques, el sistema evitará colocarla cruzando estos horarios, para que no sea interrumpida.
+                </p>
+                {breaks.map((b, index) => (
+                    <div key={index} style={{ display: "flex", gap: "8px", marginBottom: "8px", alignItems: "center" }}>
+                        <TimePicker
+                            format="HH:mm"
+                            value={b.start ? dayjs(b.start, "HH:mm") : null}
+                            onChange={(_, timeString) => updateBreak(index, "start", Array.isArray(timeString) ? timeString[0] : timeString)}
+                            minuteStep={15}
+                            style={{ width: "120px" }}
+                            allowClear={false}
+                        />
+                        <span>-</span>
+                        <TimePicker
+                            format="HH:mm"
+                            value={b.end ? dayjs(b.end, "HH:mm") : null}
+                            onChange={(_, timeString) => updateBreak(index, "end", Array.isArray(timeString) ? timeString[0] : timeString)}
+                            minuteStep={15}
+                            style={{ width: "120px" }}
+                            allowClear={false}
+                        />
+                        <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => removeBreak(index)}
+                        />
+                    </div>
+                ))}
+                <Button type="dashed" onClick={addBreak} icon={<PlusOutlined />} block>
+                    Agregar Hora de Descanso
+                </Button>
+            </div>
+        );
     };
 
     const renderTurnoEditor = (turnoKey: string) => {
@@ -238,6 +301,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                     header_text: ["", "", ""],
                     logo_url: "",
                     auto_solve: false,
+                    breaks: [],
                 };
 
                 // Update form fields
@@ -377,6 +441,11 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                     <Tabs type="card" items={turnosTabs} />
                 </>
             )
+        },
+        {
+            key: "descansos",
+            label: "Descansos",
+            children: renderBreaksEditor()
         },
         {
             key: "encabezado",
