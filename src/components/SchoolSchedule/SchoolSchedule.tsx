@@ -163,6 +163,14 @@ const SchoolSchedule: React.FC = () => {
   const [isScrollingToProf, setIsScrollingToProf] = useState<boolean>(() => localStorage.getItem("schedule_viewMode") === "professor" && !!localStorage.getItem("schedule_scrollToProfessorId"));
   const [isScrollingToClassroom, setIsScrollingToClassroom] = useState<boolean>(() => localStorage.getItem("schedule_viewMode") === "classroom" && !!localStorage.getItem("schedule_selectedClassroomId"));
   const hasScrolledRef = useRef<boolean>(false);
+  const [printEntityId, setPrintEntityId] = useState<string | null>(null);
+
+  const triggerPrint = (id: string) => {
+    setPrintEntityId(id);
+    setTimeout(() => {
+      handlePrint();
+    }, 100);
+  };
 
   // Persist selections in localStorage when they change
   useEffect(() => {
@@ -274,9 +282,14 @@ const SchoolSchedule: React.FC = () => {
       trimestre === "q1" ? "Trimestre 1" : trimestre === "q2" ? "Trimestre 2" : "Trimestre 3";
 
     if (viewMode === "professor") {
+      if (printEntityId) {
+        const t = teachers?.find((t: any) => String(t.id) === String(printEntityId));
+        return `Horario del Profesor ${t ? `${t.name} ${t.lastName}` : printEntityId}, ${trimestreLabel}`;
+      }
       return `Horario para todos los profesores, ${trimestreLabel}`;
     } else if (viewMode === "classroom") {
-      const classroom = classrooms?.find((c) => c.id === selectedClassroomId);
+      const cId = printEntityId || selectedClassroomId;
+      const classroom = classrooms?.find((c) => String(c.id) === String(cId));
       const classroomName = classroom ? classroom.classroom : "Aula no seleccionada";
       return `Horario del Aula ${classroomName.replace("Aula ", "")}, ${trimestreLabel} `;
     } else {
@@ -291,6 +304,8 @@ const SchoolSchedule: React.FC = () => {
   const handlePrint = useReactToPrint({
     contentRef: printableRef,
     documentTitle: getHeaderInfo(),
+    onAfterPrint: () => setPrintEntityId(null),
+    onPrintError: () => setPrintEntityId(null),
   });
 
   const loadClassrooms = useCallback(async (): Promise<void> => {
@@ -2037,6 +2052,7 @@ const SchoolSchedule: React.FC = () => {
                       .map((classroom) => ({
                         value: classroom.id,
                         label: classroom.classroom,
+                        disabled: !classroom.active
                       }))}
                   />
                 </div>
@@ -2065,7 +2081,9 @@ const SchoolSchedule: React.FC = () => {
               <FaPlus title="Nuevo Horario" className={styles.icon} onClick={newSchedule} />
               <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
               <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
-              <FaPrint title="Imprimir Horario" className={styles.icon} onClick={handlePrint} />
+              {viewMode === "pnf" && (
+                <FaPrint title="Imprimir Horario" className={styles.icon} onClick={() => { setPrintEntityId(null); setTimeout(() => handlePrint(), 100); }} />
+              )}
               <Tooltip title={hasUnsavedOverrides ? "Guardar cambios de aula (sin guardar)" : "Guardar cambios de aula"}>
                 <span style={{ position: "relative", display: "inline-flex" }}>
                   <BsPinAngleFill
@@ -2182,7 +2200,7 @@ const SchoolSchedule: React.FC = () => {
           <div id="professor-scroll-container" className={`calendar - container view - ${viewMode} `} style={{ padding: "0", overflowY: "auto" }}>
             {tableSlots.length > 0 ? (
               (() => {
-                const renderScheduleGrid = (gridToRender: any[][], title?: string, id?: string) => (
+                const renderScheduleGrid = (gridToRender: any[][], title?: string, id?: string, entityId?: string) => (
                   <div key={title || "main-grid"} id={id} style={{ marginBottom: title ? "50px" : "0" }}>
                     {title && (
                       <h3 style={{
@@ -2191,9 +2209,22 @@ const SchoolSchedule: React.FC = () => {
                         backgroundColor: "#f0f5ff",
                         color: "#0050b3",
                         borderLeft: "5px solid #1890ff",
-                        borderRadius: "4px"
+                        borderRadius: "4px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
                       }}>
-                        {title}
+                        <span>{title}</span>
+                        {entityId && (
+                          <Tooltip title={`Imprimir horario de ${title}`}>
+                            <div
+                              onClick={() => triggerPrint(entityId)}
+                              style={{ cursor: "pointer", color: "#666", display: "flex", alignItems: "center" }}
+                            >
+                              <FaPrint size={14} />
+                            </div>
+                          </Tooltip>
+                        )}
                       </h3>
                     )}
                     <table style={{
@@ -2385,13 +2416,13 @@ const SchoolSchedule: React.FC = () => {
 
                 if (viewMode === "professor") {
                   return professorGrids && professorGrids.length > 0
-                    ? professorGrids.map((pg) => renderScheduleGrid(pg.grid, pg.profName, `prof-grid-${pg.profId}`))
+                    ? professorGrids.map((pg) => renderScheduleGrid(pg.grid, pg.profName, `prof-grid-${pg.profId}`, pg.profId))
                     : <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Ningún profesor tiene materias asignadas este trimestre.</div>;
                 }
 
                 if (viewMode === "classroom") {
                   return classroomGrids && classroomGrids.length > 0
-                    ? classroomGrids.map((cg) => renderScheduleGrid(cg.grid, cg.classroomName, `classroom-grid-${cg.classroomId}`))
+                    ? classroomGrids.map((cg) => renderScheduleGrid(cg.grid, cg.classroomName, `classroom-grid-${cg.classroomId}`, cg.classroomId))
                     : <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Ningún aula tiene materias asignadas este trimestre.</div>;
                 }
 
@@ -2409,7 +2440,12 @@ const SchoolSchedule: React.FC = () => {
             style={{ display: "block", position: "absolute", left: "-10000px", width: "0px", height: "0px" }}>
             <div ref={printableRef}>
               <PrintableSchedule
-                events={events}
+                events={printEntityId
+                  ? events.filter(e => viewMode === "professor"
+                    ? String(e.extendedProps?.professorId) === String(printEntityId)
+                    : String(e.extendedProps?.classroomId) === String(printEntityId)
+                  )
+                  : events}
                 viewMode={viewMode}
                 turn={turn}
                 headerInfo={getHeaderInfo()}
