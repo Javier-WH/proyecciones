@@ -7,7 +7,7 @@ import postTeacher from "../../../fetch/postTeacher";
 import ImageUploader from "../../photo/photoUploader";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
-import { CheckCircleOutlined, CloseCircleOutlined, UserOutlined, IdcardOutlined, BookOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, CloseCircleOutlined, UserOutlined, IdcardOutlined, BookOutlined, MailOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
 
@@ -39,6 +39,7 @@ export default function EditTeacherModal({
   const [pnf, setPnf] = useState<string>("");
   const [active, setActive] = useState<string>("1");
   const [isPlaceholder, setIsPlaceholder] = useState<boolean>(false);
+  const [email, setEmail] = useState<string>("");
 
   useEffect(() => {
     if (!pnfList) return;
@@ -62,6 +63,7 @@ export default function EditTeacherModal({
         setPerfilId(teacherData?.perfil_name_id?.split(",") || []);
         setPnf(teacherData?.PNF || "");
         setIsPlaceholder(teacherData.is_placeholder || false);
+        setEmail(teacherData?.email || "");
       } else {
         // Reset fields for adding a new teacher
         setName("");
@@ -74,6 +76,7 @@ export default function EditTeacherModal({
         setActive("1");
         setPnf("");
         setIsPlaceholder(false);
+        setEmail("");
       }
     }
   }, [teacherData, open]);
@@ -141,6 +144,7 @@ export default function EditTeacherModal({
       PNF: pnf,
       active,
       is_placeholder: isPlaceholder,
+      email,
     };
 
     const response = await postTeacher(requestData);
@@ -236,6 +240,13 @@ export default function EditTeacherModal({
                     value={genderId}
                     onChange={(value) => setGenderId(value)}
                   />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item label="Correo Electrónico">
+                  <Input prefix={<MailOutlined />} placeholder="Correo Electrónico" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </Form.Item>
               </Col>
             </Row>

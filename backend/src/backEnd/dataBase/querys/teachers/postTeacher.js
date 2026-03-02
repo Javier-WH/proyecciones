@@ -4,7 +4,7 @@ import { setTeacherList } from "../../../socket/socket.js";
 
 export default async function postTeacher(req, res) {
   /* eslint-disable camelcase */
-  const { id, name, last_name, ci, gender_id, contractTypes_id, title, perfil_name_id, PNF, active, is_placeholder } =
+  const { id, name, last_name, ci, gender_id, contractTypes_id, title, perfil_name_id, PNF, active, is_placeholder, email } =
     req.body;
 
   if (!name && !last_name && !ci && !gender_id && !contractTypes_id && !title && !perfil_name_id && !active && is_placeholder === undefined) {
@@ -22,6 +22,7 @@ export default async function postTeacher(req, res) {
   if (PNF) teacherData.PNF = PNF;
   if (active) teacherData.active = active;
   if (is_placeholder !== undefined) teacherData.is_placeholder = is_placeholder;
+  if (email !== undefined) teacherData.email = email;
 
   if (!id) {
     try {

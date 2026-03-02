@@ -63,6 +63,12 @@ export default function EditTeachers() {
       key: 'ci',
     },
     {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      render: (email: string | null) => email || <span style={{ color: '#ccc' }}>N/A</span>,
+    },
+    {
       title: 'Perfil',
       dataIndex: 'perfilName',
       key: 'perfilName',

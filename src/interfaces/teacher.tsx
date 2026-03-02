@@ -19,6 +19,7 @@ export interface Teacher {
   active: boolean;
   PNF?: string | undefined;
   is_placeholder?: boolean;
+  email?: string | null;
 }
 
 export interface TeacherContract {

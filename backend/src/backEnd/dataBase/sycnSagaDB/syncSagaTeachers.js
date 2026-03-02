@@ -4,7 +4,7 @@ import Gender from '#models/gender.js'
 
 import { v4 as uuidv4 } from 'uuid'
 
-export default async function sycnSagaTeachers () {
+export default async function sycnSagaTeachers() {
   const sagaTeachers = await fetchTeachers()
 
   if (sagaTeachers === null) {
@@ -17,9 +17,17 @@ export default async function sycnSagaTeachers () {
   const femenino = genderList.find((gender) => gender.name === 'Femenino')?.id
   const masculino = genderList.find((gender) => gender.name === 'Masculino')?.id
 
+  // Obtener los profesores actuales para no cambiar sus IDs
+  const existingTeachers = await Teacher.findAll({ raw: true })
+  const ciToIdMap = new Map()
+  existingTeachers.forEach((t) => ciToIdMap.set(t.ci, t.id))
+
   const teachersList = sagaTeachers.map((SagaTeacher) => {
+    let email = SagaTeacher.email1?.trim() || SagaTeacher.email2?.trim() || null;
+    if (email === '') email = null;
+
     return {
-      id: uuidv4(),
+      id: ciToIdMap.get(SagaTeacher.CedulaProfesor) || uuidv4(),
       name: SagaTeacher.NombreProfesor,
       last_name: SagaTeacher.ApellidoProfesor,
       ci: SagaTeacher.CedulaProfesor,
@@ -27,7 +35,8 @@ export default async function sycnSagaTeachers () {
       contractTypes_id: null,
       title: 'Profesor',
       perfil_name_id: null,
-      active: true
+      active: true,
+      email: email,
     }
   })
 
@@ -42,9 +51,10 @@ export default async function sycnSagaTeachers () {
         'contractTypes_id',
         'title',
         'perfil_name_id',
-        'active'
+        'active',
+        'email'
       ],
-      updateOnDuplicate: ['name', 'last_name']
+      updateOnDuplicate: ['name', 'last_name', 'email']
     })
     console.log('Profesores sincronizados')
   } catch (error) {

@@ -59,6 +59,10 @@ Teacher.init(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
   {
     sequelize,
