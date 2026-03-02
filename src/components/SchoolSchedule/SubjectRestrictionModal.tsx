@@ -87,6 +87,10 @@ const SubjectRestrictionModal: React.FC<{
           count,
           color,
         };
+      }).sort((a, b) => {
+        const nameCompare = a.label.localeCompare(b.label);
+        if (nameCompare !== 0) return nameCompare;
+        return (a.trayectoName || "").localeCompare(b.trayectoName || "");
       });
     }, [subjects, selectedPnf, subjectRestrictions, subjectColors]);
 

@@ -161,6 +161,7 @@ const SchoolSchedule: React.FC = () => {
   const [profPnf, setProfPnf] = useState(() => localStorage.getItem("schedule_profPnf") || "");
   const [scrollToProfessorId, setScrollToProfessorId] = useState<string | null>(() => localStorage.getItem("schedule_scrollToProfessorId") || null);
   const [isScrollingToProf, setIsScrollingToProf] = useState<boolean>(() => localStorage.getItem("schedule_viewMode") === "professor" && !!localStorage.getItem("schedule_scrollToProfessorId"));
+  const [isScrollingToClassroom, setIsScrollingToClassroom] = useState<boolean>(() => localStorage.getItem("schedule_viewMode") === "classroom" && !!localStorage.getItem("schedule_selectedClassroomId"));
   const hasScrolledRef = useRef<boolean>(false);
 
   // Persist selections in localStorage when they change
@@ -1337,17 +1338,9 @@ const SchoolSchedule: React.FC = () => {
         (event) => !!event.extendedProps.professorId && targetTeacherIds.has(String(event.extendedProps.professorId))
       );
     } else if (viewMode === "classroom") {
-      if (!selectedClassroomId) {
-        setEvents([]);
-        return;
-      }
-      // Filter by classroom
-      filteredLoaded = loadedScheduleEvents.filter(
-        (event) => event.extendedProps.classroomId === selectedClassroomId
-      );
-      filteredGenerated = eventData.filter(
-        (event) => event.extendedProps.classroomId === selectedClassroomId
-      );
+      // Mostrar todas las materias asignadas a algún aula
+      filteredLoaded = loadedScheduleEvents.filter((event) => !!event.extendedProps?.classroomId);
+      filteredGenerated = eventData.filter((event) => !!event.extendedProps?.classroomId);
     }
 
     // Mergear solo los eventos generados (los cargados ya están mergeados)
@@ -1406,7 +1399,7 @@ const SchoolSchedule: React.FC = () => {
   ]);
 
   // --- TABLE DATA PREPARATION ---
-  const { tableSlots, tableGrid, professorGrids } = useMemo(() => {
+  const { tableSlots, tableGrid, professorGrids, classroomGrids } = useMemo(() => {
     let slots: string[][] = [];
 
     // Logic from PrintableSchedule for slots
@@ -1487,6 +1480,7 @@ const SchoolSchedule: React.FC = () => {
     };
 
     let pGrids: { profId: string; profName: string; grid: any[][] }[] | null = null;
+    let cGrids: { classroomId: string; classroomName: string; grid: any[][] }[] | null = null;
     let mainGrid: any[][] = [];
 
     if (viewMode === "professor") {
@@ -1501,14 +1495,29 @@ const SchoolSchedule: React.FC = () => {
           grid: buildGrid(slots, profEvents),
         };
       }).sort((a, b) => a.profName.localeCompare(b.profName));
+    } else if (viewMode === "classroom") {
+      const crIds = Array.from(new Set((events || []).map((e) => e.extendedProps?.classroomId).filter(Boolean)));
+      cGrids = crIds.map((cid: string) => {
+        const crEvents = (events || []).filter((e) => e.extendedProps?.classroomId === cid);
+        const c = classrooms?.find((c: any) => String(c.id) === String(cid));
+        const classroomName = c ? c.classroom : `Aula (ID: ${cid})`;
+        return {
+          classroomId: cid,
+          classroomName,
+          grid: buildGrid(slots, crEvents),
+        };
+      }).sort((a, b) => {
+        const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+        return collator.compare(a.classroomName, b.classroomName);
+      });
     } else {
       mainGrid = buildGrid(slots, events || []);
     }
 
-    return { tableSlots: slots, tableGrid: mainGrid, professorGrids: pGrids };
-  }, [viewMode, activeTurnos, turn, events, teachers]);
+    return { tableSlots: slots, tableGrid: mainGrid, professorGrids: pGrids, classroomGrids: cGrids };
+  }, [viewMode, activeTurnos, turn, events, teachers, classrooms]);
 
-  // Effect to automatically scroll to professor if stored in state/localStorage
+  // Effect to automatically scroll to professor or classroom
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     if (viewMode === "professor") {
@@ -1546,11 +1555,32 @@ const SchoolSchedule: React.FC = () => {
       } else if (!scrollToProfessorId) {
         setIsScrollingToProf(false);
       }
+    } else if (viewMode === "classroom") {
+      if (selectedClassroomId && !hasScrolledRef.current && classroomGrids && classroomGrids.length > 0) {
+        setIsScrollingToClassroom(true);
+        const tryScroll = (attempts = 0) => {
+          const el = document.getElementById(`classroom-grid-${selectedClassroomId}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'auto', block: 'start' });
+            hasScrolledRef.current = true;
+            setIsScrollingToClassroom(false);
+          } else if (attempts < 10) {
+            timer = setTimeout(() => tryScroll(attempts + 1), 50);
+          } else {
+            hasScrolledRef.current = true;
+            setIsScrollingToClassroom(false);
+          }
+        };
+        timer = setTimeout(() => tryScroll(0), 50);
+      } else if (!selectedClassroomId) {
+        setIsScrollingToClassroom(false);
+      }
     } else {
       setIsScrollingToProf(false);
+      setIsScrollingToClassroom(false);
     }
     return () => clearTimeout(timer);
-  }, [viewMode, scrollToProfessorId, professorGrids]);
+  }, [viewMode, scrollToProfessorId, professorGrids, selectedClassroomId, classroomGrids]);
 
   // ------------------------------
 
@@ -1975,18 +2005,30 @@ const SchoolSchedule: React.FC = () => {
             {viewMode === "classroom" && (
               <>
                 <div className="schedule-select">
-                  <span>Aula:</span>
+                  <span>Ir a Aula:</span>
                   <Select
+                    allowClear
                     size="small"
                     showSearch
                     value={selectedClassroomId}
-                    placeholder="Seleccione un aula"
+                    placeholder="Buscar aula..."
                     optionFilterProp="children"
                     filterOption={(input, option) =>
                       (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                     }
                     style={{ width: 250 }}
-                    onChange={setSelectedClassroomId}
+                    onChange={(val) => {
+                      setSelectedClassroomId(val || null);
+                      if (val) {
+                        hasScrolledRef.current = false;
+                        setIsScrollingToClassroom(true);
+                      } else {
+                        const scrollContainer = document.getElementById('professor-scroll-container');
+                        if (scrollContainer) {
+                          scrollContainer.scrollTop = 0;
+                        }
+                      }
+                    }}
                     options={(classrooms || [])
                       .slice()
                       .sort((a, b) =>
@@ -2120,6 +2162,21 @@ const SchoolSchedule: React.FC = () => {
             }}>
               <Spin size="large" />
               <div style={{ marginTop: 16, color: "#1890ff", fontWeight: "bold", fontSize: "1.2rem" }}>Ubicando profesor...</div>
+            </div>
+          )}
+          {isScrollingToClassroom && (
+            <div style={{
+              position: "absolute",
+              top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: "rgba(255, 255, 255, 1)",
+              zIndex: 1000,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              flexDirection: "column"
+            }}>
+              <Spin size="large" />
+              <div style={{ marginTop: 16, color: "#1890ff", fontWeight: "bold", fontSize: "1.2rem" }}>Ubicando aula...</div>
             </div>
           )}
           <div id="professor-scroll-container" className={`calendar - container view - ${viewMode} `} style={{ padding: "0", overflowY: "auto" }}>
@@ -2330,6 +2387,12 @@ const SchoolSchedule: React.FC = () => {
                   return professorGrids && professorGrids.length > 0
                     ? professorGrids.map((pg) => renderScheduleGrid(pg.grid, pg.profName, `prof-grid-${pg.profId}`))
                     : <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Ningún profesor tiene materias asignadas este trimestre.</div>;
+                }
+
+                if (viewMode === "classroom") {
+                  return classroomGrids && classroomGrids.length > 0
+                    ? classroomGrids.map((cg) => renderScheduleGrid(cg.grid, cg.classroomName, `classroom-grid-${cg.classroomId}`))
+                    : <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Ningún aula tiene materias asignadas este trimestre.</div>;
                 }
 
                 return renderScheduleGrid(tableGrid);
