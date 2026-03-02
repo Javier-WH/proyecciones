@@ -23,6 +23,7 @@ export default async function fetchTeachers() {
     }
     const teacherList = await response.json();
 
+
     return teacherList.data ? teacherList.data : null;
   } catch (error) {
     console.error(error);
