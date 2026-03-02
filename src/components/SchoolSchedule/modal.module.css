@@ -1,5 +1,5 @@
 :root{
-    --iconSize: 30px;
+    --iconSize: 24px;
     --iconColor: rgb(55, 174, 221);
 }
 
@@ -8,7 +8,7 @@
     height: var(--iconSize);
     color: var(--iconColor);
     cursor: pointer;
-    transition: all 0.3s ease-in-out;
+    transition: all 0.2s ease-in-out;
 }
 
 .icon:hover{

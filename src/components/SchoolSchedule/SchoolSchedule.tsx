@@ -24,6 +24,7 @@ import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
 import { FaRegSave, FaRegFolderOpen, FaPlus, FaPrint, FaCog } from "react-icons/fa";
 import { TbPinFilled } from "react-icons/tb";
 import { BsPinAngleFill } from "react-icons/bs";
+import { FaBuildingLock } from "react-icons/fa6";
 import { useReactToPrint } from "react-to-print";
 import PrintableSchedule from "./PrintableSchedule";
 
@@ -2107,11 +2108,10 @@ const SchoolSchedule: React.FC = () => {
               </Tooltip>
               <Tooltip title={`Ver cambios de aula fijados (${groupedOverridesCount})`}>
                 <span
-                  className={styles.icon}
                   onClick={() => setIsOverridesModalOpen(true)}
-                  style={{ cursor: "pointer", position: "relative", display: "inline-flex", alignItems: "center", fontSize: "1rem" }}
+                  style={{ cursor: "pointer", position: "relative", display: "inline-flex", alignItems: "center" }}
                 >
-                  📌
+                  <FaBuildingLock className={styles.icon} />
                   {groupedOverridesCount > 0 && (
                     <span style={{
                       position: "absolute",
@@ -2219,9 +2219,19 @@ const SchoolSchedule: React.FC = () => {
                           <Tooltip title={`Imprimir horario de ${title}`}>
                             <div
                               onClick={() => triggerPrint(entityId)}
-                              style={{ cursor: "pointer", color: "#666", display: "flex", alignItems: "center" }}
+                              style={{
+                                cursor: "pointer",
+                                color: "#666",
+                                display: "flex",
+                                alignItems: "center",
+                                padding: "4px",
+                                borderRadius: "4px",
+                                transition: "background-color 0.2s"
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                             >
-                              <FaPrint size={14} />
+                              <FaPrint size={18} />
                             </div>
                           </Tooltip>
                         )}
