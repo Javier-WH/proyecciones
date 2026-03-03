@@ -443,45 +443,74 @@ function tryPlaceDecomposition(
   });
 
   for (const day of sortedDays) {
-    // Ya no saltamos el día si ya hay horas de esta materia, dejando que maxBlocks 
-    // y el orden de días (que prioriza días vacíos) controlen la distribución.
-
-    // Calcular cuántas horas de esta materia ya se asignaron este día
+    // ═══════════════════════════════════════════════════════════════════
+    // REGLA DE HIERRO 1: El límite máximo de horas por día (conserveSlots)
+    // es ABSOLUTO. Nunca se puede exceder, sin importar cuántos días
+    // tenga disponible el profesor. Si el profesor tiene pocos días y
+    // no caben todas las horas, se reporta error (NO se sobrepasa).
+    // ═══════════════════════════════════════════════════════════════════
     const currentHours = occupancy.getSubjectDayHours(task.subject.innerId, day);
+    const maxAllowedOnDay = task.effectiveConserveSlots;
 
-    // El límite por día es normalmente effectiveConserveSlots, pero se permite más si el profesor tiene muy pocos días
-    const maxAllowedOnDay = Math.max(
-      task.effectiveConserveSlots,
-      task.availableDays.length > 0 ? Math.ceil(task.totalHours / task.availableDays.length) : 10
-    );
-
-    // Verificar el límite máximo por día combinado (lo que ya hay + lo nuevo)
     if (currentHours + blockLen > maxAllowedOnDay) continue;
 
-    const slotOptions = findSlotPlacements(day, blockLen, task, occupancy);
+    // ═══════════════════════════════════════════════════════════════════
+    // REGLA DE HIERRO 2: Una misma materia NO puede aparecer en bloques
+    // no consecutivos el mismo día. Si ya hay un bloque de esta materia
+    // en este día, el nuevo bloque DEBE ser contiguo (adyacente) al
+    // existente. Bloques separados (ej: 07:00-08:30 y 13:00-14:30)
+    // del mismo subject en el mismo día están PROHIBIDOS.
+    // ═══════════════════════════════════════════════════════════════════
+    const existingBlocksThisDay = placed.filter(p => p.day === day);
+    if (existingBlocksThisDay.length > 0) {
+      // Calcular el rango de slots ya ocupados por esta materia en este día
+      let existingMinSlot = Infinity;
+      let existingMaxSlotEnd = -Infinity;
+      for (const eb of existingBlocksThisDay) {
+        existingMinSlot = Math.min(existingMinSlot, eb.startSlotIndex);
+        existingMaxSlotEnd = Math.max(existingMaxSlotEnd, eb.startSlotIndex + eb.length);
+      }
+      // El nuevo bloque debe ser adyacente: justo antes o justo después
+      // Filtrar las opciones de slot para que solo sean adyacentes
+      const slotOptions = findSlotPlacements(day, blockLen, task, occupancy)
+        .filter(option => {
+          const newStart = option.startSlotIndex;
+          const newEnd = newStart + option.length;
+          // Adyacente por arriba: el nuevo bloque termina donde empieza el existente
+          // Adyacente por abajo: el nuevo bloque empieza donde termina el existente
+          return newEnd === existingMinSlot || newStart === existingMaxSlotEnd;
+        });
 
-    for (const option of slotOptions) {
-      const bp: BlockPlacement = { day, ...option };
+      for (const option of slotOptions) {
+        const bp: BlockPlacement = { day, ...option };
+        applyBlock(bp, task, occupancy);
+        placed.push(bp);
 
-      // Apply placement
-      applyBlock(bp, task, occupancy);
-      placed.push(bp);
+        const result = tryPlaceDecomposition(decomp, blockIdx + 1, placed, task, occupancy);
+        if (result) return result;
 
-      // Recurse for next block
-      const result = tryPlaceDecomposition(
-        decomp,
-        blockIdx + 1,
-        placed,
-        task,
-        occupancy,
-      );
-      if (result) return result;
+        placed.pop();
+        undoBlock(bp, task, occupancy);
+        backtrackCounter++;
+        if (backtrackCounter >= MAX_BACKTRACKS) return null;
+      }
+    } else {
+      // Día sin bloques previos de esta materia: cualquier slot es válido
+      const slotOptions = findSlotPlacements(day, blockLen, task, occupancy);
 
-      // Backtrack
-      placed.pop();
-      undoBlock(bp, task, occupancy);
-      backtrackCounter++;
-      if (backtrackCounter >= MAX_BACKTRACKS) return null;
+      for (const option of slotOptions) {
+        const bp: BlockPlacement = { day, ...option };
+        applyBlock(bp, task, occupancy);
+        placed.push(bp);
+
+        const result = tryPlaceDecomposition(decomp, blockIdx + 1, placed, task, occupancy);
+        if (result) return result;
+
+        placed.pop();
+        undoBlock(bp, task, occupancy);
+        backtrackCounter++;
+        if (backtrackCounter >= MAX_BACKTRACKS) return null;
+      }
     }
   }
 
@@ -1273,11 +1302,16 @@ export function generateScheduleEvents({
     // Reset backtrack counter para cada intento de relajación
     backtrackCounter = 0;
 
-    // Fase 2: Relajar conserveSlots (permitir más horas por día)
-    // IMPORTANTE: preservar preventSingleHourBlocks explícitamente
+    // Fase 2: Relajar minConsecutive (permitir bloques más pequeños).
+    // ═══════════════════════════════════════════════════════════════════
+    // REGLA DE HIERRO: effectiveConserveSlots (máximo horas/día) NUNCA
+    // se relaja. Si no cabe, se reporta error. No se sobrepasan las
+    // 3 horas diarias (o el límite configurado) bajo ninguna
+    // circunstancia, ni siquiera en la fase de relajación.
+    // ═══════════════════════════════════════════════════════════════════
     const relaxedTask: SubjectTask = {
       ...task,
-      effectiveConserveSlots: task.totalHours,
+      effectiveConserveSlots: task.effectiveConserveSlots, // MANTENER el límite original
       effectiveMinConsecutive: task.preventSingleHourBlocks ? 2 : 1,
       preventSingleHourBlocks: task.preventSingleHourBlocks,
     };
@@ -1320,7 +1354,8 @@ export function generateScheduleEvents({
       const partialTask: SubjectTask = {
         ...task,
         totalHours: tryHours,
-        effectiveConserveSlots: tryHours,
+        // REGLA DE HIERRO: nunca exceder el límite original por día
+        effectiveConserveSlots: Math.min(tryHours, task.effectiveConserveSlots),
         effectiveMinConsecutive: minBlock,
       };
 
