@@ -1006,8 +1006,10 @@ export function generateScheduleEvents({
       // Factor menor: horas totales (materias con más horas ligeramente más urgentes)
       score += sub.hours[trimestre]! * 3;
 
-      // Factor menor: pocos slots en el turno
-      score += Math.max(0, 10 - timeSlots.length) * 4;
+      // Factor IMPORTANTE: pocos slots en el turno (Ej: mañana o tarde vs diurno)
+      // Priorizamos fuertemente a los turnos cortos (~6 slots) sobre turnos largos (~12 slots)
+      // para evitar que el diurno sature las aulas limitadas de esos turnos.
+      score += Math.max(0, 15 - timeSlots.length) * 100;
 
       const hasTeacherRestrictions = restrictedDays.length > 0 || restrictedHours.length > 0;
       const hasClassroomRestrictions = !!(preferConfig?.classroomIds?.length);
