@@ -42,6 +42,7 @@ const EditProyeccionesSubjectModal: React.FC<{
       hourValue === null ||
       pnfValue === null ||
       subjectValue === null ||
+      !seccionValue ||
       !trimestreValue
     )
       return;
@@ -53,7 +54,6 @@ const EditProyeccionesSubjectModal: React.FC<{
         sub.hours = hourValue;
         sub.pnf = pnfValue;
         sub.subject = subjectValue;
-        sub.quarter = trimestreValue;
         sub.quarter = trimestreValue;
         sub.seccion = seccionValue;
         sub.isSemestral = isSemestral;
@@ -70,6 +70,7 @@ const EditProyeccionesSubjectModal: React.FC<{
       hourValue === null ||
       pnfValue === null ||
       subjectValue === null ||
+      !seccionValue ||
       !trimestreValue
     )
       return;
@@ -164,6 +165,19 @@ const EditProyeccionesSubjectModal: React.FC<{
             <Input value={subjectValue} onChange={(e) => setSubjectValue(e.target.value)} />
             {subjectValue.length === 0 && (
               <Tag icon={<CloseCircleOutlined />} color="error">{`No hay materia seleccionada`}</Tag>
+            )}
+          </div>
+
+          <div>
+            <label
+              style={{
+                color: !seccionValue ? "red" : "black",
+              }}>
+              Nombre de la sección
+            </label>
+            <Input value={seccionValue} onChange={(e) => setSeccionValue(e.target.value)} />
+            {seccionValue.length === 0 && (
+              <Tag icon={<CloseCircleOutlined />} color="error">{`Debe ingresar un nombre de sección`}</Tag>
             )}
           </div>
 
