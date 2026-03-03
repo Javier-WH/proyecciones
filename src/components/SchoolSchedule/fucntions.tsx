@@ -110,6 +110,8 @@ class OccupancyTracker {
   private secSlots = new Set<string>();
   /** Counts per (subjectId, day) for conserveSlots enforcement */
   private subjectDayCount = new Map<string, number>();
+  /** Exact start times per (subjectId, day) for cross-task adjacency enforcement */
+  private subjectDayStartTimes = new Map<string, string[]>();
 
   private pk(day: number, s: string, pid: string) {
     return `P|${day}|${s}|${pid}`;
@@ -139,6 +141,9 @@ class OccupancyTracker {
     this.secSlots.add(this.sk(day, start, pnfId, trayId, sec));
     const k = this.sdk(subId, day);
     this.subjectDayCount.set(k, (this.subjectDayCount.get(k) || 0) + 1);
+    // Track exact start time for cross-task adjacency enforcement
+    if (!this.subjectDayStartTimes.has(k)) this.subjectDayStartTimes.set(k, []);
+    this.subjectDayStartTimes.get(k)!.push(start);
   }
 
   release(
@@ -158,6 +163,13 @@ class OccupancyTracker {
     const cur = this.subjectDayCount.get(k) || 0;
     if (cur <= 1) this.subjectDayCount.delete(k);
     else this.subjectDayCount.set(k, cur - 1);
+    // Release exact start time
+    const starts = this.subjectDayStartTimes.get(k);
+    if (starts) {
+      const idx = starts.indexOf(start);
+      if (idx >= 0) starts.splice(idx, 1);
+      if (starts.length === 0) this.subjectDayStartTimes.delete(k);
+    }
   }
 
   hasProfConflict(day: number, start: string, profId: string | null): boolean {
@@ -180,6 +192,11 @@ class OccupancyTracker {
 
   getSubjectDayHours(subId: string, day: number): number {
     return this.subjectDayCount.get(this.sdk(subId, day)) || 0;
+  }
+
+  /** Returns all start times recorded for a subject on a given day (across ALL tasks) */
+  getSubjectDayStartTimes(subId: string, day: number): string[] {
+    return this.subjectDayStartTimes.get(this.sdk(subId, day)) || [];
   }
 }
 
@@ -456,61 +473,57 @@ function tryPlaceDecomposition(
 
     // ═══════════════════════════════════════════════════════════════════
     // REGLA DE HIERRO 2: Una misma materia NO puede aparecer en bloques
-    // no consecutivos el mismo día. Si ya hay un bloque de esta materia
-    // en este día, el nuevo bloque DEBE ser contiguo (adyacente) al
-    // existente. Bloques separados (ej: 07:00-08:30 y 13:00-14:30)
-    // del mismo subject en el mismo día están PROHIBIDOS.
+    // no consecutivos el mismo día. Esto aplica GLOBALMENTE: se consulta
+    // el OccupancyTracker (que contiene bloques de TODAS las tasks,
+    // incluyendo tasks separadas por splitHours o classroomOverrides).
+    // Si ya hay slots de esta materia en este día, el nuevo bloque
+    // DEBE ser contiguo (adyacente) a los existentes.
     // ═══════════════════════════════════════════════════════════════════
-    const existingBlocksThisDay = placed.filter(p => p.day === day);
-    if (existingBlocksThisDay.length > 0) {
-      // Calcular el rango de slots ya ocupados por esta materia en este día
-      let existingMinSlot = Infinity;
-      let existingMaxSlotEnd = -Infinity;
-      for (const eb of existingBlocksThisDay) {
-        existingMinSlot = Math.min(existingMinSlot, eb.startSlotIndex);
-        existingMaxSlotEnd = Math.max(existingMaxSlotEnd, eb.startSlotIndex + eb.length);
+    const allSlotOptions = findSlotPlacements(day, blockLen, task, occupancy);
+
+    // Consultar el occupancy tracker para obtener TODOS los start times
+    // de esta materia en este día (incluye bloques de otras tasks Y
+    // bloques ya placed por esta task, ya que applyBlock los registra)
+    const existingStartTimes = occupancy.getSubjectDayStartTimes(task.subject.innerId, day);
+
+    let slotOptions = allSlotOptions;
+
+    if (existingStartTimes.length > 0) {
+      // Mapear los start times absolutos a índices de slot en el timeSlots de esta task
+      const existingIndices: number[] = [];
+      for (const t of existingStartTimes) {
+        const idx = task.timeSlots.findIndex(s => s[0] === t);
+        if (idx >= 0) existingIndices.push(idx);
       }
-      // El nuevo bloque debe ser adyacente: justo antes o justo después
-      // Filtrar las opciones de slot para que solo sean adyacentes
-      const slotOptions = findSlotPlacements(day, blockLen, task, occupancy)
-        .filter(option => {
-          const newStart = option.startSlotIndex;
-          const newEnd = newStart + option.length;
-          // Adyacente por arriba: el nuevo bloque termina donde empieza el existente
-          // Adyacente por abajo: el nuevo bloque empieza donde termina el existente
-          return newEnd === existingMinSlot || newStart === existingMaxSlotEnd;
+
+      if (existingIndices.length > 0) {
+        existingIndices.sort((a, b) => a - b);
+        const existingMin = existingIndices[0];
+        // El último índice + 1 = fin exclusivo del rango ocupado
+        const existingMaxEnd = existingIndices[existingIndices.length - 1] + 1;
+
+        // Filtrar: solo opciones adyacentes al rango existente
+        slotOptions = allSlotOptions.filter(option => {
+          const newEnd = option.startSlotIndex + option.length;
+          // Adyacente por arriba: el nuevo bloque termina justo donde empieza el existente
+          // Adyacente por abajo: el nuevo bloque empieza justo donde termina el existente
+          return newEnd === existingMin || option.startSlotIndex === existingMaxEnd;
         });
-
-      for (const option of slotOptions) {
-        const bp: BlockPlacement = { day, ...option };
-        applyBlock(bp, task, occupancy);
-        placed.push(bp);
-
-        const result = tryPlaceDecomposition(decomp, blockIdx + 1, placed, task, occupancy);
-        if (result) return result;
-
-        placed.pop();
-        undoBlock(bp, task, occupancy);
-        backtrackCounter++;
-        if (backtrackCounter >= MAX_BACKTRACKS) return null;
       }
-    } else {
-      // Día sin bloques previos de esta materia: cualquier slot es válido
-      const slotOptions = findSlotPlacements(day, blockLen, task, occupancy);
+    }
 
-      for (const option of slotOptions) {
-        const bp: BlockPlacement = { day, ...option };
-        applyBlock(bp, task, occupancy);
-        placed.push(bp);
+    for (const option of slotOptions) {
+      const bp: BlockPlacement = { day, ...option };
+      applyBlock(bp, task, occupancy);
+      placed.push(bp);
 
-        const result = tryPlaceDecomposition(decomp, blockIdx + 1, placed, task, occupancy);
-        if (result) return result;
+      const result = tryPlaceDecomposition(decomp, blockIdx + 1, placed, task, occupancy);
+      if (result) return result;
 
-        placed.pop();
-        undoBlock(bp, task, occupancy);
-        backtrackCounter++;
-        if (backtrackCounter >= MAX_BACKTRACKS) return null;
-      }
+      placed.pop();
+      undoBlock(bp, task, occupancy);
+      backtrackCounter++;
+      if (backtrackCounter >= MAX_BACKTRACKS) return null;
     }
   }
 

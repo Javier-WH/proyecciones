@@ -43,27 +43,49 @@ Si un profesor tiene 1 día disponible y la materia requiere 5 horas con límite
 Una materia **jamás** puede aparecer dos veces en el mismo día en horarios separados  
 (ej: 07:00-08:30 por la mañana y 13:00-14:30 por la tarde).
 
+### ⚠️ TRAMPA CRÍTICA: `placed` vs `OccupancyTracker`
+
+Una materia puede representarse como **múltiples tasks** separadas (por `splitHours`,  
+`classroomOverrides`, o la división Override+Remaining). El array `placed` en  
+`tryPlaceDecomposition` solo contiene los bloques de la **task actual**.  
+**Si verificas adyacencia solo con `placed`, las otras tasks son invisibles.**
+
 ### ❌ PROHIBIDO
-- Permitir que `tryPlaceDecomposition` coloque dos bloques de la misma materia en el  
-  mismo día sin verificar que sean **adyacentes** (contiguos en slots).
-- Una descomposición como `[2, 2]` que coloque bloques en slots 0-1 y 4-5 del mismo día.
+- Verificar adyacencia usando `placed.filter(p => p.day === day)` — esto **NO VE**  
+  los bloques de otras tasks del mismo subject.
+- Cualquier lógica de adyacencia que no consulte el `OccupancyTracker`.
 
 ### ✅ CORRECTO
-Si un día ya tiene un bloque de esta materia en los slots [startIdx, startIdx+length):
-- El nuevo bloque **solo** puede colocarse inmediatamente antes (`newEnd === existingMinSlot`)  
-  o inmediatamente después (`newStart === existingMaxSlotEnd`).
+Usar `occupancy.getSubjectDayStartTimes(subjectId, day)` para obtener **TODOS** los  
+start times de esta materia en este día — tanto de esta task como de cualquier otra:
 
 ```typescript
-// En tryPlaceDecomposition, si ya hay bloques este día:
-const existingBlocksThisDay = placed.filter(p => p.day === day);
-if (existingBlocksThisDay.length > 0) {
-  // Calcular rango existente
-  // Filtrar opciones para que solo sean adyacentes
-  slotOptions.filter(option => {
-    return newEnd === existingMinSlot || newStart === existingMaxSlotEnd;
-  });
+// En tryPlaceDecomposition:
+const existingStartTimes = occupancy.getSubjectDayStartTimes(task.subject.innerId, day);
+
+if (existingStartTimes.length > 0) {
+  // Mapear start times a índices de slot en task.timeSlots
+  const existingIndices = existingStartTimes
+    .map(t => task.timeSlots.findIndex(s => s[0] === t))
+    .filter(idx => idx >= 0)
+    .sort((a, b) => a - b);
+  
+  if (existingIndices.length > 0) {
+    const existingMin = existingIndices[0];
+    const existingMaxEnd = existingIndices[existingIndices.length - 1] + 1;
+    
+    // Solo permitir opciones adyacentes
+    slotOptions = allSlotOptions.filter(option => {
+      const newEnd = option.startSlotIndex + option.length;
+      return newEnd === existingMin || option.startSlotIndex === existingMaxEnd;
+    });
+  }
 }
 ```
+
+**¿Por qué funciona sin incluir `placed`?** Porque `applyBlock()` se llama antes de la  
+recursión, y registra los bloques en el `OccupancyTracker`. Por lo tanto, el tracker  
+siempre tiene el panorama completo.
 
 ---
 
@@ -111,8 +133,9 @@ cuando no caben todas. Las reglas 1, 2, 3 **siguen aplicando** en este modo.
 
 | Archivo | Función | Qué verificar |
 |---------|---------|---------------|
+| `fucntions.tsx` | `OccupancyTracker` | Tiene `subjectDayStartTimes` Map con `occupy/release/getSubjectDayStartTimes` |
 | `fucntions.tsx` | `tryPlaceDecomposition` | `maxAllowedOnDay = task.effectiveConserveSlots` (Regla 1) |
-| `fucntions.tsx` | `tryPlaceDecomposition` | Bloques adyacentes si ya hay bloques del mismo subject en el día (Regla 2) |
+| `fucntions.tsx` | `tryPlaceDecomposition` | Adyacencia vía `occupancy.getSubjectDayStartTimes()` NO via `placed` (Regla 2) |
 | `fucntions.tsx` | Fase de relajación (Step 5) | `effectiveConserveSlots` NO se cambia a `totalHours` (Regla 5) |
 | `fucntions.tsx` | Asignación parcial (Step 5b) | `Math.min(tryHours, task.effectiveConserveSlots)` (Regla 6) |
 | `fucntions.tsx` | `findSlotPlacements` | Respeta restricciones de profesor (Regla 3) |
@@ -121,8 +144,9 @@ cuando no caben todas. Las reglas 1, 2, 3 **siguen aplicando** en este modo.
 
 ## Checklist Antes de Hacer Commit
 
+- [ ] `OccupancyTracker` tiene `subjectDayStartTimes` con métodos `occupy/release/getSubjectDayStartTimes`.
 - [ ] `maxAllowedOnDay` solo usa `effectiveConserveSlots`, no `Math.max(...)` con otras cosas.
-- [ ] `tryPlaceDecomposition` verifica adyacencia cuando ya hay bloques del mismo subject en un día.
+- [ ] Adyacencia se verifica con `occupancy.getSubjectDayStartTimes()`, **NUNCA** con `placed.filter()`.
 - [ ] La fase de relajación no modifica `effectiveConserveSlots`.
 - [ ] La asignación parcial usa `Math.min(tryHours, effectiveConserveSlots)`.
 - [ ] Las restricciones del profesor (días y horas) nunca se ignoran.
