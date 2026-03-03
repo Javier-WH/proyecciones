@@ -21,7 +21,7 @@ import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
 import TeachersRestrictionsListModal from "./TeachersRestrictionsListModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
-import { FaRegSave, FaRegFolderOpen, FaPlus, FaCog, FaFilePdf, FaPrint } from "react-icons/fa";
+import { FaRegSave, FaRegFolderOpen, FaPlus, FaCog, FaPrint } from "react-icons/fa";
 import { TbPinFilled } from "react-icons/tb";
 import { BsPinAngleFill } from "react-icons/bs";
 import { FaBuildingLock } from "react-icons/fa6";
@@ -165,7 +165,7 @@ const SchoolSchedule: React.FC = () => {
   const [isScrollingToClassroom, setIsScrollingToClassroom] = useState<boolean>(() => localStorage.getItem("schedule_viewMode") === "classroom" && !!localStorage.getItem("schedule_selectedClassroomId"));
   const hasScrolledRef = useRef<boolean>(false);
   const [printEntityId, setPrintEntityId] = useState<string | null>(null);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  //const [, setIsGeneratingPdf] = useState(false);
 
   const triggerPrint = (id: string) => {
     setPrintEntityId(id);
@@ -174,12 +174,12 @@ const SchoolSchedule: React.FC = () => {
     }, 100);
   };
 
-  const triggerDownload = (id: string) => {
+  /*const triggerDownload = (id: string) => {
     setPrintEntityId(id);
     setTimeout(() => {
       handleDownloadPdf();
     }, 100);
-  };
+  };*/
 
   // Persist selections in localStorage when they change
   useEffect(() => {
@@ -317,7 +317,7 @@ const SchoolSchedule: React.FC = () => {
     onPrintError: () => setPrintEntityId(null),
   });
 
-  const handleDownloadPdf = async () => {
+  /*const handleDownloadPdf = async () => {
     if (!printableRef.current) return;
     const element = printableRef.current;
 
@@ -376,7 +376,7 @@ const SchoolSchedule: React.FC = () => {
       setIsGeneratingPdf(false);
       setPrintEntityId(null);
     }
-  };
+  };*/
 
   const loadClassrooms = useCallback(async (): Promise<void> => {
     const classroomsData = await getClassrooms();
