@@ -1,7 +1,7 @@
 import sequelize from "#dataBaseConnection";
 import { DataTypes, Model } from "sequelize";
 
-class Schedule extends Model {}
+class Schedule extends Model { }
 Schedule.init(
   {
     id: {
@@ -14,7 +14,7 @@ Schedule.init(
       unique: true,
     },
     schedule: {
-      type: DataTypes.TEXT,
+      type: DataTypes.TEXT('long'),
     },
     proyection_id: {
       type: DataTypes.UUID,

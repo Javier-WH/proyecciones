@@ -14,6 +14,7 @@ import addSplitHoursToSubjectRestrictions from "../alters/addSplitHoursToSubject
 import migrateSubjectRestrictionKeys from "../alters/migrateSubjectRestrictionKeys.js";
 import addEmailColumnToTeacherTable from "../alters/addEmailColumnToTeacherTable.js";
 import addBreaksToScheduleConfig from "../alters/addBreaksToScheduleConfig.js";
+import updateScheduleColumnTextToLong from "../alters/updateScheduleColumnTextToLong.js";
 
 export const createTables = async () => {
   console.log("--- Verificando base de datos y esquemas ---");
@@ -40,6 +41,7 @@ export const createTables = async () => {
   await migrateSubjectRestrictionKeys();
   await addEmailColumnToTeacherTable();
   await addBreaksToScheduleConfig();
+  await updateScheduleColumnTextToLong();
 
   console.log("--- Verificación de base de datos completada ---");
 };
