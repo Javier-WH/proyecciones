@@ -18,7 +18,7 @@ const checkSchedulePatams = ({ id, name, schedule, proyection_id }, checkId = fa
   return { error: false };
 };
 
-Router.post("/schedule", express.json(), async (req, res) => {
+Router.post("/schedule", express.json({ limit: "50mb" }), async (req, res) => {
   try {
     const { id, name, schedule, proyection_id } = req.body;
 
