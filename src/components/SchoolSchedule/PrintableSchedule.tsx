@@ -519,11 +519,11 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                                 <div className="professor-name" style={{ fontSize: "2mm", lineHeight: "2mm" }}>
                                   {getTeacherName(cell.extendedProps?.professorId)}
                                 </div>
-                                <div style={{ fontSize: "2mm", lineHeight: "2mm" }}>
+                                <div style={{ fontSize: "2mm", lineHeight: "2mm", fontWeight: "bold" }}>
                                   {cell.extendedProps?.pnfName}
                                 </div>
                                 <div style={{ fontSize: "2mm", lineHeight: "2mm" }}>
-                                  Sec. {cell.extendedProps?.seccion}
+                                  {cell.extendedProps?.trayectoName} - Sec. {cell.extendedProps?.seccion}
                                 </div>
                               </>
                             ) : viewMode !== "professor" ? (
@@ -538,15 +538,17 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                               </div>
                             ) : null}
 
-                            {viewMode == "professor" && (
+                            {viewMode === "professor" && (
                               <div
-                                className="professor-name"
                                 style={{
                                   fontSize: "2mm",
-                                  lineHeight: "2mm"
+                                  lineHeight: "2.2mm",
                                 }}
                               >
-                                {cell.extendedProps?.pnfName}
+                                <div style={{ fontWeight: "bold" }}>{cell.extendedProps?.pnfName}</div>
+                                <div>
+                                  {cell.extendedProps?.trayectoName} - Sec. {cell.extendedProps?.seccion}
+                                </div>
                               </div>
                             )}
 
