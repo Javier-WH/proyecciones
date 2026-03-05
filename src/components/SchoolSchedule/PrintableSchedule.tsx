@@ -299,67 +299,39 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                   </>
                 ) : (
                   <>
-                    {/* Line 1: Main Title */}
-                    {headerText ? (
-                      headerText[0]?.trim() && (
-                        <div style={{ fontSize: "4mm", fontWeight: "bold", marginBottom: "1mm", textTransform: "uppercase" }}>
-                          {headerText[0]}
-                        </div>
-                      )
+                    {/* Render ALL custom header lines defined in configuration */}
+                    {headerText && headerText.length > 0 ? (
+                      headerText.map((line, idx) => (
+                        line?.trim() && (
+                          <div key={idx} style={{
+                            fontSize: idx === 0 ? "4mm" : "3.5mm",
+                            fontWeight: "bold",
+                            marginBottom: "0.5mm",
+                            textTransform: "uppercase"
+                          }}>
+                            {line}
+                          </div>
+                        )
+                      ))
                     ) : (
-                      (viewMode !== "professor" && viewMode !== "classroom") && (
-                        <div style={{ fontSize: "4mm", fontWeight: "bold", marginBottom: "1mm", textTransform: "uppercase" }}>
-                          HORARIO DE CLASES
-                        </div>
-                      )
-                    )}
-
-                    {/* Line 2: Institution/PNF Title */}
-                    {headerText ? (
-                      headerText[1]?.trim() && (
-                        <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "0.5mm" }}>
-                          {headerText[1]}
-                        </div>
-                      )
-                    ) : (
-                      (viewMode !== "professor" && viewMode !== "classroom") && (
-                        <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "0.5mm" }}>
-                          PROGRAMA NACIONAL DE FORMACIÓN
-                        </div>
-                      )
-                    )}
-
-                    {/* Line 3: Trayecto/Trimestre */}
-                    {headerText ? (
-                      headerText[2]?.trim() && (
-                        <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
-                          {headerText[2]}
-                        </div>
-                      )
-                    ) : (
-                      <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
-                        {`${trayecto.toUpperCase()} ${trimestre.toUpperCase()}`}
+                      <div style={{ fontSize: "4mm", fontWeight: "bold", marginBottom: "1mm", textTransform: "uppercase" }}>
+                        HORARIO DE CLASES
                       </div>
                     )}
 
-                    {/* Line 4: Cleaned PNF Name (Always Automatic) */}
+                    {/* Automatic technical data (Always present and generated) */}
+                    <div style={{ fontSize: "4.5mm", fontWeight: "bold", marginTop: "2mm", marginBottom: "1mm" }}>
+                      PNF EN {pnfName.replace(/(?:Horario\s+de\s+)?(?:P\.?N\.?F\.?\s*en\s+)/gi, "").trim().toUpperCase()}
+                    </div>
+
                     <div style={{ fontSize: "3.5mm", fontWeight: "bold", marginBottom: "1mm" }}>
-                      {pnfName.replace(/(?:Horario\s+de\s+)?(?:P\.?N\.?F\.?\s*en\s+)/gi, "").trim().toUpperCase()}
+                      {`${trayecto.toUpperCase()} - ${trimestre.toUpperCase()} - SECCIÓN ${seccion}`}
                     </div>
                   </>
                 )}
               </div>
 
-              {/* Section info */}
-              {(viewMode !== "professor" && viewMode !== "classroom") && <div style={{
-                width: "40mm",
-                textAlign: "right",
-                fontSize: "3.5mm",
-                fontWeight: "bold"
-              }}>
-                SECCIÓN {seccion}
-              </div>}
-
+              <div style={{ width: "40mm" }}></div>
             </div>
 
             {/* Turn indicator */}
