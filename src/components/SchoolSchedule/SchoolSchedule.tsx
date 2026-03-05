@@ -14,8 +14,8 @@ import {
   getSubjectRestrictions,
 } from "../../fetch/schedule/scheduleFetch";
 import { getTeacherRestrictionsList } from "../../fetch/schedule/teacherRestrictions";
-import { Select, Modal, message, List, Tooltip, Dropdown, Spin } from "antd";
-import { SwapOutlined } from "@ant-design/icons";
+import { Select, Modal, message, List, Tooltip, Dropdown, Spin, Button, Badge } from "antd";
+import { SwapOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
@@ -145,6 +145,43 @@ const SchoolSchedule: React.FC = () => {
     currentClassroomName: string;
   } | null>(null);
   const [newClassroomId, setNewClassroomId] = useState<string>("");
+
+  const [frozenSections, setFrozenSections] = useState<Record<string, Event[]>>(() => {
+    try {
+      const stored = localStorage.getItem("schedule_frozenSections");
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+  const [isFrozenManagerOpen, setIsFrozenManagerOpen] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("schedule_frozenSections", JSON.stringify(frozenSections));
+  }, [frozenSections]);
+
+
+  const toggleFreezeSection = (pnfId: string, trayId: string, sec: string) => {
+    const key = `${pnfId}-${trayId}-${sec}`;
+    setFrozenSections(prev => {
+      const newObj = { ...prev };
+      if (newObj[key]) {
+        delete newObj[key];
+        message.info(`Sección ${sec} descongelada.`);
+      } else {
+        // Collect unmerged events for this section
+        const sectionEvents = eventData.filter(e =>
+          e.extendedProps.pnfId === pnfId &&
+          e.extendedProps.trayectoId === trayId &&
+          e.extendedProps.seccion === sec
+        );
+        newObj[key] = sectionEvents;
+        message.success(`Sección ${sec} congelada.`);
+      }
+      return newObj;
+    });
+    setGenerationCounter(prev => prev + 1);
+  };
 
   const [draggedEventInfo, setDraggedEventInfo] = useState<{
     sourceDay: number;
@@ -1212,6 +1249,8 @@ const SchoolSchedule: React.FC = () => {
       preventSingleHourBlocks: scheduleConfig?.prevent_single_hour_blocks,
       breaks: scheduleConfig?.breaks,
       teachers: teachersRef.current || [],
+      frozenEvents: Object.values(frozenSections).flat(),
+      frozenSectionKeys: Object.keys(frozenSections),
     });
 
     if (scheduleConfig?.auto_solve && localErrors.length > 0) {
@@ -2240,6 +2279,14 @@ const SchoolSchedule: React.FC = () => {
                   )}
                 </span>
               </Tooltip>
+              <Tooltip title="Gestionar Secciones Congeladas">
+                <span style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }} onClick={() => setIsFrozenManagerOpen(true)}>
+                  <LockOutlined style={{ fontSize: "1.1rem", padding: "6px", color: Object.keys(frozenSections).length > 0 ? "#1890ff" : "#555" }} />
+                  {Object.keys(frozenSections).length > 0 && (
+                    <Badge count={Object.keys(frozenSections).length} style={{ backgroundColor: "#1890ff", position: "absolute", top: "-5px", right: "-8px", transform: "scale(0.8)" }} />
+                  )}
+                </span>
+              </Tooltip>
               <TeacherRestrictionModal
                 putTeacherRestriction={putTeacherRestriction}
                 teacherRestrictions={teacherRestrictions}
@@ -2367,9 +2414,11 @@ const SchoolSchedule: React.FC = () => {
                     <table style={{
                       width: "100%",
                       borderCollapse: "collapse",
-                      border: "1px solid #dee2e6",
                       fontSize: "0.85rem",
-                      tableLayout: "fixed"
+                      tableLayout: "fixed",
+                      boxShadow: frozenSections[`${pnf}-${trayectoId}-${seccion}`] && !title ? "0 0 15px rgba(0, 191, 255, 0.4)" : "none",
+                      border: frozenSections[`${pnf}-${trayectoId}-${seccion}`] && !title ? "3px solid rgba(0, 191, 255, 0.6)" : "1px solid #dee2e6",
+                      transition: "all 0.3s ease"
                     }}>
                       <thead style={{ position: "sticky", top: 0, zIndex: 5, backgroundColor: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>
                         <tr>
@@ -2420,6 +2469,8 @@ const SchoolSchedule: React.FC = () => {
                                     </div>
                                   );
 
+                                  const isFrozen = !!frozenSections[`${cell.extendedProps?.pnfId}-${cell.extendedProps?.trayectoId}-${cell.extendedProps?.seccion}`];
+
                                   const contextMenuItems = [
                                     {
                                       key: "change-classroom",
@@ -2447,8 +2498,12 @@ const SchoolSchedule: React.FC = () => {
                                       className="schedule-time-cell"
                                       key={day}
                                       rowSpan={cell.rowSpan}
-                                      draggable
+                                      draggable={!isFrozen}
                                       onDragStart={(e) => {
+                                        if (isFrozen) {
+                                          e.preventDefault();
+                                          return;
+                                        }
                                         e.dataTransfer.effectAllowed = "move";
                                         e.dataTransfer.setData("text/plain", cell.title || "");
                                         setDraggedEventInfo({
@@ -2462,10 +2517,12 @@ const SchoolSchedule: React.FC = () => {
                                         });
                                       }}
                                       onDragOver={(e) => {
+                                        if (isFrozen) return;
                                         e.preventDefault();
                                         e.dataTransfer.dropEffect = "move";
                                       }}
                                       onDrop={(e) => {
+                                        if (isFrozen) return;
                                         e.preventDefault();
                                         handleDrop(rowIndex, day);
                                       }}
@@ -2561,6 +2618,27 @@ const SchoolSchedule: React.FC = () => {
                   return classroomGrids && classroomGrids.length > 0
                     ? classroomGrids.map((cg) => renderScheduleGrid(cg.grid, cg.classroomName, `classroom-grid-${cg.classroomId}`, cg.classroomId))
                     : <div style={{ padding: "2rem", textAlign: "center", color: "#666" }}>Ningún aula tiene materias asignadas este trimestre.</div>;
+                }
+
+                if (viewMode === "pnf") {
+                  const currentSectionKey = `${pnf}-${trayectoId}-${seccion}`;
+                  const isFrozen = !!frozenSections[currentSectionKey];
+                  return (
+                    <div style={{ position: "relative" }}>
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px", marginTop: "10px", paddingRight: "10px" }}>
+                        <Button
+                          type={isFrozen ? "primary" : "default"}
+                          danger={isFrozen}
+                          icon={isFrozen ? <UnlockOutlined /> : <LockOutlined />}
+                          onClick={() => toggleFreezeSection(pnf, trayectoId, seccion)}
+                          style={{ boxShadow: isFrozen ? "0 0 8px rgba(255, 77, 79, 0.4)" : "0 0 8px rgba(0, 191, 255, 0.4)", borderColor: isFrozen ? "#ff4d4f" : "#1890ff", color: isFrozen ? "#fff" : "#1890ff" }}
+                        >
+                          {isFrozen ? "Descongelar Sección" : "Congelar Sección"}
+                        </Button>
+                      </div>
+                      {renderScheduleGrid(tableGrid)}
+                    </div>
+                  );
                 }
 
                 return renderScheduleGrid(tableGrid);
@@ -2722,6 +2800,73 @@ const SchoolSchedule: React.FC = () => {
         onDelete={handleDeleteOverrides}
         onDeleteAll={handleDeleteAllOverrides}
       />
+
+      {/* Frozen Sections Manager Modal */}
+      <Modal
+        title={<div><LockOutlined style={{ color: "#1890ff", marginRight: "8px" }} /> Gestionar Secciones Congeladas</div>}
+        open={isFrozenManagerOpen}
+        onCancel={() => setIsFrozenManagerOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setIsFrozenManagerOpen(false)}>Cerrar</Button>
+        ]}
+        width={700}
+      >
+        <div style={{ maxHeight: "60vh", overflowY: "auto", padding: "10px" }}>
+          {Array.from(new Set(subjects?.map(s => s.pnfId).filter(Boolean))).map(pnfId => {
+            const pnfName = subjects?.find(s => s.pnfId === pnfId)?.pnf || pnfId;
+            const trayectosInPnf = Array.from(new Set(subjects?.filter(s => s.pnfId === pnfId).map(s => s.trayectoId).filter(Boolean)));
+            if (!trayectosInPnf.length) return null;
+
+            return (
+              <div key={pnfId} style={{ marginBottom: "20px", border: "1px solid #f0f0f0", borderRadius: "8px", overflow: "hidden" }}>
+                <div style={{ backgroundColor: "#fafafa", padding: "10px 15px", borderBottom: "1px solid #f0f0f0", fontWeight: "bold" }}>
+                  {pnfName}
+                </div>
+                <div style={{ padding: "10px" }}>
+                  {trayectosInPnf.map(trayId => {
+                    const trayName = trayectosList?.find(t => t.id === trayId)?.name || trayId;
+                    const sectionsInTray = Array.from(new Set(subjects?.filter(s => s.pnfId === pnfId && s.trayectoId === trayId).map(s => s.seccion).filter(Boolean))).sort(new Intl.Collator('es', { numeric: true }).compare);
+                    if (!sectionsInTray.length) return null;
+
+                    return (
+                      <div key={trayId} style={{ marginBottom: "15px" }}>
+                        <div style={{ fontSize: "0.9rem", color: "#666", marginBottom: "8px" }}>{trayName}</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                          {sectionsInTray.map(sec => {
+                            const isFrozen = !!frozenSections[`${pnfId}-${trayId}-${sec}`];
+                            return (
+                              <div
+                                key={sec}
+                                style={{
+                                  border: isFrozen ? "1px solid #1890ff" : "1px solid #d9d9d9",
+                                  backgroundColor: isFrozen ? "#e6f7ff" : "#fff",
+                                  padding: "5px 12px",
+                                  borderRadius: "16px",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
+                                  transition: "all 0.2s"
+                                }}
+                                onClick={() => toggleFreezeSection(pnfId as string, trayId as string, sec as string)}
+                              >
+                                {isFrozen ? <LockOutlined style={{ color: "#1890ff" }} /> : <UnlockOutlined style={{ color: "#999" }} />}
+                                <span style={{ fontWeight: isFrozen ? "bold" : "normal", color: isFrozen ? "#1890ff" : "inherit" }}>
+                                  Sección {sec}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Modal>
     </>
   );
 };
