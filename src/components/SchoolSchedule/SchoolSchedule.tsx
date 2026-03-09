@@ -156,6 +156,7 @@ const SchoolSchedule: React.FC = () => {
     }
   });
   const [isFrozenManagerOpen, setIsFrozenManagerOpen] = useState(false);
+  const [frozenPnfFilter, setFrozenPnfFilter] = useState<string[]>([]);
 
   useEffect(() => {
     localStorage.setItem("schedule_frozenSections", JSON.stringify(frozenSections));
@@ -2876,15 +2877,40 @@ const SchoolSchedule: React.FC = () => {
       <Modal
         title={<div><LockOutlined style={{ color: "#1890ff", marginRight: "8px" }} /> Gestionar Secciones Congeladas</div>}
         open={isFrozenManagerOpen}
-        onCancel={() => setIsFrozenManagerOpen(false)}
+        onCancel={() => { setIsFrozenManagerOpen(false); setFrozenPnfFilter([]); }}
         footer={[
-          <Button key="close" onClick={() => setIsFrozenManagerOpen(false)}>Cerrar</Button>
+          <Button key="close" onClick={() => { setIsFrozenManagerOpen(false); setFrozenPnfFilter([]); }}>Cerrar</Button>
         ]}
         width={700}
       >
+        <div style={{ marginBottom: "15px", padding: "0 10px" }}>
+          <Select
+            mode="multiple"
+            style={{ width: '100%' }}
+            placeholder="Filtrar por PNF(s)..."
+            value={frozenPnfFilter}
+            onChange={(values) => setFrozenPnfFilter(values)}
+            allowClear
+            showSearch
+            filterOption={(input, option) =>
+              (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+            }
+            maxTagCount="responsive"
+            options={Array.from(new Set(subjects?.map(s => s.pnfId).filter(Boolean))).map(pnfId => {
+              const pnfName = subjects?.find(s => s.pnfId === pnfId)?.pnf || pnfId;
+              return { label: pnfName, value: pnfId };
+            }).sort((a, b) => (a.label as string).localeCompare(b.label as string))}
+          />
+        </div>
         <div style={{ maxHeight: "60vh", overflowY: "auto", padding: "10px" }}>
           {Array.from(new Set(subjects?.map(s => s.pnfId).filter(Boolean))).map(pnfId => {
             const pnfName = subjects?.find(s => s.pnfId === pnfId)?.pnf || pnfId;
+
+            // Apply filter
+            if (frozenPnfFilter.length > 0 && !frozenPnfFilter.includes(pnfId as string)) {
+              return null;
+            }
+
             const allTrayectosRaw = Array.from(new Set(subjects?.filter(s => s.pnfId === pnfId).map(s => s.trayectoId).filter(Boolean)));
             const trayectosInPnf = allTrayectosRaw.sort((a, b) => {
               const nameA = trayectosList?.find(t => t.id === a)?.name || a;
