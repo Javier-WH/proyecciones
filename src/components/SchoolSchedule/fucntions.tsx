@@ -882,21 +882,45 @@ export function generateScheduleEvents({
 
   // ─── Pre-occupy frozen events ───
   if (frozenEvents.length > 0) {
+    const reportedFrozenErrors = new Set<string>();
+
     for (const evt of frozenEvents) {
       if (evt.daysOfWeek?.length && evt.startTime && evt.extendedProps) {
         const day = evt.daysOfWeek[0];
         const professorId = evt.extendedProps.professorId;
+        const turnName = evt.extendedProps.turnName?.toLowerCase() || "";
+        const timeSlots = activeTurnos[turnName] || [];
 
-        occupancy.occupy(
-          day,
-          evt.startTime,
-          professorId,
-          evt.extendedProps.classroomId,
-          evt.extendedProps.pnfId,
-          evt.extendedProps.trayectoId,
-          evt.extendedProps.seccion,
-          evt.extendedProps.subjectId
-        );
+        // Find start and end indices in the slots array
+        const startIdx = timeSlots.findIndex(s => s[0] === evt.startTime);
+        const endIdx = timeSlots.findIndex(s => s[1] === evt.endTime);
+
+        if (startIdx !== -1 && endIdx !== -1) {
+          for (let i = startIdx; i <= endIdx; i++) {
+            occupancy.occupy(
+              day,
+              timeSlots[i][0],
+              professorId,
+              evt.extendedProps.classroomId,
+              evt.extendedProps.pnfId,
+              evt.extendedProps.trayectoId,
+              evt.extendedProps.seccion,
+              evt.extendedProps.subjectId
+            );
+          }
+        } else {
+          // Fallback if slot matching fails for some reason
+          occupancy.occupy(
+            day,
+            evt.startTime,
+            professorId,
+            evt.extendedProps.classroomId,
+            evt.extendedProps.pnfId,
+            evt.extendedProps.trayectoId,
+            evt.extendedProps.seccion,
+            evt.extendedProps.subjectId
+          );
+        }
 
         // --- VALIDACIONES DE SECCIÓN CONGELADA ---
         const teacherObj = teachers?.find((t: any) => t.id === professorId);
@@ -904,38 +928,13 @@ export function generateScheduleEvents({
           ? `${teacherObj.name} ${teacherObj.lastName}`
           : professorId;
 
-        // 1. Validar restricciones de disponibilidad del profesor
-        if (professorId && unavailableDays) {
-          const teacherRest = unavailableDays.find((r) => r.teacherId === professorId);
-          if (teacherRest) {
-            if (teacherRest.days?.includes(day)) {
-              setErrors({
-                name: evt.title,
-                description: `[SECCIÓN CONGELADA] Conflicto de Profesor: El profesor no tiene disponibilidad este día de la semana. Por favor, descongele la sección para reajustar.`,
-                seccion: evt.extendedProps.seccion,
-                year: evt.extendedProps.trayectoName || "",
-                turn: evt.extendedProps.turnName || "",
-                pnfName: evt.extendedProps.pnfName || "",
-                professorName: professorName || undefined,
-                trimestre,
-              });
-            } else {
-              const restrictedTime = teacherRest.hours?.find((h) => h.day === day && h.start === evt.startTime);
-              if (restrictedTime) {
-                setErrors({
-                  name: evt.title,
-                  description: `[SECCIÓN CONGELADA] Conflicto de Profesor: La hora sugerida (${evt.startTime}) no está disponible para este profesor. Descongele la sección.`,
-                  seccion: evt.extendedProps.seccion,
-                  year: evt.extendedProps.trayectoName || "",
-                  turn: evt.extendedProps.turnName || "",
-                  pnfName: evt.extendedProps.pnfName || "",
-                  professorName: professorName || undefined,
-                  trimestre,
-                });
-              }
-            }
-          }
-        }
+        // Base key for tracking duplicates per section
+        const baseErrKey = `${evt.extendedProps.subjectId}-${evt.extendedProps.seccion}-${evt.extendedProps.trayectoId}`;
+
+        // 1. (ELIMINADO) Validar restricciones de disponibilidad del profesor.
+        // Se ha suprimido esta validación para las secciones congeladas porque:
+        // Si el event está congelado es porque el usuario/generador forzó que fuese correcto.
+        // Alertar aquí generaba una contradicción fantasma si los días difieren.
 
         // 2. Validar restricciones exclusivas de aula
         const subjectNorm = normalizeText(evt.title);
@@ -950,19 +949,24 @@ export function generateScheduleEvents({
             (p) => p.subjectKey === subjectKey && !p.pnfId,
           );
 
-        if (preferConfig && preferConfig.isExclusive && preferConfig.classroomIds?.length) {
-          if (!preferConfig.classroomIds.includes(evt.extendedProps.classroomId)) {
-            const classObj = classrooms?.find(c => preferConfig.classroomIds!.includes(c.id));
-            setErrors({
-              name: evt.title,
-              description: `[SECCIÓN CONGELADA] Conflicto de Aula: Esta materia exige un aula exclusiva (ej. ${classObj?.classroom || "Otra"}), pero está fijada en otra distinta. Descongele la sección.`,
-              seccion: evt.extendedProps.seccion,
-              year: evt.extendedProps.trayectoName || "",
-              turn: evt.extendedProps.turnName || "",
-              pnfName: evt.extendedProps.pnfName || "",
-              professorName: professorName || undefined,
-              trimestre,
-            });
+        if (preferConfig && preferConfig.isExclusive && !preferConfig.splitHours && preferConfig.classroomIds?.length) {
+          const stringifiedClassroomIds = preferConfig.classroomIds.map(String);
+          if (!stringifiedClassroomIds.includes(String(evt.extendedProps.classroomId))) {
+            const errKey = `${baseErrKey}-room`;
+            if (!reportedFrozenErrors.has(errKey)) {
+              reportedFrozenErrors.add(errKey);
+              const classObj = classrooms?.find(c => stringifiedClassroomIds.includes(String(c.id)));
+              setErrors({
+                name: evt.title,
+                description: `[SECCIÓN CONGELADA] Conflicto de Aula: Esta materia exige un aula exclusiva (ej. ${classObj?.classroom || "Otra"}), pero está fijada en otra distinta. Descongele la sección.`,
+                seccion: evt.extendedProps.seccion,
+                year: evt.extendedProps.trayectoName || "",
+                turn: evt.extendedProps.turnName || "",
+                pnfName: evt.extendedProps.pnfName || "",
+                professorName: professorName || undefined,
+                trimestre,
+              });
+            }
           }
         }
       }
@@ -1037,11 +1041,11 @@ export function generateScheduleEvents({
 
       // Restricciones de profesor
       const teacherRest = unavailableDays?.find(
-        (r) => r.teacherId === professorId,
+        (r) => String(r.teacherId) === String(professorId),
       );
-      const restrictedDays = teacherRest?.days ?? [];
+      const restrictedDays = teacherRest?.days?.map(String) ?? [];
       const restrictedHours = teacherRest?.hours ?? [];
-      const availableDays = days.filter((d) => !restrictedDays.includes(d));
+      const availableDays = days.filter((d) => !restrictedDays.includes(String(d)));
 
       // Aulas candidatas
       // IMPORTANTE: Primero buscar restricción con pnfId exacto, luego genérica sin pnfId
@@ -1087,7 +1091,7 @@ export function generateScheduleEvents({
           : professorId;
 
         const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-        const restrictedDayNames = restrictedDays.map((d: number) => dayNames[d] || `Día ${d}`).join(", ");
+        const restrictedDayNames = restrictedDays.map((d: string) => dayNames[Number(d)] || `Día ${d}`).join(", ");
 
         let errorDesc = "";
         if (availableDays.length === 0) {

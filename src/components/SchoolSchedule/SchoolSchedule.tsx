@@ -182,7 +182,6 @@ const SchoolSchedule: React.FC = () => {
       }
       return newObj;
     });
-    setGenerationCounter(prev => prev + 1);
   };
 
   const toggleFreezeTrayecto = (pnfId: string, trayId: string, trayName: string, sections: string[], isCurrentlyFrozen: boolean) => {
@@ -207,7 +206,6 @@ const SchoolSchedule: React.FC = () => {
       }
       return newObj;
     });
-    setGenerationCounter(prev => prev + 1);
   };
 
   const toggleFreezePnf = (pnfId: string, pnfName: string, sectionsMap: Array<{ trayId: string, sec: string }>, isCurrentlyFrozen: boolean) => {
@@ -233,7 +231,6 @@ const SchoolSchedule: React.FC = () => {
       }
       return newObj;
     });
-    setGenerationCounter(prev => prev + 1);
   };
 
   const [draggedEventInfo, setDraggedEventInfo] = useState<{
