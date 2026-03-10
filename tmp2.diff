@@ -1,0 +1,22 @@
+﻿diff --git a/src/hooks/useSetSubject.tsx b/src/hooks/useSetSubject.tsx
+index 3ab811f..7df3cfa 100644
+--- a/src/hooks/useSetSubject.tsx
++++ b/src/hooks/useSetSubject.tsx
+@@ -70,7 +70,7 @@ export default function useSetSubject(SubjectArray: Subject[]) {
+       const subjectQuarter = Object.keys(currentSubject.quarter) as Array<
+         keyof (typeof currentSubject)["quarter"]
+       >;
+-      for (let quarter of subjectQuarter) {
++      for (const quarter of subjectQuarter) {
+         currentSubject.quarter[quarter] = teacherId;
+       }
+ 
+@@ -130,7 +130,7 @@ export default function useSetSubject(SubjectArray: Subject[]) {
+         keyof (typeof currentSubject)["quarter"]
+       >;
+       // a cada trimestre que se de la materia se  elimina el profesor si es que da la materia
+-      for (let quarter of subjectQuarter) {
++      for (const quarter of subjectQuarter) {
+         if (currentSubject.quarter[quarter] === teacherId) {
+           currentSubject.quarter[quarter] = null;
+         }

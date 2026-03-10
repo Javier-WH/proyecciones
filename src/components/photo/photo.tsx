@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
 import { Teacher } from "../../interfaces/teacher"
 import MalePlaceHolder from "../../assets/malePlaceHolder.svg"
 import FemalePlaceHolder from "../../assets/femalePlaceHolder.svg"

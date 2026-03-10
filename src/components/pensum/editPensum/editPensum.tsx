@@ -58,7 +58,7 @@ export default function EditPensum() {
     if (!pnfId || pnfList.length === 0) {
       setMayaId(undefined);
       return;
-    };
+    }
 
     const selectedPnf = pnfList.find((p) => p.id === pnfId);
     if (!selectedPnf) return;

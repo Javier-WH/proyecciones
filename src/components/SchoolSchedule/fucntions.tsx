@@ -65,7 +65,6 @@ export interface generateScheduleParams {
   preventSingleHourBlocks?: boolean;
   breaks?: { start: string; end: string }[];
   frozenEvents?: Event[];
-  frozenSectionKeys?: string[];
 }
 
 // =====================================================
@@ -871,7 +870,6 @@ export function generateScheduleEvents({
   preventSingleHourBlocks = false,
   breaks = [],
   frozenEvents = [],
-  frozenSectionKeys = [],
 }: generateScheduleParams): Event[] {
   // Reset global backtrack counter
   backtrackCounter = 0;
@@ -973,7 +971,6 @@ export function generateScheduleEvents({
     }
   }
 
-  const frozenSet = new Set(frozenSectionKeys);
 
   // ─── Build set of reserved classrooms ───
   // Classrooms that are explicitly assigned to specific subjects
@@ -998,9 +995,7 @@ export function generateScheduleEvents({
 
     if (!isQuarterMatch) return false;
 
-    const sectionKey = `${sub.pnfId}-${sub.trayectoId}-${sub.seccion}`;
-    if (frozenSet.has(sectionKey)) return false;
-
+    // Ya no cortamos por frozenSet; las porciones sin asignar de secciones congeladas deben intentar resolverse
     return true;
   });
 
@@ -1014,7 +1009,10 @@ export function generateScheduleEvents({
       const subjectKey = `${subjectNorm}_t_${trayectoNorm}`;
       const originalTotalHours = sub.hours[trimestre]!;
 
-      if (originalTotalHours <= 0 || !professorId) return [];
+      const placedHours = frozenEvents.filter(e => e.extendedProps?.subjectId === sub.innerId).length;
+      const totalHours = originalTotalHours - placedHours;
+
+      if (totalHours <= 0 || !professorId) return [];
 
       const timeSlots = activeTurnos[turnoName];
       if (!timeSlots || timeSlots.length === 0) return [];

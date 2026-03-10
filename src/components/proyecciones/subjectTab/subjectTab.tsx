@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
 import { Subject } from "../../../interfaces/subject";
 import { MainContext } from "../../../context/mainContext";
 import { MainContextValues } from "../../../interfaces/contextInterfaces";
@@ -74,7 +74,7 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
     if (showUnasignedSubject) {
       filteredSubjects = filteredSubjects.filter((subject) => {
         const quarter = subject.quarter;
-        // eslint-disable-next-line array-callback-return
+         
         if (unasignedSubject(quarter)) {
           return subject;
         }

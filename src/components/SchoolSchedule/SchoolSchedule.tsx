@@ -40,6 +40,7 @@ import {
   saveClassroomOverrides,
   type ClassroomOverride,
 } from "../../fetch/schedule/classroomOverrideFetch";
+import useSetSubject from "../../hooks/useSetSubject";
 
 
 type RawSubjectRestriction = {
@@ -96,8 +97,10 @@ const hexToRgba = (hexColor: string, alpha = 0.15): string => {
 
 
 const SchoolSchedule: React.FC = () => {
-  const { subjects, teachers, trayectosList, proyectionId, subjectColors } =
+  const { subjects, teachers, trayectosList, proyectionId, subjectColors, handleSubjectChange } =
     useContext(MainContext) as MainContextValues;
+
+  const { addSubjectToTeacher } = useSetSubject(subjects || []);
 
   // Use a ref for teachers so that generateScheduleEvents can access the latest
   // value without being listed as a dependency (which would cause the schedule
@@ -944,7 +947,7 @@ const SchoolSchedule: React.FC = () => {
       return sameDay && usesTargetClassroom && overlapsTime && isOtherEvent;
     });
 
-    const applyClassroomChangeAndRecalculate = () => {
+    const applyClassroomChangeAndRecalculate = (returnFirstModifiedOnly = false) => {
       const allEvents = [...loadedScheduleEvents, ...eventData];
 
       // Find the specific events we are modifying
@@ -969,6 +972,7 @@ const SchoolSchedule: React.FC = () => {
         }));
 
       if (modifiedEvents.length === 0) {
+        if (returnFirstModifiedOnly) return null;
         message.error("No se pudo aplicar el cambio. El evento original no se encontró.");
         setClassroomChangeEvent(null);
         setNewClassroomId("");
@@ -998,6 +1002,8 @@ const SchoolSchedule: React.FC = () => {
         setHasUnsavedOverrides(true);
       }
 
+      if (returnFirstModifiedOnly) return firstModified;
+
       // Recalcular todo el horario alrededor de este nuevo evento fijo
       setGenerationCounter((prev) => prev + 1);
 
@@ -1010,11 +1016,21 @@ const SchoolSchedule: React.FC = () => {
       setNewClassroomId("");
     };
 
-    if (conflictingEvent) {
+    const firstModifiedEvent = applyClassroomChangeAndRecalculate(true) as any;
+    const isFrozen = firstModifiedEvent ? !!frozenSections[`${firstModifiedEvent.extendedProps?.pnfId}-${firstModifiedEvent.extendedProps?.trayectoId}-${firstModifiedEvent.extendedProps?.seccion}-${trimestre}`] : false;
+
+    if (conflictingEvent || isFrozen) {
       const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+      const isFrozenAlertText = isFrozen ? "Esta sección está CONGELADA. " : "";
+
+      let contentMessage = "";
+      if (conflictingEvent) {
+        contentMessage = `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. `
+      }
+
       Modal.confirm({
-        title: "Aula Ocupada",
-        content: `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. ¿Deseas reasignar de todos modos y recalcular el horario alrededor de este cambio ? `,
+        title: conflictingEvent ? "Aula Ocupada" : "Confirmar Reasignación",
+        content: `${isFrozenAlertText}${contentMessage}¿Deseas reasignar de todos modos y recalcular el horario alrededor de este cambio ? `,
         okText: "Sí, cambiar aula y recalcular",
         cancelText: "Deshacer",
         okButtonProps: { danger: true },
@@ -1274,7 +1290,7 @@ const SchoolSchedule: React.FC = () => {
   // las aulas, o el generationCounter (forzado al aplicar restricciones).
   // IMPORTANT: subjects and teachers are accessed via refs and compared via
   // content-based keys to avoid unnecessary regeneration from WebSocket updates.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const currentSubjects = schedulableSubjectsRef.current;
     if (
@@ -1287,6 +1303,78 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
     const localErrors: scheduleError[] = [];
+
+    // --- SELF-HEALING FROZEN SECTIONS ALGORITHM ---
+    const updatedFrozenSections = { ...frozenSections };
+    let frozenChanged = false;
+
+    // 1. Sync professorIds in updatedFrozenSections with current Subjects
+    for (const [key, frozenEvents] of Object.entries(updatedFrozenSections)) {
+      if (!key.endsWith(`-${trimestre}`)) continue;
+      let needsSync = false;
+
+      const synchronizedEvents = frozenEvents.map(ev => {
+        const sub = currentSubjects?.find(s => s.innerId === ev.extendedProps?.subjectId);
+        if (!sub) return ev;
+        const currentProf = sub.quarter[trimestre] || null;
+        if (ev.extendedProps?.professorId !== currentProf) {
+          needsSync = true;
+          return {
+            ...ev,
+            extendedProps: { ...ev.extendedProps, professorId: currentProf }
+          };
+        }
+        return ev;
+      });
+
+      if (needsSync) {
+        updatedFrozenSections[key] = synchronizedEvents;
+        frozenChanged = true;
+      }
+    }
+
+    // 2. Check for double bookings among synchronized frozen events or teacher rest days/hours
+    const profOccupancy = new Set<string>(); // profId-day-start
+    const keysToUnfreeze = new Set<string>();
+
+    for (const [key, frozenEvents] of Object.entries(updatedFrozenSections)) {
+      if (!key.endsWith(`-${trimestre}`)) continue;
+      for (const ev of frozenEvents) {
+        const profId = ev.extendedProps?.professorId;
+        if (!profId || !ev.daysOfWeek || !ev.startTime) continue;
+
+        const timeSlotKey = `${profId}-${ev.daysOfWeek[0]}-${ev.startTime}`;
+        if (profOccupancy.has(timeSlotKey)) {
+          // Professor is double booked internally purely within frozen sections!
+          keysToUnfreeze.add(key);
+        } else {
+          profOccupancy.add(timeSlotKey);
+        }
+
+        // Also check teacherRestrictions to ensure the new assigned professor doesn't hit a wall
+        const profRest = teacherRestrictions.find(r => r.teacherId === profId);
+        if (profRest) {
+          if (profRest.days?.includes(ev.daysOfWeek[0])) {
+            keysToUnfreeze.add(key);
+          } else {
+            const restrictedTime = profRest.hours?.find(h => h.day === ev.daysOfWeek![0] && ev.startTime === h.start);
+            if (restrictedTime) keysToUnfreeze.add(key);
+          }
+        }
+      }
+    }
+
+    keysToUnfreeze.forEach(key => {
+      delete updatedFrozenSections[key];
+      frozenChanged = true;
+    });
+
+    if (frozenChanged) {
+      // Save back to state asynchronously so it doesn't interrupt the render cycle
+      setTimeout(() => setFrozenSections(updatedFrozenSections), 0);
+    }
+    // ----------------------------------------------
+
     const eventsdata = generateScheduleEvents({
       subjects: currentSubjects,
       classrooms: classrooms.filter(c => c.active !== false),
@@ -1303,19 +1391,16 @@ const SchoolSchedule: React.FC = () => {
       preventSingleHourBlocks: scheduleConfig?.prevent_single_hour_blocks,
       breaks: scheduleConfig?.breaks,
       teachers: teachersRef.current || [],
-      frozenEvents: Object.keys(frozenSections)
+      frozenEvents: Object.keys(updatedFrozenSections)
         .filter(key => key.endsWith(`-${trimestre}`))
-        .flatMap(key => frozenSections[key]),
-      frozenSectionKeys: Object.keys(frozenSections)
-        .filter(key => key.endsWith(`-${trimestre}`))
-        .map(key => key.replace(`-${trimestre}`, "")),
+        .flatMap(key => updatedFrozenSections[key]),
     });
 
     if (scheduleConfig?.auto_solve && localErrors.length > 0) {
-      let currentAllEvents = [...loadedScheduleEvents, ...eventsdata];
+      const currentAllEvents = [...loadedScheduleEvents, ...eventsdata];
       const newlySolvedEvents: Event[] = [];
       let solvedCount = 0;
-      let unresolvedErrors: scheduleError[] = [];
+      const unresolvedErrors: scheduleError[] = [];
 
       for (const errorInfo of localErrors) {
         if (!errorInfo.subjectId) { unresolvedErrors.push(errorInfo); continue; }
@@ -1794,16 +1879,11 @@ const SchoolSchedule: React.FC = () => {
 
   // ------------------------------
 
-  const handleDrop = (targetRowIndex: number, targetDay: number) => {
+  const handleDrop = (targetRowIndex: number, targetDay: number, targetEntityId?: string) => {
     if (!draggedEventInfo || !tableSlots[targetRowIndex]) return;
 
     const { sourceDay, sourceStartTime, rowSpan, title, classroomId, seccion, pnfName } = draggedEventInfo;
     const targetStartTime = tableSlots[targetRowIndex][0];
-
-    if ((sourceDay === targetDay && sourceStartTime === targetStartTime) || targetRowIndex + rowSpan > tableSlots.length) {
-      setDraggedEventInfo(null);
-      return;
-    }
 
     const sourceStartIdx = tableSlots.findIndex(s => s[0] === sourceStartTime);
 
@@ -1827,10 +1907,25 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
 
+    const firstMovingEvent = movingEvents[0];
+    const isFrozen = !!frozenSections[`${firstMovingEvent.extendedProps?.pnfId}-${firstMovingEvent.extendedProps?.trayectoId}-${firstMovingEvent.extendedProps?.seccion}-${trimestre}`];
+
     const targetSlots = tableSlots.slice(targetRowIndex, targetRowIndex + rowSpan);
     const targetSlotStarts = targetSlots.map(s => s[0]);
-    const firstMovingEvent = movingEvents[0];
-    const profId = firstMovingEvent.extendedProps.professorId;
+
+    // Si estamos en la vista de profesor y el targetEntityId es diferente, estamos reasignando
+    const originalProfId = firstMovingEvent.extendedProps.professorId;
+    const isReassigningProfessor = viewMode === "professor" && targetEntityId && targetEntityId !== originalProfId;
+    const profId = isReassigningProfessor ? targetEntityId : originalProfId;
+
+    // If reassigning professor, we allow same day/time drops. Otherwise, we block drops on the same exact coordinate.
+    const isSameSpot = sourceDay === targetDay && sourceStartTime === targetStartTime;
+
+    if ((isSameSpot && !isReassigningProfessor) || targetRowIndex + rowSpan > tableSlots.length) {
+      setDraggedEventInfo(null);
+      return;
+    }
+
     const trayId = firstMovingEvent.extendedProps.trayectoId;
 
     // --- REVISIÓN DE RESTRICCIONES Y CONFLICTOS ---
@@ -1910,13 +2005,111 @@ const SchoolSchedule: React.FC = () => {
         return [...filtered, ...targetOverrides];
       });
       setHasUnsavedOverrides(true);
-      setGenerationCounter(prev => prev + 1);
+
+      if (isReassigningProfessor && profId) {
+        const resp = addSubjectToTeacher({ subjectId: firstMovingEvent.extendedProps?.subjectId as string, teacherId: profId });
+        if (!resp.error && resp.data) {
+          handleSubjectChange(resp.data);
+        }
+      } else {
+        setGenerationCounter(prev => prev + 1);
+      }
     };
+
+    const frozenKey = `${firstMovingEvent.extendedProps?.pnfId}-${firstMovingEvent.extendedProps?.trayectoId}-${firstMovingEvent.extendedProps?.seccion}-${trimestre}`;
+
+    if (isFrozen && !conflictFound) {
+      // 1. Actualizar "frozenSections" para parchear el cambio en caliente sin desordenar
+      setFrozenSections(prev => {
+        const newObj = { ...prev };
+        if (newObj[frozenKey]) {
+          const patchedEvents = newObj[frozenKey].map(e => {
+            const isMoving = e.extendedProps?.subjectId === firstMovingEvent.extendedProps?.subjectId &&
+              e.daysOfWeek.includes(sourceDay) &&
+              sourceSlotStarts.includes(e.startTime);
+
+            if (isMoving) {
+              const diffIndex = sourceSlotStarts.indexOf(e.startTime);
+              const newStartTime = targetSlotStarts[diffIndex];
+              const newEndTime = targetSlots[diffIndex][1];
+              return {
+                ...e,
+                daysOfWeek: [targetDay],
+                startTime: newStartTime,
+                endTime: newEndTime,
+                extendedProps: { ...e.extendedProps, professorId: profId, classroomId: classroomId }
+              };
+            }
+            return e;
+          });
+          newObj[frozenKey] = patchedEvents;
+        }
+        return newObj;
+      });
+
+      // 2. Si reasignó profesor, actualizar en backend
+      if (isReassigningProfessor && profId) {
+        const resp = addSubjectToTeacher({ subjectId: firstMovingEvent.extendedProps?.subjectId as string, teacherId: profId });
+        if (!resp.error && resp.data) {
+          handleSubjectChange(resp.data);
+        }
+      }
+
+      const pnfIdStr = firstMovingEvent.extendedProps?.pnfId;
+      const trayIdStr = firstMovingEvent.extendedProps?.trayectoId;
+      const secStr = firstMovingEvent.extendedProps?.seccion;
+
+      if (pnfIdStr && trayIdStr && secStr) {
+        setHasUnsavedOverrides(true);
+        // Force the section to temporarily "unfreeze" and "refreeze" to force an update logic for React state while saving
+        setFrozenSections(prev => {
+          const newObj = { ...prev };
+          delete newObj[frozenKey];
+          return newObj;
+        });
+
+        setTimeout(() => {
+          setFrozenSections(prev => {
+            const newObj = { ...prev };
+            newObj[frozenKey] = eventData.filter(e =>
+              e.extendedProps.pnfId === pnfIdStr &&
+              e.extendedProps.trayectoId === trayIdStr &&
+              e.extendedProps.seccion === secStr
+            );
+            return newObj;
+          });
+        }, 100);
+      }
+
+      setDraggedEventInfo(null);
+      return; // Completado silenciosamente sin lanzar recálculo masivo
+    }
+
+    if (isFrozen && conflictFound) {
+      Modal.confirm({
+        title: "Reasignación con Conflictos",
+        content: `Esta sección está CONGELADA, pero la nueva asignación genera conflictos. ¿Deseas descongelar SOLAMENTE esta sección y reordenarla para reparar el conflicto? (El resto del horario se mantendrá intacto)`,
+        okText: "Sí, descongelar y reparar sección",
+        cancelText: "Deshacer cambio",
+        okButtonProps: { danger: true },
+        onOk: () => {
+          setFrozenSections(prev => {
+            const newObj = { ...prev };
+            delete newObj[frozenKey];
+            return newObj;
+          });
+          pinDraggedEventsAndRecalculate();
+          setDraggedEventInfo(null);
+        },
+        onCancel: () => setDraggedEventInfo(null)
+      });
+      return;
+    }
 
     if (conflictFound) {
       Modal.confirm({
-        title: "Conflicto de Horario Detectado",
-        content: `La posición que deseas asignar tiene conflictos o restricciones ocupadas. ¿Deseas forzar el cambio de todos modos y recalcular automáticamente el resto del horario alrededor de esta nueva posición ? `,
+        title: "Confirmar Cambios",
+        content: `La posición tiene conflictos o restricciones ocupadas. ¿Deseas aplicar el cambio de todos modos y forzar la posición (recalcular el horario)?`,
         okText: "Sí, forzar y recalcular",
         cancelText: "Deshacer",
         okButtonProps: { danger: true },
@@ -1924,17 +2117,13 @@ const SchoolSchedule: React.FC = () => {
           pinDraggedEventsAndRecalculate();
           setDraggedEventInfo(null);
         },
-        onCancel: () => {
-          setDraggedEventInfo(null);
-        }
+        onCancel: () => setDraggedEventInfo(null)
       });
       return;
     }
-
     // Si no hay conflicto, igual lo anclamos para que soporte futuros recálculos sin perderse
     pinDraggedEventsAndRecalculate();
     setDraggedEventInfo(null);
-
   };
 
   const handleViewModeChange = (mode: "pnf" | "professor" | "classroom") => {
@@ -2561,12 +2750,8 @@ const SchoolSchedule: React.FC = () => {
                                       className="schedule-time-cell"
                                       key={day}
                                       rowSpan={cell.rowSpan}
-                                      draggable={!isFrozen}
+                                      draggable={true}
                                       onDragStart={(e) => {
-                                        if (isFrozen) {
-                                          e.preventDefault();
-                                          return;
-                                        }
                                         e.dataTransfer.effectAllowed = "move";
                                         e.dataTransfer.setData("text/plain", cell.title || "");
                                         setDraggedEventInfo({
@@ -2582,15 +2767,11 @@ const SchoolSchedule: React.FC = () => {
                                       onDragEnd={() => setDraggedEventInfo(null)}
                                       onDragOver={(e) => {
                                         e.preventDefault();
-                                        e.dataTransfer.dropEffect = isFrozen ? "none" : "move";
+                                        e.dataTransfer.dropEffect = "move";
                                       }}
                                       onDrop={(e) => {
                                         e.preventDefault();
-                                        if (isFrozen) {
-                                          message.warning("La sección de esta materia está congelada.");
-                                          return;
-                                        }
-                                        handleDrop(rowIndex, day);
+                                        handleDrop(rowIndex, day, entityId);
                                       }}
                                       style={{
                                         border: "1px solid #dee2e6",
@@ -2663,15 +2844,26 @@ const SchoolSchedule: React.FC = () => {
                                     <td key={day} style={{ border: "1px solid #dee2e6" }}
                                       onDragOver={(e) => {
                                         e.preventDefault();
-                                        e.dataTransfer.dropEffect = isGridFrozen ? "none" : "move";
+                                        e.dataTransfer.dropEffect = "move";
                                       }}
                                       onDrop={(e) => {
                                         e.preventDefault();
+                                        // Even if dropping on an empty slot, if the grid is frozen, we might want to warn
+                                        // But wait, if someone is dragging *into* a frozen grid, we should warn them
                                         if (isGridFrozen) {
-                                          message.warning("Esta sección está congelada.");
+                                          Modal.confirm({
+                                            title: "Confirmar Cambios en Grilla Congelada",
+                                            content: `Estás a punto de reasignar una materia hacia una grilla que actualmente se encuentra congelada para este trimestre. ¿Estás seguro de forzar el cambio?`,
+                                            okText: "Sí, forzar",
+                                            cancelText: "Deshacer",
+                                            okButtonProps: { danger: true },
+                                            onOk: () => {
+                                              handleDrop(rowIndex, day, entityId);
+                                            }
+                                          });
                                           return;
                                         }
-                                        handleDrop(rowIndex, day);
+                                        handleDrop(rowIndex, day, entityId);
                                       }}
                                     ></td>
                                   );

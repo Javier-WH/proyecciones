@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+ 
 import { message } from 'antd';
 import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
 import MalePlaceholder from '../../assets/malePlaceHolder.svg';

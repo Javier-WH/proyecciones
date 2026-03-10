@@ -1,0 +1,162 @@
+﻿diff --git a/src/components/SchoolSchedule/SchoolSchedule.tsx b/src/components/SchoolSchedule/SchoolSchedule.tsx
+index 059d60f..1e4e526 100644
+--- a/src/components/SchoolSchedule/SchoolSchedule.tsx
++++ b/src/components/SchoolSchedule/SchoolSchedule.tsx
+@@ -944,7 +944,7 @@ const SchoolSchedule: React.FC = () => {
+       return sameDay && usesTargetClassroom && overlapsTime && isOtherEvent;
+     });
+ 
+-    const applyClassroomChangeAndRecalculate = () => {
++    const applyClassroomChangeAndRecalculate = (returnFirstModifiedOnly = false) => {
+       const allEvents = [...loadedScheduleEvents, ...eventData];
+ 
+       // Find the specific events we are modifying
+@@ -969,6 +969,7 @@ const SchoolSchedule: React.FC = () => {
+         }));
+ 
+       if (modifiedEvents.length === 0) {
++        if (returnFirstModifiedOnly) return null;
+         message.error("No se pudo aplicar el cambio. El evento original no se encontr├│.");
+         setClassroomChangeEvent(null);
+         setNewClassroomId("");
+@@ -998,6 +999,8 @@ const SchoolSchedule: React.FC = () => {
+         setHasUnsavedOverrides(true);
+       }
+ 
++      if (returnFirstModifiedOnly) return firstModified;
++
+       // Recalcular todo el horario alrededor de este nuevo evento fijo
+       setGenerationCounter((prev) => prev + 1);
+ 
+@@ -1010,11 +1013,21 @@ const SchoolSchedule: React.FC = () => {
+       setNewClassroomId("");
+     };
+ 
+-    if (conflictingEvent) {
++    const firstModifiedEvent = applyClassroomChangeAndRecalculate(true) as any;
++    const isFrozen = firstModifiedEvent ? !!frozenSections[`${firstModifiedEvent.extendedProps?.pnfId}-${firstModifiedEvent.extendedProps?.trayectoId}-${firstModifiedEvent.extendedProps?.seccion}-${trimestre}`] : false;
++
++    if (conflictingEvent || isFrozen) {
+       const dayNames = ["", "Lunes", "Martes", "Mi├⌐rcoles", "Jueves", "Viernes", "S├íbado", "Domingo"];
++      const isFrozenAlertText = isFrozen ? "Esta secci├│n est├í CONGELADA. " : "";
++
++      let contentMessage = "";
++      if (conflictingEvent) {
++        contentMessage = `El aula "${newClassroom.classroom}" ya est├í ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. `
++      }
++
+       Modal.confirm({
+-        title: "Aula Ocupada",
+-        content: `El aula "${newClassroom.classroom}" ya est├í ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. ┬┐Deseas reasignar de todos modos y recalcular el horario alrededor de este cambio ? `,
++        title: conflictingEvent ? "Aula Ocupada" : "Confirmar Reasignaci├│n",
++        content: `${isFrozenAlertText}${contentMessage}┬┐Deseas reasignar de todos modos y recalcular el horario alrededor de este cambio ? `,
+         okText: "S├¡, cambiar aula y recalcular",
+         cancelText: "Deshacer",
+         okButtonProps: { danger: true },
+@@ -1274,7 +1287,7 @@ const SchoolSchedule: React.FC = () => {
+   // las aulas, o el generationCounter (forzado al aplicar restricciones).
+   // IMPORTANT: subjects and teachers are accessed via refs and compared via
+   // content-based keys to avoid unnecessary regeneration from WebSocket updates.
+-  // eslint-disable-next-line react-hooks/exhaustive-deps
++   
+   useEffect(() => {
+     const currentSubjects = schedulableSubjectsRef.current;
+     if (
+@@ -1312,10 +1325,10 @@ const SchoolSchedule: React.FC = () => {
+     });
+ 
+     if (scheduleConfig?.auto_solve && localErrors.length > 0) {
+-      let currentAllEvents = [...loadedScheduleEvents, ...eventsdata];
++      const currentAllEvents = [...loadedScheduleEvents, ...eventsdata];
+       const newlySolvedEvents: Event[] = [];
+       let solvedCount = 0;
+-      let unresolvedErrors: scheduleError[] = [];
++      const unresolvedErrors: scheduleError[] = [];
+ 
+       for (const errorInfo of localErrors) {
+         if (!errorInfo.subjectId) { unresolvedErrors.push(errorInfo); continue; }
+@@ -1827,9 +1840,11 @@ const SchoolSchedule: React.FC = () => {
+       return;
+     }
+ 
++    const firstMovingEvent = movingEvents[0];
++    const isFrozen = !!frozenSections[`${firstMovingEvent.extendedProps?.pnfId}-${firstMovingEvent.extendedProps?.trayectoId}-${firstMovingEvent.extendedProps?.seccion}-${trimestre}`];
++
+     const targetSlots = tableSlots.slice(targetRowIndex, targetRowIndex + rowSpan);
+     const targetSlotStarts = targetSlots.map(s => s[0]);
+-    const firstMovingEvent = movingEvents[0];
+     const profId = firstMovingEvent.extendedProps.professorId;
+     const trayId = firstMovingEvent.extendedProps.trayectoId;
+ 
+@@ -1913,10 +1928,12 @@ const SchoolSchedule: React.FC = () => {
+       setGenerationCounter(prev => prev + 1);
+     };
+ 
+-    if (conflictFound) {
++    if (conflictFound || isFrozen) {
++      const isFrozenAlertText = isFrozen ? "Esta secci├│n est├í CONGELADA. " : "";
++
+       Modal.confirm({
+-        title: "Conflicto de Horario Detectado",
+-        content: `La posici├│n que deseas asignar tiene conflictos o restricciones ocupadas. ┬┐Deseas forzar el cambio de todos modos y recalcular autom├íticamente el resto del horario alrededor de esta nueva posici├│n ? `,
++        title: "Confirmar Reasignaci├│n",
++        content: `${isFrozenAlertText}La posici├│n que deseas asignar ${conflictFound ? "tiene conflictos o restricciones ocupadas." : "va a reescribir una secci├│n congelada."} ┬┐Deseas forzar el cambio de todos modos y recalcular autom├íticamente el resto del horario alrededor de esta nueva posici├│n ? `,
+         okText: "S├¡, forzar y recalcular",
+         cancelText: "Deshacer",
+         okButtonProps: { danger: true },
+@@ -2561,12 +2578,8 @@ const SchoolSchedule: React.FC = () => {
+                                       className="schedule-time-cell"
+                                       key={day}
+                                       rowSpan={cell.rowSpan}
+-                                      draggable={!isFrozen}
++                                      draggable={true}
+                                       onDragStart={(e) => {
+-                                        if (isFrozen) {
+-                                          e.preventDefault();
+-                                          return;
+-                                        }
+                                         e.dataTransfer.effectAllowed = "move";
+                                         e.dataTransfer.setData("text/plain", cell.title || "");
+                                         setDraggedEventInfo({
+@@ -2582,14 +2595,10 @@ const SchoolSchedule: React.FC = () => {
+                                       onDragEnd={() => setDraggedEventInfo(null)}
+                                       onDragOver={(e) => {
+                                         e.preventDefault();
+-                                        e.dataTransfer.dropEffect = isFrozen ? "none" : "move";
++                                        e.dataTransfer.dropEffect = "move";
+                                       }}
+                                       onDrop={(e) => {
+                                         e.preventDefault();
+-                                        if (isFrozen) {
+-                                          message.warning("La secci├│n de esta materia est├í congelada.");
+-                                          return;
+-                                        }
+                                         handleDrop(rowIndex, day);
+                                       }}
+                                       style={{
+@@ -2663,12 +2672,23 @@ const SchoolSchedule: React.FC = () => {
+                                     <td key={day} style={{ border: "1px solid #dee2e6" }}
+                                       onDragOver={(e) => {
+                                         e.preventDefault();
+-                                        e.dataTransfer.dropEffect = isGridFrozen ? "none" : "move";
++                                        e.dataTransfer.dropEffect = "move";
+                                       }}
+                                       onDrop={(e) => {
+                                         e.preventDefault();
++                                        // Even if dropping on an empty slot, if the grid is frozen, we might want to warn
++                                        // But wait, if someone is dragging *into* a frozen grid, we should warn them
+                                         if (isGridFrozen) {
+-                                          message.warning("Esta secci├│n est├í congelada.");
++                                          Modal.confirm({
++                                            title: "Confirmar Cambios en Grilla Congelada",
++                                            content: `Est├ís a punto de reasignar una materia hacia una grilla que actualmente se encuentra congelada para este trimestre. ┬┐Est├ís seguro de forzar el cambio?`,
++                                            okText: "S├¡, forzar",
++                                            cancelText: "Deshacer",
++                                            okButtonProps: { danger: true },
++                                            onOk: () => {
++                                              handleDrop(rowIndex, day);
++                                            }
++                                          });
+                                           return;
+                                         }
+                                         handleDrop(rowIndex, day);
