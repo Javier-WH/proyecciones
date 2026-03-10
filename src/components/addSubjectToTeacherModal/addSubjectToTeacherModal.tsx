@@ -2,7 +2,6 @@ import React, { useEffect, useState, useContext } from "react";
 import { Button, Modal, Select, Radio, Tag, Switch, message, Alert } from "antd";
 import type { RadioChangeEvent } from "antd";
 import { Subject } from "../../interfaces/subject";
-import { CloseCircleOutlined } from "@ant-design/icons";
 import useSetSubject from "../../hooks/useSetSubject";
 import { Teacher } from "../../interfaces/teacher";
 import SubjectTeacherInfo from "./subjectTeacherInfo";

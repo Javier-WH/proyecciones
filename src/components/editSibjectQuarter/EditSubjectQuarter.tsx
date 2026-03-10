@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Modal, Tag, Select, message, Alert } from "antd";
+import { Button, Modal, Tag, Select, Alert } from "antd";
 import { Subject } from "../../interfaces/subject";
 import { Teacher } from "../../interfaces/teacher";
 import { normalizeText } from "../../utils/textFilter";
