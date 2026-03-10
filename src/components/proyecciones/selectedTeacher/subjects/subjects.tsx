@@ -145,7 +145,7 @@ const Subjects: React.FC<{
     });
 
     if (responseRemoveSubject.error) {
-      console.log(responseRemoveSubject.message);
+      message.error(responseRemoveSubject.message);
       return;
     }
 

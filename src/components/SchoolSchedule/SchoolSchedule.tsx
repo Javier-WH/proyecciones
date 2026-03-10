@@ -97,7 +97,7 @@ const hexToRgba = (hexColor: string, alpha = 0.15): string => {
 
 
 const SchoolSchedule: React.FC = () => {
-  const { subjects, teachers, trayectosList, proyectionId, subjectColors, handleSubjectChange } =
+  const { subjects, teachers, trayectosList, proyectionId, subjectColors, handleSubjectChange, frozenSections, setFrozenSections } =
     useContext(MainContext) as MainContextValues;
 
   const { addSubjectToTeacher } = useSetSubject(subjects || []);
@@ -150,21 +150,9 @@ const SchoolSchedule: React.FC = () => {
   } | null>(null);
   const [newClassroomId, setNewClassroomId] = useState<string>("");
 
-  const [frozenSections, setFrozenSections] = useState<Record<string, Event[]>>(() => {
-    try {
-      const stored = localStorage.getItem("schedule_frozenSections");
-      return stored ? JSON.parse(stored) : {};
-    } catch (e) {
-      return {};
-    }
-  });
   const [isFrozenManagerOpen, setIsFrozenManagerOpen] = useState(false);
   const [frozenPnfFilter, setFrozenPnfFilter] = useState<string[]>([]);
   const [frozenModalTab, setFrozenModalTab] = useState<"q1" | "q2" | "q3">("q1");
-
-  useEffect(() => {
-    localStorage.setItem("schedule_frozenSections", JSON.stringify(frozenSections));
-  }, [frozenSections]);
 
 
   const toggleFreezeSection = (pnfId: string, trayId: string, sec: string, specificTrimestre?: "q1" | "q2" | "q3") => {
@@ -1332,42 +1320,6 @@ const SchoolSchedule: React.FC = () => {
         frozenChanged = true;
       }
     }
-
-    // 2. Check for double bookings among synchronized frozen events or teacher rest days/hours
-    const profOccupancy = new Set<string>(); // profId-day-start
-    const keysToUnfreeze = new Set<string>();
-
-    for (const [key, frozenEvents] of Object.entries(updatedFrozenSections)) {
-      if (!key.endsWith(`-${trimestre}`)) continue;
-      for (const ev of frozenEvents) {
-        const profId = ev.extendedProps?.professorId;
-        if (!profId || !ev.daysOfWeek || !ev.startTime) continue;
-
-        const timeSlotKey = `${profId}-${ev.daysOfWeek[0]}-${ev.startTime}`;
-        if (profOccupancy.has(timeSlotKey)) {
-          // Professor is double booked internally purely within frozen sections!
-          keysToUnfreeze.add(key);
-        } else {
-          profOccupancy.add(timeSlotKey);
-        }
-
-        // Also check teacherRestrictions to ensure the new assigned professor doesn't hit a wall
-        const profRest = teacherRestrictions.find(r => r.teacherId === profId);
-        if (profRest) {
-          if (profRest.days?.includes(ev.daysOfWeek[0])) {
-            keysToUnfreeze.add(key);
-          } else {
-            const restrictedTime = profRest.hours?.find(h => h.day === ev.daysOfWeek![0] && ev.startTime === h.start);
-            if (restrictedTime) keysToUnfreeze.add(key);
-          }
-        }
-      }
-    }
-
-    keysToUnfreeze.forEach(key => {
-      delete updatedFrozenSections[key];
-      frozenChanged = true;
-    });
 
     if (frozenChanged) {
       // Save back to state asynchronously so it doesn't interrupt the render cycle
@@ -2727,8 +2679,10 @@ const SchoolSchedule: React.FC = () => {
                                     {
                                       key: "change-classroom",
                                       icon: <SwapOutlined />,
-                                      label: "Cambiar Aula",
+                                      disabled: isFrozen,
+                                      label: isFrozen ? "Aula Congelada (No editable)" : "Cambiar Aula",
                                       onClick: () => {
+                                        if (isFrozen) return;
                                         const endTimeIdx = rowIndex + cell.rowSpan - 1;
                                         const evtEndTime = tableSlots[endTimeIdx] ? tableSlots[endTimeIdx][1] : "";
                                         setClassroomChangeEvent({
@@ -2750,7 +2704,7 @@ const SchoolSchedule: React.FC = () => {
                                       className="schedule-time-cell"
                                       key={day}
                                       rowSpan={cell.rowSpan}
-                                      draggable={true}
+                                      draggable={!isFrozen}
                                       onDragStart={(e) => {
                                         e.dataTransfer.effectAllowed = "move";
                                         e.dataTransfer.setData("text/plain", cell.title || "");

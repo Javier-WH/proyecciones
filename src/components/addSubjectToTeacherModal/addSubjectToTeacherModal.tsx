@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Button, Modal, Select, Radio, Tag, Switch, message } from "antd";
+import { Button, Modal, Select, Radio, Tag, Switch, message, Alert } from "antd";
 import type { RadioChangeEvent } from "antd";
 import { Subject } from "../../interfaces/subject";
 import { CloseCircleOutlined } from "@ant-design/icons";
@@ -70,7 +70,7 @@ const AddSubjectToTeacherModal: React.FC<{
     const [options, setOptions] = useState<optionsInterface[]>([]);
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [perfilOption, setPerfilOption] = useState("perfil");
-    const [erroMessage, setErrorMessage] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [overLoad, setOverLoad] = useState(false);
     const [showUnasigned, setShowUnasigned] = useState(false);
     const [teacherIndex, setTeacherIndex] = useState(0);
@@ -269,7 +269,8 @@ const AddSubjectToTeacherModal: React.FC<{
       });
 
       if (addSubjectResponse.error) {
-        console.log(addSubjectResponse.message);
+        setErrorMessage(addSubjectResponse.message);
+        setLoading(false);
         return;
       }
 
@@ -330,6 +331,17 @@ const AddSubjectToTeacherModal: React.FC<{
           ]}
           title={null}
           closeIcon={false}>
+          {errorMessage && (
+            <Alert
+              message="No se pudo agregar la materia"
+              description={errorMessage}
+              type="error"
+              showIcon
+              closable
+              onClose={() => setErrorMessage(null)}
+              style={{ marginBottom: "16px" }}
+            />
+          )}
           <div
             style={{
               display: "flex",
@@ -551,10 +563,7 @@ const AddSubjectToTeacherModal: React.FC<{
                 }}
               />
 
-              <div style={{ width: "100%", visibility: erroMessage ? "visible" : "hidden" }}>
-                <Tag icon={<CloseCircleOutlined />} color="error">
-                  {erroMessage}
-                </Tag>
+              <div style={{ width: "100%", height: "1px", visibility: "hidden" }}>
               </div>
             </div>
           </div>

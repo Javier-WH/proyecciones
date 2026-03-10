@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Button, Modal, Tag, Select } from "antd";
+import { Button, Modal, Tag, Select, message, Alert } from "antd";
 import { Subject } from "../../interfaces/subject";
 import { Teacher } from "../../interfaces/teacher";
 import { normalizeText } from "../../utils/textFilter";
+import { useContext } from "react";
+import { MainContext } from "../../context/mainContext";
+import { MainContextValues } from "../../interfaces/contextInterfaces";
 
 interface TeacherOption {
   value: string;
@@ -26,6 +29,8 @@ const EditSubjectQuarterModal: React.FC<{
   const [selectedTeacherQ1, setSelectedTeacherQ1] = useState<Teacher | null | undefined>(null);
   const [selectedTeacherQ2, setSelectedTeacherQ2] = useState<Teacher | null | undefined>(null);
   const [selectedTeacherQ3, setSelectedTeacherQ3] = useState<Teacher | null | undefined>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const { frozenSections } = useContext(MainContext) as MainContextValues;
 
   useEffect(() => {
     if (!subject) {
@@ -52,6 +57,7 @@ const EditSubjectQuarterModal: React.FC<{
     }
 
     setOpen(true);
+    setLocalError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subject]);
 
@@ -70,6 +76,17 @@ const EditSubjectQuarterModal: React.FC<{
 
   const handleOk = () => {
     if (!subject || !subjects) return;
+
+    // --- CHECK FOR FROZEN SECTIONS ---
+    const qKeys = Object.keys(subject.quarter) as ("q1" | "q2" | "q3")[];
+    for (const q of qKeys) {
+      const frozenKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}-${q}`;
+      if (frozenSections[frozenKey]) {
+        const trimLabel = q === "q1" ? "Trimestre 1" : q === "q2" ? "Trimestre 2" : "Trimestre 3";
+        setLocalError(`La sección ${subject.seccion} está congelada en el ${trimLabel}. No se puede modificar.`);
+        return;
+      }
+    }
 
     const subjectCopy = [...subjects];
     const subjectIndex = subjectCopy.findIndex((subj) => subj.innerId === subject.innerId);
@@ -137,6 +154,17 @@ const EditSubjectQuarterModal: React.FC<{
             Aceptar
           </Button>,
         ]}>
+        {localError && (
+          <Alert
+            message="Sección Congelada"
+            description={localError}
+            type="error"
+            showIcon
+            closable
+            onClose={() => setLocalError(null)}
+            style={{ marginBottom: "15px" }}
+          />
+        )}
         <div
           style={{
             display: "flex",
@@ -174,7 +202,6 @@ const EditSubjectQuarterModal: React.FC<{
                 placeholder={`Seleccione un profesor para el ${subject?.isSemestral ? "Semestre I" : "trimestre I"}`}
                 optionFilterProp="label"
                 filterSort={(optionA, optionB) =>
-                  //(optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
                   normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
                 }
                 options={teacherOptions}
@@ -202,7 +229,6 @@ const EditSubjectQuarterModal: React.FC<{
                 placeholder="Seleccione un profesor para el trimestre II"
                 optionFilterProp="label"
                 filterSort={(optionA, optionB) =>
-                  //(optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
                   normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
                 }
                 options={teacherOptions}
@@ -230,7 +256,6 @@ const EditSubjectQuarterModal: React.FC<{
                 placeholder={`Seleccione un profesor para el ${subject?.isSemestral ? "Semestre II" : "trimestre III"}`}
                 optionFilterProp="label"
                 filterSort={(optionA, optionB) =>
-                  //(optionA?.label ?? "").toLowerCase().localeCompare((optionB?.label ?? "").toLowerCase())
                   normalizeText(optionA?.label ?? "").localeCompare(normalizeText(optionB?.label ?? ""))
                 }
                 options={teacherOptions}
@@ -255,4 +280,3 @@ const EditSubjectQuarterModal: React.FC<{
 };
 
 export default EditSubjectQuarterModal;
-

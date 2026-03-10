@@ -1,5 +1,5 @@
 import { useContext, useState, useMemo, useEffect } from "react";
-import { Modal, Select, Tabs, message, Spin } from "antd";
+import { Modal, Select, Tabs, message, Spin, Alert } from "antd";
 import { FaChalkboardTeacher } from "react-icons/fa";
 import styles from "./modal.module.css";
 import { MainContext } from "../../context/mainContext";
@@ -38,7 +38,7 @@ const TeacherRestrictionModal: React.FC<{
   externalTeacherId?: string;
   onExternalClose?: () => void;
 }> = ({ putTeacherRestriction, teacherRestrictions, loadingTeacherRestrictions = false, scheduleDays, scheduleTurnos, externalOpen, externalTeacherId, onExternalClose }) => {
-  const { teachers } = useContext(MainContext) as MainContextValues;
+  const { teachers, frozenSections } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [restrictedDays, setIsRestrictedDays] = useState<number[]>([]);
@@ -47,6 +47,7 @@ const TeacherRestrictionModal: React.FC<{
   const [savingRestrictions, setSavingRestrictions] = useState(false);
   const [activeTurnos, setActiveTurnos] = useState<Record<string, [string, string][]>>(scheduleTurnos || turnos);
   const [activeDays, setActiveDays] = useState<number[]>(scheduleDays || [1, 2, 3, 4, 5]);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     if (scheduleTurnos) setActiveTurnos(scheduleTurnos);
@@ -83,6 +84,7 @@ const TeacherRestrictionModal: React.FC<{
     setRestrictedHours([]);
     setActiveDayTab("1");
     setSavingRestrictions(false);
+    setLocalError(null);
   };
 
   const showModal = () => {
@@ -162,6 +164,7 @@ const TeacherRestrictionModal: React.FC<{
     } else {
       setIsRestrictedDays([]);
       setRestrictedHours([]);
+      setLocalError(null);
       setActiveDayTab("1");
     }
   }, [selectedTeacher, teacherRestrictions, isModalOpen, activeDays]);
@@ -177,6 +180,30 @@ const TeacherRestrictionModal: React.FC<{
       restricted_days: restrictedDays,
       restricted_hours: restrictedHours,
     };
+
+    // --- CHECK FOR FROZEN SECTION CONFLICTS ---
+    for (const [sectionKey, events] of Object.entries(frozenSections)) {
+      const conflictingEvent = events.find(ev =>
+        String(ev.extendedProps?.professorId) === String(selectedTeacher) && (
+          restrictedDays.includes(ev.daysOfWeek?.[0] || -1) ||
+          restrictedHours.some(rh =>
+            rh.day === ev.daysOfWeek?.[0] && rh.start === ev.startTime
+          )
+        )
+      );
+
+      if (conflictingEvent) {
+        const parts = sectionKey.split('-');
+        const trimestreSuffix = parts[parts.length - 1]; // q1, q2, q3
+        const sectionName = conflictingEvent.extendedProps?.seccion || "desconocida";
+        const trimLabel = trimestreSuffix === 'q1' ? 'Trimestre 1' : trimestreSuffix === 'q2' ? 'Trimestre 2' : 'Trimestre 3';
+
+        setLocalError(`El profesor tiene una clase de "${conflictingEvent.title}" en la sección ${sectionName} (${trimLabel}), la cual está congelada. Descongele la sección para aplicar este cambio.`);
+        return;
+      }
+    }
+
+    setLocalError(null);
 
     try {
       setSavingRestrictions(true);
@@ -216,6 +243,17 @@ const TeacherRestrictionModal: React.FC<{
         onCancel={handleCancel}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+          {localError && (
+            <Alert
+              message="Conflicto con Sección Congelada"
+              description={localError}
+              type="error"
+              showIcon
+              closable
+              onClose={() => setLocalError(null)}
+              style={{ marginBottom: "10px" }}
+            />
+          )}
           <div>
             <span>Seleccione el profesor</span>
             <Select

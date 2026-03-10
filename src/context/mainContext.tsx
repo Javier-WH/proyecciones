@@ -9,6 +9,7 @@ import { Turno } from "../interfaces/turnos.tsx";
 import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/addSubjectToTeacherModal";
 import ChangeSubjectFromTeacherModal from "../components/changeSubjectFromTeacherModal/changeSubjectFromTeacherModal";
 import io, { Socket } from "socket.io-client";
+import { Event } from "../components/SchoolSchedule/fucntions.tsx";
 import getPnf from "../fetch/getPnf.ts";
 import getSubjects from "../fetch/getSubjects.ts";
 import getTrayectos from "../fetch/getTrayectos.ts";
@@ -71,6 +72,19 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   const [showDisconnected, setShowDisconnected] = useState<boolean>(false);
   const timeoutRef = useRef<number | null>(null);
+
+  const [frozenSections, setFrozenSections] = useState<Record<string, Event[]>>(() => {
+    try {
+      const stored = localStorage.getItem("schedule_frozenSections");
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("schedule_frozenSections", JSON.stringify(frozenSections));
+  }, [frozenSections]);
 
   const [subjectColors, setSubjectColors] = useState<Record<string, string> | null>(null);
 
@@ -290,6 +304,8 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     setUserPNF,
     userData,
     setUserData,
+    frozenSections,
+    setFrozenSections,
   };
 
   return (

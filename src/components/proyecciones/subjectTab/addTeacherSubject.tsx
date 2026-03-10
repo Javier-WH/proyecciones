@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState, useContext, Dispatch, SetStateAction } from "react";
-import { Button, Modal, Select, Radio, Tag, RadioChangeEvent } from "antd";
+import { Button, Modal, Select, Radio, Tag, RadioChangeEvent, Alert } from "antd";
 import { Subject } from "../../../interfaces/subject";
 import useSetSubject, { useSubjectResponseTeacherHours } from "../../../hooks/useSetSubject";
 import Photo from "../../photo/photo";
@@ -68,6 +68,7 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
     q2: null,
     q3: null,
   });
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!subject || !teachers) {
@@ -79,9 +80,11 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
       });
       setSelectedOption(null);
       setPerfilOption("perfil");
+      setLocalError(null);
       return;
     }
     setOpen(true);
+    setLocalError(null);
   }, [subject]);
 
   useEffect(() => {
@@ -168,7 +171,7 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
     const addSubjectResponse = addSubjectToTeacher({ subjectId, teacherId });
 
     if (addSubjectResponse.error) {
-      console.log(addSubjectResponse.message);
+      setLocalError(addSubjectResponse.message);
       return;
     }
 
@@ -183,11 +186,25 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
     if (!subject || (!asignedTeacher.q1 && !asignedTeacher.q2 && !asignedTeacher.q3)) return;
     const subjectId = subject?.innerId;
     const teacherIdQ1 = asignedTeacher.q1?.id || null;
-    removeSubjectFromTeacher({ subjectId, teacherId: teacherIdQ1 });
+    const res1 = removeSubjectFromTeacher({ subjectId, teacherId: teacherIdQ1 });
+    if (res1.error) {
+      setLocalError(res1.message);
+      return;
+    }
+
     const teacherIdQ2 = asignedTeacher.q2?.id || null;
-    removeSubjectFromTeacher({ subjectId, teacherId: teacherIdQ2 });
+    const res2 = removeSubjectFromTeacher({ subjectId, teacherId: teacherIdQ2 });
+    if (res2.error) {
+      setLocalError(res2.message);
+      return;
+    }
+
     const teacherIdQ3 = asignedTeacher.q3?.id || null;
-    removeSubjectFromTeacher({ subjectId, teacherId: teacherIdQ3 });
+    const res3 = removeSubjectFromTeacher({ subjectId, teacherId: teacherIdQ3 });
+    if (res3.error) {
+      setLocalError(res3.message);
+      return;
+    }
 
     setSelectedSubject(null);
   };
@@ -230,6 +247,17 @@ const AddSubjectToTeacherModal: React.FC<AddSubjectToTeacherModalParams> = ({
             Agregar
           </Button>,
         ]}>
+        {localError && (
+          <Alert
+            message="No se pudo procesar la asignación"
+            description={localError}
+            type="error"
+            showIcon
+            closable
+            onClose={() => setLocalError(null)}
+            style={{ marginBottom: "15px" }}
+          />
+        )}
         <div style={{ display: "flex", flexDirection: "column", rowGap: "10px" }}>
           <div>
             <Tag>{subject?.pnf}</Tag>
