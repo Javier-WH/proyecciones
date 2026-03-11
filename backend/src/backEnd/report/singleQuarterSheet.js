@@ -307,13 +307,12 @@ function groupSubjectsByTeacher(subjects, period, targetPnfId, isSemestralMode) 
 
       const isAssignedToThisProfessor = subject.quarter?.[`q${q}`] === profesor.id
       const hasHoursForQuarter = subject.hours && (subject.hours[`q${q}`] || (isSemestralMode && period === 1 && subject.hours.q2))
-      const isUnassigned = profesor.id === 'UNASIGNED' && !subject.quarter?.[`q${q}`] && hasHoursForQuarter
-      return isAssignedToThisProfessor || isUnassigned
+      return isAssignedToThisProfessor && hasHoursForQuarter
     })
 
     // Nueva regla: Si el profesor es de otro PNF y no tiene materias del PNF objetivo en este periodo, se vacía su carga
     const hasPNFSubjectInPeriod = filteredLoad.some(s => s.pnfId === targetPnfId);
-    if (profesor.id !== 'UNASIGNED' && profesor.PNF !== targetPnfId && !hasPNFSubjectInPeriod) {
+    if (profesor.PNF !== targetPnfId && !hasPNFSubjectInPeriod) {
       profesor.load = [];
     } else {
       profesor.load = filteredLoad;

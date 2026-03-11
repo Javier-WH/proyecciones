@@ -99,13 +99,7 @@ export async function generateExcelReport(req, res) {
       return mySubjects.map(s => ({ ...s, teacherData: teacher }))
     })
 
-    // 5. Incluir materias por asignar del PNF
-    const unassignedSubjects = rawSubjects
-      .filter(s => s.pnfId === pnfId && (!s.quarter?.q1 && !s.quarter?.q2 && !s.quarter?.q3))
-      .map(s => ({ ...s, teacherData: { id: 'UNASIGNED', name: 'POR', last_name: 'ASIGNAR' } }))
-
-    const wholeSubjects = [...reportSubjects, ...unassignedSubjects]
-    const groupedByProgram = [wholeSubjects]
+    const groupedByProgram = [reportSubjects]
     /// /////////////////////////////////
 
     // Crear un nuevo libro de Excel

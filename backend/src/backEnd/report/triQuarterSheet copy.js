@@ -342,7 +342,6 @@ function groupSubjectsByTeacher(subjects, targetPnfId, isSemestralMode) {
   // Filtrar los profesores: Si es de otro PNF, solo incluir si tiene al menos una materia del PNF objetivo
   const qualifiedTeachers = cleanTeachersArray.filter(profesor => {
     if (profesor.load.length === 0) return false;
-    if (profesor.id === 'UNASIGNED') return true;
     if (profesor.PNF === targetPnfId) return true;
     return profesor.load.some(s => s.pnfId === targetPnfId);
   });
