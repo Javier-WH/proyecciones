@@ -91,17 +91,21 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     try {
       const response = await getFrozenSections(proyectionId);
       
-      // Lógica de migración: si el backend está vacío pero tenemos datos locales, 
-      // priorizamos los locales y los subimos al backend.
-      const hasLocalData = Object.keys(frozenSections).length > 0;
+      // Leemos directamente de localStorage para tener la versión más real del disco
+      const stored = localStorage.getItem("schedule_frozenSections");
+      const localData = stored ? JSON.parse(stored) : {};
+      const hasLocalData = Object.keys(localData).length > 0;
+      
       const backendEmpty = !response?.frozenSections || Object.keys(response.frozenSections).length === 0;
 
       if (backendEmpty && hasLocalData) {
-        console.log("Detectados datos locales sin respaldo en servidor. Sincronizando al backend...");
-        await saveFrozenSections(proyectionId, frozenSections);
-        // Marcamos como cargado para que el useEffect de guardado no intente dispararse de nuevo inmediatamente
+        console.log("Detectados datos locales. Subiendo al servidor para sincronizar oficina...");
+        // Usamos localData directamente para asegurar que es lo que estaba en el disco
+        await saveFrozenSections(proyectionId, localData);
+        setFrozenSections(localData);
         frozenSectionsLoadedRef.current = true;
       } else if (response?.frozenSections) {
+        // Si el servidor tiene datos, mandan los del servidor
         setFrozenSections(response.frozenSections);
         localStorage.setItem("schedule_frozenSections", JSON.stringify(response.frozenSections));
         frozenSectionsLoadedRef.current = true;
@@ -110,10 +114,9 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
       }
     } catch (error) {
       console.error("Error loading frozen sections from API:", error);
-      // En caso de error de red, permitimos que siga funcionando con lo local
       frozenSectionsLoadedRef.current = true;
     }
-  }, [proyectionId, frozenSections]);
+  }, [proyectionId]);
 
   useEffect(() => {
     // Si cambia la proyección, reseteamos la carga

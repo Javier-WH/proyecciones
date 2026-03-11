@@ -3142,8 +3142,26 @@ const SchoolSchedule: React.FC = () => {
 
             const allTrayectosRaw = Array.from(new Set(subjects?.filter(s => s.pnfId === pnfId).map(s => s.trayectoId).filter(Boolean)));
             const trayectosInPnf = allTrayectosRaw.sort((a, b) => {
-              const nameA = trayectosList?.find(t => t.id === a)?.name || a;
-              const nameB = trayectosList?.find(t => t.id === b)?.name || b;
+              const nameA = (trayectosList?.find(t => t.id === a)?.name || a).toString().toUpperCase();
+              const nameB = (trayectosList?.find(t => t.id === b)?.name || b).toString().toUpperCase();
+
+              // Definir prioridades para el ordenamiento
+              const getPriority = (name: string) => {
+                if (name.includes("INICIAL")) return 0;
+                if (name.includes(" TRAYECTO I") || name.endsWith(" I")) return 1;
+                if (name.includes(" TRAYECTO II") || name.endsWith(" II")) return 2;
+                if (name.includes(" TRAYECTO III") || name.endsWith(" III")) return 3;
+                if (name.includes(" TRAYECTO IV") || name.endsWith(" IV")) return 4;
+                return 10; // Otros
+              };
+
+              const priorityA = getPriority(nameA);
+              const priorityB = getPriority(nameB);
+
+              if (priorityA !== priorityB) {
+                return priorityA - priorityB;
+              }
+
               return nameA.localeCompare(nameB);
             });
             if (!trayectosInPnf.length) return null;

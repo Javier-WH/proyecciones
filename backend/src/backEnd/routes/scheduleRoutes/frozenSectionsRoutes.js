@@ -69,7 +69,7 @@ Router.post("/frozen-sections", express.json({ limit: "10mb" }), async (req, res
       // Crear nuevos registros
       const records = [];
       for (const [sectionKey, events] of Object.entries(frozen_sections)) {
-        if (Array.isArray(events) && events.length > 0) {
+        if (Array.isArray(events)) {
           records.push({
             proyection_id,
             section_key: sectionKey,
@@ -112,15 +112,11 @@ Router.put("/frozen-sections", express.json({ limit: "10mb" }), async (req, res)
       return res.status(404).json({ message: "La proyección indicada no existe" });
     }
 
-    if (!events || !Array.isArray(events) || events.length === 0) {
-      // Si no hay events, eliminar esta sección congelada
-      await FrozenSections.destroy({
-        where: { proyection_id, section_key },
-      });
-      return res.status(200).json({ message: "Sección descongelada correctamente" });
+    if (!events || !Array.isArray(events)) {
+      return res.status(400).json({ message: "events debe ser un array" });
     }
 
-    // Upsert: crear o actualizar
+    // Upsert: crear o actualizar (permite [] para secciones congeladas vacías)
     await FrozenSections.upsert({
       proyection_id,
       section_key,
