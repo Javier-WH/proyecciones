@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useEffect, useRef, useState } from "react";
+import { createContext, ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { MainContextValues } from "../interfaces/contextInterfaces";
 import { Teacher } from "../interfaces/teacher";
 import { UserDataInterface } from "../interfaces/userInterfacer.tsx";
@@ -10,6 +10,7 @@ import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/add
 import ChangeSubjectFromTeacherModal from "../components/changeSubjectFromTeacherModal/changeSubjectFromTeacherModal";
 import io, { Socket } from "socket.io-client";
 import { Event } from "../components/SchoolSchedule/fucntions.tsx";
+import { getFrozenSections, saveFrozenSections } from "../fetch/schedule/frozenSectionsFetch.ts";
 import getPnf from "../fetch/getPnf.ts";
 import getSubjects from "../fetch/getSubjects.ts";
 import getTrayectos from "../fetch/getTrayectos.ts";
@@ -81,10 +82,55 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
       return {};
     }
   });
+  const frozenSectionsLoadedRef = useRef(false);
+  const saveFrozenTimeoutRef = useRef<number | null>(null);
+
+  // Load frozen sections from backend when proyectionId is available
+  const loadFrozenSectionsFromApi = useCallback(async () => {
+    if (!proyectionId) return;
+    try {
+      const response = await getFrozenSections(proyectionId);
+      if (response?.frozenSections) {
+        setFrozenSections(response.frozenSections);
+        localStorage.setItem("schedule_frozenSections", JSON.stringify(response.frozenSections));
+      }
+    } catch (error) {
+      console.error("Error loading frozen sections from API:", error);
+    } finally {
+      frozenSectionsLoadedRef.current = true;
+    }
+  }, [proyectionId]);
 
   useEffect(() => {
+    frozenSectionsLoadedRef.current = false;
+    loadFrozenSectionsFromApi();
+  }, [loadFrozenSectionsFromApi]);
+
+  // Save frozen sections to backend (debounced) and localStorage on every change
+  useEffect(() => {
     localStorage.setItem("schedule_frozenSections", JSON.stringify(frozenSections));
-  }, [frozenSections]);
+
+    // Don't persist to backend until we've loaded from it at least once
+    if (!frozenSectionsLoadedRef.current || !proyectionId) return;
+
+    // Debounce backend save to avoid excessive API calls
+    if (saveFrozenTimeoutRef.current !== null) {
+      clearTimeout(saveFrozenTimeoutRef.current);
+    }
+    saveFrozenTimeoutRef.current = window.setTimeout(async () => {
+      try {
+        await saveFrozenSections(proyectionId, frozenSections);
+      } catch (error) {
+        console.error("Error saving frozen sections to backend:", error);
+      }
+    }, 500);
+
+    return () => {
+      if (saveFrozenTimeoutRef.current !== null) {
+        clearTimeout(saveFrozenTimeoutRef.current);
+      }
+    };
+  }, [frozenSections, proyectionId]);
 
   const [subjectColors, setSubjectColors] = useState<Record<string, string> | null>(null);
 
