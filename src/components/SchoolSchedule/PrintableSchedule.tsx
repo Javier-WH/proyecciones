@@ -77,7 +77,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
 
   // Map events to a grid for easier rendering
   // Generate grid template rows: 8mm for header + variable height for each time slot
-  const rowHeight = (viewMode === "professor" || viewMode === "classroom") ? "8mm" : "22mm";
+  const rowHeight = (viewMode === "professor" || viewMode === "classroom") ? "8mm" : "10mm";
   const gridTemplateRows = `8mm repeat(${timeSlots.length}, ${rowHeight})`;
   // Generate grid template columns: 40mm for HORA + 46.6mm for each day
   const gridTemplateColumns = "40mm repeat(5, 46.6mm)";
@@ -237,20 +237,20 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
           
           /* Force font sizes in print */
           .subject-title {
-            font-size: 2mm !important;
+            font-size: 2.5mm !important;
             font-weight: bold !important;
             line-height: 1.3 !important;
             margin-bottom: 0.4mm !important;
           }
           
           .professor-name {
-            font-size: 2mm !important;
-            line-height: 2mm !important;
+            font-size: 2.2mm !important;
+            line-height: 2.2mm !important;
           }
           
           .classroom-name {
-            font-size: 2mm !important;
-            line-height:2mm !important;
+            font-size: 2.2mm !important;
+            line-height: 2.2mm !important;
             font-style: italic !important;
           }
         }
@@ -360,7 +360,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                 border: "0.4mm solid #000",
                 padding: "2mm",
                 fontWeight: "bold",
-                fontSize: "3.5mm",
+                fontSize: "4mm",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -440,7 +440,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                       gridRow: `${gridRowNum}`,
                       border: "0.4mm solid #000",
                       padding: "1mm",
-                      fontSize: "2.8mm",
+                      fontSize: "3.2mm",
                       lineHeight: "1.2",
                       display: "flex",
                       alignItems: "center",
@@ -480,21 +480,21 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                               className="subject-title"
                               style={{
                                 fontWeight: "bold",
-                                fontSize: (viewMode === "professor" || viewMode === "classroom") ? "2mm" : "3mm",
-                                lineHeight: "3mm",
+                                fontSize: (viewMode === "professor" || viewMode === "classroom") ? "2.5mm" : "3.5mm",
+                                lineHeight: "3.5mm",
                                 marginBottom: "0.4mm"
                               }}
                             >{cell.title}</div>
 
                             {viewMode === "classroom" ? (
                               <>
-                                <div className="professor-name" style={{ fontSize: "2mm", lineHeight: "2mm" }}>
+                                <div className="professor-name" style={{ fontSize: "2.2mm", lineHeight: "2.2mm" }}>
                                   {getTeacherName(cell.extendedProps?.professorId)}
                                 </div>
-                                <div style={{ fontSize: "2mm", lineHeight: "2mm", fontWeight: "bold" }}>
+                                <div style={{ fontSize: "2.2mm", lineHeight: "2.2mm", fontWeight: "bold" }}>
                                   {cell.extendedProps?.pnfName}
                                 </div>
-                                <div style={{ fontSize: "2mm", lineHeight: "2mm" }}>
+                                <div style={{ fontSize: "2.2mm", lineHeight: "2.2mm" }}>
                                   {cell.extendedProps?.trayectoName} - Sec. {cell.extendedProps?.seccion}
                                 </div>
                               </>
@@ -502,8 +502,8 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                               <div
                                 className="professor-name"
                                 style={{
-                                  fontSize: "2mm",
-                                  lineHeight: "2mm"
+                                  fontSize: "2.2mm",
+                                  lineHeight: "2.2mm"
                                 }}
                               >
                                 {getTeacherName(cell.extendedProps?.professorId)}
@@ -513,8 +513,8 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                             {viewMode === "professor" && (
                               <div
                                 style={{
-                                  fontSize: "2mm",
-                                  lineHeight: "2.2mm",
+                                  fontSize: "2.2mm",
+                                  lineHeight: "2.4mm",
                                 }}
                               >
                                 <div style={{ fontWeight: "bold" }}>{cell.extendedProps?.pnfName}</div>
@@ -527,8 +527,8 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                             <div
                               className="classroom-name"
                               style={{
-                                fontSize: "2mm",
-                                lineHeight: "2mm",
+                                fontSize: "2.2mm",
+                                lineHeight: "2.2mm",
                                 fontStyle: "italic"
                               }}
                             >
