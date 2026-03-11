@@ -149,6 +149,18 @@ export async function getUserController (req, res) {
   }
 }
 
+export async function getAllUsersController (req, res) {
+  try {
+    const users = await Users.findAll({
+      attributes: ['id', 'user', 'name', 'last_name', 'ci', 'su', 'pnf_id'],
+      order: [['name', 'ASC']]
+    })
+    res.status(200).json(users)
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener los usuarios' })
+  }
+}
+
 export async function updateUserController (req, res) {
   const { name, last_name, ci, user, password, su, pnf_id } = req.body
 

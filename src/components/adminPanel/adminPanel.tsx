@@ -1,10 +1,11 @@
-import { Button, Divider, message, Select, Card, Row, Col, Typography } from "antd";
-import { UserAddOutlined, EditOutlined, FilePdfOutlined, SafetyCertificateOutlined, TeamOutlined, CloudDownloadOutlined } from "@ant-design/icons";
+import { Button, Divider, message, Select, Card, Row, Col, Typography, Modal, Table, Tag } from "antd";
+import { UserAddOutlined, EditOutlined, FilePdfOutlined, SafetyCertificateOutlined, TeamOutlined, CloudDownloadOutlined, UnorderedListOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useContext, useEffect, useState } from "react";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
 import getReport from "../../fetch/report";
+import getUsers from "../../fetch/getUsers";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -19,6 +20,11 @@ export default function AdminPanel() {
   const [pnfOptions, setPnfOptions] = useState<PnfMaskOptions[]>([]);
   const [selectedPnf, setSelectedPnf] = useState<string | undefined>(undefined);
   const [reportType, setReportType] = useState<number>(1);
+
+  // User list state
+  const [isUserListVisible, setIsUserListVisible] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   useEffect(() => {
     if (userPNF) setSelectedPnf(userPNF);
@@ -54,6 +60,55 @@ export default function AdminPanel() {
     if (!report.success) return message.error(report.message, 5);
   };
 
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const data = await getUsers();
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        message.error("Error al cargar los usuarios");
+      }
+    } catch (error) {
+      message.error("Error de conexión al obtener usuarios");
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const showUserList = () => {
+    setIsUserListVisible(true);
+    fetchUsers();
+  };
+
+  const userColumns = [
+    {
+      title: 'Nombre Completo',
+      key: 'fullName',
+      render: (record: any) => `${record.name} ${record.last_name}`,
+    },
+    {
+      title: 'Cédula',
+      dataIndex: 'ci',
+      key: 'ci',
+    },
+    {
+      title: 'Usuario',
+      dataIndex: 'user',
+      key: 'user',
+    },
+    {
+      title: 'Nivel de Permiso',
+      dataIndex: 'su',
+      key: 'su',
+      render: (su: boolean) => (
+        <Tag color={su ? "gold" : "blue"}>
+          {su ? "Super Administrador" : "Usuario Regular"}
+        </Tag>
+      ),
+    },
+  ];
+
   return (
     <div style={{ padding: "24px", minHeight: "100vh", backgroundColor: "#f0f2f5" }}>
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
@@ -77,35 +132,51 @@ export default function AdminPanel() {
               hoverable
               style={{ height: '100%', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'center', height: '100%', padding: '10px 0' }}>
-                <div style={{ display: 'flex', gap: '16px', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', height: '100%', padding: '0' }}>
+                <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
                   <Button
                     type="primary"
                     size="large"
                     icon={<UserAddOutlined />}
                     onClick={handleCreateUserClick}
-                    style={{ height: '50px', fontSize: '16px' }}
+                    style={{ height: '45px', fontSize: '16px' }}
                   >
                     Crear Nuevo Usuario
                   </Button>
-                  <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                    Registre nuevos profesores, administradores o personal de apoyo en el sistema.
+                  <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: '13px' }}>
+                    Registre nuevos profesores o administradores.
                   </Paragraph>
                 </div>
 
-                <Divider style={{ margin: '12px 0' }} />
+                <Divider style={{ margin: '8px 0' }} />
 
-                <div style={{ display: 'flex', gap: '16px', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
                   <Button
                     size="large"
                     icon={<EditOutlined />}
                     onClick={handleUpdateUserClick}
-                    style={{ height: '50px', fontSize: '16px' }}
+                    style={{ height: '45px', fontSize: '16px' }}
                   >
                     Actualizar Usuario Existente
                   </Button>
-                  <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                    Modifique datos personales, roles o contraseñas de usuarios registrados.
+                  <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: '13px' }}>
+                    Modifique datos de usuarios registrados.
+                  </Paragraph>
+                </div>
+
+                <Divider style={{ margin: '8px 0' }} />
+
+                <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                  <Button
+                    size="large"
+                    icon={<UnorderedListOutlined />}
+                    onClick={showUserList}
+                    style={{ height: '45px', fontSize: '16px', borderStyle: 'dashed' }}
+                  >
+                    Ver Lista de Usuarios
+                  </Button>
+                  <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: '13px' }}>
+                    Visualice todos los usuarios y sus niveles de acceso.
                   </Paragraph>
                 </div>
               </div>
@@ -169,6 +240,27 @@ export default function AdminPanel() {
           </Col>
         </Row>
       </div>
+
+      <Modal
+        title={<span><TeamOutlined style={{ marginRight: 8 }} /> Lista de Usuarios del Sistema</span>}
+        open={isUserListVisible}
+        onCancel={() => setIsUserListVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setIsUserListVisible(false)}>
+            Cerrar
+          </Button>
+        ]}
+        width={800}
+      >
+        <Table
+          columns={userColumns}
+          dataSource={users}
+          loading={loadingUsers}
+          rowKey="id"
+          pagination={{ pageSize: 8 }}
+          size="middle"
+        />
+      </Modal>
     </div>
   );
 }

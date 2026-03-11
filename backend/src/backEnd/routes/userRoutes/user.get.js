@@ -1,9 +1,11 @@
-import { getUserController, logoutUserController } from '#querys/user/userController.js'
+import { getUserController, logoutUserController, getAllUsersController } from '#querys/user/userController.js'
 import express from 'express'
 import { validateLogedUser } from '#middlewares/middlewares.js'
 const Router = express.Router()
 
 Router.get('/user', validateLogedUser, getUserController)
+
+Router.get('/users', validateLogedUser, getAllUsersController)
 
 Router.get('/logout', validateLogedUser, logoutUserController)
 
