@@ -90,21 +90,38 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     if (!proyectionId) return;
     try {
       const response = await getFrozenSections(proyectionId);
-      if (response?.frozenSections) {
+      
+      // Lógica de migración: si el backend está vacío pero tenemos datos locales, 
+      // priorizamos los locales y los subimos al backend.
+      const hasLocalData = Object.keys(frozenSections).length > 0;
+      const backendEmpty = !response?.frozenSections || Object.keys(response.frozenSections).length === 0;
+
+      if (backendEmpty && hasLocalData) {
+        console.log("Detectados datos locales sin respaldo en servidor. Sincronizando al backend...");
+        await saveFrozenSections(proyectionId, frozenSections);
+        // Marcamos como cargado para que el useEffect de guardado no intente dispararse de nuevo inmediatamente
+        frozenSectionsLoadedRef.current = true;
+      } else if (response?.frozenSections) {
         setFrozenSections(response.frozenSections);
         localStorage.setItem("schedule_frozenSections", JSON.stringify(response.frozenSections));
+        frozenSectionsLoadedRef.current = true;
+      } else {
+        frozenSectionsLoadedRef.current = true;
       }
     } catch (error) {
       console.error("Error loading frozen sections from API:", error);
-    } finally {
+      // En caso de error de red, permitimos que siga funcionando con lo local
       frozenSectionsLoadedRef.current = true;
     }
-  }, [proyectionId]);
+  }, [proyectionId, frozenSections]);
 
   useEffect(() => {
-    frozenSectionsLoadedRef.current = false;
-    loadFrozenSectionsFromApi();
-  }, [loadFrozenSectionsFromApi]);
+    // Si cambia la proyección, reseteamos la carga
+    if (proyectionId) {
+       frozenSectionsLoadedRef.current = false;
+       loadFrozenSectionsFromApi();
+    }
+  }, [proyectionId]); // Quitamos loadFrozenSectionsFromApi de dependencias para evitar bucle por frozenSections
 
   // Save frozen sections to backend (debounced) and localStorage on every change
   useEffect(() => {

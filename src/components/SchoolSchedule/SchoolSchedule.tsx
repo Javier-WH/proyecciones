@@ -97,7 +97,7 @@ const hexToRgba = (hexColor: string, alpha = 0.15): string => {
 
 
 const SchoolSchedule: React.FC = () => {
-  const { subjects, teachers, trayectosList, proyectionId, subjectColors, handleSubjectChange, frozenSections, setFrozenSections } =
+  const { subjects, teachers, trayectosList, proyectionId, subjectColors, handleSubjectChange, frozenSections, setFrozenSections, userData, userPerfil } =
     useContext(MainContext) as MainContextValues;
 
   const { addSubjectToTeacher } = useSetSubject(subjects || []);
@@ -154,16 +154,39 @@ const SchoolSchedule: React.FC = () => {
   const [frozenPnfFilter, setFrozenPnfFilter] = useState<string[]>([]);
   const [frozenModalTab, setFrozenModalTab] = useState<"q1" | "q2" | "q3">("q1");
 
+  const isSuperUser = useMemo(() => {
+    if (userData?.su) return true;
+    const superProfiles = ["ADMIN", "COORDINADOR", "SUPERUSER"];
+    return userPerfil?.some(p => superProfiles.includes(p.toUpperCase())) || false;
+  }, [userData, userPerfil]);
 
   const toggleFreezeSection = (pnfId: string, trayId: string, sec: string, specificTrimestre?: "q1" | "q2" | "q3") => {
     const trim = specificTrimestre || trimestre;
     const key = `${pnfId}-${trayId}-${sec}-${trim}`;
-    setFrozenSections(prev => {
-      const newObj = { ...prev };
-      if (newObj[key]) {
-        delete newObj[key];
-        message.info(`Sección ${sec} descongelada.`);
-      } else {
+    const isFrozen = !!frozenSections[key];
+
+    if (isFrozen) {
+      if (!isSuperUser) {
+        message.error("Solo los Super Usuarios pueden descongelar secciones.");
+        return;
+      }
+      Modal.confirm({
+        title: "¿Descongelar sección?",
+        content: "Al descongelar esta sección, las materias se recalcularán automáticamente en el próximo proceso de generación y su orden o ubicación podrían cambiar. ¿Deseas continuar?",
+        okText: "Sí, descongelar",
+        cancelText: "Cancelar",
+        onOk: () => {
+          setFrozenSections(prev => {
+            const newObj = { ...prev };
+            delete newObj[key];
+            message.info(`Sección ${sec} descongelada.`);
+            return newObj;
+          });
+        }
+      });
+    } else {
+      setFrozenSections(prev => {
+        const newObj = { ...prev };
         // Collect unmerged events for this section
         const sectionEvents = eventData.filter(e =>
           e.extendedProps.pnfId === pnfId &&
@@ -172,19 +195,36 @@ const SchoolSchedule: React.FC = () => {
         );
         newObj[key] = sectionEvents;
         message.success(`Sección ${sec} congelada.`);
-      }
-      return newObj;
-    });
+        return newObj;
+      });
+    }
   };
 
   const toggleFreezeTrayecto = (pnfId: string, trayId: string, trayName: string, sections: string[], isCurrentlyFrozen: boolean, specificTrimestre?: "q1" | "q2" | "q3") => {
     const trim = specificTrimestre || trimestre;
-    setFrozenSections(prev => {
-      const newObj = { ...prev };
-      if (isCurrentlyFrozen) {
-        sections.forEach(sec => delete newObj[`${pnfId}-${trayId}-${sec}-${trim}`]);
-        message.info(`Trayecto ${trayName} descongelado.`);
-      } else {
+
+    if (isCurrentlyFrozen) {
+      if (!isSuperUser) {
+        message.error("Solo los Super Usuarios pueden descongelar trayectos.");
+        return;
+      }
+      Modal.confirm({
+        title: "¿Descongelar trayecto completo?",
+        content: `Vas a descongelar todas las secciones del trayecto ${trayName}. Las materias se recalcularán y el orden actual podría perderse. ¿Deseas continuar?`,
+        okText: "Sí, descongelar todo",
+        cancelText: "Cancelar",
+        onOk: () => {
+          setFrozenSections(prev => {
+            const newObj = { ...prev };
+            sections.forEach(sec => delete newObj[`${pnfId}-${trayId}-${sec}-${trim}`]);
+            message.info(`Trayecto ${trayName} descongelado.`);
+            return newObj;
+          });
+        }
+      });
+    } else {
+      setFrozenSections(prev => {
+        const newObj = { ...prev };
         sections.forEach(sec => {
           const key = `${pnfId}-${trayId}-${sec}-${trim}`;
           if (!newObj[key]) {
@@ -197,20 +237,36 @@ const SchoolSchedule: React.FC = () => {
           }
         });
         message.success(`Trayecto ${trayName} congelado.`);
-      }
-      return newObj;
-    });
+        return newObj;
+      });
+    }
   };
 
   const toggleFreezePnf = (pnfId: string, pnfName: string, sectionsMap: Array<{ trayId: string, sec: string }>, isCurrentlyFrozen: boolean, specificTrimestre?: "q1" | "q2" | "q3") => {
     const trim = specificTrimestre || trimestre;
-    setFrozenSections(prev => {
-      const newObj = { ...prev };
 
-      if (isCurrentlyFrozen) {
-        sectionsMap.forEach(({ trayId, sec }) => delete newObj[`${pnfId}-${trayId}-${sec}-${trim}`]);
-        message.info(`PNF ${pnfName} descongelado.`);
-      } else {
+    if (isCurrentlyFrozen) {
+      if (!isSuperUser) {
+        message.error("Solo los Super Usuarios pueden descongelar PNFs completos.");
+        return;
+      }
+      Modal.confirm({
+        title: `¿Descongelar PNF ${pnfName}?`,
+        content: `Esta acción descongelará absolutamente todas las secciones de este PNF. El generador intentará reubicar todas las materias, lo que cambiará el horario actual. ¿Deseas continuar?`,
+        okText: "Sí, descongelar PNF",
+        cancelText: "Cancelar",
+        onOk: () => {
+          setFrozenSections(prev => {
+            const newObj = { ...prev };
+            sectionsMap.forEach(({ trayId, sec }) => delete newObj[`${pnfId}-${trayId}-${sec}-${trim}`]);
+            message.info(`PNF ${pnfName} descongelado.`);
+            return newObj;
+          });
+        }
+      });
+    } else {
+      setFrozenSections(prev => {
+        const newObj = { ...prev };
         sectionsMap.forEach(({ trayId, sec }) => {
           const key = `${pnfId}-${trayId}-${sec}-${trim}`;
           if (!newObj[key]) {
@@ -223,9 +279,9 @@ const SchoolSchedule: React.FC = () => {
           }
         });
         message.success(`PNF ${pnfName} congelado.`);
-      }
-      return newObj;
-    });
+        return newObj;
+      });
+    }
   };
 
   const [draggedEventInfo, setDraggedEventInfo] = useState<{
