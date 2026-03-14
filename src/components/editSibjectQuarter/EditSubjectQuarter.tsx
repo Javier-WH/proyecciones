@@ -92,12 +92,12 @@ const EditSubjectQuarterModal: React.FC<{
     const subjectIndex = subjectCopy.findIndex((subj) => subj.innerId === subject.innerId);
     if (subjectIndex === -1) return;
     if (subject.isSemestral) {
-      // Semestral logic: Q1 and Q2 must be the same (Semestre I)
+      // Semestral logic: S1 = Q1, S2 = Q2/Q3
       if (selectedTeacherQ1 !== undefined) {
         subjectCopy[subjectIndex].quarter.q1 = selectedTeacherQ1?.id;
-        subjectCopy[subjectIndex].quarter.q2 = selectedTeacherQ1?.id;
       }
       if (selectedTeacherQ3 !== undefined) {
+        subjectCopy[subjectIndex].quarter.q2 = selectedTeacherQ3?.id;
         subjectCopy[subjectIndex].quarter.q3 = selectedTeacherQ3?.id;
       }
     } else {

@@ -13,15 +13,18 @@ export function getTeacherHous(teacherLoad, teacherId) {
       const isSemestral = item.isSemestral === true
 
       if (isSemestral) {
-        // Para materias semestrales: Q1+Q2 = Semestre 1, Q3 = Semestre 2
-        // Solo contamos las horas de Q1 para el Semestre 1 (evita doble conteo con Q2)
+        // Para materias semestrales: Q1 = Semestre 1, Q2 o Q3 = Semestre 2
+        // Solo contamos las horas de Q1 para el Semestre 1 
         if (item.hours.q1 !== undefined && item?.quarter?.q1 === teacherId) {
           totalHoras.q1 += +item.hours.q1
         }
-        // Q2 se omite para semestrales - ya está contabilizado en Q1 como Semestre 1
-        // Q3 es el Semestre 2, se cuenta normalmente
+        
+        // Q2 y Q3 forman el Semestre 2. Si está en Q3 usamos esas horas, 
+        // si no, verificamos Q2 (por si el semestre se configuró en Q2)
         if (item.hours.q3 !== undefined && item?.quarter?.q3 === teacherId) {
           totalHoras.q3 += +item.hours.q3
+        } else if (item.hours.q2 !== undefined && item?.quarter?.q2 === teacherId) {
+          totalHoras.q3 += +item.hours.q2
         }
       } else {
         // Trimestral: contar todos los trimestres normalmente

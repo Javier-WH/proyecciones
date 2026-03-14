@@ -108,7 +108,7 @@ export default function TabProyection({ subjectList, turnos }: { subjectList: Su
       <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <Text>Proyección Semestral:</Text>
         <Switch checked={isSemestral} onChange={setIsSemestral} />
-        {isSemestral && <Text type="secondary" style={{ fontSize: '12px' }}> (Q1 y Q2 formarán el 1er Semestre, Q3 será el 2do Semestre)</Text>}
+        {isSemestral && <Text type="secondary" style={{ fontSize: '12px' }}> (Q1 será el 1er Semestre, Q2 y Q3 formarán el 2do Semestre)</Text>}
       </div>
 
       <Divider style={{ margin: '16px 0' }} />

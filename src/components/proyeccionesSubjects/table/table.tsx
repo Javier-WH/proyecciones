@@ -125,9 +125,9 @@ const TablePensum: React.FC<{ subjects: Subject[] | null | undefined }> = ({ sub
       align: "center",
       render: (value, record) => {
         if (record.isSemestral) {
-          // For semester 1, use q1 (or q2) hours. For semester 2, use q3 hours.
-          const sem1 = value?.q1 || value?.q2 || 0;
-          const sem2 = value?.q3 || 0;
+          // For semester 1, use q1 hours. For semester 2, use q2 or q3 hours.
+          const sem1 = value?.q1 || 0;
+          const sem2 = value?.q2 || value?.q3 || 0;
           return <div>{`${sem1} / ${sem2}`}</div>;
         }
         return <div>{`${value?.q1 || 0} / ${value?.q2 || 0} / ${value?.q3 || 0}`}</div>;

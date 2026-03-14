@@ -227,10 +227,20 @@ export default function generateTriQuarterSheet({
           sheet.cell(`I${row}`).style("horizontalAlignment", "center");
           sheet.cell(`J${row}`).style("horizontalAlignment", "center");
 
-          // Columna 3 (Q3 o Semestre II)
-          subject?.quarter?.q3 === teacher.id
-            ? sheet.cell(`K${row}`).value(subject?.hours?.q3 || 0)
-            : sheet.cell(`K${row}`).value(0);
+          // Columna 3 (Q3 o Q2 para Semestre II)
+          if (modality.isSemestral) {
+            if (subject?.quarter?.q3 === teacher.id) {
+              sheet.cell(`K${row}`).value(subject?.hours?.q3 || 0);
+            } else if (subject?.quarter?.q2 === teacher.id) {
+              sheet.cell(`K${row}`).value(subject?.hours?.q2 || 0);
+            } else {
+              sheet.cell(`K${row}`).value(0);
+            }
+          } else {
+            subject?.quarter?.q3 === teacher.id
+              ? sheet.cell(`K${row}`).value(subject?.hours?.q3 || 0)
+              : sheet.cell(`K${row}`).value(0);
+          }
           sheet.cell(`K${row}`).style("horizontalAlignment", "center");
           subjectIndex === 0 && sheet.cell(`L${row}`).value(teacherHours.q3);
           sheet.cell(`L${row}`).style("horizontalAlignment", "center");

@@ -257,7 +257,7 @@ const EditProyeccionesSubjectModal: React.FC<{
             </div>
             {isSemestral && (
               <span style={{ fontSize: '12px', color: 'gray' }}>
-                (Q1/Q2 = Semestre 1, Q3 = Semestre 2)
+                (Q1 = Semestre 1, Q2/Q3 = Semestre 2)
               </span>
             )}
           </div>

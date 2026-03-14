@@ -163,7 +163,17 @@ export default function generateSingleQuarterSheet({
           const initRange = row;
           for (const [subjectIndex, subject] of teacher.load.entries()) {
             // Indice de trimestre para horas
-            const qIndexForHours = modality.isSemestral ? (period === 1 ? 'q1' : 'q3') : `q${period}`;
+            let qIndexForHours;
+            if (modality.isSemestral) {
+              if (period === 1) {
+                qIndexForHours = 'q1';
+              } else {
+                // Para semestre 2, ver q3 o q2
+                qIndexForHours = subject.hours?.q3 ? 'q3' : (subject.hours?.q2 ? 'q2' : 'q3');
+              }
+            } else {
+              qIndexForHours = `q${period}`;
+            }
             const UCHours = subject.hours[qIndexForHours] || 0;
 
             const teacherContractType =
@@ -298,16 +308,28 @@ function groupSubjectsByTeacher(subjects, period, targetPnfId, isSemestralMode) 
 
       // Determinar el trimestre efectivo a consultar
       let q;
+      let isAssignedToThisProfessor = false;
+      let hasHoursForQuarter = false;
+
       if (isSemestralMode) {
-        // Semestre 1 -> Q1, Semestre 2 -> Q3
-        q = period === 1 ? 1 : 3;
+        if (period === 1) {
+          // Semestre 1 -> Q1
+          isAssignedToThisProfessor = subject.quarter?.q1 === profesor.id;
+          hasHoursForQuarter = !!(subject.hours && subject.hours.q1);
+        } else {
+          // Semestre 2 -> Q3 o Q2
+          const isQ3 = subject.quarter?.q3 === profesor.id && subject.hours?.q3;
+          const isQ2 = subject.quarter?.q2 === profesor.id && subject.hours?.q2;
+          isAssignedToThisProfessor = !!(subject.quarter?.q3 === profesor.id || subject.quarter?.q2 === profesor.id);
+          hasHoursForQuarter = !!(subject.hours && (subject.hours.q2 || subject.hours.q3));
+        }
       } else {
         q = period;
+        isAssignedToThisProfessor = subject.quarter?.[`q${q}`] === profesor.id;
+        hasHoursForQuarter = !!(subject.hours && subject.hours[`q${q}`]);
       }
 
-      const isAssignedToThisProfessor = subject.quarter?.[`q${q}`] === profesor.id
-      const hasHoursForQuarter = subject.hours && (subject.hours[`q${q}`] || (isSemestralMode && period === 1 && subject.hours.q2))
-      return isAssignedToThisProfessor && hasHoursForQuarter
+      return isAssignedToThisProfessor && hasHoursForQuarter;
     })
 
     // Nueva regla: Si el profesor es de otro PNF y no tiene materias del PNF objetivo en este periodo, se vacía su carga

@@ -91,12 +91,12 @@ export default function useSetSubject(SubjectArray: Subject[]) {
         currentSubject.quarter[quarter] = teacherId;
       }
 
-      // Logic for Semestral: Ensure Q1 and Q2 are identical
+      // Logic for Semestral: Ensure Q2 and Q3 are identical (S2)
       if (currentSubject.isSemestral) {
-        // If we assigned to Q1 or Q2, ensure both are set
-        if (currentSubject.quarter.q1 === teacherId || currentSubject.quarter.q2 === teacherId) {
-          currentSubject.quarter.q1 = teacherId;
+        // If we assigned to Q2 or Q3, ensure both are set
+        if (currentSubject.quarter.q2 === teacherId || currentSubject.quarter.q3 === teacherId) {
           currentSubject.quarter.q2 = teacherId;
+          currentSubject.quarter.q3 = teacherId;
         }
       }
     });
@@ -167,10 +167,10 @@ export default function useSetSubject(SubjectArray: Subject[]) {
         }
       }
 
-      // Logic for Semestral: Ensure Q1 and Q2 are cleared together
+      // Logic for Semestral: Ensure Q2 and Q3 are cleared together
       if (currentSubject.isSemestral) {
-        if (currentSubject.quarter.q1 === teacherId) currentSubject.quarter.q1 = null;
         if (currentSubject.quarter.q2 === teacherId) currentSubject.quarter.q2 = null;
+        if (currentSubject.quarter.q3 === teacherId) currentSubject.quarter.q3 = null;
       }
     });
 
