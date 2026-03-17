@@ -2300,7 +2300,25 @@ const SchoolSchedule: React.FC = () => {
                     size="small"
                     value={trayectoId}
                     style={{ width: 180 }}
-                    onChange={setTrayectoId}
+                    onChange={(newTrayectoId) => {
+                      setTrayectoId(newTrayectoId);
+                      const availableSections = Array.from(
+                        new Set(
+                          (subjects || [])
+                            .filter(
+                              (s) =>
+                                (!pnf || s.pnfId === pnf) &&
+                                s.trayectoId === newTrayectoId &&
+                                (!turn || s.turnoName?.toLowerCase() === turn)
+                            )
+                            .map((s) => s.seccion)
+                        )
+                      ).sort();
+
+                      if (availableSections.length > 0) {
+                        setSeccion(availableSections[0]);
+                      }
+                    }}
                     options={(trayectosList || [])
                       .slice()
                       .sort((a, b) => {
