@@ -14,7 +14,7 @@ import {
   getSubjectRestrictions,
 } from "../../fetch/schedule/scheduleFetch";
 import { getTeacherRestrictionsList } from "../../fetch/schedule/teacherRestrictions";
-import { Select, Modal, message, List, Tooltip, Dropdown, Spin, Button, Badge, Checkbox } from "antd";
+import { Select, Modal, message, List, Tooltip, Dropdown, Spin, Button, Badge, Checkbox, Radio } from "antd";
 import { SwapOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
@@ -2206,12 +2206,8 @@ const SchoolSchedule: React.FC = () => {
 
                 <div className="schedule-select">
                   <span>Sección:</span>
-                  <Select
-                    size="small"
-                    value={seccion}
-                    style={{ width: 120 }}
-                    onChange={setSeccion}
-                    options={Array.from(
+                  {(() => {
+                    const filteredSections = Array.from(
                       new Set(
                         (subjects || [])
                           .filter(
@@ -2222,13 +2218,31 @@ const SchoolSchedule: React.FC = () => {
                           )
                           .map((s) => s.seccion)
                       )
-                    )
-                      .sort()
-                      .map((seccion) => ({
-                        value: seccion,
-                        label: `Sección ${seccion}`,
-                      }))}
-                  />
+                    ).sort();
+
+                    if (filteredSections.length === 0) {
+                      return (
+                        <Badge
+                          status="warning"
+                          text={<span style={{ color: "#faad14" }}>Sin sección</span>}
+                        />
+                      );
+                    }
+
+                    return (
+                      <Radio.Group
+                        size="small"
+                        value={seccion}
+                        onChange={(e) => setSeccion(e.target.value)}
+                        optionType="button"
+                        buttonStyle="solid"
+                        options={filteredSections.map((sec) => ({
+                          value: sec,
+                          label: sec,
+                        }))}
+                      />
+                    );
+                  })()}
                 </div>
 
                 <div className="schedule-select">
@@ -2237,7 +2251,36 @@ const SchoolSchedule: React.FC = () => {
                     size="small"
                     value={pnf}
                     style={{ width: 250 }}
-                    onChange={setPnf}
+                    onChange={(newPnf) => {
+                      setPnf(newPnf);
+                      const turnsWithSections = Object.keys(activeTurnos).filter((t) =>
+                        (subjects || []).some(
+                          (s) =>
+                            s.pnfId === newPnf &&
+                            s.turnoName?.toLowerCase() === t &&
+                            (!trayectoId || s.trayectoId === trayectoId)
+                        )
+                      );
+                      const newTurn = turnsWithSections.length > 0 ? turnsWithSections[0] : undefined;
+                      setTurn(newTurn || "");
+                      
+                      const availableSections = Array.from(
+                        new Set(
+                          (subjects || [])
+                            .filter(
+                              (s) =>
+                                s.pnfId === newPnf &&
+                                (!newTurn || s.turnoName?.toLowerCase() === newTurn) &&
+                                (!trayectoId || s.trayectoId === trayectoId)
+                            )
+                            .map((s) => s.seccion)
+                        )
+                      ).sort();
+
+                      if (availableSections.length > 0) {
+                        setSeccion(availableSections[0]);
+                      }
+                    }}
                     options={Array.from(
                       new Map(
                         (subjects || [])
