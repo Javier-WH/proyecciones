@@ -32,36 +32,35 @@ export default function generateSingleQuarterSheet({
 
         let row = 1;
         // encabezado
-
-        const rangeLine1 = sheet.range(`A${row}:J${row}`);
+        const rangeLine1 = sheet.range(`A${row}:I${row}`);
         sheet.cell(`A${row}`).value("PERSONAL DOCENTE");
         rangeLine1.merged(true);
         rangeLine1.style("horizontalAlignment", "center");
         rangeLine1.style("verticalAlignment", "center");
         row++;
 
-        const rangeLine2 = sheet.range(`A${row}:J${row}`);
+        const rangeLine2 = sheet.range(`A${row}:I${row}`);
         sheet.cell(`A${row}`).value(`${pnf[0].pnf}`.toUpperCase());
         rangeLine2.merged(true);
         rangeLine2.style("horizontalAlignment", "center");
         rangeLine2.style("verticalAlignment", "center");
         row++;
 
-        const rangeLine3 = sheet.range(`A${row}:J${row}`);
+        const rangeLine3 = sheet.range(`A${row}:I${row}`);
         sheet.cell(`A${row}`).value("U.P.T. DE LOS LLANOS JUANA RAMIREZ, EXTENSIÓN ALTAGRACIA DE ORITUCO");
         rangeLine3.merged(true);
         rangeLine3.style("horizontalAlignment", "center");
         rangeLine3.style("verticalAlignment", "center");
         row++;
 
-        const rangeLine4 = sheet.range(`A${row}:J${row}`);
+        const rangeLine4 = sheet.range(`A${row}:I${row}`);
         sheet.cell(`A${row}`).value(`CARGA ACADÉMICA ${getPeriodName(period, modality.isSemestral)}`);
         rangeLine4.merged(true);
         rangeLine4.style("horizontalAlignment", "center");
         rangeLine4.style("verticalAlignment", "center");
         row++;
 
-        const rangeLine5 = sheet.range(`A${row}:J${row}`);
+        const rangeLine5 = sheet.range(`A${row}:I${row}`);
         sheet.cell(`A${row}`).value(proyectionDate);
         rangeLine5.merged(true);
         rangeLine5.style("horizontalAlignment", "center");
@@ -70,7 +69,7 @@ export default function generateSingleQuarterSheet({
         row++;
 
         // encabezado de la tabla
-        const boldHeaderRange = sheet.range(`A${row}:J${row + 1}`);
+        const boldHeaderRange = sheet.range(`A${row}:I${row + 1}`);
         boldHeaderRange.style("bold", true);
 
         const rangeLine6A = sheet.range(`A${row}:A${row + 1}`);
@@ -142,13 +141,6 @@ export default function generateSingleQuarterSheet({
         rangeLine6H.style("verticalAlignment", "center");
         rangeLine6H.style("border", true);
 
-        const rangeLine6I = sheet.range(`J${row}:J${row + 1}`);
-        sheet.cell(`J${row}`).value("Observación");
-        rangeLine6I.merged(true);
-        rangeLine6I.style("horizontalAlignment", "center");
-        rangeLine6I.style("verticalAlignment", "center");
-        rangeLine6I.style("border", true);
-
         row++;
         row++;
 
@@ -194,10 +186,6 @@ export default function generateSingleQuarterSheet({
             subjectIndex === 0 && sheet.cell(`H${row}`).value(teacherHours[qIndexForHours]);
             sheet.cell(`H${row}`).style("horizontalAlignment", "center");
             sheet.cell(`I${row}`).value(teacherContractType);
-            // Agregar observación para materias semestrales o trimestrales
-            if (modality.isSemestral) {
-              sheet.cell(`J${row}`).value(period === 1 ? "Semestre I" : "Semestre II");
-            }
             sheet.row(row).height(25);
             sheet.row(row).style("verticalAlignment", "center");
             row++;
@@ -216,12 +204,7 @@ export default function generateSingleQuarterSheet({
           dedicationCellRange.style("horizontalAlignment", "center");
           dedicationCellRange.style("verticalAlignment", "center");
 
-          const observationCellRange = sheet.range(`J${initRange}:J${initRange + teacher.load.length - 1}`);
-          teacher.load.length > 1 && observationCellRange.merged(true);
-          observationCellRange.style("horizontalAlignment", "center");
-          observationCellRange.style("verticalAlignment", "center");
-
-          sheet.range(`A${initRange}:J${row - 1}`).style("border", true);
+          sheet.range(`A${initRange}:I${row - 1}`).style("border", true);
         }
         // ajustar el ancho de las columnas
         sheet.column("A").width(50);
@@ -229,7 +212,6 @@ export default function generateSingleQuarterSheet({
         sheet.column("C").width(18);
         sheet.column("D").width(18);
         sheet.column("I").width(25);
-        sheet.column("J").width(18);
 
         // ajustar el alto a filas extra
         for (let i = 0; i < 50; i++) {

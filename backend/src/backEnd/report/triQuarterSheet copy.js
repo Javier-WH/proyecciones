@@ -28,7 +28,7 @@ export default function generateTriQuarterSheet({
 
       let row = 1;
       // encabezado
-      const headerEndColumn = modality.isSemestral ? "L" : "N";
+      const headerEndColumn = modality.isSemestral ? "K" : "M";
       const rangeLine1 = sheet.range(`A${row}:${headerEndColumn}${row}`);
       sheet.cell(`A${row}`).value("PERSONAL DOCENTE");
       rangeLine1.merged(true);
@@ -66,7 +66,7 @@ export default function generateTriQuarterSheet({
       row++;
 
       // encabezado de la tabla
-      const tableEndColumn = modality.isSemestral ? "L" : "N";
+      const tableEndColumn = modality.isSemestral ? "K" : "M";
       const boldHeaderRange = sheet.range(`A${row}:${tableEndColumn}${row + 1}`);
       boldHeaderRange.style("bold", true);
 
@@ -159,13 +159,6 @@ export default function generateTriQuarterSheet({
         rangeLine6K.style("horizontalAlignment", "center");
         rangeLine6K.style("verticalAlignment", "center");
         rangeLine6K.style("border", true);
-
-        const rangeLine6L = sheet.range(`L${row}:L${row + 1}`);
-        sheet.cell(`L${row}`).value("Observación");
-        rangeLine6L.merged(true);
-        rangeLine6L.style("horizontalAlignment", "center");
-        rangeLine6L.style("verticalAlignment", "center");
-        rangeLine6L.style("border", true);
       } else {
         // Para trimestral: TRIMESTRE I en G-H, TRIMESTRE II en I-J, TRIMESTRE III en K-L
         const rangeLine6FG = sheet.range(`G${row}:H${row}`);
@@ -231,13 +224,6 @@ export default function generateTriQuarterSheet({
         rangeLine6M.style("horizontalAlignment", "center");
         rangeLine6M.style("verticalAlignment", "center");
         rangeLine6M.style("border", true);
-
-        const rangeLine6N = sheet.range(`N${row}:N${row + 1}`);
-        sheet.cell(`N${row}`).value("Observación");
-        rangeLine6N.merged(true);
-        rangeLine6N.style("horizontalAlignment", "center");
-        rangeLine6N.style("verticalAlignment", "center");
-        rangeLine6N.style("border", true);
       }
 
       row++;
@@ -285,9 +271,8 @@ export default function generateTriQuarterSheet({
             subjectIndex === 0 && sheet.cell(`J${row}`).value(teacherHours.q3);
             sheet.cell(`J${row}`).style("horizontalAlignment", "center");
 
-            // Columnas de dedicación y observación para semestral
+            // Columna de dedicación para semestral
             sheet.cell(`K${row}`).value(teacherContractType);
-            sheet.cell(`L${row}`).value("Semestral");
           } else {
             // Para trimestral: Columna 2 es TRIMESTRE II
             subject?.quarter?.q2 === teacher.id
@@ -305,7 +290,7 @@ export default function generateTriQuarterSheet({
             subjectIndex === 0 && sheet.cell(`L${row}`).value(teacherHours.q3);
             sheet.cell(`L${row}`).style("horizontalAlignment", "center");
 
-            // Columnas de dedicación y observación para trimestral
+            // Columna de dedicación para trimestral
             sheet.cell(`M${row}`).value(teacherContractType);
           }
 
@@ -334,12 +319,7 @@ export default function generateTriQuarterSheet({
           dedicationCellRange.style("horizontalAlignment", "center");
           dedicationCellRange.style("verticalAlignment", "center");
 
-          const observationCellRange = sheet.range(`L${initRange}:L${initRange + teacher.load.length - 1}`);
-          teacher.load.length > 1 && observationCellRange.merged(true);
-          observationCellRange.style("horizontalAlignment", "center");
-          observationCellRange.style("verticalAlignment", "center");
-
-          sheet.range(`A${initRange}:L${row - 1}`).style("border", true);
+          sheet.range(`A${initRange}:K${row - 1}`).style("border", true);
         } else {
           // Para trimestral: hay TRIMESTRE II en J y TRIMESTRE III en L
           const totalHourCellRangeII = sheet.range(`J${initRange}:J${initRange + teacher.load.length - 1}`);
@@ -367,13 +347,11 @@ export default function generateTriQuarterSheet({
       sheet.column("D").width(18);
       
       if (modality.isSemestral) {
-        // Para semestral: las últimas columnas son K (Dedicación) y L (Observación)
+        // Para semestral: la última columna es K (Dedicación)
         sheet.column("K").width(25);
-        sheet.column("L").width(18);
       } else {
-        // Para trimestral: las últimas columnas son M (Dedicación) y N (Observación)
+        // Para trimestral: la última columna es M (Dedicación)
         sheet.column("M").width(25);
-        sheet.column("N").width(18);
       }
 
       // ajustar el alto a filas extra
