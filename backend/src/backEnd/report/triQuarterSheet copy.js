@@ -28,35 +28,36 @@ export default function generateTriQuarterSheet({
 
       let row = 1;
       // encabezado
-      const rangeLine1 = sheet.range(`A${row}:N${row}`);
+      const headerEndColumn = modality.isSemestral ? "L" : "N";
+      const rangeLine1 = sheet.range(`A${row}:${headerEndColumn}${row}`);
       sheet.cell(`A${row}`).value("PERSONAL DOCENTE");
       rangeLine1.merged(true);
       rangeLine1.style("horizontalAlignment", "center");
       rangeLine1.style("verticalAlignment", "center");
       row++;
 
-      const rangeLine2 = sheet.range(`A${row}:N${row}`);
+      const rangeLine2 = sheet.range(`A${row}:${headerEndColumn}${row}`);
       sheet.cell(`A${row}`).value(`${pnf[0].pnf}`.toUpperCase());
       rangeLine2.merged(true);
       rangeLine2.style("horizontalAlignment", "center");
       rangeLine2.style("verticalAlignment", "center");
       row++;
 
-      const rangeLine3 = sheet.range(`A${row}:N${row}`);
+      const rangeLine3 = sheet.range(`A${row}:${headerEndColumn}${row}`);
       sheet.cell(`A${row}`).value("U.P.T. DE LOS LLANOS JUANA RAMIREZ, EXTENSIÓN ALTAGRACIA DE ORITUCO");
       rangeLine3.merged(true);
       rangeLine3.style("horizontalAlignment", "center");
       rangeLine3.style("verticalAlignment", "center");
       row++;
 
-      const rangeLine4 = sheet.range(`A${row}:N${row}`);
+      const rangeLine4 = sheet.range(`A${row}:${headerEndColumn}${row}`);
       sheet.cell(`A${row}`).value(`CARGA ACADÉMICA ${modality.title}`);
       rangeLine4.merged(true);
       rangeLine4.style("horizontalAlignment", "center");
       rangeLine4.style("verticalAlignment", "center");
       row++;
 
-      const rangeLine5 = sheet.range(`A${row}:N${row}`);
+      const rangeLine5 = sheet.range(`A${row}:${headerEndColumn}${row}`);
       sheet.cell(`A${row}`).value(proyectionDate);
       rangeLine5.merged(true);
       rangeLine5.style("horizontalAlignment", "center");
@@ -65,7 +66,8 @@ export default function generateTriQuarterSheet({
       row++;
 
       // encabezado de la tabla
-      const boldHeaderRange = sheet.range(`A${row}:N${row + 1}`);
+      const tableEndColumn = modality.isSemestral ? "L" : "N";
+      const boldHeaderRange = sheet.range(`A${row}:${tableEndColumn}${row + 1}`);
       boldHeaderRange.style("bold", true);
 
       const rangeLine6A = sheet.range(`A${row}:A${row + 1}`);
@@ -111,76 +113,132 @@ export default function generateTriQuarterSheet({
       rangeLine6E.style("verticalAlignment", "center");
       rangeLine6E.style("border", true);
 
-      const rangeLine6FG = sheet.range(`G${row}:H${row}`);
-      sheet.cell(`G${row}`).value(modality.isSemestral ? "SEMESTRE I" : "TRIMESTRE I");
-      rangeLine6FG.merged(true);
-      rangeLine6FG.style("horizontalAlignment", "center");
-      rangeLine6FG.style("verticalAlignment", "center");
-      rangeLine6FG.style("border", true);
+      if (modality.isSemestral) {
+        // Para semestral: SEMESTRE I en columnas G-H, SEMESTRE II en columnas I-J
+        const rangeLine6FG = sheet.range(`G${row}:H${row}`);
+        sheet.cell(`G${row}`).value("SEMESTRE I");
+        rangeLine6FG.merged(true);
+        rangeLine6FG.style("horizontalAlignment", "center");
+        rangeLine6FG.style("verticalAlignment", "center");
+        rangeLine6FG.style("border", true);
 
-      sheet.cell(`G${row + 1}`).value("Horas por U/C");
-      sheet.cell(`G${row + 1}`).style("horizontalAlignment", "center");
-      sheet.cell(`G${row + 1}`).style("verticalAlignment", "center");
-      sheet.cell(`G${row + 1}`).style("border", true);
-      sheet.cell(`G${row + 1}`).style("wrapText", true);
+        sheet.cell(`G${row + 1}`).value("Horas por U/C");
+        sheet.cell(`G${row + 1}`).style("horizontalAlignment", "center");
+        sheet.cell(`G${row + 1}`).style("verticalAlignment", "center");
+        sheet.cell(`G${row + 1}`).style("border", true);
+        sheet.cell(`G${row + 1}`).style("wrapText", true);
 
-      sheet.cell(`H${row + 1}`).value("Total de Horas");
-      sheet.cell(`H${row + 1}`).style("horizontalAlignment", "center");
-      sheet.cell(`H${row + 1}`).style("verticalAlignment", "center");
-      sheet.cell(`H${row + 1}`).style("border", true);
-      sheet.cell(`H${row + 1}`).style("wrapText", true);
+        sheet.cell(`H${row + 1}`).value("Total de Horas");
+        sheet.cell(`H${row + 1}`).style("horizontalAlignment", "center");
+        sheet.cell(`H${row + 1}`).style("verticalAlignment", "center");
+        sheet.cell(`H${row + 1}`).style("border", true);
+        sheet.cell(`H${row + 1}`).style("wrapText", true);
 
-      const rangeLine6HI = sheet.range(`I${row}:J${row}`);
-      sheet.cell(`I${row}`).value(modality.isSemestral ? "" : "TRIMESTRE II");
-      rangeLine6HI.merged(true);
-      rangeLine6HI.style("horizontalAlignment", "center");
-      rangeLine6HI.style("verticalAlignment", "center");
-      rangeLine6HI.style("border", true);
+        const rangeLine6IJ = sheet.range(`I${row}:J${row}`);
+        sheet.cell(`I${row}`).value("SEMESTRE II");
+        rangeLine6IJ.merged(true);
+        rangeLine6IJ.style("horizontalAlignment", "center");
+        rangeLine6IJ.style("verticalAlignment", "center");
+        rangeLine6IJ.style("border", true);
 
-      sheet.cell(`I${row + 1}`).value(modality.isSemestral ? "" : "Horas por U/C");
-      sheet.cell(`I${row + 1}`).style("horizontalAlignment", "center");
-      sheet.cell(`I${row + 1}`).style("verticalAlignment", "center");
-      sheet.cell(`I${row + 1}`).style("border", true);
-      sheet.cell(`I${row + 1}`).style("wrapText", true);
+        sheet.cell(`I${row + 1}`).value("Horas por U/C");
+        sheet.cell(`I${row + 1}`).style("horizontalAlignment", "center");
+        sheet.cell(`I${row + 1}`).style("verticalAlignment", "center");
+        sheet.cell(`I${row + 1}`).style("border", true);
+        sheet.cell(`I${row + 1}`).style("wrapText", true);
 
-      sheet.cell(`J${row + 1}`).value(modality.isSemestral ? "" : "Total de Horas");
-      sheet.cell(`J${row + 1}`).style("horizontalAlignment", "center");
-      sheet.cell(`J${row + 1}`).style("verticalAlignment", "center");
-      sheet.cell(`J${row + 1}`).style("border", true);
-      sheet.cell(`J${row + 1}`).style("wrapText", true);
+        sheet.cell(`J${row + 1}`).value("Total de Horas");
+        sheet.cell(`J${row + 1}`).style("horizontalAlignment", "center");
+        sheet.cell(`J${row + 1}`).style("verticalAlignment", "center");
+        sheet.cell(`J${row + 1}`).style("border", true);
+        sheet.cell(`J${row + 1}`).style("wrapText", true);
 
-      const rangeLine6JK = sheet.range(`K${row}:L${row}`);
-      sheet.cell(`K${row}`).value(modality.isSemestral ? "SEMESTRE II" : "TRIMESTRE III");
-      rangeLine6JK.merged(true);
-      rangeLine6JK.style("horizontalAlignment", "center");
-      rangeLine6JK.style("verticalAlignment", "center");
-      rangeLine6JK.style("border", true);
+        const rangeLine6K = sheet.range(`K${row}:K${row + 1}`);
+        sheet.cell(`K${row}`).value("Dedicación");
+        rangeLine6K.merged(true);
+        rangeLine6K.style("horizontalAlignment", "center");
+        rangeLine6K.style("verticalAlignment", "center");
+        rangeLine6K.style("border", true);
 
-      sheet.cell(`K${row + 1}`).value("Horas por U/C");
-      sheet.cell(`K${row + 1}`).style("horizontalAlignment", "center");
-      sheet.cell(`K${row + 1}`).style("verticalAlignment", "center");
-      sheet.cell(`K${row + 1}`).style("border", true);
-      sheet.cell(`K${row + 1}`).style("wrapText", true);
+        const rangeLine6L = sheet.range(`L${row}:L${row + 1}`);
+        sheet.cell(`L${row}`).value("Observación");
+        rangeLine6L.merged(true);
+        rangeLine6L.style("horizontalAlignment", "center");
+        rangeLine6L.style("verticalAlignment", "center");
+        rangeLine6L.style("border", true);
+      } else {
+        // Para trimestral: TRIMESTRE I en G-H, TRIMESTRE II en I-J, TRIMESTRE III en K-L
+        const rangeLine6FG = sheet.range(`G${row}:H${row}`);
+        sheet.cell(`G${row}`).value("TRIMESTRE I");
+        rangeLine6FG.merged(true);
+        rangeLine6FG.style("horizontalAlignment", "center");
+        rangeLine6FG.style("verticalAlignment", "center");
+        rangeLine6FG.style("border", true);
 
-      sheet.cell(`L${row + 1}`).value("Total de Horas");
-      sheet.cell(`L${row + 1}`).style("horizontalAlignment", "center");
-      sheet.cell(`L${row + 1}`).style("verticalAlignment", "center");
-      sheet.cell(`L${row + 1}`).style("border", true);
-      sheet.cell(`L${row + 1}`).style("wrapText", true);
+        sheet.cell(`G${row + 1}`).value("Horas por U/C");
+        sheet.cell(`G${row + 1}`).style("horizontalAlignment", "center");
+        sheet.cell(`G${row + 1}`).style("verticalAlignment", "center");
+        sheet.cell(`G${row + 1}`).style("border", true);
+        sheet.cell(`G${row + 1}`).style("wrapText", true);
 
-      const rangeLine6H = sheet.range(`M${row}:M${row + 1}`);
-      sheet.cell(`M${row}`).value("Dedicación");
-      rangeLine6H.merged(true);
-      rangeLine6H.style("horizontalAlignment", "center");
-      rangeLine6H.style("verticalAlignment", "center");
-      rangeLine6H.style("border", true);
+        sheet.cell(`H${row + 1}`).value("Total de Horas");
+        sheet.cell(`H${row + 1}`).style("horizontalAlignment", "center");
+        sheet.cell(`H${row + 1}`).style("verticalAlignment", "center");
+        sheet.cell(`H${row + 1}`).style("border", true);
+        sheet.cell(`H${row + 1}`).style("wrapText", true);
 
-      const rangeLine6I = sheet.range(`N${row}:N${row + 1}`);
-      sheet.cell(`N${row}`).value("Observación");
-      rangeLine6I.merged(true);
-      rangeLine6I.style("horizontalAlignment", "center");
-      rangeLine6I.style("verticalAlignment", "center");
-      rangeLine6I.style("border", true);
+        const rangeLine6HI = sheet.range(`I${row}:J${row}`);
+        sheet.cell(`I${row}`).value("TRIMESTRE II");
+        rangeLine6HI.merged(true);
+        rangeLine6HI.style("horizontalAlignment", "center");
+        rangeLine6HI.style("verticalAlignment", "center");
+        rangeLine6HI.style("border", true);
+
+        sheet.cell(`I${row + 1}`).value("Horas por U/C");
+        sheet.cell(`I${row + 1}`).style("horizontalAlignment", "center");
+        sheet.cell(`I${row + 1}`).style("verticalAlignment", "center");
+        sheet.cell(`I${row + 1}`).style("border", true);
+        sheet.cell(`I${row + 1}`).style("wrapText", true);
+
+        sheet.cell(`J${row + 1}`).value("Total de Horas");
+        sheet.cell(`J${row + 1}`).style("horizontalAlignment", "center");
+        sheet.cell(`J${row + 1}`).style("verticalAlignment", "center");
+        sheet.cell(`J${row + 1}`).style("border", true);
+        sheet.cell(`J${row + 1}`).style("wrapText", true);
+
+        const rangeLine6JK = sheet.range(`K${row}:L${row}`);
+        sheet.cell(`K${row}`).value("TRIMESTRE III");
+        rangeLine6JK.merged(true);
+        rangeLine6JK.style("horizontalAlignment", "center");
+        rangeLine6JK.style("verticalAlignment", "center");
+        rangeLine6JK.style("border", true);
+
+        sheet.cell(`K${row + 1}`).value("Horas por U/C");
+        sheet.cell(`K${row + 1}`).style("horizontalAlignment", "center");
+        sheet.cell(`K${row + 1}`).style("verticalAlignment", "center");
+        sheet.cell(`K${row + 1}`).style("border", true);
+        sheet.cell(`K${row + 1}`).style("wrapText", true);
+
+        sheet.cell(`L${row + 1}`).value("Total de Horas");
+        sheet.cell(`L${row + 1}`).style("horizontalAlignment", "center");
+        sheet.cell(`L${row + 1}`).style("verticalAlignment", "center");
+        sheet.cell(`L${row + 1}`).style("border", true);
+        sheet.cell(`L${row + 1}`).style("wrapText", true);
+
+        const rangeLine6M = sheet.range(`M${row}:M${row + 1}`);
+        sheet.cell(`M${row}`).value("Dedicación");
+        rangeLine6M.merged(true);
+        rangeLine6M.style("horizontalAlignment", "center");
+        rangeLine6M.style("verticalAlignment", "center");
+        rangeLine6M.style("border", true);
+
+        const rangeLine6N = sheet.range(`N${row}:N${row + 1}`);
+        sheet.cell(`N${row}`).value("Observación");
+        rangeLine6N.merged(true);
+        rangeLine6N.style("horizontalAlignment", "center");
+        rangeLine6N.style("verticalAlignment", "center");
+        rangeLine6N.style("border", true);
+      }
 
       row++;
       row++;
@@ -214,42 +272,41 @@ export default function generateTriQuarterSheet({
           subjectIndex === 0 && sheet.cell(`H${row}`).value(teacherHours.q1);
           sheet.cell(`H${row}`).style("horizontalAlignment", "center");
 
-          // Columna 2 (Q2 - vacía para semestre)
           if (modality.isSemestral) {
-            sheet.cell(`I${row}`).value("");
-            sheet.cell(`J${row}`).value("");
+            // Para semestral: Columna 2 es SEMESTRE II (usa Q3 o Q2)
+            if (subject?.quarter?.q3 === teacher.id) {
+              sheet.cell(`I${row}`).value(subject?.hours?.q3 || 0);
+            } else if (subject?.quarter?.q2 === teacher.id) {
+              sheet.cell(`I${row}`).value(subject?.hours?.q2 || 0);
+            } else {
+              sheet.cell(`I${row}`).value(0);
+            }
+            sheet.cell(`I${row}`).style("horizontalAlignment", "center");
+            subjectIndex === 0 && sheet.cell(`J${row}`).value(teacherHours.q3);
+            sheet.cell(`J${row}`).style("horizontalAlignment", "center");
+
+            // Columnas de dedicación y observación para semestral
+            sheet.cell(`K${row}`).value(teacherContractType);
+            sheet.cell(`L${row}`).value("Semestral");
           } else {
+            // Para trimestral: Columna 2 es TRIMESTRE II
             subject?.quarter?.q2 === teacher.id
               ? sheet.cell(`I${row}`).value(subject?.hours?.q2 || 0)
               : sheet.cell(`I${row}`).value(0);
+            sheet.cell(`I${row}`).style("horizontalAlignment", "center");
             subjectIndex === 0 && sheet.cell(`J${row}`).value(teacherHours.q2);
-          }
-          sheet.cell(`I${row}`).style("horizontalAlignment", "center");
-          sheet.cell(`J${row}`).style("horizontalAlignment", "center");
+            sheet.cell(`J${row}`).style("horizontalAlignment", "center");
 
-          // Columna 3 (Q3 o Q2 para Semestre II)
-          if (modality.isSemestral) {
-            if (subject?.quarter?.q3 === teacher.id) {
-              sheet.cell(`K${row}`).value(subject?.hours?.q3 || 0);
-            } else if (subject?.quarter?.q2 === teacher.id) {
-              sheet.cell(`K${row}`).value(subject?.hours?.q2 || 0);
-            } else {
-              sheet.cell(`K${row}`).value(0);
-            }
-          } else {
+            // Columna 3 es TRIMESTRE III
             subject?.quarter?.q3 === teacher.id
               ? sheet.cell(`K${row}`).value(subject?.hours?.q3 || 0)
               : sheet.cell(`K${row}`).value(0);
-          }
-          sheet.cell(`K${row}`).style("horizontalAlignment", "center");
-          subjectIndex === 0 && sheet.cell(`L${row}`).value(teacherHours.q3);
-          sheet.cell(`L${row}`).style("horizontalAlignment", "center");
+            sheet.cell(`K${row}`).style("horizontalAlignment", "center");
+            subjectIndex === 0 && sheet.cell(`L${row}`).value(teacherHours.q3);
+            sheet.cell(`L${row}`).style("horizontalAlignment", "center");
 
-          sheet.cell(`M${row}`).value(teacherContractType);
-
-          // Agregar observación
-          if (modality.isSemestral) {
-            sheet.cell(`N${row}`).value("Semestral");
+            // Columnas de dedicación y observación para trimestral
+            sheet.cell(`M${row}`).value(teacherContractType);
           }
 
           sheet.row(row).height(25);
@@ -265,35 +322,59 @@ export default function generateTriQuarterSheet({
         totalHourCellRangeI.style("horizontalAlignment", "center");
         totalHourCellRangeI.style("verticalAlignment", "center");
 
-        const totalHourCellRangeII = sheet.range(`J${initRange}:J${initRange + teacher.load.length - 1}`);
-        teacher.load.length > 1 && totalHourCellRangeII.merged(true);
-        totalHourCellRangeII.style("horizontalAlignment", "center");
-        totalHourCellRangeII.style("verticalAlignment", "center");
+        if (modality.isSemestral) {
+          // Para semestral: solo hay SEMESTRE II en columna J
+          const totalHourCellRangeII = sheet.range(`J${initRange}:J${initRange + teacher.load.length - 1}`);
+          teacher.load.length > 1 && totalHourCellRangeII.merged(true);
+          totalHourCellRangeII.style("horizontalAlignment", "center");
+          totalHourCellRangeII.style("verticalAlignment", "center");
 
-        const totalHourCellRangeIII = sheet.range(`L${initRange}:L${initRange + teacher.load.length - 1}`);
-        teacher.load.length > 1 && totalHourCellRangeIII.merged(true);
-        totalHourCellRangeIII.style("horizontalAlignment", "center");
-        totalHourCellRangeIII.style("verticalAlignment", "center");
+          const dedicationCellRange = sheet.range(`K${initRange}:K${initRange + teacher.load.length - 1}`);
+          teacher.load.length > 1 && dedicationCellRange.merged(true);
+          dedicationCellRange.style("horizontalAlignment", "center");
+          dedicationCellRange.style("verticalAlignment", "center");
 
-        const dedicationCellRange = sheet.range(`M${initRange}:M${initRange + teacher.load.length - 1}`);
-        teacher.load.length > 1 && dedicationCellRange.merged(true);
-        dedicationCellRange.style("horizontalAlignment", "center");
-        dedicationCellRange.style("verticalAlignment", "center");
+          const observationCellRange = sheet.range(`L${initRange}:L${initRange + teacher.load.length - 1}`);
+          teacher.load.length > 1 && observationCellRange.merged(true);
+          observationCellRange.style("horizontalAlignment", "center");
+          observationCellRange.style("verticalAlignment", "center");
 
-        const observationCellRange = sheet.range(`N${initRange}:N${initRange + teacher.load.length - 1}`);
-        teacher.load.length > 1 && observationCellRange.merged(true);
-        observationCellRange.style("horizontalAlignment", "center");
-        observationCellRange.style("verticalAlignment", "center");
+          sheet.range(`A${initRange}:L${row - 1}`).style("border", true);
+        } else {
+          // Para trimestral: hay TRIMESTRE II en J y TRIMESTRE III en L
+          const totalHourCellRangeII = sheet.range(`J${initRange}:J${initRange + teacher.load.length - 1}`);
+          teacher.load.length > 1 && totalHourCellRangeII.merged(true);
+          totalHourCellRangeII.style("horizontalAlignment", "center");
+          totalHourCellRangeII.style("verticalAlignment", "center");
 
-        sheet.range(`A${initRange}:N${row - 1}`).style("border", true);
+          const totalHourCellRangeIII = sheet.range(`L${initRange}:L${initRange + teacher.load.length - 1}`);
+          teacher.load.length > 1 && totalHourCellRangeIII.merged(true);
+          totalHourCellRangeIII.style("horizontalAlignment", "center");
+          totalHourCellRangeIII.style("verticalAlignment", "center");
+
+          const dedicationCellRange = sheet.range(`M${initRange}:M${initRange + teacher.load.length - 1}`);
+          teacher.load.length > 1 && dedicationCellRange.merged(true);
+          dedicationCellRange.style("horizontalAlignment", "center");
+          dedicationCellRange.style("verticalAlignment", "center");
+
+          sheet.range(`A${initRange}:M${row - 1}`).style("border", true);
+        }
       }
       // ajustar el ancho de las columnas
       sheet.column("A").width(50);
       sheet.column("B").width(50);
       sheet.column("C").width(18);
       sheet.column("D").width(18);
-      sheet.column("M").width(25);
-      sheet.column("N").width(18);
+      
+      if (modality.isSemestral) {
+        // Para semestral: las últimas columnas son K (Dedicación) y L (Observación)
+        sheet.column("K").width(25);
+        sheet.column("L").width(18);
+      } else {
+        // Para trimestral: las últimas columnas son M (Dedicación) y N (Observación)
+        sheet.column("M").width(25);
+        sheet.column("N").width(18);
+      }
 
       // ajustar el alto a filas extra
       for (let i = 0; i < 50; i++) {
