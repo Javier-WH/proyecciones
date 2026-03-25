@@ -10,6 +10,7 @@ import { createTables } from './dataBase/create/createTables.js'
 import setTableRelations from './dataBase/relations/tableRelations.js'
 import syncSagaTables from './dataBase/sycnSagaDB/syncSagaTables.js'
 import syncSchedule from './dataBase/syncScheduleTables/syncSchedule.js'
+import { checkAndApplyGlobalRestrictions } from './dataBase/alters/checkAndApplyGlobalRestrictions.js'
 import session from 'express-session'
 import connectSessionSequelize from 'connect-session-sequelize'
 import sequelize from '#dataBaseConnection'
@@ -35,6 +36,10 @@ setTableRelations()
 await syncSagaTables()
 await syncSchedule()
 await sessionStore.sync()
+
+// Check and apply global restrictions migration if needed
+await checkAndApplyGlobalRestrictions()
+
 await loadProyection()
 
 // cors

@@ -270,11 +270,21 @@ Router.get("/subject-restrictions/:proyectionId", async (req, res) => {
       return res.status(404).json({ error: true, message: "La proyección indicada no existe" });
     }
 
-    const restrictions = await SubjectRestrictions.findAll({
+    // First try to find projection-specific restrictions (for backward compatibility)
+    let restrictions = await SubjectRestrictions.findAll({
       where: { proyection_id: proyectionId },
       attributes: ["subject_key", "subject_name", "classroom_ids", "pnf_id", "is_exclusive", "split_hours"],
       raw: true,
     });
+
+    // If no projection-specific restrictions found, return global restrictions
+    if (restrictions.length === 0) {
+      restrictions = await SubjectRestrictions.findAll({
+        where: { proyection_id: null },
+        attributes: ["subject_key", "subject_name", "classroom_ids", "pnf_id", "is_exclusive", "split_hours"],
+        raw: true,
+      });
+    }
 
     return res.json({ restrictions: restrictions.map(formatSubjectRestriction) });
   } catch (error) {
@@ -285,17 +295,34 @@ Router.get("/subject-restrictions/:proyectionId", async (req, res) => {
   }
 });
 
+// New endpoint for managing global restrictions
+Router.get("/subject-restrictions", async (_req, res) => {
+  try {
+    const restrictions = await SubjectRestrictions.findAll({
+      where: { proyection_id: null },
+      attributes: ["subject_key", "subject_name", "classroom_ids", "pnf_id", "is_exclusive", "split_hours"],
+      raw: true,
+    });
+
+    return res.json({ restrictions: restrictions.map(formatSubjectRestriction) });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ error: true, message: "Error interno del servidor al consultar las restricciones globales" });
+  }
+});
+
 Router.post("/subject-restrictions", express.json(), async (req, res) => {
   try {
     const { proyection_id: proyectionId, restrictions } = req.body || {};
 
-    if (!proyectionId) {
-      return res.status(400).json({ error: true, message: "El campo proyection_id es requerido" });
-    }
-
-    const proyection = await Proyections.findByPk(proyectionId, { attributes: ["id"], raw: true });
-    if (!proyection) {
-      return res.status(404).json({ error: true, message: "La proyección indicada no existe" });
+    // Support both global (no proyection_id) and projection-specific restrictions
+    if (proyectionId) {
+      const proyection = await Proyections.findByPk(proyectionId, { attributes: ["id"], raw: true });
+      if (!proyection) {
+        return res.status(404).json({ error: true, message: "La proyección indicada no existe" });
+      }
     }
 
     if (!Array.isArray(restrictions)) {
@@ -335,14 +362,14 @@ Router.post("/subject-restrictions", express.json(), async (req, res) => {
       const pnfIdInput = restriction?.pnf_id ?? restriction?.pnfId;
 
       const normalizedPnfId = pnfIdInput || null;
-      const uniqueKey = `${proyectionId}-${subjectKey}-${normalizedPnfId}`;
+      const uniqueKey = `${proyectionId || 'global'}-${subjectKey}-${normalizedPnfId}`;
 
       const existingIndex = normalizedRestrictions.findIndex(
-        (r) => `${r.proyection_id}-${r.subject_key}-${r.pnf_id}` === uniqueKey,
+        (r) => `${r.proyection_id || 'global'}-${r.subject_key}-${r.pnf_id}` === uniqueKey,
       );
 
       const newRestriction = {
-        proyection_id: proyectionId,
+        proyection_id: proyectionId || null, // null for global restrictions
         subject_key: subjectKey,
         subject_name: subjectName,
         classroom_ids: classroomIds,
@@ -360,7 +387,13 @@ Router.post("/subject-restrictions", express.json(), async (req, res) => {
 
     const transaction = await sequelize.transaction();
     try {
-      await SubjectRestrictions.destroy({ where: { proyection_id: proyectionId }, transaction });
+      // Delete existing restrictions (global or projection-specific)
+      if (proyectionId) {
+        await SubjectRestrictions.destroy({ where: { proyection_id: proyectionId }, transaction });
+      } else {
+        await SubjectRestrictions.destroy({ where: { proyection_id: null }, transaction });
+      }
+      
       if (normalizedRestrictions.length > 0) {
         await SubjectRestrictions.bulkCreate(normalizedRestrictions, { transaction });
       }
@@ -371,7 +404,9 @@ Router.post("/subject-restrictions", express.json(), async (req, res) => {
     }
 
     return res.json({
-      message: "Restricciones de materias actualizadas correctamente",
+      message: proyectionId 
+        ? "Restricciones de materias actualizadas correctamente" 
+        : "Restricciones globales de materias actualizadas correctamente",
       restrictions: normalizedRestrictions.map(formatSubjectRestriction),
     });
   } catch (error) {

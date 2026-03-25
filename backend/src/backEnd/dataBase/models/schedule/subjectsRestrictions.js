@@ -11,7 +11,7 @@ SubjectRestrictions.init(
     },
     proyection_id: {
       type: DataTypes.UUID,
-      allowNull: false,
+      allowNull: true, // Changed to nullable for global restrictions
       references: {
         model: "proyections",
         key: "id",
@@ -53,6 +53,12 @@ SubjectRestrictions.init(
     charset: "utf8mb4",
     collate: "utf8mb4_unicode_ci",
     indexes: [
+      {
+        unique: true,
+        fields: ["subject_key", "pnf_id"],
+        name: "subjects_restrictions_global_key",
+      },
+      // Keep old index temporarily for backward compatibility
       {
         unique: true,
         fields: ["proyection_id", "subject_key", "pnf_id"],

@@ -11,7 +11,10 @@
     "db:drop": "node ./src/dev/CLI/syncTables.js db:drop",
     "db:create": "node ./src/dev/CLI/syncTables.js db:create",
     "db:sync": "node ./src/dev/CLI/syncTables.js db:sync",
-    "profiles:migrate": "node ./src/dev/CLI/migrateSubjectProfiles.js"
+    "profiles:migrate": "node ./src/dev/CLI/migrateSubjectProfiles.js",
+    "migrate:restrictions": "node ./src/backEnd/dataBase/alters/checkAndApplyGlobalRestrictions.js",
+    "check:migration": "node -e \"import('./src/backEnd/dataBase/alters/checkAndApplyGlobalRestrictions.js').then(m => m.checkIfMigrationNeeded()).then(needed => console.log('Migration needed:', needed))\"",
+    "rollback:migration": "node -e \"import('./src/backEnd/dataBase/alters/migrateToGlobalRestrictions.js').then(m => m.down())\""
   },
   "imports": {
     "#models/*": "./src/backEnd/dataBase/models/*",

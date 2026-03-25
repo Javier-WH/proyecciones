@@ -13,6 +13,7 @@ export default async function deleteProyection(req, res) {
 
     // Eliminación en cascada manual de dependencias
     await Schedule.destroy({ where: { proyection_id: id } })
+    // Only delete projection-specific restrictions, keep global ones
     await SubjectsRestrictions.destroy({ where: { proyection_id: id } })
 
     const deleted = await Proyections.destroy({
