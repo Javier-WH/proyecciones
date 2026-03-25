@@ -24,7 +24,7 @@ export function getTeacherHous(teacherLoad, teacherId) {
         if (item.hours.q3 !== undefined && item?.quarter?.q3 === teacherId) {
           totalHoras.q3 += +item.hours.q3
         } else if (item.hours.q2 !== undefined && item?.quarter?.q2 === teacherId) {
-          totalHoras.q3 += +item.hours.q2
+          totalHoras.q2 += +item.hours.q2  // Corregido: sumar a q2, no a q3
         }
       } else {
         // Trimestral: contar todos los trimestres normalmente
