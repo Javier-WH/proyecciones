@@ -5,9 +5,10 @@ const queryInterface = sequelize.getQueryInterface()
 const TABLE_NAME = 'subjects_restrictions'
 const UNIQUE_INDEX_NAME_OLD1 = 'subjects_restrictions_proyection_id_subject_key'
 const UNIQUE_INDEX_NAME_OLD2 = 'subjects_restrictions_proyection_subject_key'
-const NEW_UNIQUE_INDEX_NAME = 'subjects_restrictions_proj_subj_pnf_key'
+const UNIQUE_INDEX_NAME_OLD3 = 'subjects_restrictions_proj_subj_pnf_key'
+const GLOBAL_UNIQUE_INDEX_NAME = 'subjects_restrictions_global_key'
 
-async function ensureColumn(tableInfo, columnName, definition) {
+async function ensureColumn (tableInfo, columnName, definition) {
   const exists = Boolean(tableInfo[columnName])
   if (!exists) {
     await queryInterface.addColumn(TABLE_NAME, columnName, definition)
@@ -16,7 +17,7 @@ async function ensureColumn(tableInfo, columnName, definition) {
   }
 }
 
-export default async function updateSubjectRestrictionsColumns() {
+export default async function updateSubjectRestrictionsColumns () {
   try {
     const tableExists = await queryInterface.describeTable(TABLE_NAME).catch(() => null)
     if (!tableExists) {
@@ -36,7 +37,7 @@ export default async function updateSubjectRestrictionsColumns() {
 
     await ensureColumn(tableInfo, 'proyection_id', {
       type: DataTypes.UUID,
-      allowNull: false
+      allowNull: true
     })
 
     await ensureColumn(tableInfo, 'subject_key', {
@@ -86,12 +87,20 @@ export default async function updateSubjectRestrictionsColumns() {
       await queryInterface.removeIndex(TABLE_NAME, UNIQUE_INDEX_NAME_OLD2).catch(() => null)
     }
 
-    const hasNewUniqueIndex = indexes.some((index) => index.name === NEW_UNIQUE_INDEX_NAME)
+    const hasOldIndex3 = indexes.some((index) => index.name === UNIQUE_INDEX_NAME_OLD3)
 
-    if (!hasNewUniqueIndex) {
-      await queryInterface.addIndex(TABLE_NAME, ['proyection_id', 'subject_key', 'pnf_id'], {
+    if (hasOldIndex3) {
+      await queryInterface.removeConstraint(TABLE_NAME, UNIQUE_INDEX_NAME_OLD3).catch(() => null)
+      await queryInterface.removeIndex(TABLE_NAME, UNIQUE_INDEX_NAME_OLD3).catch(() => null)
+    }
+
+    const refreshedIndexes = await queryInterface.showIndex(TABLE_NAME)
+    const hasGlobalIndex = refreshedIndexes.some((index) => index.name === GLOBAL_UNIQUE_INDEX_NAME)
+
+    if (!hasGlobalIndex) {
+      await queryInterface.addIndex(TABLE_NAME, ['subject_key', 'pnf_id'], {
         unique: true,
-        name: NEW_UNIQUE_INDEX_NAME
+        name: GLOBAL_UNIQUE_INDEX_NAME
       })
     }
   } catch (error) {
