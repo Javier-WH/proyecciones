@@ -17,7 +17,8 @@ interface StagingAreaProps {
 }
 
 const getEventId = (event: Event): string => {
-  return `${event.extendedProps?.subjectId}-${event.daysOfWeek?.[0]}-${event.startTime}`;
+  // Include section to make ID unique across different sections with same subject
+  return `${event.extendedProps?.subjectId}-${event.extendedProps?.seccion}-${event.daysOfWeek?.[0]}-${event.startTime}`;
 };
 
 const StagingArea: React.FC<StagingAreaProps> = ({ 

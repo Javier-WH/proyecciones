@@ -163,6 +163,7 @@ const SchoolSchedule: React.FC = () => {
   const [isOfficialStageMode, setIsOfficialStageMode] = useState(false);
   const [draggingFromStaging, setDraggingFromStaging] = useState<Event | null>(null);
   const [eventsWithConflicts, setEventsWithConflicts] = useState<Record<string, string[]>>({}); // eventId -> conflict messages
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
 
   const isSuperUser = useMemo(() => {
     if (userData?.su) return true;
@@ -212,7 +213,8 @@ const SchoolSchedule: React.FC = () => {
 
   // Staging area functions for official stage mode
   const getEventId = (event: Event): string => {
-    return `${event.extendedProps?.subjectId}-${event.daysOfWeek?.[0]}-${event.startTime}`;
+    // Include section to make ID unique across different sections with same subject
+    return `${event.extendedProps?.subjectId}-${event.extendedProps?.seccion}-${event.daysOfWeek?.[0]}-${event.startTime}`;
   };
 
   const moveEventToStaging = (event: Event) => {
@@ -304,14 +306,15 @@ const SchoolSchedule: React.FC = () => {
   };
 
   // Handle drop from staging area to schedule
-  const handleDropFromStaging = (targetDay: number, targetStartTime: string, targetEndTime: string) => {
-    if (!draggingFromStaging) return;
+  const handleDropFromStaging = (targetDay: number, targetStartTime: string, targetEndTime: string, eventFromDrop?: Event) => {
+    const eventToUse = eventFromDrop || draggingFromStaging;
+    if (!eventToUse) return;
     
-    const eventId = getEventId(draggingFromStaging);
+    const eventId = getEventId(eventToUse);
     
     // Create new event with updated day/time
     const newEvent: Event = {
-      ...draggingFromStaging,
+      ...eventToUse,
       daysOfWeek: [targetDay],
       startTime: targetStartTime,
       endTime: targetEndTime,
@@ -2972,10 +2975,11 @@ const SchoolSchedule: React.FC = () => {
                                     {
                                       key: "change-classroom",
                                       icon: <SwapOutlined />,
-                                      disabled: isFrozen,
-                                      label: isFrozen ? "Aula Congelada (No editable)" : "Cambiar Aula",
+                                      disabled: isFrozen && !isOfficialStageMode,
+                                      label: (isFrozen && !isOfficialStageMode) ? "Aula Congelada (No editable)" : "Cambiar Aula",
                                       onClick: () => {
-                                        if (isFrozen) return;
+                                        setContextMenuOpen(false);
+                                        if (isFrozen && !isOfficialStageMode) return;
                                         const endTimeIdx = rowIndex + cell.rowSpan - 1;
                                         const evtEndTime = tableSlots[endTimeIdx] ? tableSlots[endTimeIdx][1] : "";
                                         setClassroomChangeEvent({
@@ -2993,7 +2997,7 @@ const SchoolSchedule: React.FC = () => {
                                   ];
 
                                   // Check if this cell has conflicts
-                                  const cellEventId = `${cell.extendedProps?.subjectId}-${day}-${slot[0]}`;
+                                  const cellEventId = `${cell.extendedProps?.subjectId}-${cell.extendedProps?.seccion}-${day}-${slot[0]}`;
                                   const cellConflicts = eventsWithConflicts[cellEventId] || [];
                                   const hasConflict = cellConflicts.length > 0;
 
@@ -3030,6 +3034,10 @@ const SchoolSchedule: React.FC = () => {
                                         handleDrop(rowIndex, day, entityId);
                                       }}
                                       onClick={() => {
+                                        // Don't move to staging if context menu is open or was just used
+                                        if (contextMenuOpen) {
+                                          return;
+                                        }
                                         if (isOfficialStageMode && cell.extendedProps) {
                                           const eventToStage: Event = {
                                             title: cell.title,
@@ -3108,16 +3116,15 @@ const SchoolSchedule: React.FC = () => {
                                           </div>
                                         </Tooltip>
                                       )}
-                                      <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]} disabled={isOfficialStageMode}>
-                                        <Tooltip title={isOfficialStageMode ? "Click para mover al área de depósito" : tooltipContent}>
+                                      <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]} onOpenChange={(open) => setContextMenuOpen(open)}>
+                                        <Tooltip title={isOfficialStageMode ? "Click para mover al área de depósito (Click derecho para opciones)" : tooltipContent}>
                                           <div 
                                             style={{ 
                                               display: "flex", 
                                               flexDirection: "column", 
                                               gap: "2px", 
                                               height: "100%", 
-                                              cursor: isOfficialStageMode ? "pointer" : "context-menu",
-                                              pointerEvents: isOfficialStageMode ? "none" : "auto"
+                                              cursor: isOfficialStageMode ? "pointer" : "context-menu"
                                             }}
                                           >
                                             <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
@@ -3189,8 +3196,18 @@ const SchoolSchedule: React.FC = () => {
                                         
                                         // Check if dropping from staging area
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
-                                        if (isStagedEvent && draggingFromStaging) {
-                                          handleDropFromStaging(day, slot[0], slot[1]);
+                                        if (isStagedEvent) {
+                                          // Get event data from dataTransfer
+                                          const eventDataStr = e.dataTransfer.getData("text/plain");
+                                          try {
+                                            const eventFromDrop = JSON.parse(eventDataStr) as Event;
+                                            handleDropFromStaging(day, slot[0], slot[1], eventFromDrop);
+                                          } catch {
+                                            // Fallback to draggingFromStaging state
+                                            if (draggingFromStaging) {
+                                              handleDropFromStaging(day, slot[0], slot[1], draggingFromStaging);
+                                            }
+                                          }
                                           return;
                                         }
                                         
