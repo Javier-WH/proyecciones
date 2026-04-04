@@ -4,13 +4,13 @@ function baseUrl(path: string): string {
   return import.meta.env.MODE === "development" ? `http://localhost:3000${path}` : path;
 }
 
-export async function getFrozenSections(proyectionId: string): Promise<{
-  frozenSections?: Record<string, Event[]>;
+export async function getLockedSections(proyectionId: string): Promise<{
+  lockedSections?: Record<string, Event[]>;
   error?: boolean;
   status?: number;
   message?: string;
 }> {
-  const response = await fetch(baseUrl(`/frozen-sections/${proyectionId}`), {
+  const response = await fetch(baseUrl(`/locked-sections/${proyectionId}`), {
     method: "GET",
     headers: { Accept: "application/json" },
   });
@@ -21,16 +21,16 @@ export async function getFrozenSections(proyectionId: string): Promise<{
   return response.json();
 }
 
-export async function saveFrozenSections(
+export async function saveLockedSections(
   proyectionId: string,
-  frozenSections: Record<string, Event[]>
+  lockedSections: Record<string, Event[]>
 ): Promise<{ error?: boolean; status?: number; message?: string }> {
-  const response = await fetch(baseUrl("/frozen-sections"), {
+  const response = await fetch(baseUrl("/locked-sections"), {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify({
       proyection_id: proyectionId,
-      frozen_sections: frozenSections,
+      locked_sections: lockedSections,
     }),
   });
 
@@ -40,12 +40,12 @@ export async function saveFrozenSections(
   return response.json();
 }
 
-export async function upsertFrozenSection(
+export async function upsertLockedSection(
   proyectionId: string,
   sectionKey: string,
   events: Event[]
 ): Promise<{ error?: boolean; status?: number; message?: string }> {
-  const response = await fetch(baseUrl("/frozen-sections"), {
+  const response = await fetch(baseUrl("/locked-sections"), {
     method: "PUT",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -61,11 +61,11 @@ export async function upsertFrozenSection(
   return response.json();
 }
 
-export async function deleteFrozenSection(
+export async function deleteLockedSection(
   proyectionId: string,
   sectionKey: string
 ): Promise<{ error?: boolean; status?: number; message?: string }> {
-  const response = await fetch(baseUrl(`/frozen-sections/${proyectionId}/${encodeURIComponent(sectionKey)}`), {
+  const response = await fetch(baseUrl(`/locked-sections/${proyectionId}/${encodeURIComponent(sectionKey)}`), {
     method: "DELETE",
     headers: { Accept: "application/json" },
   });
@@ -76,12 +76,29 @@ export async function deleteFrozenSection(
   return response.json();
 }
 
-export async function deleteAllFrozenSections(
+export async function deleteAllLockedSections(
   proyectionId: string
 ): Promise<{ error?: boolean; status?: number; message?: string }> {
-  const response = await fetch(baseUrl(`/frozen-sections/all/${proyectionId}`), {
+  const response = await fetch(baseUrl(`/locked-sections/all/${proyectionId}`), {
     method: "DELETE",
     headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    return { error: true, status: response.status, message: await response.json().catch(() => ({})) };
+  }
+  return response.json();
+}
+
+export async function updateLockedSectionStage(
+  proyectionId: string,
+  sectionKey: string,
+  stage: 'planning' | 'official'
+): Promise<{ error?: boolean; status?: number; message?: string }> {
+  const response = await fetch(baseUrl(`/locked-sections/${proyectionId}/${encodeURIComponent(sectionKey)}/stage`), {
+    method: "PUT",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ stage }),
   });
 
   if (!response.ok) {

@@ -28,7 +28,7 @@ export interface useSubjectResponseTeacherHours {
 }
 
 export default function useSetSubject(SubjectArray: Subject[]) {
-  const { frozenSections } = useContext(MainContext) as MainContextValues;
+  const { lockedSections } = useContext(MainContext) as MainContextValues;
   const [subjectList, setSubjectList] = useState<Subject[]>([]);
 
   useEffect(() => {
@@ -58,14 +58,14 @@ export default function useSetSubject(SubjectArray: Subject[]) {
 
     const targetSubject = subjectList[subjectIndex];
 
-    // --- CHECK FOR FROZEN SECTIONS ---
+    // --- CHECK FOR LOCKED SECTIONS ---
     const quarters = Object.keys(targetSubject.quarter) as ("q1" | "q2" | "q3")[];
     for (const q of quarters) {
-      const frozenKey = `${targetSubject.pnfId}-${targetSubject.trayectoId}-${targetSubject.seccion}-${q}`;
-      if (frozenSections[frozenKey]) {
+      const lockedKey = `${targetSubject.pnfId}-${targetSubject.trayectoId}-${targetSubject.seccion}-${q}`;
+      if (lockedSections[lockedKey]) {
         return {
           error: true,
-          message: `La sección ${targetSubject.seccion} está congelada en el ${q === "q1" ? "Trimestre 1" : q === "q2" ? "Trimestre 2" : "Trimestre 3"}. No se puede modificar el profesor.`,
+          message: `La sección ${targetSubject.seccion} está bloqueada en el ${q === "q1" ? "Trimestre 1" : q === "q2" ? "Trimestre 2" : "Trimestre 3"}. No se puede modificar el profesor.`,
           data: null,
         };
       }
@@ -130,14 +130,14 @@ export default function useSetSubject(SubjectArray: Subject[]) {
 
     const targetSubject = subjectList[subjectIndex];
 
-    // --- CHECK FOR FROZEN SECTIONS ---
+    // --- CHECK FOR LOCKED SECTIONS ---
     const quarters = Object.keys(targetSubject.quarter) as ("q1" | "q2" | "q3")[];
     for (const q of quarters) {
-      const frozenKey = `${targetSubject.pnfId}-${targetSubject.trayectoId}-${targetSubject.seccion}-${q}`;
-      if (frozenSections[frozenKey]) {
+      const lockedKey = `${targetSubject.pnfId}-${targetSubject.trayectoId}-${targetSubject.seccion}-${q}`;
+      if (lockedSections[lockedKey]) {
         return {
           error: true,
-          message: `La sección ${targetSubject.seccion} está congelada en el ${q === "q1" ? "Trimestre 1" : q === "q2" ? "Trimestre 2" : "Trimestre 3"}. No se puede modificar el profesor.`,
+          message: `La sección ${targetSubject.seccion} está bloqueada en el ${q === "q1" ? "Trimestre 1" : q === "q2" ? "Trimestre 2" : "Trimestre 3"}. No se puede modificar el profesor.`,
           data: null,
         };
       }

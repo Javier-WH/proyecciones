@@ -64,7 +64,7 @@ export interface generateScheduleParams {
   teachers?: any[];
   preventSingleHourBlocks?: boolean;
   breaks?: { start: string; end: string }[];
-  frozenEvents?: Event[];
+  lockedEvents?: Event[];
 }
 
 // =====================================================
@@ -869,7 +869,7 @@ export function generateScheduleEvents({
   teachers = [],
   preventSingleHourBlocks = false,
   breaks = [],
-  frozenEvents = [],
+  lockedEvents = [],
 }: generateScheduleParams): Event[] {
   // Reset global backtrack counter
   backtrackCounter = 0;
@@ -878,11 +878,11 @@ export function generateScheduleEvents({
   const activeTurnos = customTurnos || turnos;
   const occupancy = new OccupancyTracker();
 
-  // ─── Pre-occupy frozen events ───
-  if (frozenEvents.length > 0) {
-    const reportedFrozenErrors = new Set<string>();
+  // ─── Pre-occupy locked events ───
+  if (lockedEvents.length > 0) {
+    const reportedLockedErrors = new Set<string>();
 
-    for (const evt of frozenEvents) {
+    for (const evt of lockedEvents) {
       if (evt.daysOfWeek?.length && evt.startTime && evt.extendedProps) {
         const day = evt.daysOfWeek[0];
         const professorId = evt.extendedProps.professorId;
@@ -951,8 +951,8 @@ export function generateScheduleEvents({
           const stringifiedClassroomIds = preferConfig.classroomIds.map(String);
           if (!stringifiedClassroomIds.includes(String(evt.extendedProps.classroomId))) {
             const errKey = `${baseErrKey}-room`;
-            if (!reportedFrozenErrors.has(errKey)) {
-              reportedFrozenErrors.add(errKey);
+            if (!reportedLockedErrors.has(errKey)) {
+              reportedLockedErrors.add(errKey);
               const classObj = classrooms?.find(c => stringifiedClassroomIds.includes(String(c.id)));
               setErrors({
                 name: evt.title,
@@ -1009,7 +1009,7 @@ export function generateScheduleEvents({
       const subjectKey = `${subjectNorm}_t_${trayectoNorm}`;
       const originalTotalHours = sub.hours[trimestre]!;
 
-      const placedHours = frozenEvents.filter(e => e.extendedProps?.subjectId === sub.innerId).length;
+      const placedHours = lockedEvents.filter(e => e.extendedProps?.subjectId === sub.innerId).length;
       const totalHours = originalTotalHours - placedHours;
 
       if (totalHours <= 0 || !professorId) return [];
@@ -1492,9 +1492,9 @@ export function generateScheduleEvents({
   // ─── Step 6: Convertir a Event[] ───
   const events: Event[] = [];
 
-  // Agregar los eventos congelados primero
-  if (frozenEvents.length > 0) {
-    events.push(...frozenEvents);
+  // Agregar los eventos bloqueados primero
+  if (lockedEvents.length > 0) {
+    events.push(...lockedEvents);
   }
 
   for (const [idx, placements] of assigned.entries()) {

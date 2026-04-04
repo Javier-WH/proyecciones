@@ -18,6 +18,8 @@ import { Select, Modal, message, List, Tooltip, Dropdown, Spin, Button, Badge, C
 import { SwapOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
+import { LockedSectionsStageManager } from "./LockedSectionsStageManager";
+import StagingArea from "./StagingArea";
 import SubjectRestrictionModal from "./SubjectRestrictionModal";
 import TeachersRestrictionsListModal from "./TeachersRestrictionsListModal";
 import ScheduleErrorsModal, { scheduleError } from "./ErrorsModal";
@@ -97,7 +99,7 @@ const hexToRgba = (hexColor: string, alpha = 0.15): string => {
 
 
 const SchoolSchedule: React.FC = () => {
-  const { subjects, teachers, trayectosList, proyectionId, subjectColors, handleSubjectChange, frozenSections, setFrozenSections, userData, userPerfil } =
+  const { subjects, teachers, trayectosList, proyectionId, subjectColors, handleSubjectChange, lockedSections, setLockedSections, userData, userPerfil } =
     useContext(MainContext) as MainContextValues;
 
   const { addSubjectToTeacher } = useSetSubject(subjects || []);
@@ -153,6 +155,14 @@ const SchoolSchedule: React.FC = () => {
   const [isFrozenManagerOpen, setIsFrozenManagerOpen] = useState(false);
   const [frozenPnfFilter, setFrozenPnfFilter] = useState<string[]>([]);
   const [frozenModalTab, setFrozenModalTab] = useState<"q1" | "q2" | "q3">("q1");
+  const [isStageManagerOpen, setIsStageManagerOpen] = useState(false);
+  
+  // Staging area state for official stage
+  const [stagedEvents, setStagedEvents] = useState<Event[]>([]);
+  const [selectedStagedEventId, setSelectedStagedEventId] = useState<string | null>(null);
+  const [isOfficialStageMode, setIsOfficialStageMode] = useState(false);
+  const [draggingFromStaging, setDraggingFromStaging] = useState<Event | null>(null);
+  const [eventsWithConflicts, setEventsWithConflicts] = useState<Record<string, string[]>>({}); // eventId -> conflict messages
 
   const isSuperUser = useMemo(() => {
     if (userData?.su) return true;
@@ -163,29 +173,29 @@ const SchoolSchedule: React.FC = () => {
   const toggleFreezeSection = (pnfId: string, trayId: string, sec: string, specificTrimestre?: "q1" | "q2" | "q3") => {
     const trim = specificTrimestre || trimestre;
     const key = `${pnfId}-${trayId}-${sec}-${trim}`;
-    const isFrozen = !!frozenSections[key];
+    const isLocked = !!lockedSections[key];
 
-    if (isFrozen) {
+    if (isLocked) {
       if (!isSuperUser) {
-        message.error("Solo los Super Usuarios pueden descongelar secciones.");
+        message.error("Solo los Super Usuarios pueden desbloquear secciones.");
         return;
       }
       Modal.confirm({
-        title: "¿Descongelar sección?",
-        content: "Al descongelar esta sección, las materias se recalcularán automáticamente en el próximo proceso de generación y su orden o ubicación podrían cambiar. ¿Deseas continuar?",
-        okText: "Sí, descongelar",
+        title: "¿Desbloquear sección?",
+        content: "Al desbloquear esta sección, las materias se recalcularán automáticamente en el próximo proceso de generación y su orden o ubicación podrían cambiar. ¿Deseas continuar?",
+        okText: "Sí, desbloquear",
         cancelText: "Cancelar",
         onOk: () => {
-          setFrozenSections(prev => {
+          setLockedSections((prev: any) => {
             const newObj = { ...prev };
             delete newObj[key];
-            message.info(`Sección ${sec} descongelada.`);
+            message.info(`Sección ${sec} desbloqueada.`);
             return newObj;
           });
         }
       });
     } else {
-      setFrozenSections(prev => {
+      setLockedSections((prev: any) => {
         const newObj = { ...prev };
         // Collect unmerged events for this section
         const sectionEvents = eventData.filter(e =>
@@ -194,10 +204,147 @@ const SchoolSchedule: React.FC = () => {
           e.extendedProps.seccion === sec
         );
         newObj[key] = sectionEvents;
-        message.success(`Sección ${sec} congelada.`);
+        message.success(`Sección ${sec} bloqueada.`);
         return newObj;
       });
     }
+  };
+
+  // Staging area functions for official stage mode
+  const getEventId = (event: Event): string => {
+    return `${event.extendedProps?.subjectId}-${event.daysOfWeek?.[0]}-${event.startTime}`;
+  };
+
+  const moveEventToStaging = (event: Event) => {
+    if (!isOfficialStageMode) return;
+    
+    const eventId = getEventId(event);
+    // Check if already staged
+    if (stagedEvents.some(e => getEventId(e) === eventId)) {
+      message.warning("Este evento ya está en el área de depósito");
+      return;
+    }
+    
+    setStagedEvents(prev => [...prev, event]);
+    // Remove from eventData
+    setEventData(prev => prev.filter(e => getEventId(e) !== eventId));
+    message.info("Evento movido al área de depósito");
+  };
+
+  const removeFromStaging = (event: Event) => {
+    const eventId = getEventId(event);
+    setStagedEvents(prev => prev.filter(e => getEventId(e) !== eventId));
+    // Return to eventData
+    setEventData(prev => [...prev, event]);
+    message.info("Evento devuelto al horario");
+  };
+
+  const clearAllStaged = () => {
+    if (stagedEvents.length === 0) return;
+    Modal.confirm({
+      title: "¿Limpiar área de depósito?",
+      content: `Se devolverán ${stagedEvents.length} eventos al horario.`,
+      okText: "Sí, devolver todos",
+      cancelText: "Cancelar",
+      onOk: () => {
+        setEventData(prev => [...prev, ...stagedEvents]);
+        setStagedEvents([]);
+        setSelectedStagedEventId(null);
+        message.success("Todos los eventos devueltos al horario");
+      }
+    });
+  };
+
+  // Check conflicts for an event at a specific position
+  const checkEventConflicts = (event: Event, targetDay: number, targetStartTime: string): string[] => {
+    const conflicts: string[] = [];
+    const props = event.extendedProps;
+    if (!props) return conflicts;
+
+    const professorId = props.professorId;
+    const classroomId = props.classroomId;
+    const pnfId = props.pnfId;
+    const trayectoId = props.trayectoId;
+    const seccion = props.seccion;
+
+    // Check all existing events for conflicts
+    for (const existingEvent of eventData) {
+      if (!existingEvent.extendedProps) continue;
+      const existingDay = existingEvent.daysOfWeek?.[0];
+      const existingStart = existingEvent.startTime;
+      
+      // Skip if different day or time
+      if (existingDay !== targetDay || existingStart !== targetStartTime) continue;
+      
+      // Skip if same event (shouldn't happen but just in case)
+      if (getEventId(existingEvent) === getEventId(event)) continue;
+
+      // Check professor conflict
+      if (professorId && existingEvent.extendedProps.professorId === professorId) {
+        const prof = teachers?.find((t: { id: string; name?: string; lastName?: string }) => t.id === professorId);
+        const profName = prof ? `${prof.name || ''} ${prof.lastName || ''}`.trim() : 'Profesor';
+        conflicts.push(`Conflicto de profesor: ${profName} ya tiene clase a esta hora con "${existingEvent.title}"`);
+      }
+
+      // Check classroom conflict
+      if (classroomId && existingEvent.extendedProps.classroomId === classroomId) {
+        const classroom = classrooms?.find((c: { id: string; classroom?: string }) => String(c.id) === String(classroomId));
+        conflicts.push(`Conflicto de aula: ${classroom?.classroom || 'Aula'} ya está ocupada a esta hora por "${existingEvent.title}"`);
+      }
+
+      // Check section conflict (same PNF, trayecto, section)
+      if (pnfId === existingEvent.extendedProps.pnfId && 
+          trayectoId === existingEvent.extendedProps.trayectoId && 
+          seccion === existingEvent.extendedProps.seccion) {
+        conflicts.push(`Conflicto de sección: La sección ${seccion} ya tiene clase a esta hora con "${existingEvent.title}"`);
+      }
+    }
+
+    return conflicts;
+  };
+
+  // Handle drop from staging area to schedule
+  const handleDropFromStaging = (targetDay: number, targetStartTime: string, targetEndTime: string) => {
+    if (!draggingFromStaging) return;
+    
+    const eventId = getEventId(draggingFromStaging);
+    
+    // Create new event with updated day/time
+    const newEvent: Event = {
+      ...draggingFromStaging,
+      daysOfWeek: [targetDay],
+      startTime: targetStartTime,
+      endTime: targetEndTime,
+    };
+
+    // Check for conflicts
+    const conflicts = checkEventConflicts(newEvent, targetDay, targetStartTime);
+    
+    // Remove from staging
+    setStagedEvents(prev => prev.filter(e => getEventId(e) !== eventId));
+    
+    // Add to eventData
+    setEventData(prev => [...prev, newEvent]);
+
+    // Track conflicts if any
+    const newEventId = getEventId(newEvent);
+    if (conflicts.length > 0) {
+      setEventsWithConflicts(prev => ({
+        ...prev,
+        [newEventId]: conflicts
+      }));
+      message.warning(`Evento reubicado con ${conflicts.length} conflicto(s)`);
+    } else {
+      // Remove from conflicts if it was there before
+      setEventsWithConflicts(prev => {
+        const newConflicts = { ...prev };
+        delete newConflicts[newEventId];
+        return newConflicts;
+      });
+      message.success("Evento reubicado en el horario");
+    }
+    
+    setDraggingFromStaging(null);
   };
 
   const toggleFreezeTrayecto = (pnfId: string, trayId: string, trayName: string, sections: string[], isCurrentlyFrozen: boolean, specificTrimestre?: "q1" | "q2" | "q3") => {
@@ -214,7 +361,7 @@ const SchoolSchedule: React.FC = () => {
         okText: "Sí, descongelar todo",
         cancelText: "Cancelar",
         onOk: () => {
-          setFrozenSections(prev => {
+          setLockedSections(prev => {
             const newObj = { ...prev };
             sections.forEach(sec => delete newObj[`${pnfId}-${trayId}-${sec}-${trim}`]);
             message.info(`Trayecto ${trayName} descongelado.`);
@@ -223,7 +370,7 @@ const SchoolSchedule: React.FC = () => {
         }
       });
     } else {
-      setFrozenSections(prev => {
+      setLockedSections(prev => {
         const newObj = { ...prev };
         sections.forEach(sec => {
           const key = `${pnfId}-${trayId}-${sec}-${trim}`;
@@ -256,7 +403,7 @@ const SchoolSchedule: React.FC = () => {
         okText: "Sí, descongelar PNF",
         cancelText: "Cancelar",
         onOk: () => {
-          setFrozenSections(prev => {
+          setLockedSections(prev => {
             const newObj = { ...prev };
             sectionsMap.forEach(({ trayId, sec }) => delete newObj[`${pnfId}-${trayId}-${sec}-${trim}`]);
             message.info(`PNF ${pnfName} descongelado.`);
@@ -265,7 +412,7 @@ const SchoolSchedule: React.FC = () => {
         }
       });
     } else {
-      setFrozenSections(prev => {
+      setLockedSections(prev => {
         const newObj = { ...prev };
         sectionsMap.forEach(({ trayId, sec }) => {
           const key = `${pnfId}-${trayId}-${sec}-${trim}`;
@@ -1061,7 +1208,7 @@ const SchoolSchedule: React.FC = () => {
     };
 
     const firstModifiedEvent = applyClassroomChangeAndRecalculate(true) as any;
-    const isFrozen = firstModifiedEvent ? !!frozenSections[`${firstModifiedEvent.extendedProps?.pnfId}-${firstModifiedEvent.extendedProps?.trayectoId}-${firstModifiedEvent.extendedProps?.seccion}-${trimestre}`] : false;
+    const isFrozen = firstModifiedEvent ? !!lockedSections[`${firstModifiedEvent.extendedProps?.pnfId}-${firstModifiedEvent.extendedProps?.trayectoId}-${firstModifiedEvent.extendedProps?.seccion}-${trimestre}`] : false;
 
     if (conflictingEvent || isFrozen) {
       const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -1348,16 +1495,16 @@ const SchoolSchedule: React.FC = () => {
     }
     const localErrors: scheduleError[] = [];
 
-    // --- SELF-HEALING FROZEN SECTIONS ALGORITHM ---
-    const updatedFrozenSections = { ...frozenSections };
-    let frozenChanged = false;
+    // --- SELF-HEALING LOCKED SECTIONS ALGORITHM ---
+    const updatedLockedSections = { ...lockedSections };
+    let lockedChanged = false;
 
-    // 1. Sync professorIds in updatedFrozenSections with current Subjects
-    for (const [key, frozenEvents] of Object.entries(updatedFrozenSections)) {
+    // 1. Sync professorIds in updatedLockedSections with current Subjects
+    for (const [key, lockedEvents] of Object.entries(updatedLockedSections)) {
       if (!key.endsWith(`-${trimestre}`)) continue;
       let needsSync = false;
 
-      const synchronizedEvents = frozenEvents.map(ev => {
+      const synchronizedEvents = lockedEvents.map((ev: any) => {
         const sub = currentSubjects?.find(s => s.innerId === ev.extendedProps?.subjectId);
         if (!sub) return ev;
         const currentProf = sub.quarter[trimestre] || null;
@@ -1372,14 +1519,14 @@ const SchoolSchedule: React.FC = () => {
       });
 
       if (needsSync) {
-        updatedFrozenSections[key] = synchronizedEvents;
-        frozenChanged = true;
+        updatedLockedSections[key] = synchronizedEvents;
+        lockedChanged = true;
       }
     }
 
-    if (frozenChanged) {
+    if (lockedChanged) {
       // Save back to state asynchronously so it doesn't interrupt the render cycle
-      setTimeout(() => setFrozenSections(updatedFrozenSections), 0);
+      setTimeout(() => setLockedSections(updatedLockedSections), 0);
     }
     // ----------------------------------------------
 
@@ -1399,9 +1546,9 @@ const SchoolSchedule: React.FC = () => {
       preventSingleHourBlocks: scheduleConfig?.prevent_single_hour_blocks,
       breaks: scheduleConfig?.breaks,
       teachers: teachersRef.current || [],
-      frozenEvents: Object.keys(updatedFrozenSections)
+      lockedEvents: Object.keys(updatedLockedSections)
         .filter(key => key.endsWith(`-${trimestre}`))
-        .flatMap(key => updatedFrozenSections[key]),
+        .flatMap(key => updatedLockedSections[key]),
     });
 
     if (scheduleConfig?.auto_solve && localErrors.length > 0) {
@@ -1916,7 +2063,7 @@ const SchoolSchedule: React.FC = () => {
     }
 
     const firstMovingEvent = movingEvents[0];
-    const isFrozen = !!frozenSections[`${firstMovingEvent.extendedProps?.pnfId}-${firstMovingEvent.extendedProps?.trayectoId}-${firstMovingEvent.extendedProps?.seccion}-${trimestre}`];
+    const isFrozen = !!lockedSections[`${firstMovingEvent.extendedProps?.pnfId}-${firstMovingEvent.extendedProps?.trayectoId}-${firstMovingEvent.extendedProps?.seccion}-${trimestre}`];
 
     const targetSlots = tableSlots.slice(targetRowIndex, targetRowIndex + rowSpan);
     const targetSlotStarts = targetSlots.map(s => s[0]);
@@ -2027,8 +2174,8 @@ const SchoolSchedule: React.FC = () => {
     const frozenKey = `${firstMovingEvent.extendedProps?.pnfId}-${firstMovingEvent.extendedProps?.trayectoId}-${firstMovingEvent.extendedProps?.seccion}-${trimestre}`;
 
     if (isFrozen && !conflictFound) {
-      // 1. Actualizar "frozenSections" para parchear el cambio en caliente sin desordenar
-      setFrozenSections(prev => {
+      // 1. Actualizar "lockedSections" para parchear el cambio en caliente sin desordenar
+      setLockedSections(prev => {
         const newObj = { ...prev };
         if (newObj[frozenKey]) {
           const patchedEvents = newObj[frozenKey].map(e => {
@@ -2070,14 +2217,14 @@ const SchoolSchedule: React.FC = () => {
       if (pnfIdStr && trayIdStr && secStr) {
         setHasUnsavedOverrides(true);
         // Force the section to temporarily "unfreeze" and "refreeze" to force an update logic for React state while saving
-        setFrozenSections(prev => {
+        setLockedSections(prev => {
           const newObj = { ...prev };
           delete newObj[frozenKey];
           return newObj;
         });
 
         setTimeout(() => {
-          setFrozenSections(prev => {
+          setLockedSections(prev => {
             const newObj = { ...prev };
             newObj[frozenKey] = eventData.filter(e =>
               e.extendedProps.pnfId === pnfIdStr &&
@@ -2101,7 +2248,7 @@ const SchoolSchedule: React.FC = () => {
         cancelText: "Deshacer cambio",
         okButtonProps: { danger: true },
         onOk: () => {
-          setFrozenSections(prev => {
+          setLockedSections(prev => {
             const newObj = { ...prev };
             delete newObj[frozenKey];
             return newObj;
@@ -2597,9 +2744,38 @@ const SchoolSchedule: React.FC = () => {
               </Tooltip>
               <Tooltip title="Gestionar Secciones Congeladas">
                 <span style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }} onClick={() => { setFrozenModalTab(trimestre); setIsFrozenManagerOpen(true); }}>
-                  <GiFrozenBlock className={styles.icon} style={{ color: Object.keys(frozenSections).some(k => k.endsWith(`-${trimestre}`)) ? "#1890ff" : undefined }} />
-                  {Object.keys(frozenSections).some(k => k.endsWith(`-${trimestre}`)) && (
-                    <Badge count={Object.keys(frozenSections).filter(k => k.endsWith(`-${trimestre}`)).length} style={{ backgroundColor: "#1890ff", position: "absolute", top: "-5px", right: "-8px", transform: "scale(0.8)" }} />
+                  <GiFrozenBlock className={styles.icon} style={{ color: Object.keys(lockedSections).some(k => k.endsWith(`-${trimestre}`)) ? "#1890ff" : undefined }} />
+                  {Object.keys(lockedSections).some(k => k.endsWith(`-${trimestre}`)) && (
+                    <Badge count={Object.keys(lockedSections).filter(k => k.endsWith(`-${trimestre}`)).length} style={{ backgroundColor: "#1890ff", position: "absolute", top: "-5px", right: "-8px", transform: "scale(0.8)" }} />
+                  )}
+                </span>
+              </Tooltip>
+              <Tooltip title="Gestionar Etapas de Secciones">
+                <span style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }} onClick={() => setIsStageManagerOpen(true)}>
+                  <FaBuildingLock className={styles.icon} style={{ color: Object.keys(lockedSections).length > 0 ? "#52c41a" : undefined }} />
+                  {Object.keys(lockedSections).length > 0 && (
+                    <Badge count={Object.keys(lockedSections).length} style={{ backgroundColor: "#52c41a", position: "absolute", top: "-5px", right: "-8px", transform: "scale(0.8)" }} />
+                  )}
+                </span>
+              </Tooltip>
+              <Tooltip title={isOfficialStageMode ? "Cerrar Modo Edición Oficial" : "Abrir Modo Edición Oficial (Área de Depósito)"}>
+                <span 
+                  style={{ 
+                    position: "relative", 
+                    display: "inline-flex", 
+                    alignItems: "center", 
+                    cursor: "pointer",
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    backgroundColor: isOfficialStageMode ? "#722ed1" : "transparent",
+                    color: isOfficialStageMode ? "#fff" : undefined,
+                    transition: "all 0.2s"
+                  }} 
+                  onClick={() => setIsOfficialStageMode(!isOfficialStageMode)}
+                >
+                  📦
+                  {stagedEvents.length > 0 && (
+                    <Badge count={stagedEvents.length} style={{ backgroundColor: "#722ed1", position: "absolute", top: "-5px", right: "-8px", transform: "scale(0.8)" }} />
                   )}
                 </span>
               </Tooltip>
@@ -2732,8 +2908,8 @@ const SchoolSchedule: React.FC = () => {
                       borderCollapse: "collapse",
                       fontSize: "0.85rem",
                       tableLayout: "fixed",
-                      boxShadow: frozenSections[`${pnf}-${trayectoId}-${seccion}-${trimestre}`] && !title ? "0 0 15px rgba(0, 191, 255, 0.4)" : "none",
-                      border: frozenSections[`${pnf}-${trayectoId}-${seccion}-${trimestre}`] && !title ? "3px solid rgba(0, 191, 255, 0.6)" : "1px solid #dee2e6",
+                      boxShadow: lockedSections[`${pnf}-${trayectoId}-${seccion}-${trimestre}`] && !title ? "0 0 15px rgba(0, 191, 255, 0.4)" : "none",
+                      border: lockedSections[`${pnf}-${trayectoId}-${seccion}-${trimestre}`] && !title ? "3px solid rgba(0, 191, 255, 0.6)" : "1px solid #dee2e6",
                       transition: "all 0.3s ease"
                     }}>
                       <thead style={{ position: "sticky", top: 0, zIndex: 5, backgroundColor: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>
@@ -2777,7 +2953,7 @@ const SchoolSchedule: React.FC = () => {
                                   const endTimeIndex = rowIndex + cell.rowSpan - 1;
                                   const endTime = tableSlots[endTimeIndex] ? tableSlots[endTimeIndex][1] : "";
 
-                                  const isFrozen = !!frozenSections[`${cell.extendedProps?.pnfId}-${cell.extendedProps?.trayectoId}-${cell.extendedProps?.seccion}-${trimestre}`];
+                                  const isFrozen = !!lockedSections[`${cell.extendedProps?.pnfId}-${cell.extendedProps?.trayectoId}-${cell.extendedProps?.seccion}-${trimestre}`];
 
                                   const tooltipContent = (
                                     <div style={{ textAlign: "center" }}>
@@ -2816,13 +2992,22 @@ const SchoolSchedule: React.FC = () => {
                                     },
                                   ];
 
+                                  // Check if this cell has conflicts
+                                  const cellEventId = `${cell.extendedProps?.subjectId}-${day}-${slot[0]}`;
+                                  const cellConflicts = eventsWithConflicts[cellEventId] || [];
+                                  const hasConflict = cellConflicts.length > 0;
+
                                   return (
                                     <td
                                       className="schedule-time-cell"
                                       key={day}
                                       rowSpan={cell.rowSpan}
-                                      draggable={!isFrozen}
+                                      draggable={!isFrozen && !isOfficialStageMode}
                                       onDragStart={(e) => {
+                                        if (isOfficialStageMode) {
+                                          e.preventDefault();
+                                          return;
+                                        }
                                         e.dataTransfer.effectAllowed = "move";
                                         e.dataTransfer.setData("text/plain", cell.title || "");
                                         setDraggedEventInfo({
@@ -2844,20 +3029,97 @@ const SchoolSchedule: React.FC = () => {
                                         e.preventDefault();
                                         handleDrop(rowIndex, day, entityId);
                                       }}
+                                      onClick={() => {
+                                        if (isOfficialStageMode && cell.extendedProps) {
+                                          const eventToStage: Event = {
+                                            title: cell.title,
+                                            daysOfWeek: [day],
+                                            startTime: slot[0],
+                                            endTime: slot[1],
+                                            extendedProps: cell.extendedProps
+                                          };
+                                          moveEventToStaging(eventToStage);
+                                        }
+                                      }}
                                       style={{
-                                        border: "1px solid #dee2e6",
+                                        border: hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
                                         padding: "6px",
                                         verticalAlign: "top",
-                                        backgroundColor: bgColor,
-                                        borderLeft: `4px solid ${baseColor}`,
+                                        backgroundColor: hasConflict ? "#fff2f0" : (isOfficialStageMode ? `${bgColor}` : bgColor),
+                                        borderLeft: hasConflict ? "4px solid #ff4d4f" : `4px solid ${baseColor}`,
                                         height: "100%",
-                                        cursor: "grab",
-                                        opacity: draggedEventInfo?.title === cell.title && draggedEventInfo?.sourceDay === day && draggedEventInfo?.sourceStartTime === slot[0] ? 0.3 : 1
+                                        cursor: isOfficialStageMode ? "pointer" : "grab",
+                                        opacity: draggedEventInfo?.title === cell.title && draggedEventInfo?.sourceDay === day && draggedEventInfo?.sourceStartTime === slot[0] ? 0.3 : 1,
+                                        transition: "all 0.2s ease",
+                                        position: "relative"
                                       }}
                                     >
-                                      <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]}>
-                                        <Tooltip title={tooltipContent}>
-                                          <div style={{ display: "flex", flexDirection: "column", gap: "2px", height: "100%", cursor: "context-menu" }}>
+                                      {/* Conflict indicator button */}
+                                      {hasConflict && (
+                                        <Tooltip 
+                                          title={
+                                            <div>
+                                              <div style={{ fontWeight: 'bold', marginBottom: 4 }}>⚠️ Conflictos detectados:</div>
+                                              {cellConflicts.map((c, i) => (
+                                                <div key={i} style={{ marginBottom: 2 }}>• {c}</div>
+                                              ))}
+                                            </div>
+                                          }
+                                          placement="left"
+                                        >
+                                          <div
+                                            style={{
+                                              position: "absolute",
+                                              bottom: 4,
+                                              right: 4,
+                                              width: 18,
+                                              height: 18,
+                                              borderRadius: "50%",
+                                              backgroundColor: "#ff4d4f",
+                                              color: "#fff",
+                                              display: "flex",
+                                              alignItems: "center",
+                                              justifyContent: "center",
+                                              fontSize: "11px",
+                                              fontWeight: "bold",
+                                              cursor: "pointer",
+                                              zIndex: 10,
+                                              boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+                                            }}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              Modal.warning({
+                                                title: "Conflictos en este horario",
+                                                content: (
+                                                  <div>
+                                                    <p><strong>{cell.title}</strong></p>
+                                                    <ul style={{ paddingLeft: 20, marginTop: 8 }}>
+                                                      {cellConflicts.map((c, i) => (
+                                                        <li key={i} style={{ marginBottom: 4 }}>{c}</li>
+                                                      ))}
+                                                    </ul>
+                                                  </div>
+                                                ),
+                                                okText: "Entendido"
+                                              });
+                                            }}
+                                          >
+                                            !
+                                          </div>
+                                        </Tooltip>
+                                      )}
+                                      <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]} disabled={isOfficialStageMode}>
+                                        <Tooltip title={isOfficialStageMode ? "Click para mover al área de depósito" : tooltipContent}>
+                                          <div 
+                                            style={{ 
+                                              display: "flex", 
+                                              flexDirection: "column", 
+                                              gap: "2px", 
+                                              height: "100%", 
+                                              cursor: isOfficialStageMode ? "pointer" : "context-menu",
+                                              pointerEvents: isOfficialStageMode ? "none" : "auto"
+                                            }}
+                                          >
                                             <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                                               <span>{cell.title}</span>
                                               {overrideKeys.has(`${cell.title}|${day}|${slot[0]}`) && (
@@ -2910,15 +3172,28 @@ const SchoolSchedule: React.FC = () => {
                                     </td>
                                   );
                                 } else {
-                                  const isGridFrozen = viewMode === "pnf" && !!frozenSections[`${pnf}-${trayectoId}-${seccion}-${trimestre}`];
+                                  const isGridFrozen = viewMode === "pnf" && !!lockedSections[`${pnf}-${trayectoId}-${seccion}-${trimestre}`];
                                   return (
-                                    <td key={day} style={{ border: "1px solid #dee2e6" }}
+                                    <td key={day} 
+                                      style={{ 
+                                        border: draggingFromStaging ? "2px dashed #722ed1" : "1px solid #dee2e6",
+                                        backgroundColor: draggingFromStaging ? "#f9f0ff" : undefined,
+                                        transition: "all 0.2s ease"
+                                      }}
                                       onDragOver={(e) => {
                                         e.preventDefault();
                                         e.dataTransfer.dropEffect = "move";
                                       }}
                                       onDrop={(e) => {
                                         e.preventDefault();
+                                        
+                                        // Check if dropping from staging area
+                                        const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
+                                        if (isStagedEvent && draggingFromStaging) {
+                                          handleDropFromStaging(day, slot[0], slot[1]);
+                                          return;
+                                        }
+                                        
                                         // Even if dropping on an empty slot, if the grid is frozen, we might want to warn
                                         // But wait, if someone is dragging *into* a frozen grid, we should warn them
                                         if (isGridFrozen) {
@@ -2962,7 +3237,7 @@ const SchoolSchedule: React.FC = () => {
 
                 if (viewMode === "pnf") {
                   const currentSectionKey = `${pnf}-${trayectoId}-${seccion}-${trimestre}`;
-                  const isFrozen = !!frozenSections[currentSectionKey];
+                  const isFrozen = !!lockedSections[currentSectionKey];
                   return (
                     <div style={{ position: "relative" }}>
                       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px", marginTop: "10px", paddingRight: "10px" }}>
@@ -3231,7 +3506,7 @@ const SchoolSchedule: React.FC = () => {
               return Array.from(new Set(subjects?.filter(s => s.pnfId === pnfId && s.trayectoId === trayId).map(s => s.seccion).filter(Boolean)))
                 .map(sec => ({ trayId, sec }));
             });
-            const frozenInPnfCount = allPnfSections.filter(({ trayId, sec }) => !!frozenSections[`${pnfId}-${trayId}-${sec}-${frozenModalTab}`]).length;
+            const frozenInPnfCount = allPnfSections.filter(({ trayId, sec }) => !!lockedSections[`${pnfId}-${trayId}-${sec}-${frozenModalTab}`]).length;
             const isPnfAllFrozen = frozenInPnfCount === allPnfSections.length && allPnfSections.length > 0;
             const isPnfIndeterminate = frozenInPnfCount > 0 && frozenInPnfCount < allPnfSections.length;
 
@@ -3253,7 +3528,7 @@ const SchoolSchedule: React.FC = () => {
                     const sectionsInTray = Array.from(new Set(subjects?.filter(s => s.pnfId === pnfId && s.trayectoId === trayId).map(s => s.seccion).filter(Boolean))).sort(new Intl.Collator('es', { numeric: true }).compare);
                     if (!sectionsInTray.length) return null;
 
-                    const frozenInTrayCount = sectionsInTray.filter(sec => !!frozenSections[`${pnfId}-${trayId}-${sec}-${frozenModalTab}`]).length;
+                    const frozenInTrayCount = sectionsInTray.filter(sec => !!lockedSections[`${pnfId}-${trayId}-${sec}-${frozenModalTab}`]).length;
                     const isTrayAllFrozen = frozenInTrayCount === sectionsInTray.length && sectionsInTray.length > 0;
                     const isTrayIndeterminate = frozenInTrayCount > 0 && frozenInTrayCount < sectionsInTray.length;
 
@@ -3271,7 +3546,7 @@ const SchoolSchedule: React.FC = () => {
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
                           {sectionsInTray.map(sec => {
-                            const isFrozen = !!frozenSections[`${pnfId}-${trayId}-${sec}-${frozenModalTab}`];
+                            const isFrozen = !!lockedSections[`${pnfId}-${trayId}-${sec}-${frozenModalTab}`];
                             return (
                               <div
                                 key={sec}
@@ -3305,6 +3580,35 @@ const SchoolSchedule: React.FC = () => {
           })}
         </div>
       </Modal>
+      
+      <LockedSectionsStageManager 
+        open={isStageManagerOpen}
+        onClose={() => setIsStageManagerOpen(false)}
+      />
+
+      {/* Staging Area - Panel lateral para modo de edición oficial */}
+      {isOfficialStageMode && (
+        <div style={{
+          position: 'fixed',
+          right: 0,
+          top: 0,
+          height: '100vh',
+          zIndex: 1000,
+          boxShadow: '-4px 0 20px rgba(0,0,0,0.15)'
+        }}>
+          <StagingArea
+            stagedEvents={stagedEvents}
+            subjectColors={subjectColors}
+            selectedEventId={selectedStagedEventId}
+            onSelectEvent={setSelectedStagedEventId}
+            onRemoveFromStaging={removeFromStaging}
+            onClearAll={clearAllStaged}
+            onClose={() => setIsOfficialStageMode(false)}
+            onDragStart={(event) => setDraggingFromStaging(event)}
+            onDragEnd={() => setDraggingFromStaging(null)}
+          />
+        </div>
+      )}
     </>
   );
 };

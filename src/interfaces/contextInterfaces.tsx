@@ -52,7 +52,7 @@ export interface MainContextValues {
   setUserPNF: React.Dispatch<React.SetStateAction<string | null>>;
   userData: UserDataInterface | null;
   setUserData: React.Dispatch<React.SetStateAction<UserDataInterface | null>>;
-  frozenSections: Record<string, Event[]>;
-  setFrozenSections: React.Dispatch<React.SetStateAction<Record<string, Event[]>>>;
+  lockedSections: Record<string, Event[]>;
+  setLockedSections: React.Dispatch<React.SetStateAction<Record<string, Event[]>>>;
 }
 

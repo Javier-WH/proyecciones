@@ -30,7 +30,7 @@ const EditSubjectQuarterModal: React.FC<{
   const [selectedTeacherQ2, setSelectedTeacherQ2] = useState<Teacher | null | undefined>(null);
   const [selectedTeacherQ3, setSelectedTeacherQ3] = useState<Teacher | null | undefined>(null);
   const [localError, setLocalError] = useState<string | null>(null);
-  const { frozenSections } = useContext(MainContext) as MainContextValues;
+  const { lockedSections } = useContext(MainContext) as MainContextValues;
 
   useEffect(() => {
     if (!subject) {
@@ -80,8 +80,8 @@ const EditSubjectQuarterModal: React.FC<{
     // --- CHECK FOR FROZEN SECTIONS ---
     const qKeys = Object.keys(subject.quarter) as ("q1" | "q2" | "q3")[];
     for (const q of qKeys) {
-      const frozenKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}-${q}`;
-      if (frozenSections[frozenKey]) {
+      const lockedKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}-${q}`;
+      if (lockedSections[lockedKey]) {
         const trimLabel = q === "q1" ? "Trimestre 1" : q === "q2" ? "Trimestre 2" : "Trimestre 3";
         setLocalError(`La sección ${subject.seccion} está congelada en el ${trimLabel}. No se puede modificar.`);
         return;

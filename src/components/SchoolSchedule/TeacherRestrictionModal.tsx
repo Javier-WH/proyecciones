@@ -4,7 +4,7 @@ import { FaChalkboardTeacher } from "react-icons/fa";
 import styles from "./modal.module.css";
 import { MainContext } from "../../context/mainContext";
 import { MainContextValues } from "../../interfaces/contextInterfaces";
-import { turnos } from "./fucntions";
+import { turnos, Event } from "./fucntions";
 import { saveTeacherRestriction, type TeacherRestrictionPayload } from "../../fetch/schedule/teacherRestrictions";
 
 
@@ -38,7 +38,7 @@ const TeacherRestrictionModal: React.FC<{
   externalTeacherId?: string;
   onExternalClose?: () => void;
 }> = ({ putTeacherRestriction, teacherRestrictions, loadingTeacherRestrictions = false, scheduleDays, scheduleTurnos, externalOpen, externalTeacherId, onExternalClose }) => {
-  const { teachers, frozenSections } = useContext(MainContext) as MainContextValues;
+  const { teachers, lockedSections } = useContext(MainContext) as MainContextValues;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [restrictedDays, setIsRestrictedDays] = useState<number[]>([]);
@@ -181,9 +181,9 @@ const TeacherRestrictionModal: React.FC<{
       restricted_hours: restrictedHours,
     };
 
-    // --- CHECK FOR FROZEN SECTION CONFLICTS ---
-    for (const [sectionKey, events] of Object.entries(frozenSections)) {
-      const conflictingEvent = events.find(ev =>
+    // --- CHECK FOR LOCKED SECTION CONFLICTS ---
+    for (const [sectionKey, events] of Object.entries(lockedSections)) {
+      const conflictingEvent = (events as Event[]).find((ev: Event) =>
         String(ev.extendedProps?.professorId) === String(selectedTeacher) && (
           restrictedDays.includes(ev.daysOfWeek?.[0] || -1) ||
           restrictedHours.some(rh =>

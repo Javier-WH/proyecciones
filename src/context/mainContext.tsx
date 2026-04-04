@@ -10,7 +10,7 @@ import AddSubjectToTeacherModal from "../components/addSubjectToTeacherModal/add
 import ChangeSubjectFromTeacherModal from "../components/changeSubjectFromTeacherModal/changeSubjectFromTeacherModal";
 import io, { Socket } from "socket.io-client";
 import { Event } from "../components/SchoolSchedule/fucntions.tsx";
-import { getFrozenSections, saveFrozenSections } from "../fetch/schedule/frozenSectionsFetch.ts";
+import { getLockedSections, saveLockedSections } from "../fetch/schedule/lockedSectionsFetch.ts";
 import getPnf from "../fetch/getPnf.ts";
 import getSubjects from "../fetch/getSubjects.ts";
 import getTrayectos from "../fetch/getTrayectos.ts";
@@ -74,83 +74,83 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [showDisconnected, setShowDisconnected] = useState<boolean>(false);
   const timeoutRef = useRef<number | null>(null);
 
-  const [frozenSections, setFrozenSections] = useState<Record<string, Event[]>>(() => {
+  const [lockedSections, setLockedSections] = useState<Record<string, Event[]>>(() => {
     try {
-      const stored = localStorage.getItem("schedule_frozenSections");
+      const stored = localStorage.getItem("schedule_lockedSections");
       return stored ? JSON.parse(stored) : {};
     } catch (e) {
       return {};
     }
   });
-  const frozenSectionsLoadedRef = useRef(false);
-  const saveFrozenTimeoutRef = useRef<number | null>(null);
+  const lockedSectionsLoadedRef = useRef(false);
+  const saveLockedTimeoutRef = useRef<number | null>(null);
 
-  // Load frozen sections from backend when proyectionId is available
-  const loadFrozenSectionsFromApi = useCallback(async () => {
+  // Load locked sections from backend when proyectionId is available
+  const loadLockedSectionsFromApi = useCallback(async () => {
     if (!proyectionId) return;
     try {
-      const response = await getFrozenSections(proyectionId);
+      const response = await getLockedSections(proyectionId);
       
       // Leemos directamente de localStorage para tener la versión más real del disco
-      const stored = localStorage.getItem("schedule_frozenSections");
+      const stored = localStorage.getItem("schedule_lockedSections");
       const localData = stored ? JSON.parse(stored) : {};
       const hasLocalData = Object.keys(localData).length > 0;
       
-      const backendEmpty = !response?.frozenSections || Object.keys(response.frozenSections).length === 0;
+      const backendEmpty = !response?.lockedSections || Object.keys(response.lockedSections).length === 0;
 
       if (backendEmpty && hasLocalData) {
         console.log("Detectados datos locales. Subiendo al servidor para sincronizar oficina...");
         // Usamos localData directamente para asegurar que es lo que estaba en el disco
-        await saveFrozenSections(proyectionId, localData);
-        setFrozenSections(localData);
-        frozenSectionsLoadedRef.current = true;
-      } else if (response?.frozenSections) {
+        await saveLockedSections(proyectionId, localData);
+        setLockedSections(localData);
+        lockedSectionsLoadedRef.current = true;
+      } else if (response?.lockedSections) {
         // Si el servidor tiene datos, mandan los del servidor
-        setFrozenSections(response.frozenSections);
-        localStorage.setItem("schedule_frozenSections", JSON.stringify(response.frozenSections));
-        frozenSectionsLoadedRef.current = true;
+        setLockedSections(response.lockedSections);
+        localStorage.setItem("schedule_lockedSections", JSON.stringify(response.lockedSections));
+        lockedSectionsLoadedRef.current = true;
       } else {
-        frozenSectionsLoadedRef.current = true;
+        lockedSectionsLoadedRef.current = true;
       }
     } catch (error) {
-      console.error("Error loading frozen sections from API:", error);
-      frozenSectionsLoadedRef.current = true;
+      console.error("Error loading locked sections from API:", error);
+      lockedSectionsLoadedRef.current = true;
     }
   }, [proyectionId]);
 
   useEffect(() => {
     // Si cambia la proyección, reseteamos la carga
     if (proyectionId) {
-       frozenSectionsLoadedRef.current = false;
-       loadFrozenSectionsFromApi();
+       lockedSectionsLoadedRef.current = false;
+       loadLockedSectionsFromApi();
     }
-  }, [proyectionId]); // Quitamos loadFrozenSectionsFromApi de dependencias para evitar bucle por frozenSections
+  }, [proyectionId]); // Quitamos loadLockedSectionsFromApi de dependencias para evitar bucle por lockedSections
 
-  // Save frozen sections to backend (debounced) and localStorage on every change
+  // Save locked sections to backend (debounced) and localStorage on every change
   useEffect(() => {
-    localStorage.setItem("schedule_frozenSections", JSON.stringify(frozenSections));
+    localStorage.setItem("schedule_lockedSections", JSON.stringify(lockedSections));
 
     // Don't persist to backend until we've loaded from it at least once
-    if (!frozenSectionsLoadedRef.current || !proyectionId) return;
+    if (!lockedSectionsLoadedRef.current || !proyectionId) return;
 
     // Debounce backend save to avoid excessive API calls
-    if (saveFrozenTimeoutRef.current !== null) {
-      clearTimeout(saveFrozenTimeoutRef.current);
+    if (saveLockedTimeoutRef.current !== null) {
+      clearTimeout(saveLockedTimeoutRef.current);
     }
-    saveFrozenTimeoutRef.current = window.setTimeout(async () => {
+    saveLockedTimeoutRef.current = window.setTimeout(async () => {
       try {
-        await saveFrozenSections(proyectionId, frozenSections);
+        await saveLockedSections(proyectionId, lockedSections);
       } catch (error) {
-        console.error("Error saving frozen sections to backend:", error);
+        console.error("Error saving locked sections to backend:", error);
       }
     }, 500);
 
     return () => {
-      if (saveFrozenTimeoutRef.current !== null) {
-        clearTimeout(saveFrozenTimeoutRef.current);
+      if (saveLockedTimeoutRef.current !== null) {
+        clearTimeout(saveLockedTimeoutRef.current);
       }
     };
-  }, [frozenSections, proyectionId]);
+  }, [lockedSections, proyectionId]);
 
   const [subjectColors, setSubjectColors] = useState<Record<string, string> | null>(null);
 
@@ -370,8 +370,8 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     setUserPNF,
     userData,
     setUserData,
-    frozenSections,
-    setFrozenSections,
+    lockedSections,
+    setLockedSections,
   };
 
   return (
