@@ -164,6 +164,7 @@ const SchoolSchedule: React.FC = () => {
   const [draggingFromStaging, setDraggingFromStaging] = useState<Event | null>(null);
   const [eventsWithConflicts, setEventsWithConflicts] = useState<Record<string, string[]>>({}); // eventId -> conflict messages
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const STAGING_PANEL_WIDTH = 320;
 
   const isSuperUser = useMemo(() => {
     if (userData?.su) return true;
@@ -2815,7 +2816,14 @@ const SchoolSchedule: React.FC = () => {
           </div>
         </div>
 
-        <div className="schedule-content-wrapper" style={{ position: "relative" }}>
+        <div
+          className="schedule-content-wrapper"
+          style={{
+            position: "relative",
+            marginRight: isOfficialStageMode ? `${STAGING_PANEL_WIDTH}px` : "0",
+            transition: "margin-right 0.2s ease"
+          }}
+        >
           {isScrollingToProf && (
             <div style={{
               position: "absolute",
@@ -2846,7 +2854,11 @@ const SchoolSchedule: React.FC = () => {
               <div style={{ marginTop: 16, color: "#1890ff", fontWeight: "bold", fontSize: "1.2rem" }}>Ubicando aula...</div>
             </div>
           )}
-          <div id="professor-scroll-container" className={`calendar - container view - ${viewMode} `} style={{ padding: "0", overflowY: "auto" }}>
+          <div
+            id="professor-scroll-container"
+            className={`calendar - container view - ${viewMode} `}
+            style={{ padding: "0", overflowY: "auto", overflowX: "auto" }}
+          >
             {tableSlots.length > 0 ? (
               (() => {
                 const renderScheduleGrid = (gridToRender: any[][], title?: string, id?: string, entityId?: string) => (
@@ -3609,6 +3621,7 @@ const SchoolSchedule: React.FC = () => {
           position: 'fixed',
           right: 0,
           top: 0,
+          width: `${STAGING_PANEL_WIDTH}px`,
           height: '100vh',
           zIndex: 1000,
           boxShadow: '-4px 0 20px rgba(0,0,0,0.15)'
