@@ -42,6 +42,7 @@ import {
   saveClassroomOverrides,
   type ClassroomOverride,
 } from "../../fetch/schedule/classroomOverrideFetch";
+import { upsertLockedSection } from "../../fetch/schedule/lockedSectionsFetch";
 import useSetSubject from "../../hooks/useSetSubject";
 
 
@@ -63,10 +64,19 @@ type RawSubjectRestriction = {
 type RawTeacherRestriction = {
   teacher_id?: string;
   teacherId?: string;
-  restricted_days?: number[];
   days?: number[];
+  restricted_days?: number[];
+  day?: number;
   restricted_hours?: { day: number; start: string; end: string }[];
   hours?: { day: number; start: string; end: string }[];
+};
+
+type PendingLockedSectionSave = {
+  key: string;
+  pnfId: string;
+  trayectoId: string;
+  seccion: string;
+  trim: "q1" | "q2" | "q3";
 };
 
 const hexToRgba = (hexColor: string, alpha = 0.15): string => {
@@ -162,6 +172,8 @@ const SchoolSchedule: React.FC = () => {
   const [selectedStagedEventId, setSelectedStagedEventId] = useState<string | null>(null);
   const [isOfficialStageMode, setIsOfficialStageMode] = useState(false);
   const [draggingFromStaging, setDraggingFromStaging] = useState<Event | null>(null);
+  const [confirmStagingLoading, setConfirmStagingLoading] = useState(false);
+  const [pendingLockedSectionSaves, setPendingLockedSectionSaves] = useState<PendingLockedSectionSave[]>([]);
   const [eventsWithConflicts, setEventsWithConflicts] = useState<Record<string, string[]>>({}); // eventId -> conflict messages
   const STAGING_PANEL_WIDTH = 320;
 
@@ -211,6 +223,73 @@ const SchoolSchedule: React.FC = () => {
       });
     }
   };
+
+  const enqueueLockedSectionSaveFromEvents = (...eventsToSave: (Event | null | undefined)[]) => {
+    setPendingLockedSectionSaves(prev => {
+      const next = [...prev];
+      const knownKeys = new Set(next.map(item => item.key));
+
+      for (const evt of eventsToSave) {
+        const pnfId = evt?.extendedProps?.pnfId;
+        const trayId = evt?.extendedProps?.trayectoId;
+        const sec = evt?.extendedProps?.seccion;
+        if (!pnfId || !trayId || !sec) continue;
+
+        const key = `${pnfId}-${trayId}-${sec}-${trimestre}`;
+        if (!lockedSections[key] || knownKeys.has(key)) continue;
+
+        knownKeys.add(key);
+        next.push({
+          key,
+          pnfId,
+          trayectoId: trayId,
+          seccion: sec,
+          trim: trimestre,
+        });
+      }
+
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!proyectionId || pendingLockedSectionSaves.length === 0) return;
+
+    let cancelled = false;
+    const queue = [...pendingLockedSectionSaves];
+    setPendingLockedSectionSaves([]);
+
+    const persistQueuedSections = async () => {
+      for (const section of queue) {
+        const sectionEvents = eventData.filter(e =>
+          e.extendedProps?.pnfId === section.pnfId &&
+          e.extendedProps?.trayectoId === section.trayectoId &&
+          e.extendedProps?.seccion === section.seccion
+        );
+
+        try {
+          const response = await upsertLockedSection(proyectionId, section.key, sectionEvents);
+          if (response?.error) {
+            console.error("Error persisting locked section changes:", section.key, response);
+            continue;
+          }
+          if (cancelled) return;
+          setLockedSections(prev => ({
+            ...prev,
+            [section.key]: sectionEvents,
+          }));
+        } catch (error) {
+          console.error("Error persisting locked section changes:", section.key, error);
+        }
+      }
+    };
+
+    persistQueuedSections();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingLockedSectionSaves, proyectionId, eventData, setLockedSections]);
 
   // Staging area functions for official stage mode
   const getEventId = (event: Event): string => {
@@ -297,6 +376,50 @@ const SchoolSchedule: React.FC = () => {
         message.success("Todos los eventos devueltos al horario");
       }
     });
+  };
+
+  const handleConfirmStagingChanges = async () => {
+    if (!proyectionId) {
+      message.error("No se pudo identificar la proyección para guardar cambios");
+      return;
+    }
+
+    const sectionKey = `${pnf}-${trayectoId}-${seccion}-${trimestre}`;
+    if (!lockedSections[sectionKey]) {
+      message.warning("La sección debe estar congelada para confirmar cambios oficiales");
+      return;
+    }
+
+    const sectionEvents = eventData.filter(e =>
+      e.extendedProps?.pnfId === pnf &&
+      e.extendedProps?.trayectoId === trayectoId &&
+      e.extendedProps?.seccion === seccion
+    );
+
+    setConfirmStagingLoading(true);
+    try {
+      const response = await upsertLockedSection(proyectionId, sectionKey, sectionEvents);
+      if (response?.error) {
+        message.error("No se pudieron guardar los cambios del depósito en la base de datos");
+        return;
+      }
+
+      setLockedSections(prev => ({
+        ...prev,
+        [sectionKey]: sectionEvents,
+      }));
+
+      setStagedEvents([]);
+      setSelectedStagedEventId(null);
+      setDraggingFromStaging(null);
+      setIsOfficialStageMode(false);
+      message.success("Cambios confirmados y guardados correctamente");
+    } catch (error) {
+      console.error("Error confirming staging changes:", error);
+      message.error("Error al guardar los cambios del depósito");
+    } finally {
+      setConfirmStagingLoading(false);
+    }
   };
 
   // Check conflicts for an event at a specific position
@@ -450,6 +573,7 @@ const SchoolSchedule: React.FC = () => {
       const withoutDuplicateTarget = withoutSwapped.filter(e => getEventId(e) !== newEventId);
       return [...withoutDuplicateTarget, newEvent];
     });
+    enqueueLockedSectionSaveFromEvents(newEvent, swappedOutEvent);
 
     // Update conflict tracking
     setEventsWithConflicts(prev => {
@@ -494,6 +618,7 @@ const SchoolSchedule: React.FC = () => {
       const filtered = prev.filter(e => getEventId(e) !== oldEventId);
       return [...filtered, newEvent];
     });
+    enqueueLockedSectionSaveFromEvents(newEvent);
 
     // Remove old conflict entry if exists
     const newEventId = getEventId(newEvent);
@@ -3873,6 +3998,8 @@ const SchoolSchedule: React.FC = () => {
             onSelectEvent={setSelectedStagedEventId}
             onRemoveFromStaging={removeFromStaging}
             onClearAll={clearAllStaged}
+            onConfirmChanges={handleConfirmStagingChanges}
+            confirmLoading={confirmStagingLoading}
             onClose={() => setIsOfficialStageMode(false)}
             onDragStart={(event) => setDraggingFromStaging(event)}
             onDragEnd={() => setDraggingFromStaging(null)}

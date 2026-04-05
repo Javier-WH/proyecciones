@@ -1,7 +1,7 @@
 import React from 'react';
 import { Event } from './fucntions';
 import { Badge, Empty, Tooltip, Button } from 'antd';
-import { ClockCircleOutlined, EnvironmentOutlined, DeleteOutlined, ArrowLeftOutlined, ClearOutlined, CloseOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, EnvironmentOutlined, DeleteOutlined, ArrowLeftOutlined, ClearOutlined, CloseOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import styles from './StagingArea.module.css';
 
 interface StagingAreaProps {
@@ -11,9 +11,11 @@ interface StagingAreaProps {
   onSelectEvent: (eventId: string | null) => void;
   onRemoveFromStaging: (event: Event) => void;
   onClearAll: () => void;
+  onConfirmChanges: () => void;
   onClose: () => void;
   onDragStart?: (event: Event) => void;
   onDragEnd?: () => void;
+  confirmLoading?: boolean;
 }
 
 const getEventId = (event: Event): string => {
@@ -28,9 +30,11 @@ const StagingArea: React.FC<StagingAreaProps> = ({
   onSelectEvent,
   onRemoveFromStaging,
   onClearAll,
+  onConfirmChanges,
   onClose,
   onDragStart,
-  onDragEnd
+  onDragEnd,
+  confirmLoading = false,
 }) => {
   const dayNames = ['', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -76,16 +80,26 @@ const StagingArea: React.FC<StagingAreaProps> = ({
         <p className={styles.subtitle}>
           Haz clic en un evento del horario para moverlo aquí
         </p>
-        {stagedEvents.length > 0 && (
-          <Button 
-            size="small" 
-            icon={<ClearOutlined />}
-            onClick={onClearAll}
-            style={{ marginTop: 8 }}
+        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+          <Button
+            size="small"
+            type="primary"
+            icon={<CheckCircleOutlined />}
+            loading={confirmLoading}
+            onClick={onConfirmChanges}
           >
-            Limpiar todo
+            Confirmar cambios
           </Button>
-        )}
+          {stagedEvents.length > 0 && (
+            <Button 
+              size="small" 
+              icon={<ClearOutlined />}
+              onClick={onClearAll}
+            >
+              Limpiar todo
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className={styles.content}>
