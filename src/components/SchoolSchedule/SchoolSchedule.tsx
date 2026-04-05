@@ -163,7 +163,6 @@ const SchoolSchedule: React.FC = () => {
   const [isOfficialStageMode, setIsOfficialStageMode] = useState(false);
   const [draggingFromStaging, setDraggingFromStaging] = useState<Event | null>(null);
   const [eventsWithConflicts, setEventsWithConflicts] = useState<Record<string, string[]>>({}); // eventId -> conflict messages
-  const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const STAGING_PANEL_WIDTH = 320;
 
   const isSuperUser = useMemo(() => {
@@ -194,6 +193,7 @@ const SchoolSchedule: React.FC = () => {
             message.info(`Sección ${sec} desbloqueada.`);
             return newObj;
           });
+          setIsOfficialStageMode(false);
         }
       });
     } else {
@@ -349,6 +349,48 @@ const SchoolSchedule: React.FC = () => {
     }
     
     setDraggingFromStaging(null);
+  };
+
+  // Handle drop between schedule cells (in official stage mode)
+  const handleDropBetweenCells = (targetDay: number, targetStartTime: string, targetEndTime: string, sourceEvent: Event) => {
+    const oldEventId = getEventId(sourceEvent);
+    
+    // Create new event with updated day/time
+    const newEvent: Event = {
+      ...sourceEvent,
+      daysOfWeek: [targetDay],
+      startTime: targetStartTime,
+      endTime: targetEndTime,
+    };
+
+    // Check for conflicts (excluding the source event itself)
+    const conflicts = checkEventConflicts(newEvent, targetDay, targetStartTime);
+    
+    // Remove old event from eventData and add new one
+    setEventData(prev => {
+      const filtered = prev.filter(e => getEventId(e) !== oldEventId);
+      return [...filtered, newEvent];
+    });
+
+    // Remove old conflict entry if exists
+    const newEventId = getEventId(newEvent);
+    if (conflicts.length > 0) {
+      setEventsWithConflicts(prev => {
+        const newConflicts = { ...prev };
+        delete newConflicts[oldEventId];
+        newConflicts[newEventId] = conflicts;
+        return newConflicts;
+      });
+      message.warning(`Evento movido con ${conflicts.length} conflicto(s)`);
+    } else {
+      setEventsWithConflicts(prev => {
+        const newConflicts = { ...prev };
+        delete newConflicts[oldEventId];
+        delete newConflicts[newEventId];
+        return newConflicts;
+      });
+      message.success("Evento movido correctamente");
+    }
   };
 
   const toggleFreezeTrayecto = (pnfId: string, trayId: string, trayName: string, sections: string[], isCurrentlyFrozen: boolean, specificTrimestre?: "q1" | "q2" | "q3") => {
@@ -2754,35 +2796,6 @@ const SchoolSchedule: React.FC = () => {
                   )}
                 </span>
               </Tooltip>
-              <Tooltip title="Gestionar Etapas de Secciones">
-                <span style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }} onClick={() => setIsStageManagerOpen(true)}>
-                  <FaBuildingLock className={styles.icon} style={{ color: Object.keys(lockedSections).length > 0 ? "#52c41a" : undefined }} />
-                  {Object.keys(lockedSections).length > 0 && (
-                    <Badge count={Object.keys(lockedSections).length} style={{ backgroundColor: "#52c41a", position: "absolute", top: "-5px", right: "-8px", transform: "scale(0.8)" }} />
-                  )}
-                </span>
-              </Tooltip>
-              <Tooltip title={isOfficialStageMode ? "Cerrar Modo Edición Oficial" : "Abrir Modo Edición Oficial (Área de Depósito)"}>
-                <span 
-                  style={{ 
-                    position: "relative", 
-                    display: "inline-flex", 
-                    alignItems: "center", 
-                    cursor: "pointer",
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    backgroundColor: isOfficialStageMode ? "#722ed1" : "transparent",
-                    color: isOfficialStageMode ? "#fff" : undefined,
-                    transition: "all 0.2s"
-                  }} 
-                  onClick={() => setIsOfficialStageMode(!isOfficialStageMode)}
-                >
-                  📦
-                  {stagedEvents.length > 0 && (
-                    <Badge count={stagedEvents.length} style={{ backgroundColor: "#722ed1", position: "absolute", top: "-5px", right: "-8px", transform: "scale(0.8)" }} />
-                  )}
-                </span>
-              </Tooltip>
               <TeacherRestrictionModal
                 putTeacherRestriction={putTeacherRestriction}
                 teacherRestrictions={teacherRestrictions}
@@ -2990,7 +3003,6 @@ const SchoolSchedule: React.FC = () => {
                                       disabled: isFrozen && !isOfficialStageMode,
                                       label: (isFrozen && !isOfficialStageMode) ? "Aula Congelada (No editable)" : "Cambiar Aula",
                                       onClick: () => {
-                                        setContextMenuOpen(false);
                                         if (isFrozen && !isOfficialStageMode) return;
                                         const endTimeIdx = rowIndex + cell.rowSpan - 1;
                                         const evtEndTime = tableSlots[endTimeIdx] ? tableSlots[endTimeIdx][1] : "";
@@ -3018,14 +3030,27 @@ const SchoolSchedule: React.FC = () => {
                                       className="schedule-time-cell"
                                       key={day}
                                       rowSpan={cell.rowSpan}
-                                      draggable={!isFrozen && !isOfficialStageMode}
+                                      draggable={!isFrozen || isOfficialStageMode}
                                       onDragStart={(e) => {
-                                        if (isOfficialStageMode) {
+                                        if (isFrozen && !isOfficialStageMode) {
                                           e.preventDefault();
                                           return;
                                         }
                                         e.dataTransfer.effectAllowed = "move";
-                                        e.dataTransfer.setData("text/plain", cell.title || "");
+                                        // Store full event data for official stage mode
+                                        if (isOfficialStageMode && cell.extendedProps) {
+                                          const eventData: Event = {
+                                            title: cell.title,
+                                            daysOfWeek: [day],
+                                            startTime: slot[0],
+                                            endTime: tableSlots[rowIndex + cell.rowSpan - 1]?.[1] || slot[1],
+                                            extendedProps: cell.extendedProps
+                                          };
+                                          e.dataTransfer.setData("text/plain", JSON.stringify(eventData));
+                                          e.dataTransfer.setData("application/schedule-event", "true");
+                                        } else {
+                                          e.dataTransfer.setData("text/plain", cell.title || "");
+                                        }
                                         setDraggedEventInfo({
                                           sourceDay: day,
                                           sourceStartTime: slot[0],
@@ -3043,23 +3068,35 @@ const SchoolSchedule: React.FC = () => {
                                       }}
                                       onDrop={(e) => {
                                         e.preventDefault();
-                                        handleDrop(rowIndex, day, entityId);
-                                      }}
-                                      onClick={() => {
-                                        // Don't move to staging if context menu is open or was just used
-                                        if (contextMenuOpen) {
+                                        // Handle drop from staging area
+                                        const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
+                                        if (isStagedEvent) {
+                                          const eventDataStr = e.dataTransfer.getData("text/plain");
+                                          try {
+                                            const eventFromDrop = JSON.parse(eventDataStr) as Event;
+                                            handleDropFromStaging(day, slot[0], slot[1], eventFromDrop);
+                                          } catch {
+                                            if (draggingFromStaging) {
+                                              handleDropFromStaging(day, slot[0], slot[1], draggingFromStaging);
+                                            }
+                                          }
                                           return;
                                         }
-                                        if (isOfficialStageMode && cell.extendedProps) {
-                                          const eventToStage: Event = {
-                                            title: cell.title,
-                                            daysOfWeek: [day],
-                                            startTime: slot[0],
-                                            endTime: slot[1],
-                                            extendedProps: cell.extendedProps
-                                          };
-                                          moveEventToStaging(eventToStage);
+                                        // Handle drop from another schedule cell (official stage mode)
+                                        const isScheduleEvent = e.dataTransfer.types.includes("application/schedule-event");
+                                        if (isScheduleEvent && isOfficialStageMode) {
+                                          const eventDataStr = e.dataTransfer.getData("text/plain");
+                                          try {
+                                            const sourceEvent = JSON.parse(eventDataStr) as Event;
+                                            const targetEndTime = tableSlots[rowIndex + cell.rowSpan - 1]?.[1] || slot[1];
+                                            handleDropBetweenCells(day, slot[0], targetEndTime, sourceEvent);
+                                          } catch {
+                                            // Ignore parse errors
+                                          }
+                                          return;
                                         }
+                                        // Normal drop handling
+                                        handleDrop(rowIndex, day, entityId);
                                       }}
                                       style={{
                                         border: hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
@@ -3068,7 +3105,7 @@ const SchoolSchedule: React.FC = () => {
                                         backgroundColor: hasConflict ? "#fff2f0" : (isOfficialStageMode ? `${bgColor}` : bgColor),
                                         borderLeft: hasConflict ? "4px solid #ff4d4f" : `4px solid ${baseColor}`,
                                         height: "100%",
-                                        cursor: isOfficialStageMode ? "pointer" : "grab",
+                                        cursor: isOfficialStageMode ? "grab" : (isFrozen ? "default" : "grab"),
                                         opacity: draggedEventInfo?.title === cell.title && draggedEventInfo?.sourceDay === day && draggedEventInfo?.sourceStartTime === slot[0] ? 0.3 : 1,
                                         transition: "all 0.2s ease",
                                         position: "relative"
@@ -3128,22 +3165,59 @@ const SchoolSchedule: React.FC = () => {
                                           </div>
                                         </Tooltip>
                                       )}
-                                      <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]} onOpenChange={(open) => setContextMenuOpen(open)}>
-                                        <Tooltip title={isOfficialStageMode ? "Click para mover al área de depósito (Click derecho para opciones)" : tooltipContent}>
+                                      <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]}>
+                                        <Tooltip title={isOfficialStageMode ? "Arrastra para mover (Click derecho para opciones)" : tooltipContent}>
                                           <div 
                                             style={{ 
                                               display: "flex", 
                                               flexDirection: "column", 
                                               gap: "2px", 
                                               height: "100%", 
-                                              cursor: isOfficialStageMode ? "pointer" : "context-menu"
+                                              cursor: isOfficialStageMode ? "grab" : "context-menu"
                                             }}
                                           >
                                             <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529", lineHeight: "1.2", marginBottom: "4px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                                               <span>{cell.title}</span>
-                                              {overrideKeys.has(`${cell.title}|${day}|${slot[0]}`) && (
-                                                <TbPinFilled style={{ color: "#1890ff", fontSize: "0.8rem", flexShrink: 0, marginLeft: "2px", marginTop: "1px" }} title="Aula fijada manualmente" />
-                                              )}
+                                              <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                                                {overrideKeys.has(`${cell.title}|${day}|${slot[0]}`) && (
+                                                  <TbPinFilled style={{ color: "#1890ff", fontSize: "0.8rem", flexShrink: 0 }} title="Aula fijada manualmente" />
+                                                )}
+                                                {isOfficialStageMode && (
+                                                  <Tooltip title="Enviar al depósito">
+                                                    <div
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (cell.extendedProps) {
+                                                          const eventToStage: Event = {
+                                                            title: cell.title,
+                                                            daysOfWeek: [day],
+                                                            startTime: slot[0],
+                                                            endTime: tableSlots[rowIndex + cell.rowSpan - 1]?.[1] || slot[1],
+                                                            extendedProps: cell.extendedProps
+                                                          };
+                                                          moveEventToStaging(eventToStage);
+                                                        }
+                                                      }}
+                                                      style={{
+                                                        width: 18,
+                                                        height: 18,
+                                                        borderRadius: "4px",
+                                                        backgroundColor: "#722ed1",
+                                                        color: "#fff",
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        fontSize: "10px",
+                                                        cursor: "pointer",
+                                                        flexShrink: 0,
+                                                        boxShadow: "0 1px 2px rgba(0,0,0,0.2)"
+                                                      }}
+                                                    >
+                                                      📦
+                                                    </div>
+                                                  </Tooltip>
+                                                )}
+                                              </div>
                                             </div>
 
                                             <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
@@ -3192,11 +3266,12 @@ const SchoolSchedule: React.FC = () => {
                                   );
                                 } else {
                                   const isGridFrozen = viewMode === "pnf" && !!lockedSections[`${pnf}-${trayectoId}-${seccion}-${trimestre}`];
+                                  const showDropIndicator = draggingFromStaging || (isOfficialStageMode && draggedEventInfo);
                                   return (
                                     <td key={day} 
                                       style={{ 
-                                        border: draggingFromStaging ? "2px dashed #722ed1" : "1px solid #dee2e6",
-                                        backgroundColor: draggingFromStaging ? "#f9f0ff" : undefined,
+                                        border: showDropIndicator ? "2px dashed #722ed1" : "1px solid #dee2e6",
+                                        backgroundColor: showDropIndicator ? "#f9f0ff" : undefined,
                                         transition: "all 0.2s ease"
                                       }}
                                       onDragOver={(e) => {
@@ -3219,6 +3294,19 @@ const SchoolSchedule: React.FC = () => {
                                             if (draggingFromStaging) {
                                               handleDropFromStaging(day, slot[0], slot[1], draggingFromStaging);
                                             }
+                                          }
+                                          return;
+                                        }
+
+                                        // Check if dropping from another schedule cell (official stage mode)
+                                        const isScheduleEvent = e.dataTransfer.types.includes("application/schedule-event");
+                                        if (isScheduleEvent && isOfficialStageMode) {
+                                          const eventDataStr = e.dataTransfer.getData("text/plain");
+                                          try {
+                                            const sourceEvent = JSON.parse(eventDataStr) as Event;
+                                            handleDropBetweenCells(day, slot[0], slot[1], sourceEvent);
+                                          } catch {
+                                            // Ignore parse errors
                                           }
                                           return;
                                         }
@@ -3269,7 +3357,24 @@ const SchoolSchedule: React.FC = () => {
                   const isFrozen = !!lockedSections[currentSectionKey];
                   return (
                     <div style={{ position: "relative" }}>
-                      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px", marginTop: "10px", paddingRight: "10px" }}>
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px", marginTop: "10px", paddingRight: "10px", gap: "8px" }}>
+                        {isFrozen && (
+                          <Tooltip title={isOfficialStageMode ? "Cerrar Área de Depósito" : "Abrir Área de Depósito"}>
+                            <Button
+                              type={isOfficialStageMode ? "primary" : "default"}
+                              icon={<span style={{ fontSize: "14px" }}>📦</span>}
+                              onClick={() => setIsOfficialStageMode(!isOfficialStageMode)}
+                              style={{
+                                boxShadow: isOfficialStageMode ? "0 0 8px rgba(114, 46, 209, 0.4)" : "0 0 8px rgba(114, 46, 209, 0.2)",
+                                borderColor: isOfficialStageMode ? "#722ed1" : "#d3adf7",
+                                color: isOfficialStageMode ? "#fff" : "#722ed1",
+                                backgroundColor: isOfficialStageMode ? "#722ed1" : undefined
+                              }}
+                            >
+                              Depósito{stagedEvents.length > 0 ? ` (${stagedEvents.length})` : ""}
+                            </Button>
+                          </Tooltip>
+                        )}
                         <Button
                           type={isFrozen ? "primary" : "default"}
                           danger={isFrozen}
