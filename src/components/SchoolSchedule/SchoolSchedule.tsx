@@ -2329,6 +2329,9 @@ const SchoolSchedule: React.FC = () => {
 
   const handleViewModeChange = (mode: "pnf" | "professor" | "classroom") => {
     setViewMode(mode);
+    if (mode !== "pnf") {
+      setIsOfficialStageMode(false);
+    }
     if (mode === "professor" && scrollToProfessorId) {
       hasScrolledRef.current = false;
       setIsScrollingToProf(true);
@@ -3099,15 +3102,17 @@ const SchoolSchedule: React.FC = () => {
                                         handleDrop(rowIndex, day, entityId);
                                       }}
                                       style={{
-                                        border: hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
+                                        borderTop: hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
+                                        borderRight: hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
+                                        borderBottom: hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
+                                        borderLeft: hasConflict ? "4px solid #ff4d4f" : `4px solid ${baseColor}`,
                                         padding: "6px",
                                         verticalAlign: "top",
                                         backgroundColor: hasConflict ? "#fff2f0" : (isOfficialStageMode ? `${bgColor}` : bgColor),
-                                        borderLeft: hasConflict ? "4px solid #ff4d4f" : `4px solid ${baseColor}`,
                                         height: "100%",
                                         cursor: isOfficialStageMode ? "grab" : (isFrozen ? "default" : "grab"),
                                         opacity: draggedEventInfo?.title === cell.title && draggedEventInfo?.sourceDay === day && draggedEventInfo?.sourceStartTime === slot[0] ? 0.3 : 1,
-                                        transition: "all 0.2s ease",
+                                        transition: "background-color 0.2s ease, opacity 0.2s ease",
                                         position: "relative"
                                       }}
                                     >
