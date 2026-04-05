@@ -220,18 +220,59 @@ const SchoolSchedule: React.FC = () => {
 
   const moveEventToStaging = (event: Event) => {
     if (!isOfficialStageMode) return;
-    
-    const eventId = getEventId(event);
-    // Check if already staged
-    if (stagedEvents.some(e => getEventId(e) === eventId)) {
-      message.warning("Este evento ya está en el área de depósito");
+
+    const day = event.daysOfWeek?.[0];
+    const subjectId = event.extendedProps?.subjectId;
+    const seccion = event.extendedProps?.seccion;
+
+    if (!day || !subjectId || !seccion) {
+      const singleEventId = getEventId(event);
+      if (stagedEvents.some(e => getEventId(e) === singleEventId)) {
+        message.warning("Este evento ya está en el área de depósito");
+        return;
+      }
+      setStagedEvents(prev => [...prev, event]);
+      setEventData(prev => prev.filter(e => getEventId(e) !== singleEventId));
+      message.info("Evento movido al área de depósito");
       return;
     }
-    
-    setStagedEvents(prev => [...prev, event]);
-    // Remove from eventData
-    setEventData(prev => prev.filter(e => getEventId(e) !== eventId));
-    message.info("Evento movido al área de depósito");
+
+    const startIdx = tableSlots.findIndex(s => s[0] === event.startTime);
+    const endIdx = tableSlots.findIndex(s => s[1] === event.endTime);
+    const safeStartIdx = startIdx >= 0 ? startIdx : tableSlots.findIndex(s => s[0] === event.startTime);
+    const safeEndExclusive = endIdx >= 0 ? endIdx + 1 : safeStartIdx + 1;
+    const blockSlotStarts = new Set(
+      tableSlots
+        .slice(Math.max(safeStartIdx, 0), Math.max(safeEndExclusive, 0))
+        .map(s => s[0])
+    );
+
+    const eventsInBlock = eventData.filter(e =>
+      e.daysOfWeek?.[0] === day &&
+      e.extendedProps?.subjectId === subjectId &&
+      e.extendedProps?.seccion === seccion &&
+      blockSlotStarts.has(e.startTime)
+    );
+
+    const eventsToMove = eventsInBlock.length > 0 ? eventsInBlock : [event];
+    const eventsToMoveIds = new Set(eventsToMove.map(e => getEventId(e)));
+
+    const allAlreadyStaged = eventsToMove.every(e =>
+      stagedEvents.some(se => getEventId(se) === getEventId(e))
+    );
+    if (allAlreadyStaged) {
+      message.warning("Este bloque ya está en el área de depósito");
+      return;
+    }
+
+    setStagedEvents(prev => {
+      const prevIds = new Set(prev.map(e => getEventId(e)));
+      const toAppend = eventsToMove.filter(e => !prevIds.has(getEventId(e)));
+      return [...prev, ...toAppend];
+    });
+
+    setEventData(prev => prev.filter(e => !eventsToMoveIds.has(getEventId(e))));
+    message.info(`Bloque movido al área de depósito (${eventsToMove.length} hora(s))`);
   };
 
   const removeFromStaging = (event: Event) => {
@@ -259,7 +300,7 @@ const SchoolSchedule: React.FC = () => {
   };
 
   // Check conflicts for an event at a specific position
-  const checkEventConflicts = (event: Event, targetDay: number, targetStartTime: string): string[] => {
+  const checkEventConflicts = (event: Event, targetDay: number, targetStartTime: string, eventsToCheck: Event[] = eventData): string[] => {
     const conflicts: string[] = [];
     const props = event.extendedProps;
     if (!props) return conflicts;
@@ -271,7 +312,7 @@ const SchoolSchedule: React.FC = () => {
     const seccion = props.seccion;
 
     // Check all existing events for conflicts
-    for (const existingEvent of eventData) {
+    for (const existingEvent of eventsToCheck) {
       if (!existingEvent.extendedProps) continue;
       const existingDay = existingEvent.daysOfWeek?.[0];
       const existingStart = existingEvent.startTime;
@@ -307,47 +348,129 @@ const SchoolSchedule: React.FC = () => {
   };
 
   // Handle drop from staging area to schedule
-  const handleDropFromStaging = (targetDay: number, targetStartTime: string, targetEndTime: string, eventFromDrop?: Event) => {
+  const handleDropFromStaging = (
+    targetDay: number,
+    targetStartTime: string,
+    targetEndTime: string,
+    eventFromDrop?: Event,
+    targetOccupyingEvent?: Event
+  ) => {
     const eventToUse = eventFromDrop || draggingFromStaging;
     if (!eventToUse) return;
-    
-    const eventId = getEventId(eventToUse);
-    
-    // Create new event with updated day/time
+
+    const stagedEventId = getEventId(eventToUse);
+    const isSameSubjectAndSection = (a: Event, b: Event) =>
+      a.extendedProps?.subjectId === b.extendedProps?.subjectId &&
+      a.extendedProps?.seccion === b.extendedProps?.seccion;
+
+    // Event currently occupying drop target (if any)
+    const occupyingEvent = targetOccupyingEvent || eventData.find(e => {
+      if (e.daysOfWeek?.[0] !== targetDay || e.startTime !== targetStartTime) return false;
+      if (!eventToUse.extendedProps) return true;
+      return (
+        e.extendedProps?.pnfId === eventToUse.extendedProps.pnfId &&
+        e.extendedProps?.trayectoId === eventToUse.extendedProps.trayectoId &&
+        e.extendedProps?.seccion === eventToUse.extendedProps.seccion
+      );
+    });
+
+    let resolvedStartTime = targetStartTime;
+    let resolvedEndTime = targetEndTime;
+    let swappedOutEvent: Event | null = null;
+
+    // If dropping over occupied slot, decide merge/swap behavior
+    if (occupyingEvent) {
+      if (isSameSubjectAndSection(occupyingEvent, eventToUse)) {
+        // Same subject/section: try to extend contiguous block if possible
+        const sameBlockEvents = eventData.filter(
+          e => e.daysOfWeek?.[0] === targetDay && isSameSubjectAndSection(e, eventToUse)
+        );
+
+        const blockIndexes = sameBlockEvents
+          .map(e => tableSlots.findIndex(s => s[0] === e.startTime))
+          .filter(i => i >= 0);
+
+        if (blockIndexes.length > 0) {
+          const minIdx = Math.min(...blockIndexes);
+          const maxIdx = Math.max(...blockIndexes);
+          const occupiedStarts = new Set(
+            eventData
+              .filter(e => e.daysOfWeek?.[0] === targetDay)
+              .map(e => e.startTime)
+          );
+
+          const canPlaceAtIndex = (idx: number) =>
+            idx >= 0 && idx < tableSlots.length && !occupiedStarts.has(tableSlots[idx][0]);
+
+          if (canPlaceAtIndex(maxIdx + 1)) {
+            resolvedStartTime = tableSlots[maxIdx + 1][0];
+            resolvedEndTime = tableSlots[maxIdx + 1][1];
+          } else if (canPlaceAtIndex(minIdx - 1)) {
+            resolvedStartTime = tableSlots[minIdx - 1][0];
+            resolvedEndTime = tableSlots[minIdx - 1][1];
+          } else {
+            message.warning("No hay espacio contiguo para extender el bloque de esta materia.");
+            return;
+          }
+        }
+      } else {
+        // Different subject: swap (occupied event goes to staging)
+        swappedOutEvent = occupyingEvent;
+      }
+    }
+
     const newEvent: Event = {
       ...eventToUse,
       daysOfWeek: [targetDay],
-      startTime: targetStartTime,
-      endTime: targetEndTime,
+      startTime: resolvedStartTime,
+      endTime: resolvedEndTime,
     };
 
-    // Check for conflicts
-    const conflicts = checkEventConflicts(newEvent, targetDay, targetStartTime);
-    
-    // Remove from staging
-    setStagedEvents(prev => prev.filter(e => getEventId(e) !== eventId));
-    
-    // Add to eventData
-    setEventData(prev => [...prev, newEvent]);
+    const swappedOutEventId = swappedOutEvent ? getEventId(swappedOutEvent) : null;
+    const eventsForConflictCheck = swappedOutEventId
+      ? eventData.filter(e => getEventId(e) !== swappedOutEventId)
+      : eventData;
 
-    // Track conflicts if any
+    const conflicts = checkEventConflicts(newEvent, targetDay, resolvedStartTime, eventsForConflictCheck);
     const newEventId = getEventId(newEvent);
+
+    // Remove dropped event from staging; if swapped, send replaced event to staging
+    setStagedEvents(prev => {
+      const filtered = prev.filter(e => getEventId(e) !== stagedEventId);
+      if (!swappedOutEvent) return filtered;
+      const exists = filtered.some(e => getEventId(e) === swappedOutEventId);
+      return exists ? filtered : [...filtered, swappedOutEvent];
+    });
+
+    // Put new event in schedule and remove swapped-out occupant if needed
+    setEventData(prev => {
+      const withoutSwapped = swappedOutEventId
+        ? prev.filter(e => getEventId(e) !== swappedOutEventId)
+        : prev;
+      const withoutDuplicateTarget = withoutSwapped.filter(e => getEventId(e) !== newEventId);
+      return [...withoutDuplicateTarget, newEvent];
+    });
+
+    // Update conflict tracking
+    setEventsWithConflicts(prev => {
+      const next = { ...prev };
+      if (swappedOutEventId) delete next[swappedOutEventId];
+      if (conflicts.length > 0) {
+        next[newEventId] = conflicts;
+      } else {
+        delete next[newEventId];
+      }
+      return next;
+    });
+
     if (conflicts.length > 0) {
-      setEventsWithConflicts(prev => ({
-        ...prev,
-        [newEventId]: conflicts
-      }));
       message.warning(`Evento reubicado con ${conflicts.length} conflicto(s)`);
+    } else if (swappedOutEvent) {
+      message.success("Eventos intercambiados correctamente");
     } else {
-      // Remove from conflicts if it was there before
-      setEventsWithConflicts(prev => {
-        const newConflicts = { ...prev };
-        delete newConflicts[newEventId];
-        return newConflicts;
-      });
       message.success("Evento reubicado en el horario");
     }
-    
+
     setDraggingFromStaging(null);
   };
 
@@ -3074,13 +3197,20 @@ const SchoolSchedule: React.FC = () => {
                                         // Handle drop from staging area
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
                                         if (isStagedEvent) {
+                                          const targetCellEvent: Event = {
+                                            title: cell.title,
+                                            daysOfWeek: [day],
+                                            startTime: slot[0],
+                                            endTime: tableSlots[rowIndex + cell.rowSpan - 1]?.[1] || slot[1],
+                                            extendedProps: cell.extendedProps
+                                          };
                                           const eventDataStr = e.dataTransfer.getData("text/plain");
                                           try {
                                             const eventFromDrop = JSON.parse(eventDataStr) as Event;
-                                            handleDropFromStaging(day, slot[0], slot[1], eventFromDrop);
+                                            handleDropFromStaging(day, slot[0], slot[1], eventFromDrop, targetCellEvent);
                                           } catch {
                                             if (draggingFromStaging) {
-                                              handleDropFromStaging(day, slot[0], slot[1], draggingFromStaging);
+                                              handleDropFromStaging(day, slot[0], slot[1], draggingFromStaging, targetCellEvent);
                                             }
                                           }
                                           return;
