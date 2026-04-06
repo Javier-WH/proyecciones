@@ -364,15 +364,164 @@ const SchoolSchedule: React.FC = () => {
   };
 
   const removeFromStaging = (event: Event) => {
-    const eventId = getEventId(event);
-    setStagedEvents(prev => prev.filter(e => getEventId(e) !== eventId));
-    // Return to eventData
-    setEventData(prev => [...prev, event]);
-    message.info("Evento devuelto al horario");
+    const day = event.daysOfWeek?.[0];
+    const subjectId = event.extendedProps?.subjectId;
+    const seccion = event.extendedProps?.seccion;
+
+    if (!day || !subjectId || !seccion) {
+      // Handle single event if no block info available
+      const eventId = getEventId(event);
+      const targetDay = event.daysOfWeek?.[0];
+      const targetStartTime = event.startTime;
+      
+      if (targetDay && targetStartTime) {
+        const conflicts = checkEventConflicts(event, targetDay, targetStartTime);
+        
+        if (conflicts.length > 0) {
+          Modal.warning({
+            title: "Ubicación Ocupada",
+            content: (
+              <div>
+                <p>No se puede devolver la materia a su ubicación original porque está ocupada:</p>
+                <ul style={{ margin: '10px 0', paddingLeft: '20px' }}>
+                  {conflicts.map((conflict, index) => (
+                    <li key={index} style={{ marginBottom: '5px' }}>{conflict}</li>
+                  ))}
+                </ul>
+                <p>Por favor, arrastra la materia a otra celda disponible o libera la ubicación conflictiva.</p>
+              </div>
+            ),
+            width: 500,
+            okText: "Entendido"
+          });
+          return;
+        }
+      }
+      
+      // If no conflicts, proceed with removal
+      setStagedEvents(prev => prev.filter(e => getEventId(e) !== eventId));
+      setEventData(prev => [...prev, event]);
+      message.info("Evento devuelto al horario");
+      return;
+    }
+
+    // Find all events in the same block (same subject, section, and consecutive time slots)
+    const startIdx = tableSlots.findIndex(s => s[0] === event.startTime);
+    const endIdx = tableSlots.findIndex(s => s[1] === event.endTime);
+    const safeStartIdx = startIdx >= 0 ? startIdx : tableSlots.findIndex(s => s[0] === event.startTime);
+    const safeEndExclusive = endIdx >= 0 ? endIdx + 1 : safeStartIdx + 1;
+    const blockSlotStarts = new Set(
+      tableSlots
+        .slice(Math.max(safeStartIdx, 0), Math.max(safeEndExclusive, 0))
+        .map(s => s[0])
+    );
+
+    const eventsInBlock = stagedEvents.filter(e =>
+      e.daysOfWeek?.[0] === day &&
+      e.extendedProps?.subjectId === subjectId &&
+      e.extendedProps?.seccion === seccion &&
+      blockSlotStarts.has(e.startTime)
+    );
+
+    const eventsToReturn = eventsInBlock.length > 0 ? eventsInBlock : [event];
+    const eventsToReturnIds = new Set(eventsToReturn.map(e => getEventId(e)));
+
+    // Check conflicts for all events in the block
+    const allConflicts: { event: Event; conflicts: string[] }[] = [];
+    
+    for (const eventToCheck of eventsToReturn) {
+      const targetDay = eventToCheck.daysOfWeek?.[0];
+      const targetStartTime = eventToCheck.startTime;
+      
+      if (targetDay && targetStartTime) {
+        const conflicts = checkEventConflicts(eventToCheck, targetDay, targetStartTime);
+        if (conflicts.length > 0) {
+          allConflicts.push({ event: eventToCheck, conflicts });
+        }
+      }
+    }
+
+    if (allConflicts.length > 0) {
+      // Show warning with all conflicts in the block
+      Modal.warning({
+        title: "Bloque con Conflictos",
+        content: (
+          <div>
+            <p>No se puede devolver el bloque completo porque algunas horas están ocupadas:</p>
+            <div style={{ maxHeight: '250px', overflowY: 'auto', margin: '10px 0' }}>
+              {allConflicts.map(({ event: conflictEvent, conflicts }, index) => (
+                <div key={index} style={{ marginBottom: '10px', padding: '8px', backgroundColor: '#fff2f0', borderRadius: '4px' }}>
+                  <strong>{conflictEvent.title} - {conflictEvent.startTime}</strong>
+                  <ul style={{ margin: '5px 0', paddingLeft: '15px', fontSize: '12px' }}>
+                    {conflicts.map((conflict, conflictIndex) => (
+                      <li key={conflictIndex}>{conflict}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <p>Por favor, resuelve los conflictos manualmente o arrastra las horas a celdas disponibles.</p>
+          </div>
+        ),
+        width: 600,
+        okText: "Entendido"
+      });
+      return; // Prevent the action
+    }
+
+    // If no conflicts, proceed with removal of the entire block
+    setStagedEvents(prev => prev.filter(e => !eventsToReturnIds.has(getEventId(e))));
+    setEventData(prev => [...prev, ...eventsToReturn]);
+    message.info(`Bloque devuelto al horario (${eventsToReturn.length} hora(s))`);
   };
 
   const clearAllStaged = () => {
     if (stagedEvents.length === 0) return;
+    
+    // Check for conflicts in all staged events
+    const conflictsByEvent: { event: Event; conflicts: string[] }[] = [];
+    
+    for (const event of stagedEvents) {
+      const targetDay = event.daysOfWeek?.[0];
+      const targetStartTime = event.startTime;
+      
+      if (targetDay && targetStartTime) {
+        const conflicts = checkEventConflicts(event, targetDay, targetStartTime);
+        if (conflicts.length > 0) {
+          conflictsByEvent.push({ event, conflicts });
+        }
+      }
+    }
+    
+    if (conflictsByEvent.length > 0) {
+      // Show warning with all conflicts
+      Modal.warning({
+        title: "Conflictos al Devolver Eventos",
+        content: (
+          <div>
+            <p>No se pueden devolver {conflictsByEvent.length} eventos porque sus ubicaciones originales están ocupadas:</p>
+            <div style={{ maxHeight: '300px', overflowY: 'auto', margin: '10px 0' }}>
+              {conflictsByEvent.map(({ event, conflicts }, index) => (
+                <div key={index} style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#fff2f0', borderRadius: '4px' }}>
+                  <strong>{event.title}</strong>
+                  <ul style={{ margin: '5px 0', paddingLeft: '20px', fontSize: '12px' }}>
+                    {conflicts.map((conflict, conflictIndex) => (
+                      <li key={conflictIndex}>{conflict}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <p>Por favor, resuelve los conflictos manualmente arrastrando las materias a celdas disponibles.</p>
+          </div>
+        ),
+        width: 600,
+        okText: "Entendido"
+      });
+      return; // Prevent the action
+    }
+    
+    // If no conflicts, proceed with confirmation
     Modal.confirm({
       title: "¿Limpiar área de depósito?",
       content: `Se devolverán ${stagedEvents.length} eventos al horario.`,
