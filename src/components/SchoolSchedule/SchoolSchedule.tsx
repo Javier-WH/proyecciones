@@ -613,15 +613,14 @@ const SchoolSchedule: React.FC = () => {
   // Handle drop from staging area to schedule
   const handleDropFromStaging = (
     targetDay: number,
-    targetStartTime: string,
-    targetEndTime: string,
+    _targetStartTime: string,
+    _targetEndTime: string,
     eventFromDrop?: Event,
-    targetOccupyingEvent?: Event
+    _targetOccupyingEvent?: Event
   ) => {
     const eventToUse = eventFromDrop || draggingFromStaging;
     if (!eventToUse) return;
 
-    const stagedEventId = getEventId(eventToUse);
     const isSameSubjectAndSection = (a: Event, b: Event) =>
       a.extendedProps?.subjectId === b.extendedProps?.subjectId &&
       a.extendedProps?.seccion === b.extendedProps?.seccion;
@@ -773,7 +772,6 @@ const SchoolSchedule: React.FC = () => {
     setStagedEvents(prev => {
       const filtered = prev.filter(e => !eventsToMoveIds.has(getEventId(e)));
       // Add swapped out events to staging
-      const swappedIds = new Set(swappedOutEvents.map(e => getEventId(e)));
       const toAppend = swappedOutEvents.filter(e => !filtered.some(f => getEventId(f) === getEventId(e)));
       return [...filtered, ...toAppend];
     });
@@ -781,8 +779,7 @@ const SchoolSchedule: React.FC = () => {
     // Add all new events to schedule and remove swapped-out events
     setEventData(prev => {
       let updated = prev.filter(e => !eventsToMoveIds.has(getEventId(e)));
-      const swappedIds = new Set(swappedOutEvents.map(e => getEventId(e)));
-      updated = updated.filter(e => !swappedIds.has(getEventId(e)));
+      updated = updated.filter(e => !swappedOutEvents.some(se => getEventId(se) === getEventId(e)));
       return [...updated, ...processedEvents];
     });
 
@@ -799,82 +796,6 @@ const SchoolSchedule: React.FC = () => {
       message.success(`Bloque reubicado con ${swappedOutEvents.length} intercambio(s) (${processedEvents.length} eventos)`);
     } else {
       message.success(`Bloque reubicado en el horario (${processedEvents.length} eventos)`);
-    }
-
-    setDraggingFromStaging(null);
-  };
-
-          const canPlaceAtIndex = (idx: number) =>
-            idx >= 0 && idx < tableSlots.length && !occupiedStarts.has(tableSlots[idx][0]);
-
-          if (canPlaceAtIndex(maxIdx + 1)) {
-            resolvedStartTime = tableSlots[maxIdx + 1][0];
-            resolvedEndTime = tableSlots[maxIdx + 1][1];
-          } else if (canPlaceAtIndex(minIdx - 1)) {
-            resolvedStartTime = tableSlots[minIdx - 1][0];
-            resolvedEndTime = tableSlots[minIdx - 1][1];
-          } else {
-            message.warning("No hay espacio contiguo para extender el bloque de esta materia.");
-            return;
-          }
-        }
-      } else {
-        // Different subject: swap (occupied event goes to staging)
-        swappedOutEvent = occupyingEvent;
-      }
-    }
-
-    const newEvent: Event = {
-      ...eventToUse,
-      daysOfWeek: [targetDay],
-      startTime: resolvedStartTime,
-      endTime: resolvedEndTime,
-    };
-
-    const swappedOutEventId = swappedOutEvent ? getEventId(swappedOutEvent) : null;
-    const eventsForConflictCheck = swappedOutEventId
-      ? eventData.filter(e => getEventId(e) !== swappedOutEventId)
-      : eventData;
-
-    const conflicts = checkEventConflicts(newEvent, targetDay, resolvedStartTime, eventsForConflictCheck);
-    const newEventId = getEventId(newEvent);
-
-    // Remove dropped event from staging; if swapped, send replaced event to staging
-    setStagedEvents(prev => {
-      const filtered = prev.filter(e => getEventId(e) !== stagedEventId);
-      if (!swappedOutEvent) return filtered;
-      const exists = filtered.some(e => getEventId(e) === swappedOutEventId);
-      return exists ? filtered : [...filtered, swappedOutEvent];
-    });
-
-    // Put new event in schedule and remove swapped-out occupant if needed
-    setEventData(prev => {
-      const withoutSwapped = swappedOutEventId
-        ? prev.filter(e => getEventId(e) !== swappedOutEventId)
-        : prev;
-      const withoutDuplicateTarget = withoutSwapped.filter(e => getEventId(e) !== newEventId);
-      return [...withoutDuplicateTarget, newEvent];
-    });
-    enqueueLockedSectionSaveFromEvents(newEvent, swappedOutEvent);
-
-    // Update conflict tracking
-    setEventsWithConflicts(prev => {
-      const next = { ...prev };
-      if (swappedOutEventId) delete next[swappedOutEventId];
-      if (conflicts.length > 0) {
-        next[newEventId] = conflicts;
-      } else {
-        delete next[newEventId];
-      }
-      return next;
-    });
-
-    if (conflicts.length > 0) {
-      message.warning(`Evento reubicado con ${conflicts.length} conflicto(s)`);
-    } else if (swappedOutEvent) {
-      message.success("Eventos intercambiados correctamente");
-    } else {
-      message.success("Evento reubicado en el horario");
     }
 
     setDraggingFromStaging(null);
