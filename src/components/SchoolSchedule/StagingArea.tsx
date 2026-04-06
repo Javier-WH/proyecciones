@@ -1,15 +1,13 @@
 import React from 'react';
 import { Event } from './fucntions';
 import { Badge, Empty, Tooltip, Button } from 'antd';
-import { ClockCircleOutlined, EnvironmentOutlined, DeleteOutlined, ArrowLeftOutlined, ClearOutlined, CloseOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, EnvironmentOutlined, ArrowLeftOutlined, ClearOutlined, CloseOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import styles from './StagingArea.module.css';
 
 interface StagingAreaProps {
   stagedEvents: Event[];
   subjectColors?: Record<string, string> | null;
-  selectedEventId: string | null;
-  onSelectEvent: (eventId: string | null) => void;
-  onRemoveFromStaging: (event: Event) => void;
+  onRemoveGroupFromStaging: (events: Event[]) => void;
   onClearAll: () => void;
   onConfirmChanges: () => void;
   onClose: () => void;
@@ -27,9 +25,7 @@ const getEventId = (event: Event): string => {
 const StagingArea: React.FC<StagingAreaProps> = ({ 
   stagedEvents, 
   subjectColors,
-  selectedEventId,
-  onSelectEvent,
-  onRemoveFromStaging,
+  onRemoveGroupFromStaging,
   onClearAll,
   onConfirmChanges,
   onClose,
@@ -152,11 +148,6 @@ const StagingArea: React.FC<StagingAreaProps> = ({
           />
         ) : (
           <div className={styles.eventsList}>
-            {selectedEventId && (
-              <div className={styles.selectionHint}>
-                ✨ Evento seleccionado. Haz clic en una celda del horario para reubicarlo.
-              </div>
-            )}
             {Object.entries(groupedEvents).map(([subjectId, group]) => (
               <div key={subjectId} className={styles.subjectGroup}>
                 <div 
@@ -168,20 +159,32 @@ const StagingArea: React.FC<StagingAreaProps> = ({
                     borderLeft: `3px solid ${subjectColors?.[group.pnfId || ''] || '#1890ff'}`
                   }}
                 >
-                  <span className={styles.subjectName}>{truncateText(group.title, 25)}</span>
-                  <Badge count={group.events.length} style={{ backgroundColor: '#8c8c8c' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className={styles.subjectName}>{truncateText(group.title, 25)}</span>
+                      <Badge count={group.events.length} style={{ backgroundColor: '#8c8c8c' }} />
+                    </div>
+                    <Tooltip title={`Devolver toda la materia (${group.events.length} hora(s))`}>
+                      <Button 
+                        type="text" 
+                        size="small" 
+                        icon={<ArrowLeftOutlined />}
+                        style={{ color: '#52c41a' }}
+                        onClick={() => onRemoveGroupFromStaging(group.events)}
+                      />
+                    </Tooltip>
+                  </div>
                 </div>
                 <div className={styles.subjectEvents}>
                   {group.events.map((event) => {
                     const eventId = getEventId(event);
-                    const isSelected = selectedEventId === eventId;
                     const dayName = dayNames[event.daysOfWeek?.[0] || 0];
                     const color = subjectColors?.[group.pnfId || ''];
 
                     return (
                       <div
                         key={eventId}
-                        className={`${styles.eventCard} ${isSelected ? styles.eventCardSelected : ''}`}
+                        className={styles.eventCard}
                         draggable
                         onDragStart={(e) => {
                           e.dataTransfer.effectAllowed = "move";
@@ -197,7 +200,6 @@ const StagingArea: React.FC<StagingAreaProps> = ({
                           borderLeft: `4px solid ${color || '#1890ff'}`,
                           cursor: 'grab',
                         }}
-                        onClick={() => onSelectEvent(isSelected ? null : eventId)}
                       >
                         <div className={styles.eventContent}>
                           <div className={styles.eventTitle}>
@@ -218,25 +220,6 @@ const StagingArea: React.FC<StagingAreaProps> = ({
                           <div className={styles.eventSection}>
                             Sección {event.extendedProps?.seccion} • {event.extendedProps?.trayectoName || `Tray. ${event.extendedProps?.trayectoId}`}
                           </div>
-                        </div>
-                        <div className={styles.eventActions}>
-                          <Tooltip title={isSelected ? "Deseleccionar" : "Seleccionar para reubicar"}>
-                            <Button 
-                              type="text" 
-                              size="small" 
-                              icon={<ArrowLeftOutlined />}
-                              style={{ color: isSelected ? '#1890ff' : '#8c8c8c' }}
-                            />
-                          </Tooltip>
-                          <Tooltip title="Eliminar del depósito">
-                            <Button 
-                              type="text" 
-                              size="small" 
-                              danger
-                              icon={<DeleteOutlined />}
-                              onClick={(e) => { e.stopPropagation(); onRemoveFromStaging(event); }}
-                            />
-                          </Tooltip>
                         </div>
                       </div>
                     );

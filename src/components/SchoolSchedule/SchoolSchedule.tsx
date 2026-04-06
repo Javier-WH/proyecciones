@@ -169,7 +169,6 @@ const SchoolSchedule: React.FC = () => {
   
   // Staging area state for official stage
   const [stagedEvents, setStagedEvents] = useState<Event[]>([]);
-  const [selectedStagedEventId, setSelectedStagedEventId] = useState<string | null>(null);
   const [isOfficialStageMode, setIsOfficialStageMode] = useState(false);
   const [draggingFromStaging, setDraggingFromStaging] = useState<Event | null>(null);
   const [confirmStagingLoading, setConfirmStagingLoading] = useState(false);
@@ -316,24 +315,53 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
 
-    const startIdx = tableSlots.findIndex(s => s[0] === event.startTime);
-    const endIdx = tableSlots.findIndex(s => s[1] === event.endTime);
-    const safeStartIdx = startIdx >= 0 ? startIdx : tableSlots.findIndex(s => s[0] === event.startTime);
-    const safeEndExclusive = endIdx >= 0 ? endIdx + 1 : safeStartIdx + 1;
-    const blockSlotStarts = new Set(
-      tableSlots
-        .slice(Math.max(safeStartIdx, 0), Math.max(safeEndExclusive, 0))
-        .map(s => s[0])
-    );
-
-    const eventsInBlock = eventData.filter(e =>
+    // Enhanced block detection that handles gaps
+    const allSubjectEvents = eventData.filter(e =>
       e.daysOfWeek?.[0] === day &&
       e.extendedProps?.subjectId === subjectId &&
-      e.extendedProps?.seccion === seccion &&
-      blockSlotStarts.has(e.startTime)
+      e.extendedProps?.seccion === seccion
     );
 
-    const eventsToMove = eventsInBlock.length > 0 ? eventsInBlock : [event];
+    // Sort events by start time
+    allSubjectEvents.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    // Find the block that contains the current event
+    const eventIndex = allSubjectEvents.findIndex(e => getEventId(e) === getEventId(event));
+    
+    // Find all consecutive events (including gaps) that form a block
+    const blockEvents = [event];
+    
+    // Look backward for consecutive events
+    for (let i = eventIndex - 1; i >= 0; i--) {
+      const prevEvent = allSubjectEvents[i];
+      const prevEndTime = prevEvent.endTime;
+      const currentStartTime = blockEvents[0].startTime;
+      
+      // Check if events are reasonably close (within 30 minutes gap)
+      const timeDiff = getTimeDifferenceInMinutes(prevEndTime, currentStartTime);
+      if (timeDiff <= 30) {
+        blockEvents.unshift(prevEvent);
+      } else {
+        break; // Gap too large, stop looking backward
+      }
+    }
+    
+    // Look forward for consecutive events
+    for (let i = eventIndex + 1; i < allSubjectEvents.length; i++) {
+      const nextEvent = allSubjectEvents[i];
+      const currentEndTime = blockEvents[blockEvents.length - 1].endTime;
+      const nextStartTime = nextEvent.startTime;
+      
+      // Check if events are reasonably close (within 30 minutes gap)
+      const timeDiff = getTimeDifferenceInMinutes(currentEndTime, nextStartTime);
+      if (timeDiff <= 30) {
+        blockEvents.push(nextEvent);
+      } else {
+        break; // Gap too large, stop looking forward
+      }
+    }
+
+    const eventsToMove = blockEvents.length > 1 ? blockEvents : [event];
     const eventsToMoveIds = new Set(eventsToMove.map(e => getEventId(e)));
 
     const allAlreadyStaged = eventsToMove.every(e =>
@@ -354,6 +382,20 @@ const SchoolSchedule: React.FC = () => {
     message.info(`Bloque movido al área de depósito (${eventsToMove.length} hora(s))`);
   };
 
+  // Helper function to calculate time difference in minutes
+  const getTimeDifferenceInMinutes = (time1: string, time2: string): number => {
+    const [hours1, minutes1] = time1.split(':').map(Number);
+    const [hours2, minutes2] = time2.split(':').map(Number);
+    
+    const date1 = new Date();
+    date1.setHours(hours1, minutes1, 0, 0);
+    
+    const date2 = new Date();
+    date2.setHours(hours2, minutes2, 0, 0);
+    
+    return Math.abs(date2.getTime() - date1.getTime()) / (1000 * 60);
+  };
+
   // Handle drop from schedule onto staging area
   const handleDropFromSchedule = (event: Event) => {
     if (!isOfficialStageMode) {
@@ -363,73 +405,14 @@ const SchoolSchedule: React.FC = () => {
     moveEventToStaging(event);
   };
 
-  const removeFromStaging = (event: Event) => {
-    const day = event.daysOfWeek?.[0];
-    const subjectId = event.extendedProps?.subjectId;
-    const seccion = event.extendedProps?.seccion;
-
-    if (!day || !subjectId || !seccion) {
-      // Handle single event if no block info available
-      const eventId = getEventId(event);
-      const targetDay = event.daysOfWeek?.[0];
-      const targetStartTime = event.startTime;
-      
-      if (targetDay && targetStartTime) {
-        const conflicts = checkEventConflicts(event, targetDay, targetStartTime);
-        
-        if (conflicts.length > 0) {
-          Modal.warning({
-            title: "Ubicación Ocupada",
-            content: (
-              <div>
-                <p>No se puede devolver la materia a su ubicación original porque está ocupada:</p>
-                <ul style={{ margin: '10px 0', paddingLeft: '20px' }}>
-                  {conflicts.map((conflict, index) => (
-                    <li key={index} style={{ marginBottom: '5px' }}>{conflict}</li>
-                  ))}
-                </ul>
-                <p>Por favor, arrastra la materia a otra celda disponible o libera la ubicación conflictiva.</p>
-              </div>
-            ),
-            width: 500,
-            okText: "Entendido"
-          });
-          return;
-        }
-      }
-      
-      // If no conflicts, proceed with removal
-      setStagedEvents(prev => prev.filter(e => getEventId(e) !== eventId));
-      setEventData(prev => [...prev, event]);
-      message.info("Evento devuelto al horario");
-      return;
-    }
-
-    // Find all events in the same block (same subject, section, and consecutive time slots)
-    const startIdx = tableSlots.findIndex(s => s[0] === event.startTime);
-    const endIdx = tableSlots.findIndex(s => s[1] === event.endTime);
-    const safeStartIdx = startIdx >= 0 ? startIdx : tableSlots.findIndex(s => s[0] === event.startTime);
-    const safeEndExclusive = endIdx >= 0 ? endIdx + 1 : safeStartIdx + 1;
-    const blockSlotStarts = new Set(
-      tableSlots
-        .slice(Math.max(safeStartIdx, 0), Math.max(safeEndExclusive, 0))
-        .map(s => s[0])
-    );
-
-    const eventsInBlock = stagedEvents.filter(e =>
-      e.daysOfWeek?.[0] === day &&
-      e.extendedProps?.subjectId === subjectId &&
-      e.extendedProps?.seccion === seccion &&
-      blockSlotStarts.has(e.startTime)
-    );
-
-    const eventsToReturn = eventsInBlock.length > 0 ? eventsInBlock : [event];
-    const eventsToReturnIds = new Set(eventsToReturn.map(e => getEventId(e)));
-
-    // Check conflicts for all events in the block
+  // Handle removing entire group from staging
+  const removeGroupFromStaging = (events: Event[]) => {
+    if (events.length === 0) return;
+    
+    // Check conflicts for all events in the group
     const allConflicts: { event: Event; conflicts: string[] }[] = [];
     
-    for (const eventToCheck of eventsToReturn) {
+    for (const eventToCheck of events) {
       const targetDay = eventToCheck.daysOfWeek?.[0];
       const targetStartTime = eventToCheck.startTime;
       
@@ -442,12 +425,12 @@ const SchoolSchedule: React.FC = () => {
     }
 
     if (allConflicts.length > 0) {
-      // Show warning with all conflicts in the block
+      // Show warning with all conflicts in the group
       Modal.warning({
-        title: "Bloque con Conflictos",
+        title: "Materia con Conflictos",
         content: (
           <div>
-            <p>No se puede devolver el bloque completo porque algunas horas están ocupadas:</p>
+            <p>No se puede devolver la materia completa porque algunas horas están ocupadas:</p>
             <div style={{ maxHeight: '250px', overflowY: 'auto', margin: '10px 0' }}>
               {allConflicts.map(({ event: conflictEvent, conflicts }, index) => (
                 <div key={index} style={{ marginBottom: '10px', padding: '8px', backgroundColor: '#fff2f0', borderRadius: '4px' }}>
@@ -469,10 +452,11 @@ const SchoolSchedule: React.FC = () => {
       return; // Prevent the action
     }
 
-    // If no conflicts, proceed with removal of the entire block
+    // If no conflicts, proceed with removal of the entire group
+    const eventsToReturnIds = new Set(events.map(e => getEventId(e)));
     setStagedEvents(prev => prev.filter(e => !eventsToReturnIds.has(getEventId(e))));
-    setEventData(prev => [...prev, ...eventsToReturn]);
-    message.info(`Bloque devuelto al horario (${eventsToReturn.length} hora(s))`);
+    setEventData(prev => [...prev, ...events]);
+    message.info(`Materia devuelta al horario (${events.length} hora(s))`);
   };
 
   const clearAllStaged = () => {
@@ -530,7 +514,6 @@ const SchoolSchedule: React.FC = () => {
       onOk: () => {
         setEventData(prev => [...prev, ...stagedEvents]);
         setStagedEvents([]);
-        setSelectedStagedEventId(null);
         message.success("Todos los eventos devueltos al horario");
       }
     });
@@ -568,7 +551,6 @@ const SchoolSchedule: React.FC = () => {
       }));
 
       setStagedEvents([]);
-      setSelectedStagedEventId(null);
       setDraggingFromStaging(null);
       setIsOfficialStageMode(false);
       message.success("Cambios confirmados y guardados correctamente");
@@ -644,41 +626,183 @@ const SchoolSchedule: React.FC = () => {
       a.extendedProps?.subjectId === b.extendedProps?.subjectId &&
       a.extendedProps?.seccion === b.extendedProps?.seccion;
 
-    // Event currently occupying drop target (if any)
-    const occupyingEvent = targetOccupyingEvent || eventData.find(e => {
-      if (e.daysOfWeek?.[0] !== targetDay || e.startTime !== targetStartTime) return false;
-      if (!eventToUse.extendedProps) return true;
-      return (
-        e.extendedProps?.pnfId === eventToUse.extendedProps.pnfId &&
-        e.extendedProps?.trayectoId === eventToUse.extendedProps.trayectoId &&
-        e.extendedProps?.seccion === eventToUse.extendedProps.seccion
+    // Enhanced block detection for staging events (same logic as moveEventToStaging)
+    const day = eventToUse.daysOfWeek?.[0];
+    const subjectId = eventToUse.extendedProps?.subjectId;
+    const seccion = eventToUse.extendedProps?.seccion;
+
+    let eventsToMove = [eventToUse]; // Default to single event
+
+    if (day && subjectId && seccion) {
+      // Find all related events in staging
+      const allSubjectStagedEvents = stagedEvents.filter(e =>
+        e.daysOfWeek?.[0] === day &&
+        e.extendedProps?.subjectId === subjectId &&
+        e.extendedProps?.seccion === seccion
       );
+
+      // Sort events by start time
+      allSubjectStagedEvents.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+      // Find the block that contains the current event
+      const eventIndex = allSubjectStagedEvents.findIndex(e => getEventId(e) === getEventId(eventToUse));
+      
+      // Find all consecutive events (including gaps) that form a block
+      const blockEvents = [eventToUse];
+      
+      // Look backward for consecutive events
+      for (let i = eventIndex - 1; i >= 0; i--) {
+        const prevEvent = allSubjectStagedEvents[i];
+        const prevEndTime = prevEvent.endTime;
+        const currentStartTime = blockEvents[0].startTime;
+        
+        // Check if events are reasonably close (within 30 minutes gap)
+        const timeDiff = getTimeDifferenceInMinutes(prevEndTime, currentStartTime);
+        if (timeDiff <= 30) {
+          blockEvents.unshift(prevEvent);
+        } else {
+          break; // Gap too large, stop looking backward
+        }
+      }
+      
+      // Look forward for consecutive events
+      for (let i = eventIndex + 1; i < allSubjectStagedEvents.length; i++) {
+        const nextEvent = allSubjectStagedEvents[i];
+        const currentEndTime = blockEvents[blockEvents.length - 1].endTime;
+        const nextStartTime = nextEvent.startTime;
+        
+        // Check if events are reasonably close (within 30 minutes gap)
+        const timeDiff = getTimeDifferenceInMinutes(currentEndTime, nextStartTime);
+        if (timeDiff <= 30) {
+          blockEvents.push(nextEvent);
+        } else {
+          break; // Gap too large, stop looking forward
+        }
+      }
+
+      eventsToMove = blockEvents.length > 1 ? blockEvents : [eventToUse];
+    }
+
+    // Process each event in the block
+    const processedEvents: Event[] = [];
+    const conflicts: { event: Event; conflicts: string[] }[] = [];
+    const swappedOutEvents: Event[] = [];
+
+    for (const event of eventsToMove) {
+      // Event currently occupying drop target (if any)
+      const occupyingEvent = eventData.find(e => {
+        if (e.daysOfWeek?.[0] !== targetDay || e.startTime !== event.startTime) return false;
+        if (!event.extendedProps) return true;
+        return (
+          e.extendedProps?.pnfId === event.extendedProps.pnfId &&
+          e.extendedProps?.trayectoId === event.extendedProps.trayectoId &&
+          e.extendedProps?.seccion === event.extendedProps.seccion
+        );
+      });
+
+      let resolvedStartTime = event.startTime;
+      let resolvedEndTime = event.endTime;
+      let swappedOutEvent: Event | null = null;
+
+      // If dropping over occupied slot, decide merge/swap behavior
+      if (occupyingEvent) {
+        if (isSameSubjectAndSection(occupyingEvent, event)) {
+          // Same subject/section: skip this event
+          continue;
+        } else {
+          // Different subject/section: swap
+          swappedOutEvent = occupyingEvent;
+        }
+      }
+
+      // Create new event with updated day/time
+      const newEvent: Event = {
+        ...event,
+        daysOfWeek: [targetDay],
+        startTime: resolvedStartTime,
+        endTime: resolvedEndTime,
+      };
+
+      // Check conflicts for this event
+      const eventConflicts = checkEventConflicts(newEvent, targetDay, resolvedStartTime);
+      if (eventConflicts.length > 0) {
+        conflicts.push({ event: newEvent, conflicts: eventConflicts });
+      }
+
+      processedEvents.push(newEvent);
+      if (swappedOutEvent) {
+        swappedOutEvents.push(swappedOutEvent);
+      }
+    }
+
+    if (processedEvents.length === 0) {
+      message.warning("No hay eventos válidos para mover en este bloque");
+      return;
+    }
+
+    // Check if any events have conflicts
+    if (conflicts.length > 0) {
+      Modal.warning({
+        title: "Conflictos al Mover Bloque",
+        content: (
+          <div>
+            <p>No se puede mover el bloque completo porque algunas horas están ocupadas:</p>
+            <div style={{ maxHeight: '250px', overflowY: 'auto', margin: '10px 0' }}>
+              {conflicts.map(({ event: conflictEvent, conflicts: eventConflicts }, index) => (
+                <div key={index} style={{ marginBottom: '10px', padding: '8px', backgroundColor: '#fff2f0', borderRadius: '4px' }}>
+                  <strong>{conflictEvent.title} - {conflictEvent.startTime}</strong>
+                  <ul style={{ margin: '5px 0', paddingLeft: '15px', fontSize: '12px' }}>
+                    {eventConflicts.map((conflict, conflictIndex) => (
+                      <li key={conflictIndex}>{conflict}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <p>Por favor, resuelve los conflictos manualmente o arrastra a celdas disponibles.</p>
+          </div>
+        ),
+        width: 600,
+        okText: "Entendido"
+      });
+      return;
+    }
+
+    // Remove all events from staging
+    const eventsToMoveIds = new Set(eventsToMove.map(e => getEventId(e)));
+    setStagedEvents(prev => {
+      const filtered = prev.filter(e => !eventsToMoveIds.has(getEventId(e)));
+      // Add swapped out events to staging
+      const swappedIds = new Set(swappedOutEvents.map(e => getEventId(e)));
+      const toAppend = swappedOutEvents.filter(e => !filtered.some(f => getEventId(f) === getEventId(e)));
+      return [...filtered, ...toAppend];
     });
 
-    let resolvedStartTime = targetStartTime;
-    let resolvedEndTime = targetEndTime;
-    let swappedOutEvent: Event | null = null;
+    // Add all new events to schedule and remove swapped-out events
+    setEventData(prev => {
+      let updated = prev.filter(e => !eventsToMoveIds.has(getEventId(e)));
+      const swappedIds = new Set(swappedOutEvents.map(e => getEventId(e)));
+      updated = updated.filter(e => !swappedIds.has(getEventId(e)));
+      return [...updated, ...processedEvents];
+    });
 
-    // If dropping over occupied slot, decide merge/swap behavior
-    if (occupyingEvent) {
-      if (isSameSubjectAndSection(occupyingEvent, eventToUse)) {
-        // Same subject/section: try to extend contiguous block if possible
-        const sameBlockEvents = eventData.filter(
-          e => e.daysOfWeek?.[0] === targetDay && isSameSubjectAndSection(e, eventToUse)
-        );
+    // Track locked section saves for all events
+    processedEvents.forEach(event => {
+      enqueueLockedSectionSaveFromEvents(event, null);
+    });
+    swappedOutEvents.forEach(event => {
+      enqueueLockedSectionSaveFromEvents(null, event);
+    });
 
-        const blockIndexes = sameBlockEvents
-          .map(e => tableSlots.findIndex(s => s[0] === e.startTime))
-          .filter(i => i >= 0);
+    // Show success message
+    if (swappedOutEvents.length > 0) {
+      message.success(`Bloque reubicado con ${swappedOutEvents.length} intercambio(s) (${processedEvents.length} eventos)`);
+    } else {
+      message.success(`Bloque reubicado en el horario (${processedEvents.length} eventos)`);
+    }
 
-        if (blockIndexes.length > 0) {
-          const minIdx = Math.min(...blockIndexes);
-          const maxIdx = Math.max(...blockIndexes);
-          const occupiedStarts = new Set(
-            eventData
-              .filter(e => e.daysOfWeek?.[0] === targetDay)
-              .map(e => e.startTime)
-          );
+    setDraggingFromStaging(null);
+  };
 
           const canPlaceAtIndex = (idx: number) =>
             idx >= 0 && idx < tableSlots.length && !occupiedStarts.has(tableSlots[idx][0]);
@@ -4152,9 +4276,7 @@ const SchoolSchedule: React.FC = () => {
           <StagingArea
             stagedEvents={stagedEvents}
             subjectColors={subjectColors}
-            selectedEventId={selectedStagedEventId}
-            onSelectEvent={setSelectedStagedEventId}
-            onRemoveFromStaging={removeFromStaging}
+            onRemoveGroupFromStaging={removeGroupFromStaging}
             onClearAll={clearAllStaged}
             onConfirmChanges={handleConfirmStagingChanges}
             confirmLoading={confirmStagingLoading}
