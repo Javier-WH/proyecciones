@@ -354,6 +354,15 @@ const SchoolSchedule: React.FC = () => {
     message.info(`Bloque movido al área de depósito (${eventsToMove.length} hora(s))`);
   };
 
+  // Handle drop from schedule onto staging area
+  const handleDropFromSchedule = (event: Event) => {
+    if (!isOfficialStageMode) {
+      message.warning("El modo de depósito solo está disponible en modo oficial");
+      return;
+    }
+    moveEventToStaging(event);
+  };
+
   const removeFromStaging = (event: Event) => {
     const eventId = getEventId(event);
     setStagedEvents(prev => prev.filter(e => getEventId(e) !== eventId));
@@ -4003,6 +4012,7 @@ const SchoolSchedule: React.FC = () => {
             onClose={() => setIsOfficialStageMode(false)}
             onDragStart={(event) => setDraggingFromStaging(event)}
             onDragEnd={() => setDraggingFromStaging(null)}
+            onDropFromSchedule={handleDropFromSchedule}
           />
         </div>
       )}

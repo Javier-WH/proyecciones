@@ -15,6 +15,7 @@ interface StagingAreaProps {
   onClose: () => void;
   onDragStart?: (event: Event) => void;
   onDragEnd?: () => void;
+  onDropFromSchedule?: (event: Event) => void;
   confirmLoading?: boolean;
 }
 
@@ -34,6 +35,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
   onClose,
   onDragStart,
   onDragEnd,
+  onDropFromSchedule,
   confirmLoading = false,
 }) => {
   const dayNames = ['', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -57,8 +59,44 @@ const StagingArea: React.FC<StagingAreaProps> = ({
     return text.substring(0, maxLength) + '...';
   };
 
+  // Handle drag over for the entire staging area
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  // Handle drop from schedule onto staging area
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    // Check if this is a drop from the schedule (not from staging area itself)
+    const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
+    const isScheduleEvent = e.dataTransfer.types.includes("application/schedule-event");
+    
+    if (isStagedEvent) {
+      return; // Ignore drops from staging area to itself
+    }
+    
+    if (!isScheduleEvent) {
+      return; // Only accept drops from schedule
+    }
+
+    try {
+      const eventData = JSON.parse(e.dataTransfer.getData("text/plain"));
+      if (eventData && onDropFromSchedule) {
+        onDropFromSchedule(eventData);
+      }
+    } catch (error) {
+      console.error("Error parsing dropped event data:", error);
+    }
+  };
+
   return (
-    <div className={styles.stagingArea}>
+    <div 
+      className={styles.stagingArea}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <div className={styles.header}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <h3 className={styles.title}>
@@ -78,7 +116,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
           />
         </div>
         <p className={styles.subtitle}>
-          Haz clic en un evento del horario para moverlo aquí
+          Haz clic o arrastra eventos del horario para moverlos aquí
         </p>
         <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
           <Button
@@ -108,7 +146,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
               <span className={styles.emptyText}>
-                Haz clic en eventos del horario para guardarlos aquí temporalmente y reubicarlos
+                Haz clic o arrastra eventos del horario para guardarlos aquí temporalmente y reubicarlos
               </span>
             }
           />
