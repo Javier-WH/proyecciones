@@ -739,32 +739,20 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
 
-    // Check if any events have conflicts
+    // Check if any events have conflicts - allow movement but show visual indicators
     if (conflicts.length > 0) {
-      Modal.warning({
-        title: "Conflictos al Mover Bloque",
-        content: (
-          <div>
-            <p>No se puede mover el bloque completo porque algunas horas están ocupadas:</p>
-            <div style={{ maxHeight: '250px', overflowY: 'auto', margin: '10px 0' }}>
-              {conflicts.map(({ event: conflictEvent, conflicts: eventConflicts }, index) => (
-                <div key={index} style={{ marginBottom: '10px', padding: '8px', backgroundColor: '#fff2f0', borderRadius: '4px' }}>
-                  <strong>{conflictEvent.title} - {conflictEvent.startTime}</strong>
-                  <ul style={{ margin: '5px 0', paddingLeft: '15px', fontSize: '12px' }}>
-                    {eventConflicts.map((conflict, conflictIndex) => (
-                      <li key={conflictIndex}>{conflict}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-            <p>Por favor, resuelve los conflictos manualmente o arrastra a celdas disponibles.</p>
-          </div>
-        ),
-        width: 600,
-        okText: "Entendido"
+      // Update conflict visual indicators for events with conflicts
+      setEventsWithConflicts(prev => {
+        const updated = { ...prev };
+        conflicts.forEach(({ event: conflictEvent, conflicts: eventConflicts }) => {
+          updated[getEventId(conflictEvent)] = eventConflicts;
+        });
+        return updated;
       });
-      return;
+      
+      message.warning(`Bloque reubicado con ${conflicts.length} conflicto(s) (${processedEvents.length} eventos)`);
+    } else {
+      message.success(`Bloque reubicado en el horario (${processedEvents.length} eventos)`);
     }
 
     // Remove all events from staging
