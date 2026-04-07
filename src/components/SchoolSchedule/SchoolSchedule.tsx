@@ -802,45 +802,114 @@ const SchoolSchedule: React.FC = () => {
   };
 
   // Handle drop between schedule cells (in official stage mode)
-  const handleDropBetweenCells = (targetDay: number, targetStartTime: string, targetEndTime: string, sourceEvent: Event) => {
-    const oldEventId = getEventId(sourceEvent);
-    
-    // Create new event with updated day/time
-    const newEvent: Event = {
-      ...sourceEvent,
-      daysOfWeek: [targetDay],
-      startTime: targetStartTime,
-      endTime: targetEndTime,
+  const handleDropBetweenCells = (targetDay: number, targetStartTime: string, _targetEndTime: string, sourceEvent: Event) => {
+    const sourceDay = sourceEvent.daysOfWeek?.[0];
+    const subjectId = sourceEvent.extendedProps?.subjectId;
+    const seccion = sourceEvent.extendedProps?.seccion;
+
+    // Use != null to allow falsy values like 0 or "0", and String() for type-safe comparison
+    const hasRequiredProps = sourceDay != null && subjectId != null && seccion != null;
+
+    // Find ALL individual events in eventData that belong to this block
+    // (same subject, section, and day). This captures the full block including gaps.
+    // Use String() coercion to avoid type mismatches (number vs string)
+    const blockEvents = hasRequiredProps
+      ? eventData.filter(e =>
+          String(e.daysOfWeek?.[0]) === String(sourceDay) &&
+          String(e.extendedProps?.subjectId) === String(subjectId) &&
+          String(e.extendedProps?.seccion) === String(seccion)
+        ).sort((a, b) => a.startTime.localeCompare(b.startTime))
+      : [];
+
+    // Fallback: if we can't find block events, move only the dragged event
+    if (blockEvents.length === 0) {
+      const oldId = getEventId(sourceEvent);
+      const newEvent: Event = { ...sourceEvent, daysOfWeek: [targetDay], startTime: targetStartTime, endTime: _targetEndTime };
+      setEventData(prev => [...prev.filter(e => getEventId(e) !== oldId), newEvent]);
+      enqueueLockedSectionSaveFromEvents(newEvent);
+      message.success("Evento movido correctamente");
+      return;
+    }
+
+    // Build a map from slot start time to slot index for fast lookup
+    const slotStartToIndex = new Map<string, number>();
+    tableSlots.forEach((s, idx) => slotStartToIndex.set(s[0], idx));
+
+    // Helper: find the slot index for a given time (exact match or nearest)
+    const findSlotIndex = (time: string): number => {
+      const exact = slotStartToIndex.get(time);
+      if (exact != null) return exact;
+      // Find nearest slot by time proximity
+      const [h, m] = time.split(':').map(Number);
+      const minutes = h * 60 + m;
+      let bestIdx = 0;
+      let bestDiff = Infinity;
+      for (let i = 0; i < tableSlots.length; i++) {
+        const [sh, sm] = tableSlots[i][0].split(':').map(Number);
+        const diff = Math.abs(sh * 60 + sm - minutes);
+        if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+      }
+      return bestIdx;
     };
 
-    // Check for conflicts (excluding the source event itself)
-    const conflicts = checkEventConflicts(newEvent, targetDay, targetStartTime);
-    
-    // Remove old event from eventData and add new one
-    setEventData(prev => {
-      const filtered = prev.filter(e => getEventId(e) !== oldEventId);
-      return [...filtered, newEvent];
-    });
-    enqueueLockedSectionSaveFromEvents(newEvent);
+    // Calculate slot-based offset (preserves alignment with table slots)
+    const sourceSlotIdx = findSlotIndex(sourceEvent.startTime);
+    const targetSlotIdx = findSlotIndex(targetStartTime);
+    const slotOffset = targetSlotIdx - sourceSlotIdx;
 
-    // Remove old conflict entry if exists
-    const newEventId = getEventId(newEvent);
-    if (conflicts.length > 0) {
-      setEventsWithConflicts(prev => {
-        const newConflicts = { ...prev };
-        delete newConflicts[oldEventId];
-        newConflicts[newEventId] = conflicts;
-        return newConflicts;
+    // Build new events by applying slot offset to each individual event
+    const oldIds = new Set(blockEvents.map(e => getEventId(e)));
+    const newEvents: Event[] = [];
+    for (const ev of blockEvents) {
+      const evStartIdx = findSlotIndex(ev.startTime);
+      const newStartIdx = evStartIdx + slotOffset;
+
+      // Find the end slot index for this event
+      const evEndIdx = tableSlots.findIndex(s => s[1] === ev.endTime);
+      const newEndIdx = (evEndIdx >= 0 ? evEndIdx : evStartIdx) + slotOffset;
+
+      // Validate new indices are within bounds
+      if (newStartIdx < 0 || newStartIdx >= tableSlots.length || newEndIdx < 0 || newEndIdx >= tableSlots.length) {
+        message.error(`No se puede mover el bloque: quedaría fuera del horario`);
+        return;
+      }
+
+      newEvents.push({
+        ...ev,
+        daysOfWeek: [targetDay],
+        startTime: tableSlots[newStartIdx][0],
+        endTime: tableSlots[newEndIdx][1],
+        extendedProps: {
+          ...ev.extendedProps,
+          blockId: `${targetDay}-${subjectId}`,
+        },
       });
-      message.warning(`Evento movido con ${conflicts.length} conflicto(s)`);
+    }
+
+    // Check conflicts for each new event (excluding the block's own old events)
+    const eventsToCheck = eventData.filter(e => !oldIds.has(getEventId(e)));
+    const allConflicts: { event: Event; conflicts: string[] }[] = [];
+    for (const newEv of newEvents) {
+      const c = checkEventConflicts(newEv, targetDay, newEv.startTime, eventsToCheck);
+      if (c.length > 0) allConflicts.push({ event: newEv, conflicts: c });
+    }
+
+    // Apply the move: remove old events, add new ones
+    setEventData(prev => [...prev.filter(e => !oldIds.has(getEventId(e))), ...newEvents]);
+    newEvents.forEach(ev => enqueueLockedSectionSaveFromEvents(ev));
+
+    // Update conflict visual indicators
+    setEventsWithConflicts(prev => {
+      const updated = { ...prev };
+      oldIds.forEach(id => delete updated[id]);
+      allConflicts.forEach(({ event: ev, conflicts: c }) => { updated[getEventId(ev)] = c; });
+      return updated;
+    });
+
+    if (allConflicts.length > 0) {
+      message.warning(`Bloque movido con ${allConflicts.length} conflicto(s) (${newEvents.length} horas)`);
     } else {
-      setEventsWithConflicts(prev => {
-        const newConflicts = { ...prev };
-        delete newConflicts[oldEventId];
-        delete newConflicts[newEventId];
-        return newConflicts;
-      });
-      message.success("Evento movido correctamente");
+      message.success(`Bloque movido correctamente (${newEvents.length} horas)`);
     }
   };
 
