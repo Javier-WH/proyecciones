@@ -150,13 +150,26 @@ const StagingArea: React.FC<StagingAreaProps> = ({
           <div className={styles.eventsList}>
             {Object.entries(groupedEvents).map(([subjectId, group]) => (
               <div key={subjectId} className={styles.subjectGroup}>
-                <div 
+                <div
                   className={styles.subjectHeader}
-                  style={{ 
-                    backgroundColor: subjectColors?.[group.pnfId || ''] 
-                      ? `${subjectColors[group.pnfId || '']}20` 
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    // Store all events in the group for block drag
+                    e.dataTransfer.setData("text/plain", JSON.stringify(group.events));
+                    e.dataTransfer.setData("application/staged-event", "true");
+                    e.dataTransfer.setData("application/staged-block", "true"); // Indicate this is a block drag
+                    onDragStart?.(group.events[0]); // Pass first event for compatibility
+                  }}
+                  onDragEnd={() => {
+                    onDragEnd?.();
+                  }}
+                  style={{
+                    backgroundColor: subjectColors?.[group.pnfId || '']
+                      ? `${subjectColors[group.pnfId || '']}20`
                       : '#f5f5f5',
-                    borderLeft: `3px solid ${subjectColors?.[group.pnfId || ''] || '#1890ff'}`
+                    borderLeft: `3px solid ${subjectColors?.[group.pnfId || ''] || '#1890ff'}`,
+                    cursor: 'grab',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
@@ -165,12 +178,15 @@ const StagingArea: React.FC<StagingAreaProps> = ({
                       <Badge count={group.events.length} style={{ backgroundColor: '#8c8c8c' }} />
                     </div>
                     <Tooltip title={`Devolver toda la materia (${group.events.length} hora(s))`}>
-                      <Button 
-                        type="text" 
-                        size="small" 
+                      <Button
+                        type="text"
+                        size="small"
                         icon={<ArrowLeftOutlined />}
                         style={{ color: '#52c41a' }}
-                        onClick={() => onRemoveGroupFromStaging(group.events)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent drag when clicking button
+                          onRemoveGroupFromStaging(group.events);
+                        }}
                       />
                     </Tooltip>
                   </div>

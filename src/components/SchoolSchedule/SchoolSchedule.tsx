@@ -641,75 +641,31 @@ const SchoolSchedule: React.FC = () => {
   // Handle drop from staging area to schedule
   const handleDropFromStaging = (
     targetDay: number,
-    _targetStartTime: string,
+    targetStartTime: string,
     _targetEndTime: string,
-    eventFromDrop?: Event,
-    _targetOccupyingEvent?: Event
+    eventFromDrop?: Event | Event[],
+    _targetOccupyingEvent?: Event,
+    isBlockDrag?: boolean
   ) => {
-    const eventToUse = eventFromDrop || draggingFromStaging;
+    // Handle block drag from staging header (array of events)
+    if (isBlockDrag && Array.isArray(eventFromDrop) && eventFromDrop.length > 0) {
+      const eventsToMove = eventFromDrop;
+      processStagingDrop(targetDay, targetStartTime, eventsToMove);
+      return;
+    }
+
+    // Handle individual event drag
+    const eventToUse = Array.isArray(eventFromDrop) ? eventFromDrop[0] : (eventFromDrop || draggingFromStaging);
     if (!eventToUse) return;
 
+    // For individual drag, only move the single event (no block detection)
+    processStagingDrop(targetDay, targetStartTime, [eventToUse]);
+  };
+
+  const processStagingDrop = (targetDay: number, _targetStartTime: string, eventsToMove: Event[]) => {
     const isSameSubjectAndSection = (a: Event, b: Event) =>
       String(a.extendedProps?.subjectId) === String(b.extendedProps?.subjectId) &&
       String(a.extendedProps?.seccion) === String(b.extendedProps?.seccion);
-
-    // Enhanced block detection for staging events (same logic as moveEventToStaging)
-    const day = eventToUse.daysOfWeek?.[0];
-    const subjectId = eventToUse.extendedProps?.subjectId;
-    const seccion = eventToUse.extendedProps?.seccion;
-
-    let eventsToMove = [eventToUse]; // Default to single event
-
-    const hasRequiredProps = day != null && subjectId != null && seccion != null;
-    if (hasRequiredProps) {
-      // Find all related events in staging (use String() to avoid type mismatches)
-      const allSubjectStagedEvents = getStagingEvents(eventData).filter(e =>
-        String(e.daysOfWeek?.[0]) === String(day) &&
-        String(e.extendedProps?.subjectId) === String(subjectId) &&
-        String(e.extendedProps?.seccion) === String(seccion)
-      );
-
-      // Sort events by start time
-      allSubjectStagedEvents.sort((a, b) => a.startTime.localeCompare(b.startTime));
-
-      // Find the block that contains the current event
-      const eventIndex = allSubjectStagedEvents.findIndex(e => getEventId(e) === getEventId(eventToUse));
-      
-      // Find all consecutive events (including gaps) that form a block
-      const blockEvents = [eventToUse];
-      
-      // Look backward for consecutive events
-      for (let i = eventIndex - 1; i >= 0; i--) {
-        const prevEvent = allSubjectStagedEvents[i];
-        const prevEndTime = prevEvent.endTime;
-        const currentStartTime = blockEvents[0].startTime;
-        
-        // Check if events are reasonably close (within 30 minutes gap)
-        const timeDiff = getTimeDifferenceInMinutes(prevEndTime, currentStartTime);
-        if (timeDiff <= 30) {
-          blockEvents.unshift(prevEvent);
-        } else {
-          break; // Gap too large, stop looking backward
-        }
-      }
-      
-      // Look forward for consecutive events
-      for (let i = eventIndex + 1; i < allSubjectStagedEvents.length; i++) {
-        const nextEvent = allSubjectStagedEvents[i];
-        const currentEndTime = blockEvents[blockEvents.length - 1].endTime;
-        const nextStartTime = nextEvent.startTime;
-        
-        // Check if events are reasonably close (within 30 minutes gap)
-        const timeDiff = getTimeDifferenceInMinutes(currentEndTime, nextStartTime);
-        if (timeDiff <= 30) {
-          blockEvents.push(nextEvent);
-        } else {
-          break; // Gap too large, stop looking forward
-        }
-      }
-
-      eventsToMove = blockEvents.length > 1 ? blockEvents : [eventToUse];
-    }
 
     // Process each event in the block
     const processedEvents: Event[] = [];
@@ -3625,12 +3581,14 @@ const SchoolSchedule: React.FC = () => {
                                             extendedProps: cell.extendedProps
                                           };
                                           const eventDataStr = e.dataTransfer.getData("text/plain");
+                                          const isBlockDrag = e.dataTransfer.types.includes("application/staged-block");
                                           try {
-                                            const eventFromDrop = JSON.parse(eventDataStr) as Event;
-                                            handleDropFromStaging(day, slot[0], slot[1], eventFromDrop, targetCellEvent);
+                                            const parsedData = JSON.parse(eventDataStr);
+                                            const eventFromDrop = Array.isArray(parsedData) ? parsedData as Event[] : parsedData as Event;
+                                            handleDropFromStaging(day, slot[0], slot[1], eventFromDrop, targetCellEvent, isBlockDrag);
                                           } catch {
                                             if (draggingFromStaging) {
-                                              handleDropFromStaging(day, slot[0], slot[1], draggingFromStaging, targetCellEvent);
+                                              handleDropFromStaging(day, slot[0], slot[1], draggingFromStaging, targetCellEvent, false);
                                             }
                                           }
                                           return;
@@ -3845,13 +3803,15 @@ const SchoolSchedule: React.FC = () => {
                                         if (isStagedEvent) {
                                           // Get event data from dataTransfer
                                           const eventDataStr = e.dataTransfer.getData("text/plain");
+                                          const isBlockDrag = e.dataTransfer.types.includes("application/staged-block");
                                           try {
-                                            const eventFromDrop = JSON.parse(eventDataStr) as Event;
-                                            handleDropFromStaging(day, slot[0], slot[1], eventFromDrop);
+                                            const parsedData = JSON.parse(eventDataStr);
+                                            const eventFromDrop = Array.isArray(parsedData) ? parsedData as Event[] : parsedData as Event;
+                                            handleDropFromStaging(day, slot[0], slot[1], eventFromDrop, undefined, isBlockDrag);
                                           } catch {
                                             // Fallback to draggingFromStaging state
                                             if (draggingFromStaging) {
-                                              handleDropFromStaging(day, slot[0], slot[1], draggingFromStaging);
+                                              handleDropFromStaging(day, slot[0], slot[1], draggingFromStaging, undefined, false);
                                             }
                                           }
                                           return;
