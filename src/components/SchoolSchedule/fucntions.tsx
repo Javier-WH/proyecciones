@@ -32,6 +32,7 @@ export interface Event {
     pnfName: string;
     turnName: string;
     blockId: string;
+    location?: 'schedule' | 'staging'; // Ubicación del evento: horario o depósito
   };
 }
 

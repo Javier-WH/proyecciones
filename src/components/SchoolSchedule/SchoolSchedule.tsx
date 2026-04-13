@@ -166,9 +166,8 @@ const SchoolSchedule: React.FC = () => {
   const [frozenPnfFilter, setFrozenPnfFilter] = useState<string[]>([]);
   const [frozenModalTab, setFrozenModalTab] = useState<"q1" | "q2" | "q3">("q1");
   const [isStageManagerOpen, setIsStageManagerOpen] = useState(false);
-  
+
   // Staging area state for official stage
-  const [stagedEvents, setStagedEvents] = useState<Event[]>([]);
   const [isOfficialStageMode, setIsOfficialStageMode] = useState(false);
   const [draggingFromStaging, setDraggingFromStaging] = useState<Event | null>(null);
   const [confirmStagingLoading, setConfirmStagingLoading] = useState(false);
@@ -210,8 +209,8 @@ const SchoolSchedule: React.FC = () => {
     } else {
       setLockedSections((prev: any) => {
         const newObj = { ...prev };
-        // Collect unmerged events for this section
-        const sectionEvents = eventData.filter(e =>
+        // Collect unmerged events for this section (only schedule events)
+        const sectionEvents = getScheduleEvents(eventData).filter(e =>
           e.extendedProps.pnfId === pnfId &&
           e.extendedProps.trayectoId === trayId &&
           e.extendedProps.seccion === sec
@@ -260,7 +259,7 @@ const SchoolSchedule: React.FC = () => {
 
     const persistQueuedSections = async () => {
       for (const section of queue) {
-        const sectionEvents = eventData.filter(e =>
+        const sectionEvents = getScheduleEvents(eventData).filter(e =>
           e.extendedProps?.pnfId === section.pnfId &&
           e.extendedProps?.trayectoId === section.trayectoId &&
           e.extendedProps?.seccion === section.seccion
@@ -296,6 +295,13 @@ const SchoolSchedule: React.FC = () => {
     return `${event.extendedProps?.subjectId}-${event.extendedProps?.seccion}-${event.daysOfWeek?.[0]}-${event.startTime}`;
   };
 
+  // Helpers for filtering events by location (schedule vs staging)
+  const getScheduleEvents = (events: Event[]): Event[] =>
+    events.filter(e => e.extendedProps?.location !== 'staging');
+
+  const getStagingEvents = (events: Event[]): Event[] =>
+    events.filter(e => e.extendedProps?.location === 'staging');
+
   const moveEventToStaging = (event: Event) => {
     if (!isOfficialStageMode) return;
 
@@ -305,18 +311,23 @@ const SchoolSchedule: React.FC = () => {
 
     if (!day || !subjectId || !seccion) {
       const singleEventId = getEventId(event);
-      if (stagedEvents.some(e => getEventId(e) === singleEventId)) {
+      if (getStagingEvents(eventData).some(e => getEventId(e) === singleEventId)) {
         message.warning("Este evento ya está en el área de depósito");
         return;
       }
-      setStagedEvents(prev => [...prev, event]);
-      setEventData(prev => prev.filter(e => getEventId(e) !== singleEventId));
+      // Change location to 'staging' instead of moving between arrays
+      setEventData(prev => prev.map(e => {
+        if (getEventId(e) === singleEventId) {
+          return { ...e, extendedProps: { ...e.extendedProps, location: 'staging' as const } };
+        }
+        return e;
+      }));
       message.info("Evento movido al área de depósito");
       return;
     }
 
     // Enhanced block detection that handles gaps
-    const allSubjectEvents = eventData.filter(e =>
+    const allSubjectEvents = getScheduleEvents(eventData).filter(e =>
       e.daysOfWeek?.[0] === day &&
       e.extendedProps?.subjectId === subjectId &&
       e.extendedProps?.seccion === seccion
@@ -365,20 +376,20 @@ const SchoolSchedule: React.FC = () => {
     const eventsToMoveIds = new Set(eventsToMove.map(e => getEventId(e)));
 
     const allAlreadyStaged = eventsToMove.every(e =>
-      stagedEvents.some(se => getEventId(se) === getEventId(e))
+      getStagingEvents(eventData).some(se => getEventId(se) === getEventId(e))
     );
     if (allAlreadyStaged) {
       message.warning("Este bloque ya está en el área de depósito");
       return;
     }
 
-    setStagedEvents(prev => {
-      const prevIds = new Set(prev.map(e => getEventId(e)));
-      const toAppend = eventsToMove.filter(e => !prevIds.has(getEventId(e)));
-      return [...prev, ...toAppend];
-    });
-
-    setEventData(prev => prev.filter(e => !eventsToMoveIds.has(getEventId(e))));
+    // Change location to 'staging' instead of moving between arrays
+    setEventData(prev => prev.map(e => {
+      if (eventsToMoveIds.has(getEventId(e))) {
+        return { ...e, extendedProps: { ...e.extendedProps, location: 'staging' as const } };
+      }
+      return e;
+    }));
     message.info(`Bloque movido al área de depósito (${eventsToMove.length} hora(s))`);
   };
 
@@ -454,18 +465,28 @@ const SchoolSchedule: React.FC = () => {
 
     // If no conflicts, proceed with removal of the entire group
     const eventsToReturnIds = new Set(events.map(e => getEventId(e)));
-    setStagedEvents(prev => prev.filter(e => !eventsToReturnIds.has(getEventId(e))));
-    setEventData(prev => [...prev, ...events]);
+    // Change location to 'schedule' instead of moving between arrays
+    setEventData(prev => {
+      // Change location to 'schedule' for events being returned
+      const updated = prev.map(e => {
+        if (eventsToReturnIds.has(getEventId(e))) {
+          return { ...e, extendedProps: { ...e.extendedProps, location: 'schedule' as const } };
+        }
+        return e;
+      });
+      return updated;
+    });
     message.info(`Materia devuelta al horario (${events.length} hora(s))`);
   };
 
   const clearAllStaged = () => {
-    if (stagedEvents.length === 0) return;
+    const currentStagedEvents = getStagingEvents(eventData);
+    if (currentStagedEvents.length === 0) return;
     
     // Check for conflicts in all staged events
     const conflictsByEvent: { event: Event; conflicts: string[] }[] = [];
     
-    for (const event of stagedEvents) {
+    for (const event of currentStagedEvents) {
       const targetDay = event.daysOfWeek?.[0];
       const targetStartTime = event.startTime;
       
@@ -508,12 +529,20 @@ const SchoolSchedule: React.FC = () => {
     // If no conflicts, proceed with confirmation
     Modal.confirm({
       title: "¿Limpiar área de depósito?",
-      content: `Se devolverán ${stagedEvents.length} eventos al horario.`,
+      content: `Se devolverán ${currentStagedEvents.length} eventos al horario.`,
       okText: "Sí, devolver todos",
       cancelText: "Cancelar",
       onOk: () => {
-        setEventData(prev => [...prev, ...stagedEvents]);
-        setStagedEvents([]);
+        // Change location to 'schedule' for all staged events
+        setEventData(prev => {
+          const updated = prev.map(e => {
+            if (e.extendedProps?.location === 'staging') {
+              return { ...e, extendedProps: { ...e.extendedProps, location: 'schedule' as const } };
+            }
+            return e;
+          });
+          return updated;
+        });
         message.success("Todos los eventos devueltos al horario");
       }
     });
@@ -550,7 +579,6 @@ const SchoolSchedule: React.FC = () => {
         [sectionKey]: sectionEvents,
       }));
 
-      setStagedEvents([]);
       setDraggingFromStaging(null);
       setIsOfficialStageMode(false);
       message.success("Cambios confirmados y guardados correctamente");
@@ -563,7 +591,7 @@ const SchoolSchedule: React.FC = () => {
   };
 
   // Check conflicts for an event at a specific position
-  const checkEventConflicts = (event: Event, targetDay: number, targetStartTime: string, eventsToCheck: Event[] = eventData): string[] => {
+  const checkEventConflicts = (event: Event, targetDay: number, targetStartTime: string, eventsToCheck: Event[] = getScheduleEvents(eventData)): string[] => {
     const conflicts: string[] = [];
     const props = event.extendedProps;
     if (!props) return conflicts;
@@ -622,8 +650,8 @@ const SchoolSchedule: React.FC = () => {
     if (!eventToUse) return;
 
     const isSameSubjectAndSection = (a: Event, b: Event) =>
-      a.extendedProps?.subjectId === b.extendedProps?.subjectId &&
-      a.extendedProps?.seccion === b.extendedProps?.seccion;
+      String(a.extendedProps?.subjectId) === String(b.extendedProps?.subjectId) &&
+      String(a.extendedProps?.seccion) === String(b.extendedProps?.seccion);
 
     // Enhanced block detection for staging events (same logic as moveEventToStaging)
     const day = eventToUse.daysOfWeek?.[0];
@@ -632,12 +660,13 @@ const SchoolSchedule: React.FC = () => {
 
     let eventsToMove = [eventToUse]; // Default to single event
 
-    if (day && subjectId && seccion) {
-      // Find all related events in staging
-      const allSubjectStagedEvents = stagedEvents.filter(e =>
-        e.daysOfWeek?.[0] === day &&
-        e.extendedProps?.subjectId === subjectId &&
-        e.extendedProps?.seccion === seccion
+    const hasRequiredProps = day != null && subjectId != null && seccion != null;
+    if (hasRequiredProps) {
+      // Find all related events in staging (use String() to avoid type mismatches)
+      const allSubjectStagedEvents = getStagingEvents(eventData).filter(e =>
+        String(e.daysOfWeek?.[0]) === String(day) &&
+        String(e.extendedProps?.subjectId) === String(subjectId) &&
+        String(e.extendedProps?.seccion) === String(seccion)
       );
 
       // Sort events by start time
@@ -688,14 +717,14 @@ const SchoolSchedule: React.FC = () => {
     const swappedOutEvents: Event[] = [];
 
     for (const event of eventsToMove) {
-      // Event currently occupying drop target (if any)
-      const occupyingEvent = eventData.find(e => {
-        if (e.daysOfWeek?.[0] !== targetDay || e.startTime !== event.startTime) return false;
+      // Event currently occupying drop target (if any) - only check schedule events
+      const occupyingEvent = getScheduleEvents(eventData).find(e => {
+        if (String(e.daysOfWeek?.[0]) !== String(targetDay) || e.startTime !== event.startTime) return false;
         if (!event.extendedProps) return true;
         return (
-          e.extendedProps?.pnfId === event.extendedProps.pnfId &&
-          e.extendedProps?.trayectoId === event.extendedProps.trayectoId &&
-          e.extendedProps?.seccion === event.extendedProps.seccion
+          String(e.extendedProps?.pnfId) === String(event.extendedProps.pnfId) &&
+          String(e.extendedProps?.trayectoId) === String(event.extendedProps.trayectoId) &&
+          String(e.extendedProps?.seccion) === String(event.extendedProps.seccion)
         );
       });
 
@@ -706,7 +735,7 @@ const SchoolSchedule: React.FC = () => {
       // If dropping over occupied slot, decide merge/swap behavior
       if (occupyingEvent) {
         if (isSameSubjectAndSection(occupyingEvent, event)) {
-          // Same subject/section: skip this event
+          // Same subject/section: skip this event (already in schedule)
           continue;
         } else {
           // Different subject/section: swap
@@ -755,20 +784,29 @@ const SchoolSchedule: React.FC = () => {
       message.success(`Bloque reubicado en el horario (${processedEvents.length} eventos)`);
     }
 
-    // Remove all events from staging
+    // Change location for all events being moved and swapped
     const eventsToMoveIds = new Set(eventsToMove.map(e => getEventId(e)));
-    setStagedEvents(prev => {
-      const filtered = prev.filter(e => !eventsToMoveIds.has(getEventId(e)));
-      // Add swapped out events to staging
-      const toAppend = swappedOutEvents.filter(e => !filtered.some(f => getEventId(f) === getEventId(e)));
-      return [...filtered, ...toAppend];
-    });
+    const swappedOutIds = new Set(swappedOutEvents.map(e => getEventId(e)));
 
-    // Add all new events to schedule and remove swapped-out events
     setEventData(prev => {
+      // Remove original events from staging by their IDs to prevent duplication
       let updated = prev.filter(e => !eventsToMoveIds.has(getEventId(e)));
-      updated = updated.filter(e => !swappedOutEvents.some(se => getEventId(se) === getEventId(e)));
-      return [...updated, ...processedEvents];
+
+      // Change location: swapped events to 'staging'
+      updated = updated.map(e => {
+        if (swappedOutIds.has(getEventId(e))) {
+          return { ...e, extendedProps: { ...e.extendedProps, location: 'staging' as const } };
+        }
+        return e;
+      });
+
+      // Add processed events with location: 'schedule'
+      const newEvents = processedEvents.map(e => ({
+        ...e,
+        extendedProps: { ...e.extendedProps, location: 'schedule' as const }
+      }));
+
+      return [...updated, ...newEvents];
     });
 
     // Track locked section saves for all events
@@ -778,13 +816,6 @@ const SchoolSchedule: React.FC = () => {
     swappedOutEvents.forEach(event => {
       enqueueLockedSectionSaveFromEvents(null, event);
     });
-
-    // Show success message
-    if (swappedOutEvents.length > 0) {
-      message.success(`Bloque reubicado con ${swappedOutEvents.length} intercambio(s) (${processedEvents.length} eventos)`);
-    } else {
-      message.success(`Bloque reubicado en el horario (${processedEvents.length} eventos)`);
-    }
 
     setDraggingFromStaging(null);
   };
@@ -798,11 +829,11 @@ const SchoolSchedule: React.FC = () => {
     // Use != null to allow falsy values like 0 or "0", and String() for type-safe comparison
     const hasRequiredProps = sourceDay != null && subjectId != null && seccion != null;
 
-    // Find ALL individual events in eventData that belong to this block
+    // Find ALL individual events in schedule that belong to this block
     // (same subject, section, and day). This captures the full block including gaps.
     // Use String() coercion to avoid type mismatches (number vs string)
     const blockEvents = hasRequiredProps
-      ? eventData.filter(e =>
+      ? getScheduleEvents(eventData).filter(e =>
           String(e.daysOfWeek?.[0]) === String(sourceDay) &&
           String(e.extendedProps?.subjectId) === String(subjectId) &&
           String(e.extendedProps?.seccion) === String(seccion)
@@ -1508,7 +1539,7 @@ const SchoolSchedule: React.FC = () => {
 
     const professorId = errorInfo.professorId || subject.quarter[trimestre] || null;
     const sectionKey = `${subject.pnfId} -${subject.trayectoId} -${subject.seccion} `;
-    const allEvents = [...loadedScheduleEvents, ...eventData];
+    const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData)];
     const hoursNeeded = errorInfo.totalHours || subject.hours[trimestre] || 0;
 
     if (hoursNeeded <= 0) {
@@ -1674,7 +1705,7 @@ const SchoolSchedule: React.FC = () => {
     }
 
     // Check if the new classroom is already occupied by another event
-    const allEventsForConflict = [...loadedScheduleEvents, ...eventData];
+    const allEventsForConflict = [...loadedScheduleEvents, ...getScheduleEvents(eventData)];
     const conflictingEvent = allEventsForConflict.find((evt) => {
       // Must be on the same day
       const sameDay = evt.daysOfWeek.includes(classroomChangeEvent.day);
@@ -1693,7 +1724,7 @@ const SchoolSchedule: React.FC = () => {
     });
 
     const applyClassroomChangeAndRecalculate = (returnFirstModifiedOnly = false) => {
-      const allEvents = [...loadedScheduleEvents, ...eventData];
+      const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData)];
 
       // Find the specific events we are modifying
       const modifiedEvents = allEvents
@@ -2318,8 +2349,8 @@ const SchoolSchedule: React.FC = () => {
           event.extendedProps.turnName.toLowerCase() === turn
       );
 
-      // Filtrar eventos generados con los mismos criterios
-      filteredGenerated = eventData.filter(
+      // Filtrar eventos generados con los mismos criterios (solo schedule events)
+      filteredGenerated = getScheduleEvents(eventData).filter(
         (event) =>
           event.extendedProps.pnfId === pnf &&
           event.extendedProps.seccion === seccion &&
@@ -2338,13 +2369,13 @@ const SchoolSchedule: React.FC = () => {
       filteredLoaded = loadedScheduleEvents.filter(
         (event) => !!event.extendedProps.professorId && targetTeacherIds.has(String(event.extendedProps.professorId))
       );
-      filteredGenerated = eventData.filter(
+      filteredGenerated = getScheduleEvents(eventData).filter(
         (event) => !!event.extendedProps.professorId && targetTeacherIds.has(String(event.extendedProps.professorId))
       );
     } else if (viewMode === "classroom") {
       // Mostrar todas las materias asignadas a algún aula
       filteredLoaded = loadedScheduleEvents.filter((event) => !!event.extendedProps?.classroomId);
-      filteredGenerated = eventData.filter((event) => !!event.extendedProps?.classroomId);
+      filteredGenerated = getScheduleEvents(eventData).filter((event) => !!event.extendedProps?.classroomId);
     }
 
     // Mergear solo los eventos generados (los cargados ya están mergeados)
@@ -2596,7 +2627,7 @@ const SchoolSchedule: React.FC = () => {
 
     const sourceStartIdx = tableSlots.findIndex(s => s[0] === sourceStartTime);
 
-    const allEvents = [...loadedScheduleEvents, ...eventData];
+    const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData)];
 
     // Identificar los eventos movidos y los slots de destino
     const movingEvents = allEvents.filter(evt => {
@@ -3550,15 +3581,19 @@ const SchoolSchedule: React.FC = () => {
                                         e.dataTransfer.effectAllowed = "move";
                                         // Store full event data for official stage mode
                                         if (isOfficialStageMode && cell.extendedProps) {
-                                          const eventData: Event = {
-                                            title: cell.title,
-                                            daysOfWeek: [day],
-                                            startTime: slot[0],
-                                            endTime: tableSlots[rowIndex + cell.rowSpan - 1]?.[1] || slot[1],
-                                            extendedProps: cell.extendedProps
-                                          };
-                                          e.dataTransfer.setData("text/plain", JSON.stringify(eventData));
-                                          e.dataTransfer.setData("application/schedule-event", "true");
+                                          // Find the real event in eventData instead of creating an artificial one
+                                          const realEvent = getScheduleEvents(eventData).find(ev =>
+                                            ev.daysOfWeek?.[0] === day &&
+                                            ev.startTime === slot[0] &&
+                                            ev.extendedProps?.subjectId === cell.extendedProps?.subjectId &&
+                                            ev.extendedProps?.seccion === cell.extendedProps?.seccion
+                                          );
+                                          if (realEvent) {
+                                            e.dataTransfer.setData("text/plain", JSON.stringify(realEvent));
+                                            e.dataTransfer.setData("application/schedule-event", "true");
+                                          } else {
+                                            e.dataTransfer.setData("text/plain", cell.title || "");
+                                          }
                                         } else {
                                           e.dataTransfer.setData("text/plain", cell.title || "");
                                         }
@@ -3708,14 +3743,18 @@ const SchoolSchedule: React.FC = () => {
                                                       onClick={(e) => {
                                                         e.stopPropagation();
                                                         if (cell.extendedProps) {
-                                                          const eventToStage: Event = {
-                                                            title: cell.title,
-                                                            daysOfWeek: [day],
-                                                            startTime: slot[0],
-                                                            endTime: tableSlots[rowIndex + cell.rowSpan - 1]?.[1] || slot[1],
-                                                            extendedProps: cell.extendedProps
-                                                          };
-                                                          moveEventToStaging(eventToStage);
+                                                          // Find the real event in eventData instead of creating an artificial one
+                                                          const realEvent = getScheduleEvents(eventData).find(ev =>
+                                                            ev.daysOfWeek?.[0] === day &&
+                                                            ev.startTime === slot[0] &&
+                                                            ev.extendedProps?.subjectId === cell.extendedProps?.subjectId &&
+                                                            ev.extendedProps?.seccion === cell.extendedProps?.seccion
+                                                          );
+                                                          if (realEvent) {
+                                                            moveEventToStaging(realEvent);
+                                                          } else {
+                                                            message.warning("No se encontró el evento en el horario");
+                                                          }
                                                         }
                                                       }}
                                                       style={{
@@ -3891,7 +3930,7 @@ const SchoolSchedule: React.FC = () => {
                                 backgroundColor: isOfficialStageMode ? "#722ed1" : undefined
                               }}
                             >
-                              Depósito{stagedEvents.length > 0 ? ` (${stagedEvents.length})` : ""}
+                              Depósito{getStagingEvents(eventData).length > 0 ? ` (${getStagingEvents(eventData).length})` : ""}
                             </Button>
                           </Tooltip>
                         )}
@@ -4252,7 +4291,7 @@ const SchoolSchedule: React.FC = () => {
           boxShadow: '-4px 0 20px rgba(0,0,0,0.15)'
         }}>
           <StagingArea
-            stagedEvents={stagedEvents}
+            stagedEvents={getStagingEvents(eventData)}
             subjectColors={subjectColors}
             onRemoveGroupFromStaging={removeGroupFromStaging}
             onClearAll={clearAllStaged}
