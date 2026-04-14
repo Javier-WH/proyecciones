@@ -1,8 +1,9 @@
 import React from 'react';
 import { Event } from './fucntions';
-import { Badge, Empty, Tooltip, Button } from 'antd';
-import { ClockCircleOutlined, EnvironmentOutlined, ArrowLeftOutlined, ClearOutlined, CloseOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Badge, Empty, Tooltip, Button, Tabs } from 'antd';
+import { ClockCircleOutlined, EnvironmentOutlined, ArrowLeftOutlined, ClearOutlined, CloseOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import styles from './StagingArea.module.css';
+import { scheduleError } from './ErrorsModal';
 
 interface StagingAreaProps {
   stagedEvents: Event[];
@@ -15,6 +16,7 @@ interface StagingAreaProps {
   onDragEnd?: () => void;
   onDropFromSchedule?: (event: Event) => void;
   confirmLoading?: boolean;
+  errors?: scheduleError[];
 }
 
 const getEventId = (event: Event): string => {
@@ -22,8 +24,8 @@ const getEventId = (event: Event): string => {
   return `${event.extendedProps?.subjectId}-${event.extendedProps?.seccion}-${event.daysOfWeek?.[0]}-${event.startTime}`;
 };
 
-const StagingArea: React.FC<StagingAreaProps> = ({ 
-  stagedEvents, 
+const StagingArea: React.FC<StagingAreaProps> = ({
+  stagedEvents,
   subjectColors,
   onRemoveGroupFromStaging,
   onClearAll,
@@ -33,8 +35,10 @@ const StagingArea: React.FC<StagingAreaProps> = ({
   onDragEnd,
   onDropFromSchedule,
   confirmLoading = false,
+  errors = [],
 }) => {
   const dayNames = ['', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const [activeTab, setActiveTab] = React.useState<'staged' | 'unassigned'>('staged');
 
   // Group events by subject
   const groupedEvents = stagedEvents.reduce((acc, event) => {
@@ -88,7 +92,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
   };
 
   return (
-    <div 
+    <div
       className={styles.stagingArea}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
@@ -97,23 +101,52 @@ const StagingArea: React.FC<StagingAreaProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <h3 className={styles.title}>
             📦 Área de Depósito
-            {stagedEvents.length > 0 && (
-              <Badge 
-                count={stagedEvents.length} 
+            {stagedEvents.length > 0 && activeTab === 'staged' && (
+              <Badge
+                count={stagedEvents.length}
                 style={{ backgroundColor: '#722ed1', marginLeft: 8 }}
               />
             )}
+            {errors.length > 0 && activeTab === 'unassigned' && (
+              <Badge
+                count={errors.length}
+                style={{ backgroundColor: '#ff4d4f', marginLeft: 8 }}
+              />
+            )}
           </h3>
-          <Button 
+          <Button
             type="text"
             icon={<CloseOutlined />}
             onClick={onClose}
             style={{ marginTop: -4, marginRight: -8 }}
           />
         </div>
-        <p className={styles.subtitle}>
-          Haz clic o arrastra eventos del horario para moverlos aquí
-        </p>
+        <Tabs
+          activeKey={activeTab}
+          onChange={(key) => setActiveTab(key as 'staged' | 'unassigned')}
+          size="small"
+          style={{ marginTop: 8 }}
+          items={[
+            {
+              key: 'staged',
+              label: (
+                <span>
+                  📦 Depositadas
+                  {stagedEvents.length > 0 && <Badge count={stagedEvents.length} style={{ marginLeft: 4 }} />}
+                </span>
+              ),
+            },
+            {
+              key: 'unassigned',
+              label: (
+                <span>
+                  ⚠️ No Asignadas
+                  {errors.length > 0 && <Badge count={errors.length} style={{ marginLeft: 4, backgroundColor: '#ff4d4f' }} />}
+                </span>
+              ),
+            },
+          ]}
+        />
         <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
           <Button
             size="small"
@@ -137,18 +170,19 @@ const StagingArea: React.FC<StagingAreaProps> = ({
       </div>
 
       <div className={styles.content}>
-        {stagedEvents.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              <span className={styles.emptyText}>
-                Haz clic o arrastra eventos del horario para guardarlos aquí temporalmente y reubicarlos
-              </span>
-            }
-          />
-        ) : (
-          <div className={styles.eventsList}>
-            {Object.entries(groupedEvents).map(([subjectId, group]) => (
+        {activeTab === 'staged' ? (
+          stagedEvents.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                <span className={styles.emptyText}>
+                  Haz clic o arrastra eventos del horario para guardarlos aquí temporalmente y reubicarlos
+                </span>
+              }
+            />
+          ) : (
+            <div className={styles.eventsList}>
+              {Object.entries(groupedEvents).map(([subjectId, group]) => (
               <div key={subjectId} className={styles.subjectGroup}>
                 <div
                   className={styles.subjectHeader}
@@ -244,12 +278,94 @@ const StagingArea: React.FC<StagingAreaProps> = ({
               </div>
             ))}
           </div>
+        )) : (
+          <div className={styles.eventsList}>
+            {errors.length === 0 ? (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <span className={styles.emptyText}>
+                    No hay materias sin asignar
+                  </span>
+                }
+              />
+            ) : (
+              errors.map((error, index) => {
+                const color = subjectColors?.[error.pnfId || ''] || '#ff4d4f';
+                return (
+                  <div
+                    key={index}
+                    className={styles.subjectGroup}
+                  >
+                    <div
+                      className={styles.eventCard}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", JSON.stringify(error));
+                        e.dataTransfer.setData("application/unassigned-error", "true");
+                      }}
+                      onDragEnd={() => {
+                        onDragEnd?.();
+                      }}
+                      style={{
+                        backgroundColor: `${color}15`,
+                        borderLeft: `4px solid ${color}`,
+                        cursor: 'grab',
+                      }}
+                    >
+                      <div className={styles.eventContent}>
+                        <div className={styles.eventTitle}>
+                          <Tooltip title={error.name}>
+                            <span>{truncateText(error.name, 22)}</span>
+                          </Tooltip>
+                        </div>
+                        <div className={styles.eventMeta}>
+                          <span className={styles.metaItem}>
+                            Sección {error.seccion}
+                          </span>
+                        </div>
+                        <div className={styles.eventMeta}>
+                          <span className={styles.metaItem}>
+                            {error.turn} • {error.year}
+                          </span>
+                        </div>
+                        {error.totalHours && (
+                          <div className={styles.eventMeta}>
+                            <span className={styles.metaItem}>
+                              {error.totalHours} hora(s) sin asignar
+                            </span>
+                          </div>
+                        )}
+                        {error.professorName && (
+                          <div className={styles.eventMeta}>
+                            <span className={styles.metaItem}>
+                              Profesor: {truncateText(error.professorName, 20)}
+                            </span>
+                          </div>
+                        )}
+                        <div className={styles.eventMeta}>
+                          <span className={styles.metaItem} style={{ color: '#ff4d4f', fontSize: '11px' }}>
+                            <ExclamationCircleOutlined /> {truncateText(error.description, 40)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         )}
       </div>
 
       <div className={styles.footer}>
         <div className={styles.hint}>
-          💡 Selecciona un evento y haz clic en el horario para reubicarlo
+          {activeTab === 'staged' ? (
+            '💡 Arrastra eventos del horario aquí para guardarlos temporalmente'
+          ) : (
+            '💡 Arrastra materias sin asignar al horario para ubicarlas manualmente'
+          )}
         </div>
       </div>
     </div>
