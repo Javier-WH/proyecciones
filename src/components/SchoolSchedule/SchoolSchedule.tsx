@@ -4443,7 +4443,13 @@ const SchoolSchedule: React.FC = () => {
             onDragStart={(event) => setDraggingFromStaging(event)}
             onDragEnd={() => setDraggingFromStaging(null)}
             onDropFromSchedule={handleDropFromSchedule}
-            errors={errors}
+            errors={errors.filter(err =>
+              err.seccion === seccion &&
+              err.pnfId === pnf &&
+              err.trayectoId === trayectoId &&
+              err.trimestre === trimestre &&
+              err.turn?.toLowerCase() === turn.toLowerCase()
+            )}
           />
         </div>
       )}
