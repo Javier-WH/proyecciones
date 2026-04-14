@@ -366,11 +366,8 @@ const StagingArea: React.FC<StagingAreaProps> = ({
                         <ExclamationCircleOutlined style={{ color: '#ff4d4f', fontSize: '14px' }} />
                       </Tooltip>
                     </div>
-                    <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
-                      Sección {group.seccion} • {group.professorName || 'Sin profesor'}
-                    </div>
                   </div>
-                  <div className={styles.eventsContainer}>
+                  <div className={styles.subjectEvents}>
                     {group.events.map((event, eventIndex) => {
                       const color = subjectColors?.[group.pnfId || ''] || '#ff4d4f';
                       return (
@@ -404,9 +401,6 @@ const StagingArea: React.FC<StagingAreaProps> = ({
                               <span className={styles.metaItem}>
                                 <ClockCircleOutlined /> Hora {eventIndex + 1}
                               </span>
-                            </div>
-                            <div className={styles.eventSection}>
-                              Sección {event.extendedProps?.seccion} • {event.extendedProps?.trayectoId || ''}
                             </div>
                           </div>
                         </div>
