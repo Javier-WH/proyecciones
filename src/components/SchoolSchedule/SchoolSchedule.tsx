@@ -418,7 +418,7 @@ const SchoolSchedule: React.FC = () => {
   };
 
   // Handle drop of unassigned subject events to schedule
-  const handleDropUnassignedEvents = (targetDay: number, targetStartTime: string, eventsToDrop: Event[]) => {
+  const handleDropUnassignedEvents = (targetDay: number, targetStartTime: string, eventsToDrop: Event[], isBlockDrag: boolean) => {
     if (eventsToDrop.length === 0) return;
 
     const subjectId = eventsToDrop[0].extendedProps?.subjectId;
@@ -481,10 +481,34 @@ const SchoolSchedule: React.FC = () => {
     // Add events to eventData
     setEventData(prev => [...prev, ...newEvents]);
 
-    // Remove error from errors array (by subjectId)
-    setErrors(prev => prev.filter(e => e.subjectId !== subjectId));
+    // Handle error removal based on whether it's a block drag or individual hour
+    const firstEvent = eventsToDrop[0];
 
-    message.success(`Materia "${subject.subject}" agregada (${newEvents.length} hora(s))`);
+    if (isBlockDrag || newEvents.length === eventsToDrop.length) {
+      // Block drag or all hours were added - remove the entire error
+      setErrors(prev => prev.filter(e =>
+        e.subjectId !== subjectId ||
+        e.seccion !== firstEvent.extendedProps?.seccion ||
+        e.pnfId !== firstEvent.extendedProps?.pnfId
+      ));
+      message.success(`Materia "${subject.subject}" agregada (${newEvents.length} hora(s))`);
+    } else {
+      // Individual hour - reduce totalHours of the error
+      setErrors(prev => prev.map(e => {
+        if (e.subjectId === subjectId &&
+            e.seccion === firstEvent.extendedProps?.seccion &&
+            e.pnfId === firstEvent.extendedProps?.pnfId) {
+          const newTotalHours = (e.totalHours || 1) - newEvents.length;
+          if (newTotalHours <= 0) {
+            // If totalHours reaches 0, remove the error
+            return null;
+          }
+          return { ...e, totalHours: newTotalHours };
+        }
+        return e;
+      }).filter(e => e !== null));
+      message.success(`Hora de "${subject.subject}" agregada (${newEvents.length} hora(s))`);
+    }
 
     // Track locked section saves
     newEvents.forEach(ev => enqueueLockedSectionSaveFromEvents(ev, null));
