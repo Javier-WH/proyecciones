@@ -170,6 +170,7 @@ const SchoolSchedule: React.FC = () => {
   // Staging area state for official stage
   const [isOfficialStageMode, setIsOfficialStageMode] = useState(false);
   const [draggingFromStaging, setDraggingFromStaging] = useState<Event | null>(null);
+  const [dropPreview, setDropPreview] = useState<{ day: number; startTime: string } | null>(null);
   const [confirmStagingLoading, setConfirmStagingLoading] = useState(false);
   const [pendingLockedSectionSaves, setPendingLockedSectionSaves] = useState<PendingLockedSectionSave[]>([]);
   const [eventsWithConflicts, setEventsWithConflicts] = useState<Record<string, string[]>>({}); // eventId -> conflict messages
@@ -3591,9 +3592,22 @@ const SchoolSchedule: React.FC = () => {
                                       onDragOver={(e) => {
                                         e.preventDefault();
                                         e.dataTransfer.dropEffect = "move";
+                                        // Update drop preview for visual indicator
+                                        const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
+                                        if (isStagedEvent) {
+                                          setDropPreview({ day, startTime: slot[0] });
+                                        }
+                                      }}
+                                      onDragLeave={(e) => {
+                                        // Clear drop preview when leaving the cell
+                                        const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
+                                        if (isStagedEvent) {
+                                          setDropPreview(null);
+                                        }
                                       }}
                                       onDrop={(e) => {
                                         e.preventDefault();
+                                        setDropPreview(null); // Clear preview on drop
                                         // Handle drop from staging area
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
                                         if (isStagedEvent) {
@@ -3807,10 +3821,10 @@ const SchoolSchedule: React.FC = () => {
                                   );
                                 } else {
                                   const isGridFrozen = viewMode === "pnf" && !!lockedSections[`${pnf}-${trayectoId}-${seccion}-${trimestre}`];
-                                  const showDropIndicator = draggingFromStaging || (isOfficialStageMode && draggedEventInfo);
+                                  const showDropIndicator = dropPreview?.day === day && dropPreview?.startTime === slot[0];
                                   return (
-                                    <td key={day} 
-                                      style={{ 
+                                    <td key={day}
+                                      style={{
                                         border: showDropIndicator ? "2px dashed #722ed1" : "1px solid #dee2e6",
                                         backgroundColor: showDropIndicator ? "#f9f0ff" : undefined,
                                         transition: "all 0.2s ease"
@@ -3818,10 +3832,23 @@ const SchoolSchedule: React.FC = () => {
                                       onDragOver={(e) => {
                                         e.preventDefault();
                                         e.dataTransfer.dropEffect = "move";
+                                        // Update drop preview for visual indicator
+                                        const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
+                                        if (isStagedEvent) {
+                                          setDropPreview({ day, startTime: slot[0] });
+                                        }
+                                      }}
+                                      onDragLeave={(e) => {
+                                        // Clear drop preview when leaving the cell
+                                        const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
+                                        if (isStagedEvent) {
+                                          setDropPreview(null);
+                                        }
                                       }}
                                       onDrop={(e) => {
                                         e.preventDefault();
-                                        
+                                        setDropPreview(null); // Clear preview on drop
+
                                         // Check if dropping from staging area
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
                                         if (isStagedEvent) {
