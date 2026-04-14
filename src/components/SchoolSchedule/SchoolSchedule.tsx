@@ -662,20 +662,46 @@ const SchoolSchedule: React.FC = () => {
     processStagingDrop(targetDay, targetStartTime, [eventToUse]);
   };
 
-  const processStagingDrop = (targetDay: number, _targetStartTime: string, eventsToMove: Event[]) => {
+  // Helper to add minutes to a time string (HH:MM)
+  const addMinutesToTime = (time: string, minutes: number): string => {
+    const [h, m] = time.split(':').map(Number);
+    const totalMinutes = h * 60 + m + minutes;
+    const newH = Math.floor(totalMinutes / 60) % 24;
+    const newM = totalMinutes % 60;
+    return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+  };
+
+  // Helper to get signed time difference in minutes (time2 - time1)
+  const getSignedTimeDiff = (time1: string, time2: string): number => {
+    const [h1, m1] = time1.split(':').map(Number);
+    const [h2, m2] = time2.split(':').map(Number);
+    return (h2 * 60 + m2) - (h1 * 60 + m1);
+  };
+
+  const processStagingDrop = (targetDay: number, targetStartTime: string, eventsToMove: Event[]) => {
     const isSameSubjectAndSection = (a: Event, b: Event) =>
       String(a.extendedProps?.subjectId) === String(b.extendedProps?.subjectId) &&
       String(a.extendedProps?.seccion) === String(b.extendedProps?.seccion);
+
+    // Sort events by start time to ensure correct offset calculation
+    const sortedEvents = [...eventsToMove].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    // Calculate time offset: difference between first event's original start and the drop target
+    const timeOffsetMinutes = getSignedTimeDiff(sortedEvents[0].startTime, targetStartTime);
 
     // Process each event in the block
     const processedEvents: Event[] = [];
     const conflicts: { event: Event; conflicts: string[] }[] = [];
     const swappedOutEvents: Event[] = [];
 
-    for (const event of eventsToMove) {
+    for (const event of sortedEvents) {
+      // Apply time offset to get the new start/end times
+      const newStartTime = addMinutesToTime(event.startTime, timeOffsetMinutes);
+      const newEndTime = addMinutesToTime(event.endTime, timeOffsetMinutes);
+
       // Event currently occupying drop target (if any) - only check schedule events
       const occupyingEvent = getScheduleEvents(eventData).find(e => {
-        if (String(e.daysOfWeek?.[0]) !== String(targetDay) || e.startTime !== event.startTime) return false;
+        if (String(e.daysOfWeek?.[0]) !== String(targetDay) || e.startTime !== newStartTime) return false;
         if (!event.extendedProps) return true;
         return (
           String(e.extendedProps?.pnfId) === String(event.extendedProps.pnfId) &&
@@ -684,8 +710,6 @@ const SchoolSchedule: React.FC = () => {
         );
       });
 
-      let resolvedStartTime = event.startTime;
-      let resolvedEndTime = event.endTime;
       let swappedOutEvent: Event | null = null;
 
       // If dropping over occupied slot, decide merge/swap behavior
@@ -699,16 +723,16 @@ const SchoolSchedule: React.FC = () => {
         }
       }
 
-      // Create new event with updated day/time
+      // Create new event with updated day/time at the drop target position
       const newEvent: Event = {
         ...event,
         daysOfWeek: [targetDay],
-        startTime: resolvedStartTime,
-        endTime: resolvedEndTime,
+        startTime: newStartTime,
+        endTime: newEndTime,
       };
 
       // Check conflicts for this event
-      const eventConflicts = checkEventConflicts(newEvent, targetDay, resolvedStartTime);
+      const eventConflicts = checkEventConflicts(newEvent, targetDay, newStartTime);
       if (eventConflicts.length > 0) {
         conflicts.push({ event: newEvent, conflicts: eventConflicts });
       }
