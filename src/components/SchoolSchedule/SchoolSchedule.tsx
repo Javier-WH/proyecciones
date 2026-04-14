@@ -3594,14 +3594,16 @@ const SchoolSchedule: React.FC = () => {
                                         e.dataTransfer.dropEffect = "move";
                                         // Update drop preview for visual indicator
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
-                                        if (isStagedEvent) {
+                                        const isScheduleEvent = e.dataTransfer.types.includes("application/schedule-event");
+                                        if (isStagedEvent || isScheduleEvent) {
                                           setDropPreview({ day, startTime: slot[0] });
                                         }
                                       }}
                                       onDragLeave={(e) => {
                                         // Clear drop preview when leaving the cell
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
-                                        if (isStagedEvent) {
+                                        const isScheduleEvent = e.dataTransfer.types.includes("application/schedule-event");
+                                        if (isStagedEvent || isScheduleEvent) {
                                           setDropPreview(null);
                                         }
                                       }}
@@ -3834,14 +3836,16 @@ const SchoolSchedule: React.FC = () => {
                                         e.dataTransfer.dropEffect = "move";
                                         // Update drop preview for visual indicator
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
-                                        if (isStagedEvent) {
+                                        const isScheduleEvent = e.dataTransfer.types.includes("application/schedule-event");
+                                        if (isStagedEvent || isScheduleEvent) {
                                           setDropPreview({ day, startTime: slot[0] });
                                         }
                                       }}
                                       onDragLeave={(e) => {
                                         // Clear drop preview when leaving the cell
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
-                                        if (isStagedEvent) {
+                                        const isScheduleEvent = e.dataTransfer.types.includes("application/schedule-event");
+                                        if (isStagedEvent || isScheduleEvent) {
                                           setDropPreview(null);
                                         }
                                       }}
