@@ -54,6 +54,48 @@ const StagingArea: React.FC<StagingAreaProps> = ({
     return acc;
   }, {} as Record<string, { title: string; pnfId?: string; events: Event[] }>);
 
+  // Group unassigned errors by subjectId and convert to individual events
+  const groupedErrors = errors.reduce((acc, error) => {
+    const subjectId = error.subjectId || 'unknown';
+    if (!acc[subjectId]) {
+      acc[subjectId] = {
+        title: error.name || 'Sin nombre',
+        pnfId: error.pnfId,
+        events: [],
+        seccion: error.seccion,
+        professorName: error.professorName,
+        description: error.description,
+      };
+    }
+
+    // Create individual events for each hour
+    const hoursToCreate = error.totalHours || 1;
+    for (let i = 0; i < hoursToCreate; i++) {
+      const individualEvent: Event = {
+        title: error.name || 'Sin nombre',
+        daysOfWeek: [1], // Placeholder day, will be set on drop
+        startTime: '00:00', // Placeholder time, will be set on drop
+        endTime: '00:40', // Placeholder time, will be set on drop
+        extendedProps: {
+          subjectId: error.subjectId || '',
+          seccion: error.seccion,
+          trayectoId: error.trayectoId || '',
+          pnfId: error.pnfId || '',
+          professorId: error.professorId || null,
+          classroomId: '',
+          classroomName: '',
+          pnfName: error.pnfName,
+          turnName: error.turn,
+          blockId: `${subjectId}-${i}`,
+          location: 'staging' as const,
+        },
+      };
+      acc[subjectId].events.push(individualEvent);
+    }
+
+    return acc;
+  }, {} as Record<string, { title: string; pnfId?: string; events: Event[]; seccion: string; professorName?: string; description: string }>);
+
   const truncateText = (text: string, maxLength: number): string => {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
@@ -280,7 +322,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
           </div>
         )) : (
           <div className={styles.eventsList}>
-            {errors.length === 0 ? (
+            {Object.keys(groupedErrors).length === 0 ? (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
@@ -290,70 +332,89 @@ const StagingArea: React.FC<StagingAreaProps> = ({
                 }
               />
             ) : (
-              errors.map((error, index) => {
-                const color = subjectColors?.[error.pnfId || ''] || '#ff4d4f';
-                return (
+              Object.entries(groupedErrors).map(([subjectId, group]) => (
+                <div key={subjectId} className={styles.subjectGroup}>
                   <div
-                    key={index}
-                    className={styles.subjectGroup}
+                    className={styles.subjectHeader}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = "move";
+                      // Store all events in the group for block drag
+                      e.dataTransfer.setData("text/plain", JSON.stringify(group.events));
+                      e.dataTransfer.setData("application/staged-event", "true");
+                      e.dataTransfer.setData("application/staged-block", "true"); // Indicate this is a block drag
+                      e.dataTransfer.setData("application/unassigned-block", "true"); // Indicate this is from unassigned tab
+                      onDragStart?.(group.events[0]); // Pass first event for compatibility
+                    }}
+                    onDragEnd={() => {
+                      onDragEnd?.();
+                    }}
+                    style={{
+                      backgroundColor: subjectColors?.[group.pnfId || '']
+                        ? `${subjectColors[group.pnfId || '']}20`
+                        : '#fff2f0',
+                      borderLeft: `3px solid ${subjectColors?.[group.pnfId || ''] || '#ff4d4f'}`,
+                      cursor: 'grab',
+                    }}
                   >
-                    <div
-                      className={styles.eventCard}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", JSON.stringify(error));
-                        e.dataTransfer.setData("application/unassigned-error", "true");
-                      }}
-                      onDragEnd={() => {
-                        onDragEnd?.();
-                      }}
-                      style={{
-                        backgroundColor: `${color}15`,
-                        borderLeft: `4px solid ${color}`,
-                        cursor: 'grab',
-                      }}
-                    >
-                      <div className={styles.eventContent}>
-                        <div className={styles.eventTitle}>
-                          <Tooltip title={error.name}>
-                            <span>{truncateText(error.name, 22)}</span>
-                          </Tooltip>
-                        </div>
-                        <div className={styles.eventMeta}>
-                          <span className={styles.metaItem}>
-                            Sección {error.seccion}
-                          </span>
-                        </div>
-                        <div className={styles.eventMeta}>
-                          <span className={styles.metaItem}>
-                            {error.turn} • {error.year}
-                          </span>
-                        </div>
-                        {error.totalHours && (
-                          <div className={styles.eventMeta}>
-                            <span className={styles.metaItem}>
-                              {error.totalHours} hora(s) sin asignar
-                            </span>
-                          </div>
-                        )}
-                        {error.professorName && (
-                          <div className={styles.eventMeta}>
-                            <span className={styles.metaItem}>
-                              Profesor: {truncateText(error.professorName, 20)}
-                            </span>
-                          </div>
-                        )}
-                        <div className={styles.eventMeta}>
-                          <span className={styles.metaItem} style={{ color: '#ff4d4f', fontSize: '11px' }}>
-                            <ExclamationCircleOutlined /> {truncateText(error.description, 40)}
-                          </span>
-                        </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className={styles.subjectName}>{truncateText(group.title, 25)}</span>
+                        <Badge count={group.events.length} style={{ backgroundColor: '#ff4d4f' }} />
                       </div>
+                      <Tooltip title={truncateText(group.description, 50)}>
+                        <ExclamationCircleOutlined style={{ color: '#ff4d4f', fontSize: '14px' }} />
+                      </Tooltip>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+                      Sección {group.seccion} • {group.professorName || 'Sin profesor'}
                     </div>
                   </div>
-                );
-              })
+                  <div className={styles.eventsContainer}>
+                    {group.events.map((event, eventIndex) => {
+                      const color = subjectColors?.[group.pnfId || ''] || '#ff4d4f';
+                      return (
+                        <div
+                          key={eventIndex}
+                          className={styles.eventCard}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", JSON.stringify(event));
+                            e.dataTransfer.setData("application/staged-event", "true");
+                            e.dataTransfer.setData("application/unassigned-event", "true"); // Indicate this is from unassigned tab
+                            onDragStart?.(event);
+                          }}
+                          onDragEnd={() => {
+                            onDragEnd?.();
+                          }}
+                          style={{
+                            backgroundColor: `${color}15`,
+                            borderLeft: `4px solid ${color}`,
+                            cursor: 'grab',
+                          }}
+                        >
+                          <div className={styles.eventContent}>
+                            <div className={styles.eventTitle}>
+                              <Tooltip title={event.title}>
+                                <span>{truncateText(event.title || '', 22)}</span>
+                              </Tooltip>
+                            </div>
+                            <div className={styles.eventMeta}>
+                              <span className={styles.metaItem}>
+                                <ClockCircleOutlined /> Hora {eventIndex + 1}
+                              </span>
+                            </div>
+                            <div className={styles.eventSection}>
+                              Sección {event.extendedProps?.seccion} • {event.extendedProps?.trayectoId || ''}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
             )}
           </div>
         )}

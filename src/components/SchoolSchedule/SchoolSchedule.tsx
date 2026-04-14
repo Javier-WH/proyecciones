@@ -417,20 +417,22 @@ const SchoolSchedule: React.FC = () => {
     moveEventToStaging(event);
   };
 
-  // Handle drop of unassigned subject to schedule
-  const handleDropUnassigned = (targetDay: number, targetStartTime: string, _targetEndTime: string, error: scheduleError) => {
-    if (!error.subjectId) {
+  // Handle drop of unassigned subject events to schedule
+  const handleDropUnassignedEvents = (targetDay: number, targetStartTime: string, eventsToDrop: Event[]) => {
+    if (eventsToDrop.length === 0) return;
+
+    const subjectId = eventsToDrop[0].extendedProps?.subjectId;
+    if (!subjectId) {
       message.error("No se puede agregar esta materia: falta información del subjectId");
       return;
     }
 
-    const subject = schedulableSubjectsRef.current?.find(s => s.innerId === error.subjectId);
+    const subject = schedulableSubjectsRef.current?.find(s => s.innerId === subjectId);
     if (!subject) {
       message.error("No se encontró la materia en la lista de materias");
       return;
     }
 
-    const hoursToAssign = error.totalHours || 1;
     const slotIndex = tableSlots.findIndex(s => s[0] === targetStartTime);
     if (slotIndex < 0) {
       message.error("No se encontró el slot de tiempo");
@@ -440,9 +442,9 @@ const SchoolSchedule: React.FC = () => {
     const newEvents: Event[] = [];
     let currentSlotIndex = slotIndex;
 
-    for (let i = 0; i < hoursToAssign; i++) {
+    for (let i = 0; i < eventsToDrop.length; i++) {
       if (currentSlotIndex >= tableSlots.length) {
-        message.warning(`Solo se pudieron agregar ${i} de ${hoursToAssign} horas (falta espacio en el horario)`);
+        message.warning(`Solo se pudieron agregar ${i} de ${eventsToDrop.length} horas (falta espacio en el horario)`);
         break;
       }
 
@@ -454,14 +456,14 @@ const SchoolSchedule: React.FC = () => {
         endTime: slot[1],
         extendedProps: {
           subjectId: subject.innerId,
-          seccion: error.seccion,
-          trayectoId: error.trayectoId || '',
-          pnfId: error.pnfId || '',
-          professorId: error.professorId || null,
+          seccion: eventsToDrop[i].extendedProps?.seccion,
+          trayectoId: eventsToDrop[i].extendedProps?.trayectoId || '',
+          pnfId: eventsToDrop[i].extendedProps?.pnfId || '',
+          professorId: eventsToDrop[i].extendedProps?.professorId || null,
           classroomId: '',
           classroomName: '',
-          pnfName: error.pnfName || '',
-          turnName: error.turn || '',
+          pnfName: eventsToDrop[i].extendedProps?.pnfName || '',
+          turnName: eventsToDrop[i].extendedProps?.turnName || '',
           blockId: `${targetDay}-${subject.innerId}`,
           location: 'schedule' as const,
         },
@@ -479,10 +481,10 @@ const SchoolSchedule: React.FC = () => {
     // Add events to eventData
     setEventData(prev => [...prev, ...newEvents]);
 
-    // Remove error from errors array
-    setErrors(prev => prev.filter(e => e !== error));
+    // Remove error from errors array (by subjectId)
+    setErrors(prev => prev.filter(e => e.subjectId !== subjectId));
 
-    message.success(`Materia "${error.name}" agregada (${newEvents.length} hora(s))`);
+    message.success(`Materia "${subject.subject}" agregada (${newEvents.length} hora(s))`);
 
     // Track locked section saves
     newEvents.forEach(ev => enqueueLockedSectionSaveFromEvents(ev, null));
@@ -3693,8 +3695,9 @@ const SchoolSchedule: React.FC = () => {
                                         // Update drop preview for visual indicator
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
                                         const isScheduleEvent = e.dataTransfer.types.includes("application/schedule-event");
-                                        const isUnassignedError = e.dataTransfer.types.includes("application/unassigned-error");
-                                        if (isStagedEvent || isScheduleEvent || isUnassignedError) {
+                                        const isUnassignedBlock = e.dataTransfer.types.includes("application/unassigned-block");
+                                        const isUnassignedEvent = e.dataTransfer.types.includes("application/unassigned-event");
+                                        if (isStagedEvent || isScheduleEvent || isUnassignedBlock || isUnassignedEvent) {
                                           setDropPreview({ day, startTime: slot[0] });
                                         }
                                       }}
@@ -3702,8 +3705,9 @@ const SchoolSchedule: React.FC = () => {
                                         // Clear drop preview when leaving the cell
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
                                         const isScheduleEvent = e.dataTransfer.types.includes("application/schedule-event");
-                                        const isUnassignedError = e.dataTransfer.types.includes("application/unassigned-error");
-                                        if (isStagedEvent || isScheduleEvent || isUnassignedError) {
+                                        const isUnassignedBlock = e.dataTransfer.types.includes("application/unassigned-block");
+                                        const isUnassignedEvent = e.dataTransfer.types.includes("application/unassigned-event");
+                                        if (isStagedEvent || isScheduleEvent || isUnassignedBlock || isUnassignedEvent) {
                                           setDropPreview(null);
                                         }
                                       }}
@@ -3712,14 +3716,17 @@ const SchoolSchedule: React.FC = () => {
                                         setDropPreview(null); // Clear preview on drop
                                         // Handle drop from staging area
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
-                                        const isUnassignedError = e.dataTransfer.types.includes("application/unassigned-error");
-                                        if (isUnassignedError) {
-                                          const errorDataStr = e.dataTransfer.getData("text/plain");
+                                        const isUnassignedBlock = e.dataTransfer.types.includes("application/unassigned-block");
+                                        const isUnassignedEvent = e.dataTransfer.types.includes("application/unassigned-event");
+                                        if (isUnassignedBlock || isUnassignedEvent) {
+                                          // Handle unassigned subject drop
+                                          const eventDataStr = e.dataTransfer.getData("text/plain");
                                           try {
-                                            const error = JSON.parse(errorDataStr) as scheduleError;
-                                            handleDropUnassigned(day, slot[0], slot[1], error);
+                                            const parsedData = JSON.parse(eventDataStr);
+                                            const eventsFromDrop = Array.isArray(parsedData) ? parsedData as Event[] : [parsedData as Event];
+                                            handleDropUnassignedEvents(day, slot[0], eventsFromDrop);
                                           } catch {
-                                            console.error("Error parsing unassigned error data");
+                                            console.error("Error parsing unassigned event data");
                                           }
                                           return;
                                         }
@@ -3951,8 +3958,9 @@ const SchoolSchedule: React.FC = () => {
                                         // Update drop preview for visual indicator
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
                                         const isScheduleEvent = e.dataTransfer.types.includes("application/schedule-event");
-                                        const isUnassignedError = e.dataTransfer.types.includes("application/unassigned-error");
-                                        if (isStagedEvent || isScheduleEvent || isUnassignedError) {
+                                        const isUnassignedBlock = e.dataTransfer.types.includes("application/unassigned-block");
+                                        const isUnassignedEvent = e.dataTransfer.types.includes("application/unassigned-event");
+                                        if (isStagedEvent || isScheduleEvent || isUnassignedBlock || isUnassignedEvent) {
                                           setDropPreview({ day, startTime: slot[0] });
                                         }
                                       }}
@@ -3960,8 +3968,9 @@ const SchoolSchedule: React.FC = () => {
                                         // Clear drop preview when leaving the cell
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
                                         const isScheduleEvent = e.dataTransfer.types.includes("application/schedule-event");
-                                        const isUnassignedError = e.dataTransfer.types.includes("application/unassigned-error");
-                                        if (isStagedEvent || isScheduleEvent || isUnassignedError) {
+                                        const isUnassignedBlock = e.dataTransfer.types.includes("application/unassigned-block");
+                                        const isUnassignedEvent = e.dataTransfer.types.includes("application/unassigned-event");
+                                        if (isStagedEvent || isScheduleEvent || isUnassignedBlock || isUnassignedEvent) {
                                           setDropPreview(null);
                                         }
                                       }}
@@ -3971,14 +3980,17 @@ const SchoolSchedule: React.FC = () => {
 
                                         // Check if dropping from staging area
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
-                                        const isUnassignedError = e.dataTransfer.types.includes("application/unassigned-error");
-                                        if (isUnassignedError) {
-                                          const errorDataStr = e.dataTransfer.getData("text/plain");
+                                        const isUnassignedBlock = e.dataTransfer.types.includes("application/unassigned-block");
+                                        const isUnassignedEvent = e.dataTransfer.types.includes("application/unassigned-event");
+                                        if (isUnassignedBlock || isUnassignedEvent) {
+                                          // Handle unassigned subject drop
+                                          const eventDataStr = e.dataTransfer.getData("text/plain");
                                           try {
-                                            const error = JSON.parse(errorDataStr) as scheduleError;
-                                            handleDropUnassigned(day, slot[0], slot[1], error);
+                                            const parsedData = JSON.parse(eventDataStr);
+                                            const eventsFromDrop = Array.isArray(parsedData) ? parsedData as Event[] : [parsedData as Event];
+                                            handleDropUnassignedEvents(day, slot[0], eventsFromDrop);
                                           } catch {
-                                            console.error("Error parsing unassigned error data");
+                                            console.error("Error parsing unassigned event data");
                                           }
                                           return;
                                         }
