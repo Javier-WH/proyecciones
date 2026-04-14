@@ -3615,7 +3615,7 @@ const SchoolSchedule: React.FC = () => {
                                           pnfName: cell.extendedProps?.pnfName || "",
                                         });
                                       }}
-                                      onDragEnd={() => setDraggedEventInfo(null)}
+                                      onDragEnd={() => { setDraggedEventInfo(null); setDropPreview(null); }}
                                       onDragOver={(e) => {
                                         e.preventDefault();
                                         e.dataTransfer.dropEffect = "move";
@@ -3676,20 +3676,23 @@ const SchoolSchedule: React.FC = () => {
                                         // Normal drop handling
                                         handleDrop(rowIndex, day, entityId);
                                       }}
-                                      style={{
-                                        borderTop: hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
-                                        borderRight: hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
-                                        borderBottom: hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
-                                        borderLeft: hasConflict ? "4px solid #ff4d4f" : `4px solid ${baseColor}`,
-                                        padding: "6px",
-                                        verticalAlign: "top",
-                                        backgroundColor: hasConflict ? "#fff2f0" : (isOfficialStageMode ? `${bgColor}` : bgColor),
-                                        height: "100%",
-                                        cursor: isOfficialStageMode ? "grab" : (isFrozen ? "default" : "grab"),
-                                        opacity: draggedEventInfo?.title === cell.title && draggedEventInfo?.sourceDay === day && draggedEventInfo?.sourceStartTime === slot[0] ? 0.3 : 1,
-                                        transition: "background-color 0.2s ease, opacity 0.2s ease",
-                                        position: "relative"
-                                      }}
+                                      style={(() => {
+                                        const isDropTarget = dropPreview?.day === day && dropPreview?.startTime === slot[0];
+                                        return {
+                                          borderTop: isDropTarget ? "2px dashed #722ed1" : hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
+                                          borderRight: isDropTarget ? "2px dashed #722ed1" : hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
+                                          borderBottom: isDropTarget ? "2px dashed #722ed1" : hasConflict ? "2px solid #ff4d4f" : (isOfficialStageMode ? "2px dashed #722ed1" : "1px solid #dee2e6"),
+                                          borderLeft: isDropTarget ? "4px dashed #722ed1" : hasConflict ? "4px solid #ff4d4f" : `4px solid ${baseColor}`,
+                                          padding: "6px",
+                                          verticalAlign: "top" as const,
+                                          backgroundColor: isDropTarget ? "#f9f0ff" : hasConflict ? "#fff2f0" : (isOfficialStageMode ? `${bgColor}` : bgColor),
+                                          height: "100%",
+                                          cursor: isOfficialStageMode ? "grab" : (isFrozen ? "default" : "grab"),
+                                          opacity: draggedEventInfo?.title === cell.title && draggedEventInfo?.sourceDay === day && draggedEventInfo?.sourceStartTime === slot[0] ? 0.3 : 1,
+                                          transition: "background-color 0.2s ease, opacity 0.2s ease, border 0.2s ease",
+                                          position: "relative" as const,
+                                        };
+                                      })()}
                                     >
                                       {/* Conflict indicator button */}
                                       {hasConflict && (
