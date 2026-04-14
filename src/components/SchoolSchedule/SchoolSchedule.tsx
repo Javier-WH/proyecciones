@@ -810,16 +810,43 @@ const SchoolSchedule: React.FC = () => {
     // Use != null to allow falsy values like 0 or "0", and String() for type-safe comparison
     const hasRequiredProps = sourceDay != null && subjectId != null && seccion != null;
 
-    // Find ALL individual events in schedule that belong to this block
-    // (same subject, section, and day). This captures the full block including gaps.
-    // Use String() coercion to avoid type mismatches (number vs string)
-    const blockEvents = hasRequiredProps
-      ? getScheduleEvents(eventData).filter(e =>
-          String(e.daysOfWeek?.[0]) === String(sourceDay) &&
-          String(e.extendedProps?.subjectId) === String(subjectId) &&
-          String(e.extendedProps?.seccion) === String(seccion)
-        ).sort((a, b) => a.startTime.localeCompare(b.startTime))
-      : [];
+    // Find the consecutive block that contains the dragged event
+    // (same subject, section, day, AND within 30-minute gaps)
+    let blockEvents: Event[] = [];
+    if (hasRequiredProps) {
+      const allSubjectEvents = getScheduleEvents(eventData).filter(e =>
+        String(e.daysOfWeek?.[0]) === String(sourceDay) &&
+        String(e.extendedProps?.subjectId) === String(subjectId) &&
+        String(e.extendedProps?.seccion) === String(seccion)
+      ).sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+      const eventIndex = allSubjectEvents.findIndex(e => getEventId(e) === getEventId(sourceEvent));
+      if (eventIndex >= 0) {
+        const block = [allSubjectEvents[eventIndex]];
+
+        // Look backward for consecutive events (within 30-min gap)
+        for (let i = eventIndex - 1; i >= 0; i--) {
+          const timeDiff = getTimeDifferenceInMinutes(allSubjectEvents[i].endTime, block[0].startTime);
+          if (timeDiff <= 30) {
+            block.unshift(allSubjectEvents[i]);
+          } else {
+            break;
+          }
+        }
+
+        // Look forward for consecutive events (within 30-min gap)
+        for (let i = eventIndex + 1; i < allSubjectEvents.length; i++) {
+          const timeDiff = getTimeDifferenceInMinutes(block[block.length - 1].endTime, allSubjectEvents[i].startTime);
+          if (timeDiff <= 30) {
+            block.push(allSubjectEvents[i]);
+          } else {
+            break;
+          }
+        }
+
+        blockEvents = block;
+      }
+    }
 
     // Fallback: if we can't find block events, move only the dragged event
     if (blockEvents.length === 0) {
