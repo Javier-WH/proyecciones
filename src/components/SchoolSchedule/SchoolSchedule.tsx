@@ -481,6 +481,20 @@ const SchoolSchedule: React.FC = () => {
     // Add events to eventData
     setEventData(prev => [...prev, ...newEvents]);
 
+    // Check conflicts for each new event
+    const allConflicts: { event: Event; conflicts: string[] }[] = [];
+    for (const newEv of newEvents) {
+      const c = checkEventConflicts(newEv, targetDay, newEv.startTime);
+      if (c.length > 0) allConflicts.push({ event: newEv, conflicts: c });
+    }
+
+    // Update conflict visual indicators
+    setEventsWithConflicts(prev => {
+      const updated = { ...prev };
+      allConflicts.forEach(({ event: ev, conflicts: c }) => { updated[getEventId(ev)] = c; });
+      return updated;
+    });
+
     // Handle error removal based on whether it's a block drag or individual hour
     const firstEvent = eventsToDrop[0];
 
@@ -491,7 +505,6 @@ const SchoolSchedule: React.FC = () => {
         e.seccion !== firstEvent.extendedProps?.seccion ||
         e.pnfId !== firstEvent.extendedProps?.pnfId
       ));
-      message.success(`Materia "${subject.subject}" agregada (${newEvents.length} hora(s))`);
     } else {
       // Individual hour - reduce totalHours of the error
       setErrors(prev => prev.map(e => {
@@ -507,7 +520,13 @@ const SchoolSchedule: React.FC = () => {
         }
         return e;
       }).filter(e => e !== null));
-      message.success(`Hora de "${subject.subject}" agregada (${newEvents.length} hora(s))`);
+    }
+
+    // Show appropriate message based on conflicts
+    if (allConflicts.length > 0) {
+      message.warning(`${isBlockDrag ? 'Materia' : 'Hora'} de "${subject.subject}" agregada con ${allConflicts.length} conflicto(s) (${newEvents.length} hora(s))`);
+    } else {
+      message.success(`${isBlockDrag ? 'Materia' : 'Hora'} de "${subject.subject}" agregada (${newEvents.length} hora(s))`);
     }
 
     // Track locked section saves
