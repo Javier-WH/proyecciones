@@ -162,6 +162,15 @@ const SchoolSchedule: React.FC = () => {
   } | null>(null);
   const [newClassroomId, setNewClassroomId] = useState<string>("");
 
+  // State for unassigned subject drop classroom selection
+  const [unassignedDropData, setUnassignedDropData] = useState<{
+    targetDay: number;
+    targetStartTime: string;
+    eventsToDrop: Event[];
+    isBlockDrag: boolean;
+    subjectId: string;
+  } | null>(null);
+
   const [isFrozenManagerOpen, setIsFrozenManagerOpen] = useState(false);
   const [frozenPnfFilter, setFrozenPnfFilter] = useState<string[]>([]);
   const [frozenModalTab, setFrozenModalTab] = useState<"q1" | "q2" | "q3">("q1");
@@ -439,6 +448,43 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
 
+    // Store drop data and show classroom selection modal
+    setUnassignedDropData({
+      targetDay,
+      targetStartTime,
+      eventsToDrop,
+      isBlockDrag,
+      subjectId,
+    });
+    setNewClassroomId("");
+  };
+
+  // Handle classroom selection confirmation for unassigned subjects
+  const handleUnassignedClassroomConfirm = () => {
+    if (!unassignedDropData || !newClassroomId) {
+      message.warning("Por favor seleccione un aula");
+      return;
+    }
+
+    const { targetDay, targetStartTime, eventsToDrop, isBlockDrag, subjectId } = unassignedDropData;
+    const subject = schedulableSubjectsRef.current?.find(s => s.innerId === subjectId);
+    if (!subject) {
+      message.error("No se encontró la materia en la lista de materias");
+      return;
+    }
+
+    const selectedClassroom = classrooms.find(c => c.id === newClassroomId);
+    if (!selectedClassroom) {
+      message.error("No se encontró el aula seleccionada");
+      return;
+    }
+
+    const slotIndex = tableSlots.findIndex(s => s[0] === targetStartTime);
+    if (slotIndex < 0) {
+      message.error("No se encontró el slot de tiempo");
+      return;
+    }
+
     const newEvents: Event[] = [];
     let currentSlotIndex = slotIndex;
 
@@ -460,8 +506,8 @@ const SchoolSchedule: React.FC = () => {
           trayectoId: eventsToDrop[i].extendedProps?.trayectoId || '',
           pnfId: eventsToDrop[i].extendedProps?.pnfId || '',
           professorId: eventsToDrop[i].extendedProps?.professorId || null,
-          classroomId: '',
-          classroomName: '',
+          classroomId: selectedClassroom.id,
+          classroomName: selectedClassroom.classroom,
           pnfName: eventsToDrop[i].extendedProps?.pnfName || '',
           turnName: eventsToDrop[i].extendedProps?.turnName || '',
           blockId: `${targetDay}-${subject.innerId}`,
@@ -531,6 +577,10 @@ const SchoolSchedule: React.FC = () => {
 
     // Track locked section saves
     newEvents.forEach(ev => enqueueLockedSectionSaveFromEvents(ev, null));
+
+    // Clear modal state
+    setUnassignedDropData(null);
+    setNewClassroomId("");
   };
 
   // Handle removing entire group from staging
@@ -4276,6 +4326,95 @@ const SchoolSchedule: React.FC = () => {
 
                       return sameDay && usesTargetClassroom && overlapsTime && isOtherEvent;
                     });
+                  }
+
+                  return {
+                    value: c.id,
+                    title: c.classroom,
+                    label: (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>{c.classroom}</span>
+                        {isOccupied ? (
+                          <span style={{ fontSize: '10px', color: '#ff4d4f', background: '#fff2f0', padding: '0px 6px', borderRadius: '4px', border: '1px solid #ffccc7', lineHeight: '1.4', display: 'inline-block' }}>Ocupada</span>
+                        ) : (
+                          <span style={{ fontSize: '10px', color: '#52c41a', background: '#f6ffed', padding: '0px 6px', borderRadius: '4px', border: '1px solid #b7eb8f', lineHeight: '1.4', display: 'inline-block' }}>Libre</span>
+                        )}
+                      </div>
+                    ),
+                  };
+                })}
+              />
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal for selecting classroom for unassigned subjects */}
+      <Modal
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <SwapOutlined style={{ color: "#1890ff" }} />
+            <span>Seleccionar Aula</span>
+          </div>
+        }
+        open={!!unassignedDropData}
+        onOk={handleUnassignedClassroomConfirm}
+        onCancel={() => {
+          setUnassignedDropData(null);
+          setNewClassroomId("");
+        }}
+        okText="Agregar"
+        cancelText="Cancelar"
+        okButtonProps={{ disabled: !newClassroomId }}
+      >
+        {unassignedDropData && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div style={{
+              backgroundColor: "#fff7e6",
+              padding: "12px",
+              borderRadius: "8px",
+              border: "1px solid #ffd591",
+            }}>
+              <div style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "4px" }}>
+                {schedulableSubjectsRef.current?.find(s => s.innerId === unassignedDropData.subjectId)?.subject || 'Materia'}
+              </div>
+              <div style={{ fontSize: "0.85rem", color: "#595959" }}>
+                {["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][unassignedDropData.targetDay]} • {unassignedDropData.targetStartTime} ({unassignedDropData.eventsToDrop.length} hora(s))
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontWeight: 600, marginBottom: "6px", color: "#374151" }}>
+                Seleccionar aula:
+              </label>
+              <Select
+                style={{ width: "100%" }}
+                value={newClassroomId || undefined}
+                placeholder="Seleccione un aula"
+                onChange={(value) => setNewClassroomId(value)}
+                showSearch
+                optionFilterProp="title"
+                options={classrooms.map(c => {
+                  // Check if classroom is occupied during the target time slots
+                  let isOccupied = false;
+                  if (unassignedDropData) {
+                    const allEventsForConflict = [...loadedScheduleEvents, ...(eventData || [])];
+                    const slotIndex = tableSlots.findIndex(s => s[0] === unassignedDropData.targetStartTime);
+                    
+                    for (let i = 0; i < unassignedDropData.eventsToDrop.length; i++) {
+                      const currentSlotIndex = slotIndex + i;
+                      if (currentSlotIndex >= tableSlots.length) break;
+                      
+                      const slot = tableSlots[currentSlotIndex];
+                      isOccupied = allEventsForConflict.some((evt) => {
+                        const sameDay = evt.daysOfWeek?.includes(unassignedDropData.targetDay);
+                        const usesTargetClassroom = evt.extendedProps?.classroomId === c.id;
+                        const overlapsTime = evt.startTime >= slot[0] && evt.startTime < slot[1];
+                        return sameDay && usesTargetClassroom && overlapsTime;
+                      });
+                      
+                      if (isOccupied) break; // If any slot is occupied, mark as occupied
+                    }
                   }
 
                   return {
