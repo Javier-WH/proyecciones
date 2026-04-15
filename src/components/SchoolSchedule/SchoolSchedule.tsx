@@ -484,8 +484,8 @@ const SchoolSchedule: React.FC = () => {
     // Handle error removal based on whether it's a block drag or individual hour
     const firstEvent = eventsToDrop[0];
 
-    if (isBlockDrag || newEvents.length === eventsToDrop.length) {
-      // Block drag or all hours were added - remove the entire error
+    if (isBlockDrag) {
+      // Block drag - remove the entire error
       setErrors(prev => prev.filter(e =>
         e.subjectId !== subjectId ||
         e.seccion !== firstEvent.extendedProps?.seccion ||
@@ -3745,10 +3745,11 @@ const SchoolSchedule: React.FC = () => {
                                         if (isUnassignedBlock || isUnassignedEvent) {
                                           // Handle unassigned subject drop
                                           const eventDataStr = e.dataTransfer.getData("text/plain");
+                                          const isBlockDrag = e.dataTransfer.types.includes("application/unassigned-block");
                                           try {
                                             const parsedData = JSON.parse(eventDataStr);
                                             const eventsFromDrop = Array.isArray(parsedData) ? parsedData as Event[] : [parsedData as Event];
-                                            handleDropUnassignedEvents(day, slot[0], eventsFromDrop);
+                                            handleDropUnassignedEvents(day, slot[0], eventsFromDrop, isBlockDrag);
                                           } catch {
                                             console.error("Error parsing unassigned event data");
                                           }
@@ -4009,10 +4010,11 @@ const SchoolSchedule: React.FC = () => {
                                         if (isUnassignedBlock || isUnassignedEvent) {
                                           // Handle unassigned subject drop
                                           const eventDataStr = e.dataTransfer.getData("text/plain");
+                                          const isBlockDrag = e.dataTransfer.types.includes("application/unassigned-block");
                                           try {
                                             const parsedData = JSON.parse(eventDataStr);
                                             const eventsFromDrop = Array.isArray(parsedData) ? parsedData as Event[] : [parsedData as Event];
-                                            handleDropUnassignedEvents(day, slot[0], eventsFromDrop);
+                                            handleDropUnassignedEvents(day, slot[0], eventsFromDrop, isBlockDrag);
                                           } catch {
                                             console.error("Error parsing unassigned event data");
                                           }
