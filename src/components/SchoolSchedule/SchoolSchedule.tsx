@@ -544,28 +544,45 @@ const SchoolSchedule: React.FC = () => {
     // Handle error removal based on whether it's a block drag or individual hour
     const firstEvent = eventsToDrop[0];
 
+    console.log('DEBUG: Eliminando error', {
+      isBlockDrag,
+      subjectId,
+      eventSeccion: firstEvent.extendedProps?.seccion,
+      eventPnfId: firstEvent.extendedProps?.pnfId,
+      currentErrors: errors
+    });
+
     if (isBlockDrag) {
       // Block drag - remove the entire error
-      setErrors(prev => prev.filter(e =>
-        e.subjectId !== subjectId ||
-        e.seccion !== firstEvent.extendedProps?.seccion ||
-        e.pnfId !== firstEvent.extendedProps?.pnfId
-      ));
+      setErrors(prev => {
+        const filtered = prev.filter(e =>
+          e.subjectId !== subjectId ||
+          e.seccion !== firstEvent.extendedProps?.seccion ||
+          e.pnfId !== firstEvent.extendedProps?.pnfId
+        );
+        console.log('DEBUG: Errores después de filtro block', filtered);
+        return filtered;
+      });
     } else {
       // Individual hour - reduce totalHours of the error
-      setErrors(prev => prev.map(e => {
-        if (e.subjectId === subjectId &&
-            e.seccion === firstEvent.extendedProps?.seccion &&
-            e.pnfId === firstEvent.extendedProps?.pnfId) {
-          const newTotalHours = (e.totalHours || 1) - newEvents.length;
-          if (newTotalHours <= 0) {
-            // If totalHours reaches 0, remove the error
-            return null;
+      setErrors(prev => {
+        const updated = prev.map(e => {
+          if (e.subjectId === subjectId &&
+              e.seccion === firstEvent.extendedProps?.seccion &&
+              e.pnfId === firstEvent.extendedProps?.pnfId) {
+            const newTotalHours = (e.totalHours || 1) - newEvents.length;
+            console.log('DEBUG: Reduciendo totalHours', { old: e.totalHours, new: newTotalHours, newEventsLength: newEvents.length });
+            if (newTotalHours <= 0) {
+              // If totalHours reaches 0, remove the error
+              return null;
+            }
+            return { ...e, totalHours: newTotalHours };
           }
-          return { ...e, totalHours: newTotalHours };
-        }
-        return e;
-      }).filter(e => e !== null));
+          return e;
+        }).filter(e => e !== null);
+        console.log('DEBUG: Errores después de reducción individual', updated);
+        return updated;
+      });
     }
 
     // Show appropriate message based on conflicts
