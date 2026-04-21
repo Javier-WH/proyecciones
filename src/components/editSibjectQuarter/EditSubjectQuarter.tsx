@@ -3,9 +3,6 @@ import { Button, Modal, Tag, Select, Alert } from "antd";
 import { Subject } from "../../interfaces/subject";
 import { Teacher } from "../../interfaces/teacher";
 import { normalizeText } from "../../utils/textFilter";
-import { useContext } from "react";
-import { MainContext } from "../../context/mainContext";
-import { MainContextValues } from "../../interfaces/contextInterfaces";
 
 interface TeacherOption {
   value: string;
@@ -30,7 +27,6 @@ const EditSubjectQuarterModal: React.FC<{
   const [selectedTeacherQ2, setSelectedTeacherQ2] = useState<Teacher | null | undefined>(null);
   const [selectedTeacherQ3, setSelectedTeacherQ3] = useState<Teacher | null | undefined>(null);
   const [localError, setLocalError] = useState<string | null>(null);
-  const { lockedSections } = useContext(MainContext) as MainContextValues;
 
   useEffect(() => {
     if (!subject) {
@@ -77,16 +73,8 @@ const EditSubjectQuarterModal: React.FC<{
   const handleOk = () => {
     if (!subject || !subjects) return;
 
-    // --- CHECK FOR FROZEN SECTIONS ---
-    const qKeys = Object.keys(subject.quarter) as ("q1" | "q2" | "q3")[];
-    for (const q of qKeys) {
-      const lockedKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}-${q}`;
-      if (lockedSections[lockedKey]) {
-        const trimLabel = q === "q1" ? "Trimestre 1" : q === "q2" ? "Trimestre 2" : "Trimestre 3";
-        setLocalError(`La sección ${subject.seccion} está congelada en el ${trimLabel}. No se puede modificar.`);
-        return;
-      }
-    }
+    // NOTA: Se permite cambiar profesor aunque la sección esté congelada en fase 2.
+    // El conflicto se detecta visualmente en el horario (borde rojo) y en el panel del profesor.
 
     const subjectCopy = [...subjects];
     const subjectIndex = subjectCopy.findIndex((subj) => subj.innerId === subject.innerId);

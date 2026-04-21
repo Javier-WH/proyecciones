@@ -185,6 +185,55 @@ const SchoolSchedule: React.FC = () => {
   const [eventsWithConflicts, setEventsWithConflicts] = useState<Record<string, string[]>>({}); // eventId -> conflict messages
   const STAGING_PANEL_WIDTH = 320;
 
+  // Detectar conflictos de doble-asignación de profesor: cuando un mismo profesor
+  // tiene dos clases asignadas en el mismo día/hora pero en distintas secciones/aulas.
+  // Esto ocurre típicamente al cambiar el profesor de una materia congelada en fase 2,
+  // si el nuevo profesor ya tiene otra clase en ese horario.
+  const professorMismatchConflicts = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!subjects) return map;
+
+    // Unir todas las secciones bloqueadas del trimestre actual
+    const allLockedEvents: Event[] = [];
+    Object.entries(lockedSections || {}).forEach(([key, events]) => {
+      if (!key.endsWith(`-${trimestre}`)) return;
+      allLockedEvents.push(...events);
+    });
+
+    // Detectar colisiones profesor+día+hora
+    for (let i = 0; i < allLockedEvents.length; i++) {
+      const a = allLockedEvents[i];
+      const profA = a.extendedProps?.professorId;
+      if (!profA) continue;
+      const dayA = a.daysOfWeek?.[0];
+      const startA = a.startTime;
+
+      for (let j = 0; j < allLockedEvents.length; j++) {
+        if (i === j) continue;
+        const b = allLockedEvents[j];
+        if (b.extendedProps?.professorId !== profA) continue;
+        if (b.daysOfWeek?.[0] !== dayA) continue;
+        if (b.startTime !== startA) continue;
+        // Mismo profesor + mismo día + misma hora pero distinta sección/materia → conflicto
+        const sameSection =
+          a.extendedProps?.pnfId === b.extendedProps?.pnfId &&
+          a.extendedProps?.trayectoId === b.extendedProps?.trayectoId &&
+          a.extendedProps?.seccion === b.extendedProps?.seccion &&
+          a.extendedProps?.subjectId === b.extendedProps?.subjectId;
+        if (sameSection) continue;
+
+        const prof = teachers?.find(t => t.id === profA);
+        const profName = prof ? `${prof.name} ${prof.lastName}` : 'Profesor';
+        const eventId = `${a.extendedProps?.subjectId}-${a.extendedProps?.seccion}-${dayA}-${startA}`;
+        const msg = `Conflicto de profesor: ${profName} también tiene clase de "${b.title}" a esta hora`;
+        const existing = map.get(eventId) || [];
+        if (!existing.includes(msg)) existing.push(msg);
+        map.set(eventId, existing);
+      }
+    }
+    return map;
+  }, [lockedSections, subjects, trimestre, teachers]);
+
   const isSuperUser = useMemo(() => {
     if (userData?.su) return true;
     const superProfiles = ["ADMIN", "COORDINADOR", "SUPERUSER"];
@@ -544,45 +593,27 @@ const SchoolSchedule: React.FC = () => {
     // Handle error removal based on whether it's a block drag or individual hour
     const firstEvent = eventsToDrop[0];
 
-    console.log('DEBUG: Eliminando error', {
-      isBlockDrag,
-      subjectId,
-      eventSeccion: firstEvent.extendedProps?.seccion,
-      eventPnfId: firstEvent.extendedProps?.pnfId,
-      currentErrors: errors
-    });
-
     if (isBlockDrag) {
       // Block drag - remove the entire error
-      setErrors(prev => {
-        const filtered = prev.filter(e =>
-          e.subjectId !== subjectId ||
-          e.seccion !== firstEvent.extendedProps?.seccion ||
-          e.pnfId !== firstEvent.extendedProps?.pnfId
-        );
-        console.log('DEBUG: Errores después de filtro block', filtered);
-        return filtered;
-      });
+      setErrors(prev => prev.filter(e =>
+        e.subjectId !== subjectId ||
+        e.seccion !== firstEvent.extendedProps?.seccion ||
+        e.pnfId !== firstEvent.extendedProps?.pnfId
+      ));
     } else {
       // Individual hour - reduce totalHours of the error
-      setErrors(prev => {
-        const updated = prev.map(e => {
-          if (e.subjectId === subjectId &&
-              e.seccion === firstEvent.extendedProps?.seccion &&
-              e.pnfId === firstEvent.extendedProps?.pnfId) {
-            const newTotalHours = (e.totalHours || 1) - newEvents.length;
-            console.log('DEBUG: Reduciendo totalHours', { old: e.totalHours, new: newTotalHours, newEventsLength: newEvents.length });
-            if (newTotalHours <= 0) {
-              // If totalHours reaches 0, remove the error
-              return null;
-            }
-            return { ...e, totalHours: newTotalHours };
+      setErrors(prev => prev.map(e => {
+        if (e.subjectId === subjectId &&
+            e.seccion === firstEvent.extendedProps?.seccion &&
+            e.pnfId === firstEvent.extendedProps?.pnfId) {
+          const newTotalHours = (e.totalHours || 1) - newEvents.length;
+          if (newTotalHours <= 0) {
+            return null;
           }
-          return e;
-        }).filter(e => e !== null);
-        console.log('DEBUG: Errores después de reducción individual', updated);
-        return updated;
-      });
+          return { ...e, totalHours: newTotalHours };
+        }
+        return e;
+      }).filter(e => e !== null));
     }
 
     // Show appropriate message based on conflicts
@@ -2272,10 +2303,13 @@ const SchoolSchedule: React.FC = () => {
     const localErrors: scheduleError[] = [];
 
     // --- SELF-HEALING LOCKED SECTIONS ALGORITHM ---
+    // Sincroniza el professorId de los eventos bloqueados con el profesor actual
+    // asignado a la materia. Al cambiar profesor en fase 2, el horario no se mueve,
+    // solo se actualiza el professorId del evento. Los conflictos (p.ej. doble
+    // asignación de profesor) se detectan visualmente con borde rojo.
     const updatedLockedSections = { ...lockedSections };
     let lockedChanged = false;
 
-    // 1. Sync professorIds in updatedLockedSections with current Subjects
     for (const [key, lockedEvents] of Object.entries(updatedLockedSections)) {
       if (!key.endsWith(`-${trimestre}`)) continue;
       let needsSync = false;
@@ -2301,7 +2335,6 @@ const SchoolSchedule: React.FC = () => {
     }
 
     if (lockedChanged) {
-      // Save back to state asynchronously so it doesn't interrupt the render cycle
       setTimeout(() => setLockedSections(updatedLockedSections), 0);
     }
     // ----------------------------------------------
@@ -3755,7 +3788,9 @@ const SchoolSchedule: React.FC = () => {
 
                                   // Check if this cell has conflicts
                                   const cellEventId = `${cell.extendedProps?.subjectId}-${cell.extendedProps?.seccion}-${day}-${slot[0]}`;
-                                  const cellConflicts = eventsWithConflicts[cellEventId] || [];
+                                  const baseCellConflicts = eventsWithConflicts[cellEventId] || [];
+                                  const profMismatch = professorMismatchConflicts.get(cellEventId) || [];
+                                  const cellConflicts = [...baseCellConflicts, ...profMismatch];
                                   const hasConflict = cellConflicts.length > 0;
 
                                   return (

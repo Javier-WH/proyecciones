@@ -1,6 +1,4 @@
-import { useContext, useEffect, useState } from "react";
-import { MainContext } from "../context/mainContext";
-import { MainContextValues } from "../interfaces/contextInterfaces";
+import { useEffect, useState } from "react";
 import { Subject } from "../interfaces/subject";
 import { Teacher } from "../interfaces/teacher";
 
@@ -28,7 +26,6 @@ export interface useSubjectResponseTeacherHours {
 }
 
 export default function useSetSubject(SubjectArray: Subject[]) {
-  const { lockedSections } = useContext(MainContext) as MainContextValues;
   const [subjectList, setSubjectList] = useState<Subject[]>([]);
 
   useEffect(() => {
@@ -58,18 +55,8 @@ export default function useSetSubject(SubjectArray: Subject[]) {
 
     const targetSubject = subjectList[subjectIndex];
 
-    // --- CHECK FOR LOCKED SECTIONS ---
-    const quarters = Object.keys(targetSubject.quarter) as ("q1" | "q2" | "q3")[];
-    for (const q of quarters) {
-      const lockedKey = `${targetSubject.pnfId}-${targetSubject.trayectoId}-${targetSubject.seccion}-${q}`;
-      if (lockedSections[lockedKey]) {
-        return {
-          error: true,
-          message: `La sección ${targetSubject.seccion} está bloqueada en el ${q === "q1" ? "Trimestre 1" : q === "q2" ? "Trimestre 2" : "Trimestre 3"}. No se puede modificar el profesor.`,
-          data: null,
-        };
-      }
-    }
+    // NOTA: Se permite cambiar profesor aunque la sección esté bloqueada en fase 2.
+    // El conflicto se detecta visualmente en el horario (borde rojo) y en el panel del profesor.
 
     const linkKey = `${targetSubject.seccion} - ${targetSubject.turnoName}`;
 
@@ -130,18 +117,8 @@ export default function useSetSubject(SubjectArray: Subject[]) {
 
     const targetSubject = subjectList[subjectIndex];
 
-    // --- CHECK FOR LOCKED SECTIONS ---
-    const quarters = Object.keys(targetSubject.quarter) as ("q1" | "q2" | "q3")[];
-    for (const q of quarters) {
-      const lockedKey = `${targetSubject.pnfId}-${targetSubject.trayectoId}-${targetSubject.seccion}-${q}`;
-      if (lockedSections[lockedKey]) {
-        return {
-          error: true,
-          message: `La sección ${targetSubject.seccion} está bloqueada en el ${q === "q1" ? "Trimestre 1" : q === "q2" ? "Trimestre 2" : "Trimestre 3"}. No se puede modificar el profesor.`,
-          data: null,
-        };
-      }
-    }
+    // NOTA: Se permite cambiar profesor aunque la sección esté bloqueada en fase 2.
+    // El conflicto se detecta visualmente en el horario (borde rojo) y en el panel del profesor.
 
     const linkKey = `${targetSubject.seccion} - ${targetSubject.turnoName}`;
 

@@ -31,8 +31,54 @@ const Subjects: React.FC<{
     setEditSubjectQuarter,
     userData,
     userPNF,
-    selectedTeacher
+    selectedTeacher,
+    lockedSections,
   } = useContext(MainContext) as MainContextValues;
+
+  // Detecta si el profesor seleccionado tiene doble-asignación a la misma hora
+  // entre esta materia (congelada) y otra materia en cualquier sección congelada.
+  const getSubjectConflicts = (subject: Subject): { quarter: string; otherSubject: string; time: string }[] => {
+    if (!subject || !selectedTeacerId || !lockedSections || subject.key === "ADMINISTRATIVE_HOURS") return [];
+    const conflicts: { quarter: string; otherSubject: string; time: string }[] = [];
+    const quarters = Object.keys(subject.quarter) as ("q1" | "q2" | "q3")[];
+
+    for (const q of quarters) {
+      if (subject.quarter[q] !== selectedTeacerId) continue;
+      const lockedKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}-${q}`;
+      const subjectEvents = lockedSections[lockedKey];
+      if (!subjectEvents || subjectEvents.length === 0) continue;
+
+      // Reunir todos los eventos de OTRAS secciones congeladas del mismo trimestre
+      const otherEvents: any[] = [];
+      Object.entries(lockedSections).forEach(([k, evs]) => {
+        if (k === lockedKey) return;
+        if (!k.endsWith(`-${q}`)) return;
+        otherEvents.push(...evs);
+      });
+
+      // Buscar colisiones día+hora con el mismo profesor
+      for (const ev of subjectEvents) {
+        if (ev.extendedProps?.subjectId !== subject.innerId) continue;
+        const day = ev.daysOfWeek?.[0];
+        const start = ev.startTime;
+        const clash = otherEvents.find(o =>
+          o.daysOfWeek?.[0] === day &&
+          o.startTime === start &&
+          o.extendedProps?.professorId === selectedTeacerId
+        );
+        if (clash) {
+          const qLabel = q === "q1" ? "T1" : q === "q2" ? "T2" : "T3";
+          const dayNames = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
+          const timeLabel = `${dayNames[day || 0]} ${start}`;
+          const entry = { quarter: qLabel, otherSubject: clash.title || 'otra materia', time: timeLabel };
+          if (!conflicts.some(c => c.quarter === entry.quarter && c.time === entry.time && c.otherSubject === entry.otherSubject)) {
+            conflicts.push(entry);
+          }
+        }
+      }
+    }
+    return conflicts;
+  };
 
   const [isAdminModalOpen, setIsAdminModalOpen] = React.useState(false);
   const [adminHours, setAdminHours] = React.useState({ q1: 0, q2: 0, q3: 0 });
@@ -258,15 +304,17 @@ const Subjects: React.FC<{
               subject.key === "ADMINISTRATIVE_HOURS"
                 ? "#FFB6C1"
                 : subjectColors?.[subject.pnfId] || "#1890ff";
+            const subjectConflicts = getSubjectConflicts(subject);
+            const hasScheduleConflict = subjectConflicts.length > 0;
             return (
               <div
                 key={i}
                 style={{
-                  backgroundColor: "white",
+                  backgroundColor: hasScheduleConflict ? "#fff2f0" : "white",
                   borderRadius: "8px",
                   boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-                  border: "1px solid #f0f0f0",
-                  borderLeft: `5px solid ${highlightColor}`,
+                  border: hasScheduleConflict ? "1px solid #ffccc7" : "1px solid #f0f0f0",
+                  borderLeft: `5px solid ${hasScheduleConflict ? "#ff4d4f" : highlightColor}`,
                   padding: "12px",
                   position: "relative",
                   transition: "all 0.2s ease",
@@ -352,6 +400,20 @@ const Subjects: React.FC<{
                         }`}</Tag>
                     )}
                   </div>
+
+                  {hasScheduleConflict && (
+                    <div style={{ marginTop: "10px", padding: "8px", background: "#fff1f0", border: "1px solid #ffa39e", borderRadius: "6px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#cf1322", fontSize: "0.8rem", fontWeight: 600 }}>
+                        <ExclamationCircleOutlined />
+                        <span>Conflicto de horario</span>
+                      </div>
+                      {subjectConflicts.map((c, idx) => (
+                        <div key={idx} style={{ fontSize: "0.75rem", color: "#595959", marginTop: "4px" }}>
+                          {c.quarter} · {c.time}: coincide con <strong>{c.otherSubject}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );
