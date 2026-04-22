@@ -24,9 +24,16 @@ El sistema de horarios opera en **dos etapas independientes**:
 
 ---
 
-## 🧠 Algoritmo de Auto-Solución (3 Pases)
+## 🧠 Algoritmo de Auto-Solución (Pipeline Multi-Pase)
 
-Cuando `scheduleConfig.auto_solve` está activo y la generación principal deja materias sin asignar, el sistema ejecuta tres pases secuenciales antes de reportar errores. Todos respetan restricciones de profesor (días/horas) y aulas preferidas/exclusivas.
+Cuando `scheduleConfig.auto_solve` está activo y la generación principal deja materias sin asignar, el sistema ejecuta varios pases secuenciales antes de reportar errores. Todos respetan restricciones de profesor (días/horas) y aulas preferidas/exclusivas.
+
+### 📋 Pase 0 — Ordenamiento MRV (en generación inicial)
+**Ubicación:** `fucntions.tsx`, ordenamiento de `tasks`.
+
+Las materias con menor flexibilidad (ratio `horasNecesarias / slotsDisponibles` alto) se programan antes. Esto evita dejar materias con profesores muy restringidos al final, cuando el horario ya está fragmentado.
+- Criterio: `Nivel 1.7` (después de exclusividad de aula y restricciones booleanas, antes de `constraintScore`).
+- Umbral de 5% para evitar desestabilizar el orden con diferencias insignificantes.
 
 ### Pase 1 — Búsqueda Estricta
 - Días permitidos del profesor + aulas preferidas de la materia
@@ -36,24 +43,39 @@ Cuando `scheduleConfig.auto_solve` está activo y la generación principal deja 
 ### Pase 2 — Relajación de Aulas
 - Si la restricción de aulas **no es exclusiva** y queda capacidad, reintenta con TODAS las aulas activas (manteniendo días del profesor)
 
-### Pase 3 — Intercambio (Swap Displacement)
+### Pase 3a — Compactación
+Antes del swap propiamente dicho, se intenta consolidar huecos libres:
+- Por cada día, cada bloque movible se desplaza 1 slot a la **izquierda** mientras sea válido (sin conflictos, respetando recesos, restricciones del profesor, exclusividad de aula, contigüidad de materia).
+- Se itera hasta estabilización (máx 10 iteraciones).
+- **Objetivo**: consolidar huecos fragmentados de 1h en ventanas consecutivas de ≥2h aprovechables por el swap.
+
+### Pase 3b — Intercambio con Cascada (Swap Displacement)
 Si todavía quedan materias sin ubicar, el sistema intenta liberar espacio **moviendo bloques existentes** a otras posiciones válidas:
 
 1. **Identifica bloques desplazables**: eventos contiguos de la misma materia/sección/día/aula que NO están en secciones bloqueadas ni son eventos cargados desde BD.
 2. **Para cada materia pendiente**, busca placements candidatos (día, slot, aula) y detecta los bloques que los ocupan.
-3. **Para cada bloqueador**, intenta reubicarlo a otra posición válida que respete:
+3. **Para cada bloqueador**, intenta reubicarlo a otra posición válida respetando:
    - Días y horas restringidas del profesor del bloque desplazado
    - Aulas preferidas/exclusivas de su materia
    - Límite `conserve_slots` por día
    - Cortes por receso
-4. Si **todos** los bloqueadores tienen ubicación alternativa, aplica el swap en cascada y coloca la materia pendiente.
-5. **Nunca** mueve eventos de secciones congeladas ni de `loadedScheduleEvents`.
+4. **Cascada profundidad 2**: si un bloqueador no tiene ubicación directa, el sistema intenta mover OTRO bloque para hacerle espacio (efecto dominó). Profundidad máxima = 2 con `MAX_CASCADE_ATTEMPTS=800` y cycle detection por `inProcess: Set<string>`.
+5. Si **todos** los bloqueadores (incluyendo cascadas) tienen ubicación alternativa, aplica el swap y coloca la materia pendiente.
+6. **Nunca** mueve eventos de secciones congeladas ni de `loadedScheduleEvents`.
 
 **Ubicación:** `src/components/SchoolSchedule/SchoolSchedule.tsx` — dentro del `useEffect` de generación, bajo el bloque `if (scheduleConfig?.auto_solve && ...)`.
 
 **Mensajes de UI:**
 - Si el swap resuelve horas adicionales: mensaje de éxito indicando cuántas se recuperaron
 - Si aún quedan errores: warning con conteo final y cuántas resolvió el swap
+
+### ⚠️ Caso típico resuelto
+Escenario reportado (con `prevent_single_hour_blocks=true`):
+- Materia FORMACIÓN CRÍTICA II con 2h pendientes
+- 4h libres en el horario, pero fragmentadas en huecos aislados de 1h
+- **Compactación** consolida huecos de 1h en ventanas de 2h consecutivas
+- **Cascada** permite que un bloqueador "mueva" a otro bloque para liberar 2h contiguas
+- Resultado: las 2h se asignan sin violar ninguna restricción
 
 ---
 

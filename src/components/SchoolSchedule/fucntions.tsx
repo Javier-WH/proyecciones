@@ -1319,6 +1319,21 @@ export function generateScheduleEvents({
       if (aBoth !== bBoth) return bBoth - aBoth;
     }
 
+    // Nivel 1.7 (MRV): Ratio de ocupación del profesor = horasNecesarias / slotsDisponibles.
+    // A mayor ratio, menos flexibilidad tiene la materia → se programa antes.
+    // Evita dejar materias con profesores de pocos días/horas al final, cuando el horario
+    // ya está fragmentado y no caben bloques consecutivos.
+    const mrvRatio = (t: SubjectTask) => {
+      const totalSlots = Math.max(1, t.availableDays.length * t.timeSlots.length - t.restrictedHours.length);
+      return t.totalHours / totalSlots;
+    };
+    const aRatio = mrvRatio(a);
+    const bRatio = mrvRatio(b);
+    // Solo diferenciar si la diferencia es significativa (>5%) para no desestabilizar el orden
+    if (Math.abs(aRatio - bRatio) > 0.05) {
+      return bRatio - aRatio;
+    }
+
     // Nivel 2: Dentro de la misma categoría, ordenar por constraintScore (más alto primero)
     if (a.constraintScore !== b.constraintScore) {
       return b.constraintScore - a.constraintScore;

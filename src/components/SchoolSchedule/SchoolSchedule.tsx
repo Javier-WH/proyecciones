@@ -195,9 +195,13 @@ const SchoolSchedule: React.FC = () => {
 
     // Unir todas las secciones bloqueadas del trimestre actual
     const allLockedEvents: Event[] = [];
+    const eventOrigin = new Map<Event, string>(); // evento → sectionKey (para debug)
     Object.entries(lockedSections || {}).forEach(([key, events]) => {
       if (!key.endsWith(`-${trimestre}`)) return;
-      allLockedEvents.push(...events);
+      for (const ev of events) {
+        allLockedEvents.push(ev);
+        eventOrigin.set(ev, key);
+      }
     });
 
     // Detectar colisiones profesor+día+hora
@@ -221,6 +225,33 @@ const SchoolSchedule: React.FC = () => {
           a.extendedProps?.seccion === b.extendedProps?.seccion &&
           a.extendedProps?.subjectId === b.extendedProps?.subjectId;
         if (sameSection) continue;
+
+        // ⚠ DEBUG TEMPORAL: loggear cada conflicto detectado con todo el contexto.
+        // Esto ayuda a identificar eventos fantasma o duplicados en lockedSections.
+        // eslint-disable-next-line no-console
+        console.warn('[professorMismatchConflict]', {
+          A: {
+            title: a.title,
+            subjectId: a.extendedProps?.subjectId,
+            pnfId: a.extendedProps?.pnfId,
+            trayectoId: a.extendedProps?.trayectoId,
+            seccion: a.extendedProps?.seccion,
+            day: dayA,
+            start: startA,
+            originKey: eventOrigin.get(a),
+          },
+          B: {
+            title: b.title,
+            subjectId: b.extendedProps?.subjectId,
+            pnfId: b.extendedProps?.pnfId,
+            trayectoId: b.extendedProps?.trayectoId,
+            seccion: b.extendedProps?.seccion,
+            day: b.daysOfWeek?.[0],
+            start: b.startTime,
+            originKey: eventOrigin.get(b),
+          },
+          professorId: profA,
+        });
 
         const prof = teachers?.find(t => t.id === profA);
         const profName = prof ? `${prof.name} ${prof.lastName}` : 'Profesor';
@@ -2328,8 +2359,33 @@ const SchoolSchedule: React.FC = () => {
         return ev;
       });
 
+      // LIMPIEZA DE FANTASMAS en lockedSections persistidos:
+      // Si dos eventos de la misma sección ocupan el mismo día/hora con distinta materia,
+      // conservamos solo el primero (el fantasma ingresó por un bug de auto_solve previo).
+      const slotCleanMap = new Map<string, any>();
+      const phantomsRemoved: any[] = [];
+      for (const ev of synchronizedEvents) {
+        const slotKey = `${ev.daysOfWeek?.[0]}-${ev.startTime}`;
+        if (slotCleanMap.has(slotKey)) {
+          phantomsRemoved.push(ev);
+          continue;
+        }
+        slotCleanMap.set(slotKey, ev);
+      }
+      const cleanedEvents = phantomsRemoved.length > 0 ? Array.from(slotCleanMap.values()) : synchronizedEvents;
+      if (phantomsRemoved.length > 0) {
+        // eslint-disable-next-line no-console
+        console.warn('[lockedSections-phantoms-cleaned]', key, phantomsRemoved.length, phantomsRemoved.map(e => ({
+          title: e.title,
+          subjectId: e.extendedProps?.subjectId,
+          day: e.daysOfWeek?.[0],
+          start: e.startTime,
+        })));
+        needsSync = true;
+      }
+
       if (needsSync) {
-        updatedLockedSections[key] = synchronizedEvents;
+        updatedLockedSections[key] = cleanedEvents;
         lockedChanged = true;
       }
     }
@@ -2339,7 +2395,7 @@ const SchoolSchedule: React.FC = () => {
     }
     // ----------------------------------------------
 
-    const eventsdata = generateScheduleEvents({
+    let eventsdata = generateScheduleEvents({
       subjects: currentSubjects,
       classrooms: classrooms.filter(c => c.active !== false),
       trimestre: trimestre,
@@ -2361,7 +2417,7 @@ const SchoolSchedule: React.FC = () => {
     });
 
     if (scheduleConfig?.auto_solve && localErrors.length > 0) {
-      const currentAllEvents = [...loadedScheduleEvents, ...eventsdata];
+      let currentAllEvents: Event[] = [...loadedScheduleEvents, ...eventsdata];
       const newlySolvedEvents: Event[] = [];
       let solvedCount = 0;
       const unresolvedErrors: scheduleError[] = [];
@@ -2636,13 +2692,58 @@ const SchoolSchedule: React.FC = () => {
         const preventSingleSwap = !!scheduleConfig?.prevent_single_hour_blocks;
         const maxPerDaySwap = scheduleConfig?.conserve_slots || consecutiveConfig.maxSlots;
 
+        // Resultado de reubicación, puede incluir movimientos en cascada (depth 1)
+        type CascadeMove = { block: SwapBlock; newPlace: RelocationResult };
+        type RelocationResult = {
+          day: number;
+          startSlotIdx: number;
+          classroomId: string;
+          classroomName: string;
+          cascade?: CascadeMove[];
+        };
+
+        // Contador global de intentos de cascada para evitar explosión combinatoria.
+        let cascadeAttempts = 0;
+        const MAX_CASCADE_ATTEMPTS = 800;
+
+        // Construye eventos nuevos para un bloque reubicado (definido temprano porque findRelocationForBlock lo usa en cascada).
+        const buildRelocatedEvents = (block: SwapBlock, place: { day: number; startSlotIdx: number; classroomId: string; classroomName: string }): Event[] => {
+          const slots = activeTurnos[block.turnoName];
+          if (!slots) return [];
+          const out: Event[] = [];
+          for (let i = 0; i < block.length; i++) {
+            const [s, e] = slots[place.startSlotIdx + i];
+            const tpl = block.events[Math.min(i, block.events.length - 1)];
+            out.push({
+              ...tpl,
+              daysOfWeek: [place.day],
+              startTime: s,
+              endTime: e,
+              extendedProps: {
+                ...tpl.extendedProps,
+                classroomId: place.classroomId,
+                classroomName: place.classroomName,
+                blockId: `${place.day}-${tpl.extendedProps?.subjectId}`,
+              },
+            });
+          }
+          return out;
+        };
+
         // Busca una nueva ubicación para un bloque dado, respetando sus propias restricciones.
+        // Si depth=0 y no hay ubicación directa, intenta depth 1: mover otros bloques para hacer espacio.
+        // `inProcess` evita ciclos en la cascada.
         const findRelocationForBlock = (
           block: SwapBlock,
           liveEvents: Event[],
           excludedIds: Set<string>,
           forbiddenPlacements: { day: number; startIdx: number; length: number }[] = [],
-        ): { day: number; startSlotIdx: number; classroomId: string; classroomName: string } | null => {
+          depth: number = 0,
+          inProcess: Set<string> = new Set(),
+        ): RelocationResult | null => {
+          const blockKey = `${block.day}|${block.subjectId}|${block.pnfId}|${block.trayectoId}|${block.seccion}|${block.classroomId}|${block.startSlotIdx}`;
+          if (inProcess.has(blockKey)) return null;
+
           const blockSubject = schedulableSubjectsRef.current?.find(s => s.innerId === block.subjectId);
           if (!blockSubject) return null;
           const slots = activeTurnos[block.turnoName];
@@ -2745,31 +2846,252 @@ const SchoolSchedule: React.FC = () => {
               }
             }
           }
+
+          // ═══════ CASCADA (solo en depth 0) ═══════
+          // No se encontró reubicación directa. Probar depth-1: mover otros bloques
+          // para hacer espacio a este bloque. Solo se admite un nivel de cascada.
+          if (depth >= 1 || cascadeAttempts >= MAX_CASCADE_ATTEMPTS) return null;
+
+          const nextInProcess = new Set(inProcess);
+          nextInProcess.add(blockKey);
+
+          // Construir lista de movableBlocks excluyendo el propio bloque y los locked
+          const baseMovableBlocks = buildBlocksFrom(eventsForOcc.filter(isEventMovable));
+
+          for (const day of profDays) {
+            for (let startIdx = 0; startIdx <= slots.length - block.length; startIdx++) {
+              // Verificar restricciones del bloque al colocarlo aquí
+              let forbidden = false;
+              for (const fp of forbiddenPlacements) {
+                if (fp.day !== day) continue;
+                const aStart = startIdx, aEnd = startIdx + block.length;
+                const bStart = fp.startIdx, bEnd = fp.startIdx + fp.length;
+                if (aStart < bEnd && bStart < aEnd) { forbidden = true; break; }
+              }
+              if (forbidden) continue;
+
+              // Chequear recesos
+              let crossesBreak = false;
+              if (scheduleConfig?.breaks?.length) {
+                for (let k = 1; k < block.length; k++) {
+                  const prevEnd = slots[startIdx + k - 1][1];
+                  const currStart = slots[startIdx + k][0];
+                  if (scheduleConfig.breaks.some((b: any) => prevEnd <= b.start && currStart >= b.end)) {
+                    crossesBreak = true; break;
+                  }
+                }
+              }
+              if (crossesBreak) continue;
+
+              // Chequear horas restringidas del profesor del bloque
+              let restricted = false;
+              for (let i = 0; i < block.length; i++) {
+                const [slotStart] = slots[startIdx + i];
+                if (profRestrictedHours.some((rh: any) => rh.day === day && rh.start === slotStart)) {
+                  restricted = true; break;
+                }
+              }
+              if (restricted) continue;
+
+              // Misma posición original: saltar
+              if (day === block.day && startIdx === block.startSlotIdx) continue;
+
+              for (const cr of blockCandidateRooms) {
+                if (cascadeAttempts >= MAX_CASCADE_ATTEMPTS) return null;
+                cascadeAttempts++;
+
+                // Recolectar bloqueadores de este candidato
+                const cascadeBlockerIds = new Set<string>();
+                const cascadeBlockers: Event[] = [];
+                let unmovable = false;
+
+                for (let i = 0; i < block.length; i++) {
+                  const [slotStart] = slots[startIdx + i];
+                  const o = occ.get(`${day}-${slotStart}`);
+                  if (!o) continue;
+                  for (const ev of o.eventsAt) {
+                    const p = ev.extendedProps || {};
+                    const profConf = !!(block.professorId && String(p.professorId) === String(block.professorId));
+                    const roomConf = String(p.classroomId) === String(cr.id);
+                    const secConf = `${p.pnfId}-${p.trayectoId}-${p.seccion}` === sectionKey;
+                    if (!profConf && !roomConf && !secConf) continue;
+                    if (!isEventMovable(ev)) { unmovable = true; break; }
+                    const id = getEventId(ev);
+                    if (!cascadeBlockerIds.has(id)) { cascadeBlockerIds.add(id); cascadeBlockers.push(ev); }
+                  }
+                  if (unmovable) break;
+                }
+                if (unmovable) continue;
+                if (cascadeBlockers.length === 0) continue; // debería ser placement directo, ya probado
+
+                // Identificar bloques de los bloqueadores
+                const cascadeBlockerKeys = new Set<string>();
+                for (const ev of cascadeBlockers) {
+                  const p = ev.extendedProps || {};
+                  cascadeBlockerKeys.add(`${ev.daysOfWeek?.[0]}|${p.subjectId}|${p.pnfId}|${p.trayectoId}|${p.seccion}|${p.classroomId}`);
+                }
+                const cascadeBlockerBlocks = baseMovableBlocks.filter(b => {
+                  const k = `${b.day}|${b.subjectId}|${b.pnfId}|${b.trayectoId}|${b.seccion}|${b.classroomId}`;
+                  return cascadeBlockerKeys.has(k);
+                });
+
+                // Evitar ciclos: no mover un bloque que ya está en proceso
+                if (cascadeBlockerBlocks.some(b => {
+                  const k = `${b.day}|${b.subjectId}|${b.pnfId}|${b.trayectoId}|${b.seccion}|${b.classroomId}|${b.startSlotIdx}`;
+                  return inProcess.has(k) || nextInProcess.has(k);
+                })) continue;
+
+                // Intentar relocalizar cada bloqueador (solo depth 1, sin más cascada)
+                const cascadeMoves: CascadeMove[] = [];
+                const cascadeTempExcluded = new Set<string>(excludedIds);
+                for (const bk of cascadeBlockerBlocks) for (const ev of bk.events) cascadeTempExcluded.add(getEventId(ev));
+
+                // Añadir el placement destino del bloque actual como forbidden para los cascadeados
+                const cascadeForbidden = [...forbiddenPlacements, { day, startIdx, length: block.length }];
+
+                let allOk = true;
+                for (const bk of cascadeBlockerBlocks) {
+                  const simLive = eventsForOcc
+                    .filter(e => !cascadeTempExcluded.has(getEventId(e)))
+                    .concat(...cascadeMoves.map(cm => buildRelocatedEvents(cm.block, cm.newPlace)));
+                  const sub = findRelocationForBlock(bk, simLive, new Set(), cascadeForbidden, depth + 1, nextInProcess);
+                  if (!sub) { allOk = false; break; }
+                  cascadeMoves.push({ block: bk, newPlace: sub });
+                }
+                if (!allOk) continue;
+
+                return { day, startSlotIdx: startIdx, classroomId: cr.id, classroomName: cr.classroom, cascade: cascadeMoves };
+              }
+            }
+          }
+
           return null;
         };
 
-        const buildRelocatedEvents = (block: SwapBlock, place: { day: number; startSlotIdx: number; classroomId: string; classroomName: string }): Event[] => {
-          const slots = activeTurnos[block.turnoName];
-          if (!slots) return [];
-          const out: Event[] = [];
-          for (let i = 0; i < block.length; i++) {
-            const [s, e] = slots[place.startSlotIdx + i];
-            const tpl = block.events[Math.min(i, block.events.length - 1)];
-            out.push({
-              ...tpl,
-              daysOfWeek: [place.day],
-              startTime: s,
-              endTime: e,
-              extendedProps: {
-                ...tpl.extendedProps,
-                classroomId: place.classroomId,
-                classroomName: place.classroomName,
-                blockId: `${place.day}-${tpl.extendedProps?.subjectId}`,
-              },
-            });
+        // Aplana una RelocationResult en una lista de (bloque, nuevoPlace) incluyendo cascadas
+        const flattenRelocation = (block: SwapBlock, place: RelocationResult): { block: SwapBlock; newPlace: RelocationResult }[] => {
+          const out: { block: SwapBlock; newPlace: RelocationResult }[] = [];
+          if (place.cascade && place.cascade.length > 0) {
+            for (const cm of place.cascade) out.push(...flattenRelocation(cm.block, cm.newPlace));
           }
+          out.push({ block, newPlace: place });
           return out;
         };
+
+        // ═══════════════════════════════════════════════════════════════
+        // PASE DE COMPACTACIÓN (previo al swap)
+        // Intenta desplazar bloques movibles 1 slot a la izquierda mientras
+        // sea válido. Concentra los huecos libres al final del día, creando
+        // ventanas consecutivas más grandes que el swap puede aprovechar.
+        // No cambia día ni aula, solo horario dentro del mismo día.
+        // ═══════════════════════════════════════════════════════════════
+        const tryCompactBlock = (
+          block: SwapBlock,
+          liveEvents: Event[],
+        ): number | null => {
+          // Retorna nuevo startSlotIdx si puede desplazarse 1 slot a la izquierda, null si no
+          const newStartIdx = block.startSlotIdx - 1;
+          if (newStartIdx < 0) return null;
+          const slots = activeTurnos[block.turnoName];
+          if (!slots) return null;
+
+          const blockSubject = schedulableSubjectsRef.current?.find(s => s.innerId === block.subjectId);
+          if (!blockSubject) return null;
+
+          // Restricciones de profesor
+          const profRes = teacherRestrictions.find(r => String(r.teacherId) === String(block.professorId));
+          if (profRes?.days && profRes.days.includes(block.day)) return null;
+          const profRestrictedHours = profRes?.hours || [];
+
+          // Restricciones de aulas (si exclusivas y esta aula NO está permitida, abortar)
+          const subKey = `${normalizeText(blockSubject.subject)}_t_${normalizeText(blockSubject.trayectoName || "")}`;
+          const subPref = subjectRestriction.find(r => r.subjectKey === subKey);
+          if (subPref?.isExclusive && (subPref.classroomIds?.length || 0) > 0) {
+            if (!subPref.classroomIds!.includes(block.classroomId)) return null;
+          }
+
+          // El nuevo slot (que será el primer slot del bloque) debe estar libre
+          const [newStart] = slots[newStartIdx];
+          if (profRestrictedHours.some((rh: any) => rh.day === block.day && rh.start === newStart)) return null;
+
+          // No cruzar receso: nuevo primer slot → antiguo primer slot debe ser contiguo en tiempo
+          if (scheduleConfig?.breaks?.length) {
+            const newEnd = slots[newStartIdx][1];
+            const currStart = slots[block.startSlotIdx][0];
+            if (scheduleConfig.breaks.some((b: any) => newEnd <= b.start && currStart >= b.end)) return null;
+          }
+
+          // Chequear conflictos en el nuevo slot (excluyendo los propios eventos del bloque)
+          const ownIds = new Set(block.events.map(e => getEventId(e)));
+          const eventsForCheck = liveEvents.filter(e => !ownIds.has(getEventId(e)));
+          const sectionKey = `${block.pnfId}-${block.trayectoId}-${block.seccion}`;
+          for (const ev of eventsForCheck) {
+            if (ev.daysOfWeek?.[0] !== block.day || ev.startTime !== newStart) continue;
+            const p = ev.extendedProps || {};
+            if (block.professorId && String(p.professorId) === String(block.professorId)) return null;
+            if (String(p.classroomId) === String(block.classroomId)) return null;
+            if (`${p.pnfId}-${p.trayectoId}-${p.seccion}` === sectionKey) return null;
+          }
+
+          // Contigüidad: si ya hay otros bloques de la misma materia/sección en este día,
+          // el nuevo rango [newStartIdx, block.startSlotIdx+block.length-1] no debe romper contigüidad
+          // con ellos (deben quedar adyacentes o el bloque compactado no se solapa en slots).
+          // Para simplificar: verificamos que NO haya otro evento de la misma materia/sección en este día
+          // cuyos slots estén separados del nuevo rango.
+          const lastSlotIdxNew = newStartIdx + block.length - 1;
+          const sameSubjDayEvents = eventsForCheck.filter(e =>
+            e.daysOfWeek?.[0] === block.day &&
+            e.extendedProps?.subjectId === block.subjectId &&
+            `${e.extendedProps?.pnfId}-${e.extendedProps?.trayectoId}-${e.extendedProps?.seccion}` === sectionKey
+          );
+          for (const ev of sameSubjDayEvents) {
+            const idx = slots.findIndex(s => s[0] === ev.startTime);
+            if (idx < 0) continue;
+            // Debe ser adyacente: idx === lastSlotIdxNew + 1 o idx === newStartIdx - 1
+            // (ya cubrimos "misma fila" con el check de sección arriba)
+            if (idx > lastSlotIdxNew + 1 || idx < newStartIdx - 1) return null;
+          }
+
+          return newStartIdx;
+        };
+
+        // Ejecutar compactación sobre todos los eventos movibles actuales
+        {
+          let liveCompact = currentAllEvents.slice();
+          let compactChanged = true;
+          let compactIters = 0;
+          while (compactChanged && compactIters < 10) {
+            compactChanged = false;
+            compactIters++;
+            const movable = buildBlocksFrom(liveCompact.filter(isEventMovable));
+            // Ordenar por día y startTime asc para compactar hacia la izquierda
+            movable.sort((a, b) => a.day - b.day || a.startSlotIdx - b.startSlotIdx);
+
+            for (const bk of movable) {
+              const newStartIdx = tryCompactBlock(bk, liveCompact);
+              if (newStartIdx === null || newStartIdx === bk.startSlotIdx) continue;
+
+              // Aplicar: remover eventos antiguos, crear nuevos con startSlotIdx desplazado
+              const oldIds = new Set(bk.events.map(e => getEventId(e)));
+              const newEvents = buildRelocatedEvents(bk, {
+                day: bk.day,
+                startSlotIdx: newStartIdx,
+                classroomId: bk.classroomId,
+                classroomName: bk.events[0].extendedProps?.classroomName || "",
+              });
+              liveCompact = liveCompact.filter(e => !oldIds.has(getEventId(e))).concat(newEvents);
+              for (const id of oldIds) swapRemovedEventIds.add(id);
+              swapRelocatedEvents.push(...newEvents);
+              compactChanged = true;
+            }
+          }
+          // Actualizar currentAllEvents para que el resto del swap use el estado compactado
+          if (swapRemovedEventIds.size > 0 || swapRelocatedEvents.length > 0) {
+            currentAllEvents = currentAllEvents
+              .filter(e => !swapRemovedEventIds.has(getEventId(e)))
+              .concat(swapRelocatedEvents);
+          }
+        }
 
         // Iterar sobre cada error sin resolver
         for (const errorInfo of unresolvedErrors) {
@@ -2905,8 +3227,8 @@ const SchoolSchedule: React.FC = () => {
                       continue;
                     }
 
-                    // Intentar relocalizar cada bloque bloqueador
-                    const reloPlans: { block: SwapBlock; newPlace: { day: number; startSlotIdx: number; classroomId: string; classroomName: string } }[] = [];
+                    // Intentar relocalizar cada bloque bloqueador (con posible cascada depth-1)
+                    const reloPlans: { block: SwapBlock; newPlace: RelocationResult }[] = [];
                     const tempExcluded = new Set<string>();
                     for (const bk of blockerBlocks) for (const ev of bk.events) tempExcluded.add(getEventId(ev));
 
@@ -2914,20 +3236,36 @@ const SchoolSchedule: React.FC = () => {
 
                     let allRelocated = true;
                     for (const bk of blockerBlocks) {
-                      // Simular ya-aplicados los planes previos en liveEvents
+                      // Simular ya-aplicados los planes previos en liveEvents (incluyendo cascadas)
+                      const simRelocatedEvents: Event[] = [];
+                      for (const rp of reloPlans) {
+                        for (const { block: fb, newPlace } of flattenRelocation(rp.block, rp.newPlace)) {
+                          simRelocatedEvents.push(...buildRelocatedEvents(fb, newPlace));
+                        }
+                      }
                       const simLive = liveEvents
                         .filter(e => !tempExcluded.has(getEventId(e)))
-                        .concat(...reloPlans.map(rp => buildRelocatedEvents(rp.block, rp.newPlace)));
+                        .concat(simRelocatedEvents);
                       const newPlace = findRelocationForBlock(bk, simLive, new Set(), forbidden);
                       if (!newPlace) { allRelocated = false; break; }
                       reloPlans.push({ block: bk, newPlace });
+                      // Al registrar el plan, agregar también los IDs de bloques en cascada a tempExcluded
+                      if (newPlace.cascade) {
+                        for (const { block: fb } of flattenRelocation(bk, newPlace)) {
+                          for (const ev of fb.events) tempExcluded.add(getEventId(ev));
+                        }
+                      }
                     }
                     if (!allRelocated) continue;
 
-                    // ¡Éxito! Aplicar el swap local
-                    const oldIds = Array.from(tempExcluded);
+                    // ¡Éxito! Aplicar el swap local (aplanando cascadas)
                     const newEventsFromPlans: Event[] = [];
-                    for (const rp of reloPlans) newEventsFromPlans.push(...buildRelocatedEvents(rp.block, rp.newPlace));
+                    for (const rp of reloPlans) {
+                      for (const { block: fb, newPlace } of flattenRelocation(rp.block, rp.newPlace)) {
+                        newEventsFromPlans.push(...buildRelocatedEvents(fb, newPlace));
+                      }
+                    }
+                    const oldIds = Array.from(tempExcluded);
                     if (oldIds.length > 0 || newEventsFromPlans.length > 0) {
                       reloLocal.push({ oldIds, newEvents: newEventsFromPlans });
                     }
@@ -2989,15 +3327,31 @@ const SchoolSchedule: React.FC = () => {
         // No había errores sin resolver después de pass 1/2
       }
 
-      // Aplicar cambios a eventsdata: quitar removidos, sumar relocalizados y solucionados por swap
-      if (swapSolvedEvents.length > 0 || swapRelocatedEvents.length > 0 || swapRemovedEventIds.size > 0) {
-        const filteredEventsData = eventsdata.filter(e => !swapRemovedEventIds.has(getEventId(e)));
+      // Aplicar cambios a eventsdata usando un Map keyed por getEventId para garantizar unicidad.
+      // Esto evita duplicados cuando un bloque se mueve múltiples veces (compactación iterativa
+      // o swap en cascada) y sus posiciones intermedias quedan registradas en swapRelocatedEvents.
+      if (swapSolvedEvents.length > 0 || swapRelocatedEvents.length > 0 || swapRemovedEventIds.size > 0 || newlySolvedEvents.length > 0) {
+        const finalMap = new Map<string, Event>();
+        // 1) Eventos originales que NO fueron removidos
+        for (const e of eventsdata) {
+          const id = getEventId(e);
+          if (swapRemovedEventIds.has(id)) continue;
+          finalMap.set(id, e);
+        }
+        // 2) Eventos resueltos por auto_solve pass 1/2
+        for (const e of newlySolvedEvents) finalMap.set(getEventId(e), e);
+        // 3) Eventos relocalizados por compactación/swap (si su id está en removidos, es una posición
+        //    intermedia que debe descartarse; solo mantenemos la posición FINAL)
+        for (const e of swapRelocatedEvents) {
+          const id = getEventId(e);
+          if (swapRemovedEventIds.has(id)) continue;
+          finalMap.set(id, e);
+        }
+        // 4) Eventos colocados por pass 3 swap (targets)
+        for (const e of swapSolvedEvents) finalMap.set(getEventId(e), e);
         eventsdata.length = 0;
-        eventsdata.push(...filteredEventsData);
+        eventsdata.push(...finalMap.values());
       }
-      eventsdata.push(...newlySolvedEvents);
-      // Los swap aportan relocated + solved (los solved son las materias objetivo; relocated son los bloqueadores reubicados)
-      eventsdata.push(...swapRelocatedEvents, ...swapSolvedEvents);
 
       const effectiveUnresolved = unresolvedErrors.length > 0 ? finalUnresolvedErrors : unresolvedErrors;
       setErrors(effectiveUnresolved);
@@ -3015,6 +3369,42 @@ const SchoolSchedule: React.FC = () => {
 
     } else {
       setErrors(localErrors);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CHEQUEO DE SANIDAD: eliminar eventos fantasma
+    // Detecta y remueve duplicados donde DOS materias distintas ocupan
+    // el MISMO slot de la MISMA sección (esto puede ocurrir si auto_solve
+    // coloca un evento y por alguna razón no elimina uno previo de otra
+    // materia en ese slot). Solo debería haber 1 evento por slot-sección.
+    // ═══════════════════════════════════════════════════════════════
+    {
+      const slotMap = new Map<string, Event>();
+      const duplicatesFound: Event[] = [];
+      for (const ev of eventsdata) {
+        const p = ev.extendedProps || {};
+        const slotKey = `${p.pnfId}-${p.trayectoId}-${p.seccion}-${ev.daysOfWeek?.[0]}-${ev.startTime}`;
+        if (slotMap.has(slotKey)) {
+          // Conflicto: dos materias distintas en el mismo slot de la misma sección.
+          // Conservamos la primera y descartamos la posterior (fantasma).
+          duplicatesFound.push(ev);
+          continue;
+        }
+        slotMap.set(slotKey, ev);
+      }
+      if (duplicatesFound.length > 0) {
+        // eslint-disable-next-line no-console
+        console.warn('[phantom-events-removed]', duplicatesFound.length, 'eventos fantasma eliminados:', duplicatesFound.map(ev => ({
+          title: ev.title,
+          subjectId: ev.extendedProps?.subjectId,
+          pnfId: ev.extendedProps?.pnfId,
+          trayectoId: ev.extendedProps?.trayectoId,
+          seccion: ev.extendedProps?.seccion,
+          day: ev.daysOfWeek?.[0],
+          start: ev.startTime,
+        })));
+        eventsdata = Array.from(slotMap.values());
+      }
     }
 
     setEventData(eventsdata);
