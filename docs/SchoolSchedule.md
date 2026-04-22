@@ -24,6 +24,39 @@ El sistema de horarios opera en **dos etapas independientes**:
 
 ---
 
+## 🧠 Algoritmo de Auto-Solución (3 Pases)
+
+Cuando `scheduleConfig.auto_solve` está activo y la generación principal deja materias sin asignar, el sistema ejecuta tres pases secuenciales antes de reportar errores. Todos respetan restricciones de profesor (días/horas) y aulas preferidas/exclusivas.
+
+### Pase 1 — Búsqueda Estricta
+- Días permitidos del profesor + aulas preferidas de la materia
+- Respeta `prevent_single_hour_blocks`, `conserve_slots`, recesos y restricciones horarias
+- Backtracking para maximizar horas asignadas
+
+### Pase 2 — Relajación de Aulas
+- Si la restricción de aulas **no es exclusiva** y queda capacidad, reintenta con TODAS las aulas activas (manteniendo días del profesor)
+
+### Pase 3 — Intercambio (Swap Displacement)
+Si todavía quedan materias sin ubicar, el sistema intenta liberar espacio **moviendo bloques existentes** a otras posiciones válidas:
+
+1. **Identifica bloques desplazables**: eventos contiguos de la misma materia/sección/día/aula que NO están en secciones bloqueadas ni son eventos cargados desde BD.
+2. **Para cada materia pendiente**, busca placements candidatos (día, slot, aula) y detecta los bloques que los ocupan.
+3. **Para cada bloqueador**, intenta reubicarlo a otra posición válida que respete:
+   - Días y horas restringidas del profesor del bloque desplazado
+   - Aulas preferidas/exclusivas de su materia
+   - Límite `conserve_slots` por día
+   - Cortes por receso
+4. Si **todos** los bloqueadores tienen ubicación alternativa, aplica el swap en cascada y coloca la materia pendiente.
+5. **Nunca** mueve eventos de secciones congeladas ni de `loadedScheduleEvents`.
+
+**Ubicación:** `src/components/SchoolSchedule/SchoolSchedule.tsx` — dentro del `useEffect` de generación, bajo el bloque `if (scheduleConfig?.auto_solve && ...)`.
+
+**Mensajes de UI:**
+- Si el swap resuelve horas adicionales: mensaje de éxito indicando cuántas se recuperaron
+- Si aún quedan errores: warning con conteo final y cuántas resolvió el swap
+
+---
+
 ## 🎯 Componentes Principales
 
 ### SchoolSchedule.tsx

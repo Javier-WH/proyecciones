@@ -2522,13 +2522,493 @@ const SchoolSchedule: React.FC = () => {
         }
       }
 
+      // ============================================================
+      // PASS 3: SWAP DISPLACEMENT
+      // Intenta liberar espacio moviendo bloques existentes (no
+      // bloqueados) hacia otras posiciones válidas, para colocar las
+      // materias que siguen sin asignar. Respeta restricciones de
+      // profesores (días/horas) y aulas preferidas/exclusivas de los
+      // bloques desplazados.
+      // ============================================================
+      const finalUnresolvedErrors: scheduleError[] = [];
+      const swapSolvedEvents: Event[] = [];
+      const swapRelocatedEvents: Event[] = [];
+      const swapRemovedEventIds: Set<string> = new Set();
+
+      if (unresolvedErrors.length > 0) {
+        // Secciones bloqueadas para este trimestre
+        const lockedSectionKeysTrim = new Set(
+          Object.keys(updatedLockedSections).filter(k => k.endsWith(`-${trimestre}`))
+        );
+        const isEventInLockedSection = (ev: Event): boolean => {
+          const k = `${ev.extendedProps?.pnfId}-${ev.extendedProps?.trayectoId}-${ev.extendedProps?.seccion}-${trimestre}`;
+          return lockedSectionKeysTrim.has(k);
+        };
+        // Eventos ya cargados de BD (loadedScheduleEvents) se consideran inmóviles
+        const loadedEventIds = new Set(loadedScheduleEvents.map(e => getEventId(e)));
+        const isEventMovable = (ev: Event): boolean => {
+          if (loadedEventIds.has(getEventId(ev))) return false;
+          if (isEventInLockedSection(ev)) return false;
+          return true;
+        };
+
+        type SwapBlock = {
+          events: Event[];
+          subjectId: string;
+          pnfId: string;
+          trayectoId: string;
+          seccion: string;
+          day: number;
+          classroomId: string;
+          professorId: string | null;
+          turnoName: string;
+          startSlotIdx: number;
+          length: number;
+        };
+
+        const buildBlocksFrom = (events: Event[]): SwapBlock[] => {
+          const grouped = new Map<string, Event[]>();
+          for (const ev of events) {
+            const p = ev.extendedProps || {};
+            const key = `${ev.daysOfWeek?.[0]}|${p.subjectId}|${p.pnfId}|${p.trayectoId}|${p.seccion}|${p.classroomId}`;
+            if (!grouped.has(key)) grouped.set(key, []);
+            grouped.get(key)!.push(ev);
+          }
+          const result: SwapBlock[] = [];
+          for (const evs of grouped.values()) {
+            const turnoName = (evs[0].extendedProps?.turnName || "").toLowerCase();
+            const slots = activeTurnos[turnoName];
+            if (!slots) continue;
+            const sorted = [...evs].sort((a, b) => a.startTime.localeCompare(b.startTime));
+            let run: Event[] = [];
+            const flush = () => {
+              if (run.length === 0) return;
+              const startIdx = slots.findIndex(s => s[0] === run[0].startTime);
+              if (startIdx < 0) { run = []; return; }
+              const first = run[0];
+              const fp = first.extendedProps || {};
+              result.push({
+                events: [...run],
+                subjectId: String(fp.subjectId),
+                pnfId: String(fp.pnfId),
+                trayectoId: String(fp.trayectoId),
+                seccion: String(fp.seccion),
+                day: first.daysOfWeek?.[0] ?? 0,
+                classroomId: String(fp.classroomId),
+                professorId: fp.professorId ? String(fp.professorId) : null,
+                turnoName,
+                startSlotIdx: startIdx,
+                length: run.length,
+              });
+              run = [];
+            };
+            for (const ev of sorted) {
+              if (run.length === 0) { run.push(ev); continue; }
+              const last = run[run.length - 1];
+              if (last.endTime === ev.startTime) run.push(ev);
+              else { flush(); run.push(ev); }
+            }
+            flush();
+          }
+          return result;
+        };
+
+        const buildOccupancyFrom = (events: Event[]) => {
+          const occ = new Map<string, { profs: Set<string>; rooms: Set<string>; secs: Set<string>; eventsAt: Event[] }>();
+          for (const ev of events) {
+            const day = ev.daysOfWeek?.[0];
+            const start = ev.startTime;
+            if (day == null || !start) continue;
+            const k = `${day}-${start}`;
+            let o = occ.get(k);
+            if (!o) { o = { profs: new Set(), rooms: new Set(), secs: new Set(), eventsAt: [] }; occ.set(k, o); }
+            const p = ev.extendedProps || {};
+            if (p.professorId) o.profs.add(String(p.professorId));
+            if (p.classroomId) o.rooms.add(String(p.classroomId));
+            o.secs.add(`${p.pnfId}-${p.trayectoId}-${p.seccion}`);
+            o.eventsAt.push(ev);
+          }
+          return occ;
+        };
+
+        const activeClassroomsSwap = classrooms.filter(c => c.active !== false);
+        const defaultDaysSwap = scheduleConfig?.days || [1, 2, 3, 4, 5];
+        const preventSingleSwap = !!scheduleConfig?.prevent_single_hour_blocks;
+        const maxPerDaySwap = scheduleConfig?.conserve_slots || consecutiveConfig.maxSlots;
+
+        // Busca una nueva ubicación para un bloque dado, respetando sus propias restricciones.
+        const findRelocationForBlock = (
+          block: SwapBlock,
+          liveEvents: Event[],
+          excludedIds: Set<string>,
+          forbiddenPlacements: { day: number; startIdx: number; length: number }[] = [],
+        ): { day: number; startSlotIdx: number; classroomId: string; classroomName: string } | null => {
+          const blockSubject = schedulableSubjectsRef.current?.find(s => s.innerId === block.subjectId);
+          if (!blockSubject) return null;
+          const slots = activeTurnos[block.turnoName];
+          if (!slots) return null;
+
+          const profRes = teacherRestrictions.find(r => String(r.teacherId) === String(block.professorId));
+          const profDays = profRes?.days ? defaultDaysSwap.filter(d => !new Set(profRes.days).has(d)) : defaultDaysSwap;
+          const profRestrictedHours = profRes?.hours || [];
+
+          const subKey = `${normalizeText(blockSubject.subject)}_t_${normalizeText(blockSubject.trayectoName || "")}`;
+          const subPref = subjectRestriction.find(r => r.subjectKey === subKey);
+          const blockCandidateRooms = (subPref?.classroomIds?.length || 0) > 0
+            ? activeClassroomsSwap.filter(c => subPref!.classroomIds!.includes(c.id))
+            : activeClassroomsSwap;
+
+          const eventsForOcc = liveEvents.filter(e => !excludedIds.has(getEventId(e)));
+          const occ = buildOccupancyFrom(eventsForOcc);
+          const sectionKey = `${block.pnfId}-${block.trayectoId}-${block.seccion}`;
+
+          // Horas ya asignadas de esta materia por día (en el set considerado)
+          const subjectHoursPerDay = new Map<number, number>();
+          for (const ev of eventsForOcc) {
+            if (ev.extendedProps?.subjectId !== block.subjectId) continue;
+            if (ev.extendedProps?.pnfId !== block.pnfId) continue;
+            if (ev.extendedProps?.trayectoId !== block.trayectoId) continue;
+            if (ev.extendedProps?.seccion !== block.seccion) continue;
+            const d = ev.daysOfWeek?.[0];
+            if (d == null) continue;
+            subjectHoursPerDay.set(d, (subjectHoursPerDay.get(d) || 0) + 1);
+          }
+
+          for (const day of profDays) {
+            const existingHours = subjectHoursPerDay.get(day) || 0;
+            if (existingHours + block.length > maxPerDaySwap) continue;
+
+            for (let startIdx = 0; startIdx <= slots.length - block.length; startIdx++) {
+              // Misma posición original: saltar (no aporta nada)
+              if (day === block.day && startIdx === block.startSlotIdx && String(block.classroomId) === String(block.classroomId)) {
+                // permitir diferente aula en la misma posición, así que no romper aquí si no es estricto
+              }
+
+              // Evitar placements prohibidos (slots de destino del subject no asignado)
+              let forbidden = false;
+              for (const fp of forbiddenPlacements) {
+                if (fp.day !== day) continue;
+                const aStart = startIdx, aEnd = startIdx + block.length;
+                const bStart = fp.startIdx, bEnd = fp.startIdx + fp.length;
+                if (aStart < bEnd && bStart < aEnd) { forbidden = true; break; }
+              }
+              if (forbidden) continue;
+
+              // Chequear cortes por receso
+              let crossesBreak = false;
+              if (scheduleConfig?.breaks?.length) {
+                for (let k = 1; k < block.length; k++) {
+                  const prevEnd = slots[startIdx + k - 1][1];
+                  const currStart = slots[startIdx + k][0];
+                  if (scheduleConfig.breaks.some((b: any) => prevEnd <= b.start && currStart >= b.end)) {
+                    crossesBreak = true; break;
+                  }
+                }
+              }
+              if (crossesBreak) continue;
+
+              // Chequear horas restringidas del profesor
+              let restricted = false;
+              for (let i = 0; i < block.length; i++) {
+                const [slotStart] = slots[startIdx + i];
+                if (profRestrictedHours.some((rh: any) => rh.day === day && rh.start === slotStart)) {
+                  restricted = true; break;
+                }
+              }
+              if (restricted) continue;
+
+              // Profesor/sección libres
+              let clash = false;
+              for (let i = 0; i < block.length; i++) {
+                const [slotStart] = slots[startIdx + i];
+                const o = occ.get(`${day}-${slotStart}`);
+                if (!o) continue;
+                if (block.professorId && o.profs.has(String(block.professorId))) { clash = true; break; }
+                if (o.secs.has(sectionKey)) { clash = true; break; }
+              }
+              if (clash) continue;
+
+              // Aula libre
+              for (const cr of blockCandidateRooms) {
+                let roomOk = true;
+                for (let i = 0; i < block.length; i++) {
+                  const [slotStart] = slots[startIdx + i];
+                  const o = occ.get(`${day}-${slotStart}`);
+                  if (o?.rooms.has(String(cr.id))) { roomOk = false; break; }
+                }
+                if (!roomOk) continue;
+
+                // Saltar si es exactamente la misma ubicación completa (no aporta)
+                if (day === block.day && startIdx === block.startSlotIdx && String(cr.id) === String(block.classroomId)) continue;
+
+                return { day, startSlotIdx: startIdx, classroomId: cr.id, classroomName: cr.classroom };
+              }
+            }
+          }
+          return null;
+        };
+
+        const buildRelocatedEvents = (block: SwapBlock, place: { day: number; startSlotIdx: number; classroomId: string; classroomName: string }): Event[] => {
+          const slots = activeTurnos[block.turnoName];
+          if (!slots) return [];
+          const out: Event[] = [];
+          for (let i = 0; i < block.length; i++) {
+            const [s, e] = slots[place.startSlotIdx + i];
+            const tpl = block.events[Math.min(i, block.events.length - 1)];
+            out.push({
+              ...tpl,
+              daysOfWeek: [place.day],
+              startTime: s,
+              endTime: e,
+              extendedProps: {
+                ...tpl.extendedProps,
+                classroomId: place.classroomId,
+                classroomName: place.classroomName,
+                blockId: `${place.day}-${tpl.extendedProps?.subjectId}`,
+              },
+            });
+          }
+          return out;
+        };
+
+        // Iterar sobre cada error sin resolver
+        for (const errorInfo of unresolvedErrors) {
+          if (!errorInfo.subjectId) { finalUnresolvedErrors.push(errorInfo); continue; }
+
+          const subject = schedulableSubjectsRef.current?.find(s => s.innerId === errorInfo.subjectId);
+          if (!subject) { finalUnresolvedErrors.push(errorInfo); continue; }
+
+          const turnoName = subject.turnoName?.toLowerCase() || "";
+          const slots = activeTurnos[turnoName];
+          if (!slots?.length) { finalUnresolvedErrors.push(errorInfo); continue; }
+
+          const professorId = errorInfo.professorId || subject.quarter[trimestre] || null;
+          const sectionKey = `${subject.pnfId}-${subject.trayectoId}-${subject.seccion}`;
+          const hoursNeededTotal = errorInfo.totalHours || subject.hours[trimestre] || 0;
+          if (hoursNeededTotal <= 0) { finalUnresolvedErrors.push(errorInfo); continue; }
+
+          const profRes = teacherRestrictions.find(r => String(r.teacherId) === String(professorId));
+          const targetProfDays = profRes?.days ? defaultDaysSwap.filter(d => !new Set(profRes.days).has(d)) : defaultDaysSwap;
+          const targetProfRestrictedHours = profRes?.hours || [];
+
+          const targetSubKey = `${normalizeText(subject.subject)}_t_${normalizeText(subject.trayectoName || "")}`;
+          const targetSubPref = subjectRestriction.find(r => r.subjectKey === targetSubKey);
+          const targetPrefClassrooms = (targetSubPref?.classroomIds?.length || 0) > 0
+            ? activeClassroomsSwap.filter(c => targetSubPref!.classroomIds!.includes(c.id))
+            : activeClassroomsSwap;
+
+          let placed = 0;
+          const placedEventsForSubject: Event[] = [];
+          const reloLocal: { oldIds: string[]; newEvents: Event[] }[] = [];
+
+          // Bucle: intentar colocar bloque por bloque
+          let safety = 15;
+          while (placed < hoursNeededTotal && safety-- > 0) {
+            // Construir estado de eventos vivos (aplicando swaps ya commiteados de errores previos y de este error)
+            const baseLive = currentAllEvents
+              .filter(e => !swapRemovedEventIds.has(getEventId(e)))
+              .concat(swapSolvedEvents, swapRelocatedEvents);
+            const localRemovedIds = new Set<string>();
+            for (const rl of reloLocal) for (const id of rl.oldIds) localRemovedIds.add(id);
+            const localNewEvents: Event[] = [];
+            for (const rl of reloLocal) localNewEvents.push(...rl.newEvents);
+            const liveEvents = baseLive
+              .filter(e => !localRemovedIds.has(getEventId(e)))
+              .concat(localNewEvents, placedEventsForSubject);
+
+            const movableBlocks = buildBlocksFrom(liveEvents.filter(isEventMovable));
+
+            // Horas ya colocadas de esta materia por día en liveEvents
+            const subjHoursOnDay = (day: number) => liveEvents.filter(e =>
+              e.daysOfWeek?.[0] === day &&
+              e.extendedProps?.subjectId === subject.innerId &&
+              e.extendedProps?.pnfId === subject.pnfId &&
+              e.extendedProps?.trayectoId === subject.trayectoId &&
+              e.extendedProps?.seccion === subject.seccion
+            ).length;
+
+            const remaining = hoursNeededTotal - placed;
+            const minBlockSize = preventSingleSwap ? 2 : 1;
+            const maxBlockLen = Math.min(remaining, maxPerDaySwap);
+
+            let madeProgress = false;
+
+            outer:
+            for (let blockLen = maxBlockLen; blockLen >= Math.min(minBlockSize, remaining); blockLen--) {
+              if (blockLen > remaining) continue;
+              if (preventSingleSwap && remaining - blockLen === 1) continue;
+
+              for (const day of targetProfDays) {
+                if (subjHoursOnDay(day) + blockLen > maxPerDaySwap) continue;
+
+                for (let startIdx = 0; startIdx <= slots.length - blockLen; startIdx++) {
+                  // Horas restringidas del profesor destino
+                  let bad = false;
+                  for (let i = 0; i < blockLen; i++) {
+                    const [slotStart] = slots[startIdx + i];
+                    if (targetProfRestrictedHours.some((rh: any) => rh.day === day && rh.start === slotStart)) {
+                      bad = true; break;
+                    }
+                  }
+                  if (bad) continue;
+
+                  // Cortes por receso
+                  if (scheduleConfig?.breaks?.length) {
+                    for (let i = 1; i < blockLen; i++) {
+                      const prevEnd = slots[startIdx + i - 1][1];
+                      const currStart = slots[startIdx + i][0];
+                      if (scheduleConfig.breaks.some((b: any) => prevEnd <= b.start && currStart >= b.end)) {
+                        bad = true; break;
+                      }
+                    }
+                  }
+                  if (bad) continue;
+
+                  // Para cada aula preferida del destino, recolectar bloqueadores y probar desplazarlos
+                  for (const cr of targetPrefClassrooms) {
+                    const occ = buildOccupancyFrom(liveEvents);
+                    const blockerEvents: Event[] = [];
+                    const blockerIds = new Set<string>();
+                    let unmovable = false;
+
+                    for (let i = 0; i < blockLen; i++) {
+                      const [slotStart] = slots[startIdx + i];
+                      const o = occ.get(`${day}-${slotStart}`);
+                      if (!o) continue;
+                      for (const ev of o.eventsAt) {
+                        const p = ev.extendedProps || {};
+                        const profConf = !!(professorId && String(p.professorId) === String(professorId));
+                        const roomConf = String(p.classroomId) === String(cr.id);
+                        const secConf = `${p.pnfId}-${p.trayectoId}-${p.seccion}` === sectionKey;
+                        if (!profConf && !roomConf && !secConf) continue;
+                        if (!isEventMovable(ev)) { unmovable = true; break; }
+                        const id = getEventId(ev);
+                        if (!blockerIds.has(id)) { blockerIds.add(id); blockerEvents.push(ev); }
+                      }
+                      if (unmovable) break;
+                    }
+                    if (unmovable) continue;
+
+                    // Identificar bloques de los bloqueadores
+                    const blockerBlockKeys = new Set<string>();
+                    for (const ev of blockerEvents) {
+                      const p = ev.extendedProps || {};
+                      blockerBlockKeys.add(`${ev.daysOfWeek?.[0]}|${p.subjectId}|${p.pnfId}|${p.trayectoId}|${p.seccion}|${p.classroomId}`);
+                    }
+                    const blockerBlocks = movableBlocks.filter(b => {
+                      const k = `${b.day}|${b.subjectId}|${b.pnfId}|${b.trayectoId}|${b.seccion}|${b.classroomId}`;
+                      return blockerBlockKeys.has(k);
+                    });
+
+                    // Evitar auto-desplazar la misma materia destino (evita ciclos)
+                    if (blockerBlocks.some(b => b.subjectId === subject.innerId && b.pnfId === subject.pnfId && b.trayectoId === subject.trayectoId && b.seccion === subject.seccion)) {
+                      continue;
+                    }
+
+                    // Intentar relocalizar cada bloque bloqueador
+                    const reloPlans: { block: SwapBlock; newPlace: { day: number; startSlotIdx: number; classroomId: string; classroomName: string } }[] = [];
+                    const tempExcluded = new Set<string>();
+                    for (const bk of blockerBlocks) for (const ev of bk.events) tempExcluded.add(getEventId(ev));
+
+                    const forbidden = [{ day, startIdx, length: blockLen }];
+
+                    let allRelocated = true;
+                    for (const bk of blockerBlocks) {
+                      // Simular ya-aplicados los planes previos en liveEvents
+                      const simLive = liveEvents
+                        .filter(e => !tempExcluded.has(getEventId(e)))
+                        .concat(...reloPlans.map(rp => buildRelocatedEvents(rp.block, rp.newPlace)));
+                      const newPlace = findRelocationForBlock(bk, simLive, new Set(), forbidden);
+                      if (!newPlace) { allRelocated = false; break; }
+                      reloPlans.push({ block: bk, newPlace });
+                    }
+                    if (!allRelocated) continue;
+
+                    // ¡Éxito! Aplicar el swap local
+                    const oldIds = Array.from(tempExcluded);
+                    const newEventsFromPlans: Event[] = [];
+                    for (const rp of reloPlans) newEventsFromPlans.push(...buildRelocatedEvents(rp.block, rp.newPlace));
+                    if (oldIds.length > 0 || newEventsFromPlans.length > 0) {
+                      reloLocal.push({ oldIds, newEvents: newEventsFromPlans });
+                    }
+
+                    // Agregar evento(s) de la materia destino en el slot liberado
+                    for (let i = 0; i < blockLen; i++) {
+                      const [s, e] = slots[startIdx + i];
+                      placedEventsForSubject.push({
+                        title: subject.subject,
+                        daysOfWeek: [day],
+                        startTime: s,
+                        endTime: e,
+                        extendedProps: {
+                          subjectId: subject.innerId,
+                          professorId: professorId || null,
+                          classroomId: cr.id,
+                          classroomName: cr.classroom,
+                          pnfId: subject.pnfId,
+                          trayectoId: subject.trayectoId,
+                          trayectoName: subject.trayectoName,
+                          seccion: subject.seccion,
+                          pnfName: subject.pnf,
+                          turnName: subject.turnoName,
+                          blockId: `${day}-${subject.innerId}`,
+                        },
+                      });
+                    }
+                    placed += blockLen;
+                    madeProgress = true;
+                    break outer;
+                  }
+                }
+              }
+            }
+
+            if (!madeProgress) break;
+          }
+
+          if (placed > 0) {
+            // Commit global de lo logrado para esta materia
+            for (const rl of reloLocal) {
+              for (const id of rl.oldIds) swapRemovedEventIds.add(id);
+              swapRelocatedEvents.push(...rl.newEvents);
+            }
+            swapSolvedEvents.push(...placedEventsForSubject);
+
+            if (placed < hoursNeededTotal) {
+              finalUnresolvedErrors.push({
+                ...errorInfo,
+                totalHours: hoursNeededTotal - placed,
+                description: `${errorInfo.description || ''} (Intercambio liberó ${placed}h)`.trim(),
+              });
+            }
+          } else {
+            finalUnresolvedErrors.push(errorInfo);
+          }
+        }
+      } else {
+        // No había errores sin resolver después de pass 1/2
+      }
+
+      // Aplicar cambios a eventsdata: quitar removidos, sumar relocalizados y solucionados por swap
+      if (swapSolvedEvents.length > 0 || swapRelocatedEvents.length > 0 || swapRemovedEventIds.size > 0) {
+        const filteredEventsData = eventsdata.filter(e => !swapRemovedEventIds.has(getEventId(e)));
+        eventsdata.length = 0;
+        eventsdata.push(...filteredEventsData);
+      }
       eventsdata.push(...newlySolvedEvents);
-      setErrors(unresolvedErrors);
+      // Los swap aportan relocated + solved (los solved son las materias objetivo; relocated son los bloqueadores reubicados)
+      eventsdata.push(...swapRelocatedEvents, ...swapSolvedEvents);
+
+      const effectiveUnresolved = unresolvedErrors.length > 0 ? finalUnresolvedErrors : unresolvedErrors;
+      setErrors(effectiveUnresolved);
 
       setTimeout(() => {
-        if (solvedCount > 0 || newlySolvedEvents.length > 0) {
-          if (unresolvedErrors.length > 0) {
-            message.warning(`Auto-solución: Se solucionaron algunos problemas, pero todavía quedan ${unresolvedErrors.length} conflictos.`);
+        if (solvedCount > 0 || newlySolvedEvents.length > 0 || swapSolvedEvents.length > 0) {
+          if (effectiveUnresolved.length > 0) {
+            const swapMsg = swapSolvedEvents.length > 0 ? ` (Intercambio resolvió ${swapSolvedEvents.length} horas adicionales)` : '';
+            message.warning(`Auto-solución: Se solucionaron algunos problemas, pero todavía quedan ${effectiveUnresolved.length} conflictos.${swapMsg}`);
+          } else if (swapSolvedEvents.length > 0) {
+            message.success(`Auto-solución: Intercambio resolvió ${swapSolvedEvents.length} hora(s) adicional(es) reubicando bloques.`);
           }
         }
       }, 300);
