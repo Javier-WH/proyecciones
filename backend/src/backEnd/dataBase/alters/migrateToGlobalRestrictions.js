@@ -24,12 +24,49 @@ export async function up () {
     // Step 2: Start transaction for structural changes and data migration
     const transaction = await sequelize.transaction()
     try {
+      // Drop foreign key constraint(s) on proyection_id before altering the column.
+      // MySQL prevents MODIFY COLUMN when an FK references it with incompatible definition.
+      console.log('Detecting and dropping foreign key(s) on proyection_id...')
+      const [fkRows] = await sequelize.query(`
+        SELECT CONSTRAINT_NAME 
+        FROM information_schema.KEY_COLUMN_USAGE 
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'subjects_restrictions' 
+          AND COLUMN_NAME = 'proyection_id' 
+          AND REFERENCED_TABLE_NAME IS NOT NULL
+      `, { transaction })
+
+      const droppedFks = []
+      for (const row of fkRows) {
+        const fkName = row.CONSTRAINT_NAME
+        console.log(`Dropping foreign key ${fkName}...`)
+        await sequelize.query(
+          `ALTER TABLE subjects_restrictions DROP FOREIGN KEY \`${fkName}\``,
+          { transaction }
+        )
+        droppedFks.push(fkName)
+      }
+
       // Ensure proyection_id allows NULL
       console.log('Allowing proyection_id column to accept NULL values...')
       await sequelize.query(`
         ALTER TABLE subjects_restrictions 
         MODIFY COLUMN proyection_id VARCHAR(36) NULL
       `, { transaction })
+
+      // Recreate foreign key with ON DELETE SET NULL so global restrictions persist
+      // when projections are deleted.
+      if (droppedFks.length > 0) {
+        console.log('Recreating foreign key on proyection_id (ON DELETE SET NULL)...')
+        await sequelize.query(`
+          ALTER TABLE subjects_restrictions 
+          ADD CONSTRAINT subjects_restrictions_proyection_fk 
+          FOREIGN KEY (proyection_id) REFERENCES proyections(id) 
+          ON DELETE SET NULL ON UPDATE CASCADE
+        `, { transaction }).catch(err => {
+          console.warn('Could not recreate FK on proyection_id:', err.message)
+        })
+      }
 
       // Drop legacy unique indexes tied to proyection_id if they exist
       console.log('Removing legacy projection-specific indexes...')

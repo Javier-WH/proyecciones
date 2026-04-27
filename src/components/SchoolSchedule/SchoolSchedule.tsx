@@ -17,6 +17,11 @@ import { getTeacherRestrictionsList } from "../../fetch/schedule/teacherRestrict
 import { Select, Modal, message, List, Tooltip, Dropdown, Spin, Button, Badge, Checkbox, Radio } from "antd";
 import { SwapOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
 import { generateScheduleEvents, mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
+import {
+  buildCrossQuarterGhostEvents,
+  doesEventConflictWithGhost,
+  stripGhostFlags,
+} from "./crossQuarterGhost";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import { LockedSectionsStageManager } from "./LockedSectionsStageManager";
 import StagingArea from "./StagingArea";
@@ -131,6 +136,7 @@ const SchoolSchedule: React.FC = () => {
   );
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [eventData, setEventData] = useState<Event[]>([]);
+  const [loadedScheduleEvents, setLoadedScheduleEvents] = useState<Event[]>([]); // Eventos del horario cargado
   const [events, setEvents] = useState<EventInput[]>([]);
   const [turn, setTurn] = useState(() => localStorage.getItem("schedule_turn") || "mañana");
   const [seccion, setSeccion] = useState(() => localStorage.getItem("schedule_seccion") || "1");
@@ -141,6 +147,30 @@ const SchoolSchedule: React.FC = () => {
   const [subjectRestriction, setSubjectRestriction] = useState<SubjectRestriction[]>([]);
   const [subjectRestrictionsReady, setSubjectRestrictionsReady] = useState(false);
   const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">(() => (localStorage.getItem("schedule_trimestre") as "q1" | "q2" | "q3") || "q1");
+
+  // ─── Cross-quarter ghost events ───
+  // Eventos de OTROS trimestres calendario que se solapan con el trimestre
+  // activo (regla S1=T1+T2, S2=T2+T3 vs trimestrales en su trim único).
+  // Se usan para:
+  //   1) Pre-ocupar aula+profesor en el motor (vía lockedEvents).
+  //   2) Validar drops manuales (checkEventConflicts y handleDrop).
+  //   3) Renderizar como celdas grises informativas en las vistas.
+  const crossQuarterGhostEvents = useMemo<Event[]>(() => {
+    const allEvents: Event[] = [
+      ...loadedScheduleEvents,
+      ...eventData.filter(e => e.extendedProps?.location !== 'staging'),
+    ];
+    const lockedSectionsFlat = Object.entries(lockedSections || {}).map(
+      ([key, events]) => ({ key, events: events as Event[] })
+    );
+    return buildCrossQuarterGhostEvents({
+      allEvents,
+      lockedSectionsFlat,
+      eventDataCurrent: eventData.filter(e => e.extendedProps?.location !== 'staging'),
+      subjects,
+      activeTrimestre: trimestre,
+    });
+  }, [loadedScheduleEvents, eventData, lockedSections, subjects, trimestre]);
   const [errors, setErrors] = useState<scheduleError[]>([]);
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
@@ -837,7 +867,12 @@ const SchoolSchedule: React.FC = () => {
   };
 
   // Check conflicts for an event at a specific position
-  const checkEventConflicts = (event: Event, targetDay: number, targetStartTime: string, eventsToCheck: Event[] = getScheduleEvents(eventData)): string[] => {
+  const checkEventConflicts = (
+    event: Event,
+    targetDay: number,
+    targetStartTime: string,
+    eventsToCheck: Event[] = getScheduleEvents(eventData),
+  ): string[] => {
     const conflicts: string[] = [];
     const props = event.extendedProps;
     if (!props) return conflicts;
@@ -878,6 +913,38 @@ const SchoolSchedule: React.FC = () => {
           trayectoId === existingEvent.extendedProps.trayectoId && 
           seccion === existingEvent.extendedProps.seccion) {
         conflicts.push(`Conflicto de sección: La sección ${seccion} ya tiene clase a esta hora con "${existingEvent.title}"`);
+      }
+    }
+
+    // ─── Cross-quarter ghost conflicts (semestral ↔ trimestral) ───
+    // Validamos contra eventos fantasma SOLO si el periodo del evento que se
+    // está colocando se solapa con el periodo del ghost (regla calendario).
+    for (const ghost of crossQuarterGhostEvents) {
+      if (!ghost.extendedProps) continue;
+      const ghostDay = ghost.daysOfWeek?.[0];
+      if (ghostDay !== targetDay || ghost.startTime !== targetStartTime) continue;
+
+      const overlaps = doesEventConflictWithGhost({
+        targetEvent: event,
+        ghost,
+        subjects,
+        activeTrimestre: trimestre,
+      });
+      if (!overlaps) continue;
+
+      const sourceLabel =
+        ghost.extendedProps.ghostSourceIsSemestral
+          ? `Materia semestral activa (${ghost.extendedProps.ghostSourceQuarter === 'q1' ? 'S1' : 'S2'})`
+          : `Materia trimestral del trimestre ${ghost.extendedProps.ghostSourceQuarter?.toUpperCase()}`;
+
+      if (professorId && ghost.extendedProps.professorId === professorId) {
+        const prof = teachers?.find((t: { id: string; name?: string; lastName?: string }) => t.id === professorId);
+        const profName = prof ? `${prof.name || ''} ${prof.lastName || ''}`.trim() : 'Profesor';
+        conflicts.push(`Conflicto cruzado: ${profName} ya tiene clase a esta hora en "${ghost.title}" (${sourceLabel}).`);
+      }
+      if (classroomId && ghost.extendedProps.classroomId === classroomId) {
+        const classroom = classrooms?.find((c: { id: string; classroom?: string }) => String(c.id) === String(classroomId));
+        conflicts.push(`Conflicto cruzado: ${classroom?.classroom || 'Aula'} ocupada por "${ghost.title}" (${sourceLabel}).`);
       }
     }
 
@@ -1369,7 +1436,6 @@ const SchoolSchedule: React.FC = () => {
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
-  const [loadedScheduleEvents, setLoadedScheduleEvents] = useState<Event[]>([]); // Eventos del horario cargado
   const [activeScheduleName, setActiveScheduleName] = useState<string>("Horario fresco");
 
   // Classroom overrides state
@@ -1792,7 +1858,7 @@ const SchoolSchedule: React.FC = () => {
 
     const professorId = errorInfo.professorId || subject.quarter[trimestre] || null;
     const sectionKey = `${subject.pnfId} -${subject.trayectoId} -${subject.seccion} `;
-    const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData)];
+    const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData), ...crossQuarterGhostEvents];
     const hoursNeeded = errorInfo.totalHours || subject.hours[trimestre] || 0;
 
     if (hoursNeeded <= 0) {
@@ -1958,7 +2024,7 @@ const SchoolSchedule: React.FC = () => {
     }
 
     // Check if the new classroom is already occupied by another event
-    const allEventsForConflict = [...loadedScheduleEvents, ...getScheduleEvents(eventData)];
+    const allEventsForConflict = [...loadedScheduleEvents, ...getScheduleEvents(eventData), ...crossQuarterGhostEvents];
     const conflictingEvent = allEventsForConflict.find((evt) => {
       // Must be on the same day
       const sameDay = evt.daysOfWeek.includes(classroomChangeEvent.day);
@@ -1977,7 +2043,7 @@ const SchoolSchedule: React.FC = () => {
     });
 
     const applyClassroomChangeAndRecalculate = (returnFirstModifiedOnly = false) => {
-      const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData)];
+      const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData), ...crossQuarterGhostEvents];
 
       // Find the specific events we are modifying
       const modifiedEvents = allEvents
@@ -2198,9 +2264,12 @@ const SchoolSchedule: React.FC = () => {
           return Promise.reject(new Error("Nombre vacío")); // Evita que el modal se cierre si hay error
         }
 
+        // Quitamos los ghost events cross-quarter antes de persistir: son
+        // calculados en runtime y no deben contaminar el JSON guardado.
+        const persistableEvents = stripGhostFlags(events as unknown as Event[]);
         const newSchedule: ScheduleDataBase = {
           name: scheduleName,
-          schedule: JSON.stringify(events),
+          schedule: JSON.stringify(persistableEvents),
           proyection_id: proyectionId,
         };
 
@@ -2280,7 +2349,10 @@ const SchoolSchedule: React.FC = () => {
 
     try {
       // 2. Parsear el JSON string
-      const loadedEvents: Event[] = JSON.parse(_selectedSchedule.schedule);
+      const parsedEvents: Event[] = JSON.parse(_selectedSchedule.schedule);
+      // Defensa en profundidad: si por error un guardado antiguo trae ghosts,
+      // los descartamos al cargar (se recalculan en runtime).
+      const loadedEvents: Event[] = stripGhostFlags(parsedEvents);
 
       // 3. IMPORTANTE: Limpiar eventos generados previamente
       setEventData([]);
@@ -2411,13 +2483,19 @@ const SchoolSchedule: React.FC = () => {
       preventSingleHourBlocks: scheduleConfig?.prevent_single_hour_blocks,
       breaks: scheduleConfig?.breaks,
       teachers: teachersRef.current || [],
-      lockedEvents: Object.keys(updatedLockedSections)
-        .filter(key => key.endsWith(`-${trimestre}`))
-        .flatMap(key => updatedLockedSections[key]),
+      lockedEvents: [
+        ...Object.keys(updatedLockedSections)
+          .filter(key => key.endsWith(`-${trimestre}`))
+          .flatMap(key => updatedLockedSections[key]),
+        // Ghost events: aulas/profesores ocupados por materias de otros
+        // trimestres calendario que se solapan con el activo (semestral ↔
+        // trimestral). El motor los pre-ocupa pero no los emite ni cuenta.
+        ...crossQuarterGhostEvents,
+      ],
     });
 
     if (scheduleConfig?.auto_solve && localErrors.length > 0) {
-      let currentAllEvents: Event[] = [...loadedScheduleEvents, ...eventsdata];
+      let currentAllEvents: Event[] = [...loadedScheduleEvents, ...eventsdata, ...crossQuarterGhostEvents];
       const newlySolvedEvents: Event[] = [];
       let solvedCount = 0;
       const unresolvedErrors: scheduleError[] = [];
@@ -3432,6 +3510,7 @@ const SchoolSchedule: React.FC = () => {
   useEffect(() => {
     let filteredLoaded: Event[] = [];
     let filteredGenerated: Event[] = [];
+    let filteredGhosts: Event[] = [];
 
     if (viewMode === "pnf") {
       // Filtrar eventos cargados con los criterios actuales
@@ -3451,6 +3530,21 @@ const SchoolSchedule: React.FC = () => {
           event.extendedProps.trayectoId === trayectoId &&
           event.extendedProps.turnName.toLowerCase() === turn
       );
+
+      // Ghosts: aulas/profesores que están ocupados por OTRO trim/PNF y por
+      // tanto bloquean este PNF. Mostramos solo los que coinciden en turno y
+      // que NO duplican un slot ya ocupado por un evento real del PNF actual
+      // (en cuyo caso el conflicto ya se ve directamente en la celda).
+      const occupiedKeys = new Set(
+        [...filteredLoaded, ...filteredGenerated].map(
+          e => `${e.daysOfWeek?.[0]}|${e.startTime}`
+        )
+      );
+      filteredGhosts = crossQuarterGhostEvents.filter((g) => {
+        if (g.extendedProps.turnName?.toLowerCase() !== turn) return false;
+        const key = `${g.daysOfWeek?.[0]}|${g.startTime}`;
+        return !occupiedKeys.has(key);
+      });
     } else if (viewMode === "professor") {
       // 1. Identificar qué profesores pertenecen al PNF seleccionado
       const targetTeacherIds = new Set(
@@ -3466,21 +3560,49 @@ const SchoolSchedule: React.FC = () => {
       filteredGenerated = getScheduleEvents(eventData).filter(
         (event) => !!event.extendedProps.professorId && targetTeacherIds.has(String(event.extendedProps.professorId))
       );
+      // Ghosts del profesor: clases del mismo profesor en otro trim calendario.
+      // Excluir slots ya ocupados por un evento real del mismo profesor (el real
+      // ya muestra el conflicto) — preserva una sola celda por slot.
+      const profOccupiedKeys = new Set(
+        [...filteredLoaded, ...filteredGenerated].map(
+          e => `${e.extendedProps?.professorId}|${e.daysOfWeek?.[0]}|${e.startTime}`
+        )
+      );
+      filteredGhosts = crossQuarterGhostEvents.filter((g) => {
+        if (!g.extendedProps.professorId) return false;
+        if (!targetTeacherIds.has(String(g.extendedProps.professorId))) return false;
+        const k = `${g.extendedProps.professorId}|${g.daysOfWeek?.[0]}|${g.startTime}`;
+        return !profOccupiedKeys.has(k);
+      });
     } else if (viewMode === "classroom") {
       // Mostrar todas las materias asignadas a algún aula
       filteredLoaded = loadedScheduleEvents.filter((event) => !!event.extendedProps?.classroomId);
       filteredGenerated = getScheduleEvents(eventData).filter((event) => !!event.extendedProps?.classroomId);
+      // Ghosts del aula: excluir slots ya ocupados por evento real de la misma aula
+      const roomOccupiedKeys = new Set(
+        [...filteredLoaded, ...filteredGenerated].map(
+          e => `${e.extendedProps?.classroomId}|${e.daysOfWeek?.[0]}|${e.startTime}`
+        )
+      );
+      filteredGhosts = crossQuarterGhostEvents.filter((g) => {
+        if (!g.extendedProps?.classroomId) return false;
+        const k = `${g.extendedProps.classroomId}|${g.daysOfWeek?.[0]}|${g.startTime}`;
+        return !roomOccupiedKeys.has(k);
+      });
     }
 
     // Mergear solo los eventos generados (los cargados ya están mergeados)
     const mergedGenerated = mergeConsecutiveEvents(filteredGenerated);
+    // Los ghosts también se mergean para que aparezcan como bloques contiguos
+    const mergedGhosts = mergeConsecutiveEvents(filteredGhosts);
 
-    // Combinar: eventos cargados (ya mergeados) + eventos generados (recién mergeados)
-    const combinedEvents = [...filteredLoaded, ...mergedGenerated];
+    // Combinar: eventos cargados (ya mergeados) + eventos generados (recién mergeados) + ghosts
+    const combinedEvents = [...filteredLoaded, ...mergedGenerated, ...mergedGhosts];
     setEvents(combinedEvents);
   }, [
     eventData,
     loadedScheduleEvents,
+    crossQuarterGhostEvents,
     turn,
     seccion,
     pnf,
@@ -3585,8 +3707,11 @@ const SchoolSchedule: React.FC = () => {
               const sameProf = prevEvent.extendedProps?.professorId === event.extendedProps?.professorId;
               const sameClassroom = prevEvent.extendedProps?.classroomId === event.extendedProps?.classroomId;
               const sameSection = prevEvent.extendedProps?.seccion === event.extendedProps?.seccion;
+              // No mezclar ghosts cross-quarter con eventos reales (estilo distinto)
+              const sameGhostKind =
+                !!prevEvent.extendedProps?.isCrossQuarterGhost === !!event.extendedProps?.isCrossQuarterGhost;
 
-              if (sameTitle && sameProf && sameClassroom && sameSection) {
+              if (sameTitle && sameProf && sameClassroom && sameSection && sameGhostKind) {
                 prevEvent.rowSpan += span;
                 merged = true;
                 for (let k = 0; k < span; k++) {
@@ -3721,10 +3846,16 @@ const SchoolSchedule: React.FC = () => {
 
     const sourceStartIdx = tableSlots.findIndex(s => s[0] === sourceStartTime);
 
-    const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData)];
+    // allEvents: usado tanto para identificar los eventos movidos como para
+    // detectar conflictos. Incluimos los ghosts cross-quarter para que el aula
+    // ocupada por una semestral en otro trim bloquee el drop. Los ghosts no
+    // pasan el filtro de movingEvents porque su (title, classroomId, seccion,
+    // pnfName) no coinciden con el evento arrastrado.
+    const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData), ...crossQuarterGhostEvents];
 
     // Identificar los eventos movidos y los slots de destino
     const movingEvents = allEvents.filter(evt => {
+      if (evt.extendedProps?.isCrossQuarterGhost) return false;
       const isTargetSubject = evt.daysOfWeek.includes(sourceDay) &&
         evt.title === title &&
         evt.extendedProps.classroomId === classroomId &&
@@ -3771,16 +3902,22 @@ const SchoolSchedule: React.FC = () => {
       if (!evt.daysOfWeek.includes(targetDay)) continue;
 
       if (targetSlotStarts.includes(evt.startTime)) {
+        const isGhost = !!evt.extendedProps.isCrossQuarterGhost;
+        const ghostTag = isGhost ? " (otro trimestre)" : "";
         const sameClassroom = evt.extendedProps.classroomId === classroomId;
         const sameProf = profId && evt.extendedProps.professorId === profId;
-        const sameSection = evt.extendedProps.seccion === seccion && evt.extendedProps.pnfName === pnfName && evt.extendedProps.trayectoId === trayId;
+        const sameSection =
+          !isGhost &&
+          evt.extendedProps.seccion === seccion &&
+          evt.extendedProps.pnfName === pnfName &&
+          evt.extendedProps.trayectoId === trayId;
 
         if (sameClassroom) {
-          message.error(`El aula ya está ocupada por "${evt.title}" a las ${evt.startTime}.`);
+          message.error(`El aula ya está ocupada por "${evt.title}"${ghostTag} a las ${evt.startTime}.`);
           conflictFound = true; break;
         }
         if (sameProf) {
-          message.error(`El profesor ya da clase de "${evt.title}" a las ${evt.startTime}.`);
+          message.error(`El profesor ya da clase de "${evt.title}"${ghostTag} a las ${evt.startTime}.`);
           conflictFound = true; break;
         }
         if (sameSection) {
@@ -4617,6 +4754,61 @@ const SchoolSchedule: React.FC = () => {
                                   const endTimeIndex = rowIndex + cell.rowSpan - 1;
                                   const endTime = tableSlots[endTimeIndex] ? tableSlots[endTimeIndex][1] : "";
 
+                                  // ─── Render diferenciado para ghosts cross-quarter ───
+                                  // Aulas/profesores ocupados por materias de OTRO trimestre
+                                  // calendario que se solapan con el activo. Celdas grises,
+                                  // no draggables, no editables, con tooltip explicativo.
+                                  if (cell.extendedProps?.isCrossQuarterGhost) {
+                                    const ghostSrc = cell.extendedProps.ghostSourceQuarter;
+                                    const ghostIsSem = !!cell.extendedProps.ghostSourceIsSemestral;
+                                    const sourceLabel = ghostIsSem
+                                      ? (ghostSrc === "q1" ? "Semestre I" : "Semestre II")
+                                      : (ghostSrc === "q1" ? "Trimestre I" : ghostSrc === "q2" ? "Trimestre II" : "Trimestre III");
+                                    const ghostTooltip = (
+                                      <div style={{ textAlign: "center" }}>
+                                        <div style={{ fontWeight: "bold", marginBottom: 4 }}>🔒 {cell.title}</div>
+                                        <div style={{ fontSize: 11, marginBottom: 2 }}>{`${tableSlots[rowIndex][0]} - ${endTime}`}</div>
+                                        <div style={{ fontSize: 11, marginBottom: 4 }}>{dayNames[day]}</div>
+                                        <div style={{ fontSize: 11, color: "#fff" }}>
+                                          Aula/profesor reservado por <b>{sourceLabel}</b>
+                                          {cell.extendedProps.pnfName ? ` de ${cell.extendedProps.pnfName}` : ""}.
+                                        </div>
+                                        <div style={{ fontSize: 10, marginTop: 4, color: "#bfbfbf" }}>
+                                          (Solape calendario semestral ↔ trimestral)
+                                        </div>
+                                      </div>
+                                    );
+                                    return (
+                                      <Tooltip key={day} title={ghostTooltip} placement="top">
+                                        <td
+                                          rowSpan={cell.rowSpan}
+                                          style={{
+                                            border: "2px dashed #8c8c8c",
+                                            backgroundColor: "rgba(140,140,140,0.08)",
+                                            backgroundImage:
+                                              "repeating-linear-gradient(45deg, rgba(140,140,140,0.10) 0 6px, transparent 6px 12px)",
+                                            color: "#595959",
+                                            padding: 6,
+                                            verticalAlign: "top",
+                                            cursor: "not-allowed",
+                                            opacity: 0.85,
+                                            position: "relative",
+                                          }}
+                                        >
+                                          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                                            <LockOutlined style={{ fontSize: 10 }} /> {cell.title}
+                                          </div>
+                                          <div style={{ fontSize: 10, color: "#8c8c8c" }}>
+                                            {cell.extendedProps.classroomName || ""}
+                                          </div>
+                                          <div style={{ fontSize: 9, marginTop: 2, color: "#8c8c8c", fontStyle: "italic" }}>
+                                            {sourceLabel}
+                                          </div>
+                                        </td>
+                                      </Tooltip>
+                                    );
+                                  }
+
                                   const isFrozen = !!lockedSections[`${cell.extendedProps?.pnfId}-${cell.extendedProps?.trayectoId}-${cell.extendedProps?.seccion}-${trimestre}`];
 
                                   const tooltipContent = (
@@ -5235,7 +5427,7 @@ const SchoolSchedule: React.FC = () => {
                 options={classrooms.map(c => {
                   let isOccupied = false;
                   if (classroomChangeEvent) {
-                    const allEventsForConflict = [...loadedScheduleEvents, ...(eventData || [])];
+                    const allEventsForConflict = [...loadedScheduleEvents, ...(eventData || []), ...crossQuarterGhostEvents];
                     isOccupied = allEventsForConflict.some((evt) => {
                       const sameDay = evt.daysOfWeek?.includes(classroomChangeEvent.day);
                       const usesTargetClassroom = evt.extendedProps?.classroomId === c.id;
@@ -5320,7 +5512,7 @@ const SchoolSchedule: React.FC = () => {
                   // Check if classroom is occupied during the target time slots
                   let isOccupied = false;
                   if (unassignedDropData) {
-                    const allEventsForConflict = [...loadedScheduleEvents, ...(eventData || [])];
+                    const allEventsForConflict = [...loadedScheduleEvents, ...(eventData || []), ...crossQuarterGhostEvents];
                     const slotIndex = tableSlots.findIndex(s => s[0] === unassignedDropData.targetStartTime);
                     
                     for (let i = 0; i < unassignedDropData.eventsToDrop.length; i++) {

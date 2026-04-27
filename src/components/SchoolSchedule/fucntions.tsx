@@ -33,6 +33,16 @@ export interface Event {
     turnName: string;
     blockId: string;
     location?: 'schedule' | 'staging'; // Ubicación del evento: horario o depósito
+    // ─── Cross-quarter ghost flags (semestral ↔ trimestral overlap) ───
+    // Cuando es true, el evento se usa solo para bloquear aula/profesor en la
+    // generación/validación, pero NO se cuenta en placedHours ni se emite en
+    // el array de salida del motor. Se calcula en runtime (no se persiste).
+    isCrossQuarterGhost?: boolean;
+    // Cuarto de origen real del evento (p. ej. "q1" para un S1 que aparece
+    // como ghost en q2). Usado para tooltips y estilos diferenciados.
+    ghostSourceQuarter?: 'q1' | 'q2' | 'q3';
+    // Marca que el subject de origen es semestral (si aplica).
+    ghostSourceIsSemestral?: boolean;
   };
 }
 
@@ -146,6 +156,21 @@ class OccupancyTracker {
     // Track exact start time for cross-task adjacency enforcement
     if (!this.subjectDayStartTimes.has(k)) this.subjectDayStartTimes.set(k, []);
     this.subjectDayStartTimes.get(k)!.push(start);
+  }
+
+  /**
+   * Variante para ghosts cross-quarter: solo marca aula y profesor, NO marca
+   * sección ni cuenta hacia el subjectDayCount. La misma sección en distinto
+   * trimestre calendario no debe bloquearse a sí misma.
+   */
+  occupyGhost(
+    day: number,
+    start: string,
+    profId: string | null,
+    roomId: string,
+  ) {
+    if (profId) this.profSlots.add(this.pk(day, start, profId));
+    this.roomSlots.add(this.rk(day, start, roomId));
   }
 
   release(
@@ -889,6 +914,7 @@ export function generateScheduleEvents({
         const professorId = evt.extendedProps.professorId;
         const turnName = evt.extendedProps.turnName?.toLowerCase() || "";
         const timeSlots = activeTurnos[turnName] || [];
+        const isGhost = !!evt.extendedProps.isCrossQuarterGhost;
 
         // Find start and end indices in the slots array
         const startIdx = timeSlots.findIndex(s => s[0] === evt.startTime);
@@ -896,9 +922,29 @@ export function generateScheduleEvents({
 
         if (startIdx !== -1 && endIdx !== -1) {
           for (let i = startIdx; i <= endIdx; i++) {
+            if (isGhost) {
+              occupancy.occupyGhost(day, timeSlots[i][0], professorId, evt.extendedProps.classroomId);
+            } else {
+              occupancy.occupy(
+                day,
+                timeSlots[i][0],
+                professorId,
+                evt.extendedProps.classroomId,
+                evt.extendedProps.pnfId,
+                evt.extendedProps.trayectoId,
+                evt.extendedProps.seccion,
+                evt.extendedProps.subjectId
+              );
+            }
+          }
+        } else {
+          // Fallback if slot matching fails for some reason
+          if (isGhost) {
+            occupancy.occupyGhost(day, evt.startTime, professorId, evt.extendedProps.classroomId);
+          } else {
             occupancy.occupy(
               day,
-              timeSlots[i][0],
+              evt.startTime,
               professorId,
               evt.extendedProps.classroomId,
               evt.extendedProps.pnfId,
@@ -907,18 +953,12 @@ export function generateScheduleEvents({
               evt.extendedProps.subjectId
             );
           }
-        } else {
-          // Fallback if slot matching fails for some reason
-          occupancy.occupy(
-            day,
-            evt.startTime,
-            professorId,
-            evt.extendedProps.classroomId,
-            evt.extendedProps.pnfId,
-            evt.extendedProps.trayectoId,
-            evt.extendedProps.seccion,
-            evt.extendedProps.subjectId
-          );
+        }
+
+        // Ghosts cross-quarter solo pre-ocupan aula/profesor; no dispararan las
+        // validaciones de "sección congelada" (no pertenecen al trim activo).
+        if (evt.extendedProps.isCrossQuarterGhost) {
+          continue;
         }
 
         // --- VALIDACIONES DE SECCIÓN CONGELADA ---
@@ -1010,7 +1050,12 @@ export function generateScheduleEvents({
       const subjectKey = `${subjectNorm}_t_${trayectoNorm}`;
       const originalTotalHours = sub.hours[trimestre]!;
 
-      const placedHours = lockedEvents.filter(e => e.extendedProps?.subjectId === sub.innerId).length;
+      // Ghost events (cross-quarter locks) NO descuentan horas colocadas: viven
+      // en otro trimestre calendario y no representan horas ya dictadas para esta
+      // materia en el trimestre activo.
+      const placedHours = lockedEvents.filter(
+        e => e.extendedProps?.subjectId === sub.innerId && !e.extendedProps?.isCrossQuarterGhost
+      ).length;
       const totalHours = originalTotalHours - placedHours;
 
       if (totalHours <= 0 || !professorId) return [];
@@ -1508,9 +1553,13 @@ export function generateScheduleEvents({
   // ─── Step 6: Convertir a Event[] ───
   const events: Event[] = [];
 
-  // Agregar los eventos bloqueados primero
+  // Agregar los eventos bloqueados primero (excluyendo ghosts cross-quarter,
+  // que el frontend agrega aparte con su propio estilo diferenciado).
   if (lockedEvents.length > 0) {
-    events.push(...lockedEvents);
+    for (const le of lockedEvents) {
+      if (le.extendedProps?.isCrossQuarterGhost) continue;
+      events.push(le);
+    }
   }
 
   for (const [idx, placements] of assigned.entries()) {
