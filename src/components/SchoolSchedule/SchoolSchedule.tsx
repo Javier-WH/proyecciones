@@ -4544,7 +4544,13 @@ const SchoolSchedule: React.FC = () => {
               </>
             )}
 
-            <div className="schedule-actions">
+            <div
+              className="schedule-actions"
+              style={{
+                marginRight: isOfficialStageMode ? `${STAGING_PANEL_WIDTH}px` : "0",
+                transition: "margin-right 0.2s ease"
+              }}
+            >
               <FaPlus title="Nuevo Horario" className={styles.icon} onClick={newSchedule} />
               <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
               <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
