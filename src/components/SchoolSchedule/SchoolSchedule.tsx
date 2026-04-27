@@ -178,6 +178,27 @@ const SchoolSchedule: React.FC = () => {
     return pnfSubjects.some(s => s.isSemestral);
   }, [pnf, subjects]);
 
+  const trimestresConSecciones = useMemo(() => {
+    if (!pnf || !subjects) return { q1: false, q2: false, q3: false };
+    const pnfSubjects = subjects.filter(s => s.pnfId === pnf);
+    const hasQ1 = pnfSubjects.some(s => s.hours?.q1 && s.hours.q1 > 0);
+    const hasQ2 = pnfSubjects.some(s => s.hours?.q2 && s.hours.q2 > 0);
+    const hasQ3 = pnfSubjects.some(s => s.hours?.q3 && s.hours.q3 > 0);
+    return { q1: hasQ1, q2: hasQ2, q3: hasQ3 };
+  }, [pnf, subjects]);
+
+  const turnosConSecciones = useMemo(() => {
+    if (!pnf || !subjects) return new Set<string>();
+    const pnfSubjects = subjects.filter(s => s.pnfId === pnf);
+    const turnosDisponibles = new Set<string>();
+    pnfSubjects.forEach(s => {
+      if (s.turnoName) {
+        turnosDisponibles.add(s.turnoName.toLowerCase());
+      }
+    });
+    return turnosDisponibles;
+  }, [pnf, subjects]);
+
   const [errors, setErrors] = useState<scheduleError[]>([]);
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
@@ -4149,6 +4170,55 @@ const SchoolSchedule: React.FC = () => {
             {viewMode === "pnf" && (
               <>
                 <div className="schedule-select">
+                  <span>PNF:</span>
+                  <Select
+                    size="small"
+                    value={pnf}
+                    style={{ width: 250 }}
+                    onChange={(newPnf) => {
+                      setPnf(newPnf);
+                      const turnsWithSections = Object.keys(activeTurnos).filter((t) =>
+                        (subjects || []).some(
+                          (s) =>
+                            s.pnfId === newPnf &&
+                            s.turnoName?.toLowerCase() === t &&
+                            (!trayectoId || s.trayectoId === trayectoId)
+                        )
+                      );
+                      const newTurn = turnsWithSections.length > 0 ? turnsWithSections[0] : undefined;
+                      setTurn(newTurn || "");
+
+                      const availableSections = Array.from(
+                        new Set(
+                          (subjects || [])
+                            .filter(
+                              (s) =>
+                                s.pnfId === newPnf &&
+                                (!newTurn || s.turnoName?.toLowerCase() === newTurn) &&
+                                (!trayectoId || s.trayectoId === trayectoId)
+                            )
+                            .map((s) => s.seccion)
+                        )
+                      ).sort();
+
+                      if (availableSections.length > 0) {
+                        setSeccion(availableSections[0]);
+                      }
+                    }}
+                    options={Array.from(
+                      new Map(
+                        (subjects || [])
+                          .filter((subject) => subject.pnfId && subject.pnf && subject.pnf !== "ADMIN")
+                          .map((subject) => [subject.pnfId, subject.pnf])
+                      )
+                    ).map(([value, label]) => ({
+                      value,
+                      label,
+                    }))}
+                  />
+                </div>
+
+                <div className="schedule-select">
                   <span>Turno:</span>
                   <Select
                     size="small"
@@ -4173,7 +4243,9 @@ const SchoolSchedule: React.FC = () => {
                         setSeccion(availableSections[0]);
                       }
                     }}
-                    options={Object.keys(activeTurnos).map((turn) => ({ value: turn, label: turn }))}
+                    options={Object.keys(activeTurnos)
+                      .filter((turn) => turnosConSecciones.has(turn))
+                      .map((turn) => ({ value: turn, label: turn }))}
                   />
                 </div>
 
@@ -4216,55 +4288,6 @@ const SchoolSchedule: React.FC = () => {
                       />
                     );
                   })()}
-                </div>
-
-                <div className="schedule-select">
-                  <span>PNF:</span>
-                  <Select
-                    size="small"
-                    value={pnf}
-                    style={{ width: 250 }}
-                    onChange={(newPnf) => {
-                      setPnf(newPnf);
-                      const turnsWithSections = Object.keys(activeTurnos).filter((t) =>
-                        (subjects || []).some(
-                          (s) =>
-                            s.pnfId === newPnf &&
-                            s.turnoName?.toLowerCase() === t &&
-                            (!trayectoId || s.trayectoId === trayectoId)
-                        )
-                      );
-                      const newTurn = turnsWithSections.length > 0 ? turnsWithSections[0] : undefined;
-                      setTurn(newTurn || "");
-                      
-                      const availableSections = Array.from(
-                        new Set(
-                          (subjects || [])
-                            .filter(
-                              (s) =>
-                                s.pnfId === newPnf &&
-                                (!newTurn || s.turnoName?.toLowerCase() === newTurn) &&
-                                (!trayectoId || s.trayectoId === trayectoId)
-                            )
-                            .map((s) => s.seccion)
-                        )
-                      ).sort();
-
-                      if (availableSections.length > 0) {
-                        setSeccion(availableSections[0]);
-                      }
-                    }}
-                    options={Array.from(
-                      new Map(
-                        (subjects || [])
-                          .filter((subject) => subject.pnfId && subject.pnf && subject.pnf !== "ADMIN")
-                          .map((subject) => [subject.pnfId, subject.pnf])
-                      )
-                    ).map(([value, label]) => ({
-                      value,
-                      label,
-                    }))}
-                  />
                 </div>
 
                 <div className="schedule-select">
@@ -4323,13 +4346,13 @@ const SchoolSchedule: React.FC = () => {
                     }}
                     options={isPnfSemestral
                       ? [
-                          { value: "q1", label: "Semestre 1" },
-                          { value: "q2", label: "Semestre 2" },
+                          ...(trimestresConSecciones.q1 ? [{ value: "q1", label: "Semestre 1" }] : []),
+                          ...(trimestresConSecciones.q2 ? [{ value: "q2", label: "Semestre 2" }] : []),
                         ]
                       : [
-                          { value: "q1", label: "Trimestre 1" },
-                          { value: "q2", label: "Trimestre 2" },
-                          { value: "q3", label: "Trimestre 3" },
+                          ...(trimestresConSecciones.q1 ? [{ value: "q1", label: "Trimestre 1" }] : []),
+                          ...(trimestresConSecciones.q2 ? [{ value: "q2", label: "Trimestre 2" }] : []),
+                          ...(trimestresConSecciones.q3 ? [{ value: "q3", label: "Trimestre 3" }] : []),
                         ]
                     }
                   />
@@ -4441,13 +4464,13 @@ const SchoolSchedule: React.FC = () => {
                     }}
                     options={isPnfSemestral
                       ? [
-                          { value: "q1", label: "Semestre 1" },
-                          { value: "q2", label: "Semestre 2" },
+                          ...(trimestresConSecciones.q1 ? [{ value: "q1", label: "Semestre 1" }] : []),
+                          ...(trimestresConSecciones.q2 ? [{ value: "q2", label: "Semestre 2" }] : []),
                         ]
                       : [
-                          { value: "q1", label: "Trimestre 1" },
-                          { value: "q2", label: "Trimestre 2" },
-                          { value: "q3", label: "Trimestre 3" },
+                          ...(trimestresConSecciones.q1 ? [{ value: "q1", label: "Trimestre 1" }] : []),
+                          ...(trimestresConSecciones.q2 ? [{ value: "q2", label: "Trimestre 2" }] : []),
+                          ...(trimestresConSecciones.q3 ? [{ value: "q3", label: "Trimestre 3" }] : []),
                         ]
                     }
                   />
@@ -4507,13 +4530,13 @@ const SchoolSchedule: React.FC = () => {
                     }}
                     options={isPnfSemestral
                       ? [
-                          { value: "q1", label: "Semestre 1" },
-                          { value: "q2", label: "Semestre 2" },
+                          ...(trimestresConSecciones.q1 ? [{ value: "q1", label: "Semestre 1" }] : []),
+                          ...(trimestresConSecciones.q2 ? [{ value: "q2", label: "Semestre 2" }] : []),
                         ]
                       : [
-                          { value: "q1", label: "Trimestre 1" },
-                          { value: "q2", label: "Trimestre 2" },
-                          { value: "q3", label: "Trimestre 3" },
+                          ...(trimestresConSecciones.q1 ? [{ value: "q1", label: "Trimestre 1" }] : []),
+                          ...(trimestresConSecciones.q2 ? [{ value: "q2", label: "Trimestre 2" }] : []),
+                          ...(trimestresConSecciones.q3 ? [{ value: "q3", label: "Trimestre 3" }] : []),
                         ]
                     }
                   />
