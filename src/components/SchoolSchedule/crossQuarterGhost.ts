@@ -64,11 +64,21 @@ export function getSubjectPeriod(
 
 /**
  * ¿Dos periodos calendario se intersectan?
+ * Si ambos eventos son semestrales, no hay conflicto nunca.
+ * Si uno es semestral y el otro es trimestral, verificar solapamiento.
+ * Si ambos son trimestrales, verificar solapamiento.
  */
 export function periodsOverlap(
   a: Set<CalendarTrim>,
-  b: Set<CalendarTrim>
+  b: Set<CalendarTrim>,
+  isSemestralA: boolean = false,
+  isSemestralB: boolean = false
 ): boolean {
+  // Si ambos son semestrales, no hay conflicto
+  if (isSemestralA && isSemestralB) return false;
+  
+  // Si uno es semestral y el otro es trimestral, verificar solapamiento
+  // Si ambos son trimestrales, verificar solapamiento
   for (const t of a) if (b.has(t)) return true;
   return false;
 }
@@ -140,6 +150,11 @@ export function buildCrossQuarterGhostEvents(params: {
   // subject con hours[activeTrimestre] > 0. Un ghost es útil solo si su periodo
   // intersecta al menos uno de estos.
   const relevantPeriods = new Set<CalendarTrim>();
+  const hasSemestralInActiveTrimestre = (subjects || []).some(s => {
+    const hours = s.hours?.[activeTrimestre];
+    return hours && hours > 0 && !!s.isSemestral;
+  });
+  
   for (const s of subjects || []) {
     const hours = s.hours?.[activeTrimestre];
     if (hours && hours > 0) {
@@ -180,7 +195,7 @@ export function buildCrossQuarterGhostEvents(params: {
     if (ctx.homeQuarter === activeTrimestre) continue;
 
     const eventPeriod = getSubjectPeriod(ctx.isSemestral, ctx.homeQuarter);
-    if (!periodsOverlap(eventPeriod, relevantPeriods)) continue;
+    if (!periodsOverlap(eventPeriod, relevantPeriods, ctx.isSemestral, hasSemestralInActiveTrimestre)) continue;
 
     result.push({
       ...event,
@@ -218,7 +233,7 @@ export function doesEventConflictWithGhost(params: {
 
   const targetPeriod = getSubjectPeriod(targetCtx.isSemestral, targetCtx.homeQuarter);
   const ghostPeriod = getSubjectPeriod(ghostIsSemestral, ghostHome);
-  return periodsOverlap(targetPeriod, ghostPeriod);
+  return periodsOverlap(targetPeriod, ghostPeriod, targetCtx.isSemestral, ghostIsSemestral);
 }
 
 // =========================================================================
