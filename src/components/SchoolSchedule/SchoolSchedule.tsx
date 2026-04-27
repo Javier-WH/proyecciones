@@ -171,6 +171,13 @@ const SchoolSchedule: React.FC = () => {
       activeTrimestre: trimestre,
     });
   }, [loadedScheduleEvents, eventData, lockedSections, subjects, trimestre]);
+
+  const isPnfSemestral = useMemo(() => {
+    if (!pnf || !subjects) return false;
+    const pnfSubjects = subjects.filter(s => s.pnfId === pnf);
+    return pnfSubjects.some(s => s.isSemestral);
+  }, [pnf, subjects]);
+
   const [errors, setErrors] = useState<scheduleError[]>([]);
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
@@ -4305,7 +4312,7 @@ const SchoolSchedule: React.FC = () => {
                   />
                 </div>
                 <div className="schedule-select">
-                  <span>Trimestre:</span>
+                  <span>{isPnfSemestral ? "Semestre:" : "Trimestre:"}</span>
                   <Select
                     size="small"
                     value={trimestre}
@@ -4314,11 +4321,17 @@ const SchoolSchedule: React.FC = () => {
                       setErrors([]);
                       setTrimestre(e);
                     }}
-                    options={[
-                      { value: "q1", label: "Trimestre 1" },
-                      { value: "q2", label: "Trimestre 2" },
-                      { value: "q3", label: "Trimestre 3" },
-                    ]}
+                    options={isPnfSemestral
+                      ? [
+                          { value: "q1", label: "Semestre 1" },
+                          { value: "q2", label: "Semestre 2" },
+                        ]
+                      : [
+                          { value: "q1", label: "Trimestre 1" },
+                          { value: "q2", label: "Trimestre 2" },
+                          { value: "q3", label: "Trimestre 3" },
+                        ]
+                    }
                   />
                 </div>
               </>
@@ -4417,7 +4430,7 @@ const SchoolSchedule: React.FC = () => {
                   />
                 </div>
                 <div className="schedule-select">
-                  <span>Trimestre:</span>
+                  <span>{isPnfSemestral ? "Semestre:" : "Trimestre:"}</span>
                   <Select
                     size="small"
                     value={trimestre}
@@ -4426,11 +4439,17 @@ const SchoolSchedule: React.FC = () => {
                       setErrors([]);
                       setTrimestre(e);
                     }}
-                    options={[
-                      { value: "q1", label: "Trimestre 1" },
-                      { value: "q2", label: "Trimestre 2" },
-                      { value: "q3", label: "Trimestre 3" },
-                    ]}
+                    options={isPnfSemestral
+                      ? [
+                          { value: "q1", label: "Semestre 1" },
+                          { value: "q2", label: "Semestre 2" },
+                        ]
+                      : [
+                          { value: "q1", label: "Trimestre 1" },
+                          { value: "q2", label: "Trimestre 2" },
+                          { value: "q3", label: "Trimestre 3" },
+                        ]
+                    }
                   />
                 </div>
               </>
@@ -4477,7 +4496,7 @@ const SchoolSchedule: React.FC = () => {
                 </div>
 
                 <div className="schedule-select">
-                  <span>Trimestre:</span>
+                  <span>{isPnfSemestral ? "Semestre:" : "Trimestre:"}</span>
                   <Select
                     size="small"
                     value={trimestre}
@@ -4486,11 +4505,17 @@ const SchoolSchedule: React.FC = () => {
                       setErrors([]);
                       setTrimestre(e);
                     }}
-                    options={[
-                      { value: "q1", label: "Trimestre 1" },
-                      { value: "q2", label: "Trimestre 2" },
-                      { value: "q3", label: "Trimestre 3" },
-                    ]}
+                    options={isPnfSemestral
+                      ? [
+                          { value: "q1", label: "Semestre 1" },
+                          { value: "q2", label: "Semestre 2" },
+                        ]
+                      : [
+                          { value: "q1", label: "Trimestre 1" },
+                          { value: "q2", label: "Trimestre 2" },
+                          { value: "q3", label: "Trimestre 3" },
+                        ]
+                    }
                   />
                 </div>
               </>
