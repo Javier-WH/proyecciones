@@ -1003,22 +1003,6 @@ const SchoolSchedule: React.FC = () => {
     processStagingDrop(targetDay, targetStartTime, [eventToUse]);
   };
 
-  // Helper to add minutes to a time string (HH:MM)
-  const addMinutesToTime = (time: string, minutes: number): string => {
-    const [h, m] = time.split(':').map(Number);
-    const totalMinutes = h * 60 + m + minutes;
-    const newH = Math.floor(totalMinutes / 60) % 24;
-    const newM = totalMinutes % 60;
-    return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
-  };
-
-  // Helper to get signed time difference in minutes (time2 - time1)
-  const getSignedTimeDiff = (time1: string, time2: string): number => {
-    const [h1, m1] = time1.split(':').map(Number);
-    const [h2, m2] = time2.split(':').map(Number);
-    return (h2 * 60 + m2) - (h1 * 60 + m1);
-  };
-
   const processStagingDrop = (targetDay: number, targetStartTime: string, eventsToMove: Event[]) => {
     const isSameSubjectAndSection = (a: Event, b: Event) =>
       String(a.extendedProps?.subjectId) === String(b.extendedProps?.subjectId) &&
@@ -1027,8 +1011,28 @@ const SchoolSchedule: React.FC = () => {
     // Sort events by start time to ensure correct offset calculation
     const sortedEvents = [...eventsToMove].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-    // Calculate time offset: difference between first event's original start and the drop target
-    const timeOffsetMinutes = getSignedTimeDiff(sortedEvents[0].startTime, targetStartTime);
+    // Calculate slot-based offset (preserves alignment with table slots, handles gaps between slots)
+    // Build map for fast slot lookup
+    const slotStartToIndex = new Map<string, number>();
+    tableSlots.forEach((s, idx) => slotStartToIndex.set(s[0], idx));
+    const findSlotIdxByStart = (time: string): number => {
+      const exact = slotStartToIndex.get(time);
+      if (exact != null) return exact;
+      const [h, m] = time.split(':').map(Number);
+      const minutes = h * 60 + m;
+      let bestIdx = 0;
+      let bestDiff = Infinity;
+      for (let i = 0; i < tableSlots.length; i++) {
+        const [sh, sm] = tableSlots[i][0].split(':').map(Number);
+        const diff = Math.abs(sh * 60 + sm - minutes);
+        if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+      }
+      return bestIdx;
+    };
+
+    const sourceFirstSlotIdx = findSlotIdxByStart(sortedEvents[0].startTime);
+    const targetFirstSlotIdx = findSlotIdxByStart(targetStartTime);
+    const slotOffset = targetFirstSlotIdx - sourceFirstSlotIdx;
 
     // Process each event in the block
     const processedEvents: Event[] = [];
@@ -1036,9 +1040,20 @@ const SchoolSchedule: React.FC = () => {
     const swappedOutEvents: Event[] = [];
 
     for (const event of sortedEvents) {
-      // Apply time offset to get the new start/end times
-      const newStartTime = addMinutesToTime(event.startTime, timeOffsetMinutes);
-      const newEndTime = addMinutesToTime(event.endTime, timeOffsetMinutes);
+      // Apply slot-based offset to preserve slot alignment (handles gaps in slot times)
+      const evStartIdx = findSlotIdxByStart(event.startTime);
+      const evEndIdx = tableSlots.findIndex(s => s[1] === event.endTime);
+      const newStartIdx = evStartIdx + slotOffset;
+      const newEndIdx = (evEndIdx >= 0 ? evEndIdx : evStartIdx) + slotOffset;
+
+      // Validate new indices are within bounds
+      if (newStartIdx < 0 || newStartIdx >= tableSlots.length || newEndIdx < 0 || newEndIdx >= tableSlots.length) {
+        message.error("No se puede mover el bloque: quedaría fuera del horario");
+        return;
+      }
+
+      const newStartTime = tableSlots[newStartIdx][0];
+      const newEndTime = tableSlots[newEndIdx][1];
 
       // Event currently occupying drop target (if any) - only check schedule events
       const occupyingEvent = getScheduleEvents(eventData).find(e => {
