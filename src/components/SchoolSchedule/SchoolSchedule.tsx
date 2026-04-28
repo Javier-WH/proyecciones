@@ -3613,6 +3613,43 @@ const SchoolSchedule: React.FC = () => {
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // GARANTÍA DE INMUTABILIDAD DE SECCIONES CONGELADAS:
+    // Las secciones congeladas NUNCA deben cambiar durante el recálculo.
+    // Reemplazamos sus eventos en eventsdata por los eventos persistidos
+    // en lockedSections (fuente de verdad). Esto garantiza que las
+    // secciones congeladas siempre se vean igual, sin importar qué
+    // acción del usuario haya disparado la regeneración.
+    // ═══════════════════════════════════════════════════════════════
+    {
+      const frozenSectionKeys = new Set<string>();
+      for (const key of Object.keys(lockedSections || {})) {
+        if (key.endsWith(`-${trimestre}`)) {
+          // key formato: pnfId-trayectoId-seccion-trimestre
+          // extraemos pnfId-trayectoId-seccion para identificación
+          const lastDash = key.lastIndexOf('-');
+          frozenSectionKeys.add(key.slice(0, lastDash));
+        }
+      }
+      if (frozenSectionKeys.size > 0) {
+        // Filtrar eventos de secciones congeladas del eventsdata generado
+        const nonFrozenEvents = eventsdata.filter(ev => {
+          const sectionKey = `${ev.extendedProps?.pnfId}-${ev.extendedProps?.trayectoId}-${ev.extendedProps?.seccion}`;
+          return !frozenSectionKeys.has(sectionKey);
+        });
+        // Agregar los eventos congelados persistidos (fuente de verdad)
+        const persistedFrozenEvents: Event[] = [];
+        for (const key of Object.keys(lockedSections || {})) {
+          if (!key.endsWith(`-${trimestre}`)) continue;
+          const events = lockedSections[key] || [];
+          for (const ev of events) {
+            persistedFrozenEvents.push(ev);
+          }
+        }
+        eventsdata = [...nonFrozenEvents, ...persistedFrozenEvents];
+      }
+    }
+
     setEventData(eventsdata);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
