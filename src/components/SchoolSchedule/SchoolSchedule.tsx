@@ -21,6 +21,8 @@ import {
   buildCrossQuarterGhostEvents,
   doesEventConflictWithGhost,
   stripGhostFlags,
+  getSubjectPeriod,
+  periodsOverlap,
 } from "./crossQuarterGhost";
 import TeacherRestrictionModal from "./TeacherRestrictionModal";
 import { LockedSectionsStageManager } from "./LockedSectionsStageManager";
@@ -3720,10 +3722,58 @@ const SchoolSchedule: React.FC = () => {
           e => `${e.daysOfWeek?.[0]}|${e.startTime}`
         )
       );
+      // Construir conjuntos de aulas y profesores usados por el PNF actual.
+      const currentClassroomIds = new Set<string>();
+      const currentProfessorIds = new Set<string>();
+      for (const e of [...filteredLoaded, ...filteredGenerated]) {
+        if (e.extendedProps?.classroomId) currentClassroomIds.add(String(e.extendedProps.classroomId));
+        if (e.extendedProps?.professorId) currentProfessorIds.add(String(e.extendedProps.professorId));
+      }
+
+      // Calcular los periodos calendario relevantes SOLO para el PNF actual.
+      // Un ghost es relevante SSI su periodo calendario se solapa con el de
+      // al menos una materia del PNF actual. Si el overlap solo se produce
+      // entre semestrales (ambos lados semestrales), NO hay conflicto real
+      // (regla de `periodsOverlap`).
+      const currentSubjectsInPnf = (schedulableSubjectsRef.current || []).filter(
+        s => s.pnfId === pnf && s.trayectoId === trayectoId && s.seccion === seccion
+      );
+      const currentPnfHasSemestral = currentSubjectsInPnf.some(s => {
+        const hrs = s.hours?.[trimestre];
+        return !!s.isSemestral && hrs && hrs > 0;
+      });
+
       filteredGhosts = crossQuarterGhostEvents.filter((g) => {
         if (g.extendedProps.turnName?.toLowerCase() !== turn) return false;
         const key = `${g.daysOfWeek?.[0]}|${g.startTime}`;
-        return !occupiedKeys.has(key);
+        if (occupiedKeys.has(key)) return false;
+
+        // Filtro 1: debe compartir aula o profesor con el PNF actual.
+        const ghostClassroom = g.extendedProps?.classroomId ? String(g.extendedProps.classroomId) : null;
+        const ghostProfessor = g.extendedProps?.professorId ? String(g.extendedProps.professorId) : null;
+        const sharesClassroom = ghostClassroom && currentClassroomIds.has(ghostClassroom);
+        const sharesProfessor = ghostProfessor && currentProfessorIds.has(ghostProfessor);
+        if (!(sharesClassroom || sharesProfessor)) return false;
+
+        // Filtro 2: el periodo del ghost debe solapar con el periodo de al
+        // menos una materia del PNF actual. Si ambos son semestrales, no
+        // hay conflicto por regla de `periodsOverlap`.
+        const ghostHome = g.extendedProps?.ghostSourceQuarter as ("q1" | "q2" | "q3" | undefined);
+        const ghostIsSemestral = !!g.extendedProps?.ghostSourceIsSemestral;
+        if (!ghostHome) return false;
+        const ghostPeriod = getSubjectPeriod(ghostIsSemestral, ghostHome);
+
+        // Buscar al menos una materia del PNF actual cuyo periodo se solape
+        const hasRelevantSubjectInPnf = currentSubjectsInPnf.some(s => {
+          const hrs = s.hours?.[trimestre];
+          if (!hrs || hrs <= 0) return false;
+          const subjPeriod = getSubjectPeriod(!!s.isSemestral, trimestre);
+          return periodsOverlap(ghostPeriod, subjPeriod, ghostIsSemestral, !!s.isSemestral);
+        });
+        if (!hasRelevantSubjectInPnf) return false;
+
+        void currentPnfHasSemestral;
+        return true;
       });
     } else if (viewMode === "professor") {
       // 1. Identificar qué profesores pertenecen al PNF seleccionado
