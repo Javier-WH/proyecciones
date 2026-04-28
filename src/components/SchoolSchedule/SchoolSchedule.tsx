@@ -2086,7 +2086,7 @@ const SchoolSchedule: React.FC = () => {
       return sameDay && usesTargetClassroom && overlapsTime && isOtherEvent;
     });
 
-    const applyClassroomChangeAndRecalculate = (returnFirstModifiedOnly = false) => {
+    const applyClassroomChangeAndRecalculate = (returnFirstModifiedOnly = false, shouldRecalculate = true) => {
       const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData), ...crossQuarterGhostEvents];
 
       // Find the specific events we are modifying
@@ -2143,8 +2143,10 @@ const SchoolSchedule: React.FC = () => {
 
       if (returnFirstModifiedOnly) return firstModified;
 
-      // Recalcular todo el horario alrededor de este nuevo evento fijo
-      setGenerationCounter((prev) => prev + 1);
+      // Recalcular todo el horario alrededor de este nuevo evento fijo (solo si no está congelado)
+      if (shouldRecalculate) {
+        setGenerationCounter((prev) => prev + 1);
+      }
 
 
 
@@ -2155,7 +2157,7 @@ const SchoolSchedule: React.FC = () => {
       setNewClassroomId("");
     };
 
-    const firstModifiedEvent = applyClassroomChangeAndRecalculate(true) as any;
+    const firstModifiedEvent = applyClassroomChangeAndRecalculate(true, false) as any;
     const isFrozen = firstModifiedEvent ? !!lockedSections[`${firstModifiedEvent.extendedProps?.pnfId}-${firstModifiedEvent.extendedProps?.trayectoId}-${firstModifiedEvent.extendedProps?.seccion}-${trimestre}`] : false;
 
     // ─── Lógica de cambio de aula para secciones congeladas ───
@@ -2220,7 +2222,7 @@ const SchoolSchedule: React.FC = () => {
       });
 
       // Aplicar el cambio directo sin recalcular
-      applyClassroomChangeAndRecalculate();
+      applyClassroomChangeAndRecalculate(false, false);
 
       // Marcar los eventos con conflictos para mostrar borde rojo
       setEventsWithConflicts(prev => {
@@ -2245,7 +2247,7 @@ const SchoolSchedule: React.FC = () => {
     if (conflictingEvent) {
       const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
-      let contentMessage = `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. `;
+      const contentMessage = `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. `;
 
       Modal.confirm({
         title: "Aula Ocupada",
