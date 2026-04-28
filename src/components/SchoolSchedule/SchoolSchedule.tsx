@@ -5192,7 +5192,7 @@ const SchoolSchedule: React.FC = () => {
                                         </Tooltip>
                                       )}
                                       <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]}>
-                                        <Tooltip title={isOfficialStageMode ? "Arrastra para mover (Click derecho para opciones)" : tooltipContent}>
+                                        <Tooltip title={isOfficialStageMode ? "" : tooltipContent}>
                                           <div 
                                             style={{ 
                                               display: "flex", 
