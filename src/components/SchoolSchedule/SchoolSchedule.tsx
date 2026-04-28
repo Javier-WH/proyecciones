@@ -1072,8 +1072,9 @@ const SchoolSchedule: React.FC = () => {
         endTime: newEndTime,
       };
 
-      // Check conflicts for this event
-      const eventConflicts = checkEventConflicts(newEvent, targetDay, newStartTime);
+      // Check conflicts for this event (exclude events in staging and the event being moved)
+      const eventsToCheck = getScheduleEvents(eventData).filter(e => getEventId(e) !== getEventId(event));
+      const eventConflicts = checkEventConflicts(newEvent, targetDay, newStartTime, eventsToCheck);
       if (eventConflicts.length > 0) {
         conflicts.push({ event: newEvent, conflicts: eventConflicts });
       }
