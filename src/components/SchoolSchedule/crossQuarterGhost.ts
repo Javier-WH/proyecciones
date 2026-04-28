@@ -146,23 +146,14 @@ export function buildCrossQuarterGhostEvents(params: {
     eventDataCurrent.map((e) => eventIdFor(e)).filter((x): x is string => !!x)
   );
 
-  // Determinar los periodos "relevantes": la unión de periodos de cualquier
-  // subject con hours[activeTrimestre] > 0. Un ghost es útil solo si su periodo
-  // intersecta al menos uno de estos.
-  const relevantPeriods = new Set<CalendarTrim>();
-  const hasSemestralInActiveTrimestre = (subjects || []).some(s => {
+  // Lista de subjects con horas en el trimestre activo. Un ghost es relevante
+  // SSI su periodo calendario se solapa con el de AL MENOS UNO de estos,
+  // respetando la regla de `periodsOverlap` (dos semestrales nunca conflictan).
+  const activeTrimSubjects = (subjects || []).filter(s => {
     const hours = s.hours?.[activeTrimestre];
-    return hours && hours > 0 && !!s.isSemestral;
+    return hours && hours > 0;
   });
-  
-  for (const s of subjects || []) {
-    const hours = s.hours?.[activeTrimestre];
-    if (hours && hours > 0) {
-      const period = getSubjectPeriod(!!s.isSemestral, activeTrimestre);
-      for (const t of period) relevantPeriods.add(t);
-    }
-  }
-  if (relevantPeriods.size === 0) return [];
+  if (activeTrimSubjects.length === 0) return [];
 
   // Pool: loadedScheduleEvents + eventData (solo si pertenecen a OTRO trim)
   //       + lockedSections de otros trimestres (con trim explícito en la key).
@@ -195,7 +186,13 @@ export function buildCrossQuarterGhostEvents(params: {
     if (ctx.homeQuarter === activeTrimestre) continue;
 
     const eventPeriod = getSubjectPeriod(ctx.isSemestral, ctx.homeQuarter);
-    if (!periodsOverlap(eventPeriod, relevantPeriods, ctx.isSemestral, hasSemestralInActiveTrimestre)) continue;
+    // Per-subject overlap check: el ghost es relevante solo si al menos una
+    // materia del trim activo tiene un periodo que se solape con el del ghost.
+    const hasConflictingSubject = activeTrimSubjects.some(s => {
+      const subjPeriod = getSubjectPeriod(!!s.isSemestral, activeTrimestre);
+      return periodsOverlap(eventPeriod, subjPeriod, ctx.isSemestral, !!s.isSemestral);
+    });
+    if (!hasConflictingSubject) continue;
 
     result.push({
       ...event,

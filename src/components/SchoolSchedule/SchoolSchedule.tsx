@@ -3798,11 +3798,35 @@ const SchoolSchedule: React.FC = () => {
           e => `${e.extendedProps?.professorId}|${e.daysOfWeek?.[0]}|${e.startTime}`
         )
       );
+      // Para cada profesor del set, construir la lista de sus materias en el
+      // trim activo. Un ghost es relevante SSI su periodo se solapa con el
+      // periodo de alguna materia del profesor en el trim activo.
+      const profSubjectsInActiveTrim = (schedulableSubjectsRef.current || []).filter(s => {
+        const hrs = s.hours?.[trimestre];
+        const profId = s.quarter?.[trimestre];
+        return !!hrs && hrs > 0 && !!profId && targetTeacherIds.has(String(profId));
+      });
+
       filteredGhosts = crossQuarterGhostEvents.filter((g) => {
         if (!g.extendedProps.professorId) return false;
         if (!targetTeacherIds.has(String(g.extendedProps.professorId))) return false;
         const k = `${g.extendedProps.professorId}|${g.daysOfWeek?.[0]}|${g.startTime}`;
-        return !profOccupiedKeys.has(k);
+        if (profOccupiedKeys.has(k)) return false;
+
+        // Filtro por periodo: el ghost debe solapar con alguna materia de
+        // ESTE profesor en el trim activo.
+        const ghostHome = g.extendedProps?.ghostSourceQuarter as ("q1" | "q2" | "q3" | undefined);
+        const ghostIsSemestral = !!g.extendedProps?.ghostSourceIsSemestral;
+        if (!ghostHome) return false;
+        const ghostPeriod = getSubjectPeriod(ghostIsSemestral, ghostHome);
+
+        const ghostProfId = String(g.extendedProps.professorId);
+        const hasRelevantSubject = profSubjectsInActiveTrim.some(s => {
+          if (String(s.quarter?.[trimestre]) !== ghostProfId) return false;
+          const subjPeriod = getSubjectPeriod(!!s.isSemestral, trimestre);
+          return periodsOverlap(ghostPeriod, subjPeriod, ghostIsSemestral, !!s.isSemestral);
+        });
+        return hasRelevantSubject;
       });
     } else if (viewMode === "classroom") {
       // Mostrar todas las materias asignadas a algún aula
@@ -3814,10 +3838,37 @@ const SchoolSchedule: React.FC = () => {
           e => `${e.extendedProps?.classroomId}|${e.daysOfWeek?.[0]}|${e.startTime}`
         )
       );
+      // Subjects en el trim activo, agrupados por classroomId que usan los
+      // eventos reales (filteredLoaded + filteredGenerated). Para un ghost
+      // de un aula X, requerimos que exista alguna materia en ese trim
+      // activo que use el aula X y cuyo periodo se solape.
+      const classroomToSubjects = new Map<string, Array<{ isSemestral: boolean }>>();
+      for (const e of [...filteredLoaded, ...filteredGenerated]) {
+        const cid = e.extendedProps?.classroomId ? String(e.extendedProps.classroomId) : null;
+        if (!cid) continue;
+        const sub = (schedulableSubjectsRef.current || []).find(s => s.innerId === e.extendedProps?.subjectId);
+        if (!classroomToSubjects.has(cid)) classroomToSubjects.set(cid, []);
+        classroomToSubjects.get(cid)!.push({ isSemestral: !!sub?.isSemestral });
+      }
+
       filteredGhosts = crossQuarterGhostEvents.filter((g) => {
         if (!g.extendedProps?.classroomId) return false;
         const k = `${g.extendedProps.classroomId}|${g.daysOfWeek?.[0]}|${g.startTime}`;
-        return !roomOccupiedKeys.has(k);
+        if (roomOccupiedKeys.has(k)) return false;
+
+        // Filtro por periodo: debe solapar con alguna materia real usada
+        // en esta aula durante el trim activo.
+        const ghostHome = g.extendedProps?.ghostSourceQuarter as ("q1" | "q2" | "q3" | undefined);
+        const ghostIsSemestral = !!g.extendedProps?.ghostSourceIsSemestral;
+        if (!ghostHome) return false;
+        const ghostPeriod = getSubjectPeriod(ghostIsSemestral, ghostHome);
+
+        const cid = String(g.extendedProps.classroomId);
+        const subsInRoom = classroomToSubjects.get(cid) || [];
+        return subsInRoom.some(s => {
+          const subjPeriod = getSubjectPeriod(s.isSemestral, trimestre);
+          return periodsOverlap(ghostPeriod, subjPeriod, ghostIsSemestral, s.isSemestral);
+        });
       });
     }
 
@@ -3839,6 +3890,7 @@ const SchoolSchedule: React.FC = () => {
     profPnf,
     teachers,
     trayectoId,
+    trimestre,
     viewMode,
     selectedClassroomId,
   ]);
