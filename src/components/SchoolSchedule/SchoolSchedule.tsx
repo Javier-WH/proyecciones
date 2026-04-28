@@ -1825,6 +1825,22 @@ const SchoolSchedule: React.FC = () => {
     setClassroomOverrides(newOverrides);
     setGenerationCounter((prev) => prev + 1);
 
+    // Limpiar conflictos de los eventos afectados por los overrides eliminados
+    setEventsWithConflicts(prev => {
+      const updated = { ...prev };
+      const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData)];
+      overridesToDelete.forEach(override => {
+        const affectedEvents = allEvents.filter(evt =>
+          evt.title === override.subject_name &&
+          evt.daysOfWeek.includes(override.day) &&
+          evt.startTime >= override.start_time &&
+          evt.startTime < override.end_time
+        );
+        affectedEvents.forEach(evt => delete updated[getEventId(evt)]);
+      });
+      return updated;
+    });
+
     // Guardar directamente en la base de datos
     if (proyectionId) {
       try {
@@ -2142,18 +2158,98 @@ const SchoolSchedule: React.FC = () => {
     const firstModifiedEvent = applyClassroomChangeAndRecalculate(true) as any;
     const isFrozen = firstModifiedEvent ? !!lockedSections[`${firstModifiedEvent.extendedProps?.pnfId}-${firstModifiedEvent.extendedProps?.trayectoId}-${firstModifiedEvent.extendedProps?.seccion}-${trimestre}`] : false;
 
-    if (conflictingEvent || isFrozen) {
-      const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-      const isFrozenAlertText = isFrozen ? "Esta sección está CONGELADA. " : "";
+    // ─── Lógica de cambio de aula para secciones congeladas ───
+    // - Si está congelada: aplicar cambio directo SIN recalcular (sin importar conflictos)
+    //   Los conflictos se marcarán con borde rojo en el render
+    // - Si NO está congelada y hay conflicto: mostrar confirmación
+    // - Si NO está congelada y NO hay conflicto: aplicar cambio con recálculo
+    if (isFrozen) {
+      // Si el usuario selecciona la misma aula que ya tenía, limpiar conflictos y salir
+      if (newClassroomId === classroomChangeEvent.currentClassroomId) {
+        // Limpiar conflictos de estos eventos
+        const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData)];
+        const eventsToClear = allEvents.filter((evt) => {
+          const matchesDay = evt.daysOfWeek.includes(classroomChangeEvent.day);
+          const matchesTitle = evt.title === classroomChangeEvent.title;
+          const withinTimeRange =
+            evt.startTime >= classroomChangeEvent.startTime &&
+            evt.startTime < classroomChangeEvent.endTime;
+          return matchesDay && matchesTitle && withinTimeRange;
+        });
 
-      let contentMessage = "";
-      if (conflictingEvent) {
-        contentMessage = `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. `
+        setEventsWithConflicts(prev => {
+          const updated = { ...prev };
+          eventsToClear.forEach(ev => delete updated[getEventId(ev)]);
+          return updated;
+        });
+
+        setClassroomChangeEvent(null);
+        setNewClassroomId("");
+        return;
       }
 
+      // Sección congelada: detectar conflictos ANTES de aplicar el cambio
+      const allEventsBeforeChange = [...loadedScheduleEvents, ...getScheduleEvents(eventData), ...crossQuarterGhostEvents];
+      const eventsToCheck = allEventsBeforeChange.filter((evt) => {
+        const matchesDay = evt.daysOfWeek.includes(classroomChangeEvent.day);
+        const matchesTitle = evt.title === classroomChangeEvent.title;
+        const withinTimeRange =
+          evt.startTime >= classroomChangeEvent.startTime &&
+          evt.startTime < classroomChangeEvent.endTime;
+        const matchesClassroom = evt.extendedProps.classroomId === classroomChangeEvent.currentClassroomId;
+        return matchesDay && matchesTitle && withinTimeRange && matchesClassroom;
+      });
+
+      // Crear eventos simulados con la nueva aula para detectar conflictos
+      const simulatedEvents = eventsToCheck.map(evt => ({
+        ...evt,
+        extendedProps: {
+          ...evt.extendedProps,
+          classroomId: newClassroomId,
+          classroomName: newClassroom.classroom,
+        },
+      }));
+
+      // Detectar conflictos con los eventos simulados
+      const conflictMap = new Map<string, string[]>();
+      simulatedEvents.forEach(ev => {
+        const conflicts = checkEventConflicts(ev, classroomChangeEvent.day, ev.startTime, allEventsBeforeChange);
+        if (conflicts.length > 0) {
+          conflictMap.set(getEventId(ev), conflicts);
+        }
+      });
+
+      // Aplicar el cambio directo sin recalcular
+      applyClassroomChangeAndRecalculate();
+
+      // Marcar los eventos con conflictos para mostrar borde rojo
+      setEventsWithConflicts(prev => {
+        const updated = { ...prev };
+        // Limpiar conflictos anteriores de estos eventos
+        eventsToCheck.forEach(ev => delete updated[getEventId(ev)]);
+        // Agregar nuevos conflictos detectados
+        conflictMap.forEach((conflicts, eventId) => {
+          updated[eventId] = conflicts;
+        });
+        return updated;
+      });
+
+      message.success(
+        `Aula cambiada a "${newClassroom.classroom}" para ${classroomChangeEvent.title} (sección congelada, sin recálculo).`
+      );
+      setClassroomChangeEvent(null);
+      setNewClassroomId("");
+      return;
+    }
+
+    if (conflictingEvent) {
+      const dayNames = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+      let contentMessage = `El aula "${newClassroom.classroom}" ya está ocupada por "${conflictingEvent.title}" el ${dayNames[classroomChangeEvent.day]} a las ${conflictingEvent.startTime}. `;
+
       Modal.confirm({
-        title: conflictingEvent ? "Aula Ocupada" : "Confirmar Reasignación",
-        content: `${isFrozenAlertText}${contentMessage}¿Deseas reasignar de todos modos y recalcular el horario alrededor de este cambio ? `,
+        title: "Aula Ocupada",
+        content: `${contentMessage}¿Deseas reasignar de todos modos y recalcular el horario alrededor de este cambio ? `,
         okText: "Sí, cambiar aula y recalcular",
         cancelText: "Deshacer",
         okButtonProps: { danger: true },
@@ -2164,6 +2260,7 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
 
+    // No está congelada y no hay conflicto: aplicar con recálculo normal
     applyClassroomChangeAndRecalculate();
   };
 
@@ -4084,19 +4181,25 @@ const SchoolSchedule: React.FC = () => {
       return; // Completado silenciosamente sin lanzar recálculo masivo
     }
 
-    if (isFrozen && conflictFound) {
+    // ─── Lógica de drop para secciones congeladas ───
+    // - Si está congelada: aplicar drop directo SIN recalcular (conflictos se marcan visualmente)
+    // - Si NO está congelada y hay conflicto: mostrar confirmación
+    // - Si NO está congelada y NO hay conflicto: aplicar con recálculo
+    if (isFrozen) {
+      // Sección congelada: aplicar drop directo sin recalcular (conflictos se marcan visualmente)
+      pinDraggedEventsAndRecalculate();
+      setDraggedEventInfo(null);
+      return;
+    }
+
+    if (conflictFound) {
       Modal.confirm({
         title: "Reasignación con Conflictos",
-        content: `Esta sección está CONGELADA, pero la nueva asignación genera conflictos. ¿Deseas descongelar SOLAMENTE esta sección y reordenarla para reparar el conflicto? (El resto del horario se mantendrá intacto)`,
-        okText: "Sí, descongelar y reparar sección",
+        content: `La nueva asignación genera conflictos. ¿Deseas reordenar el horario alrededor de este cambio?`,
+        okText: "Sí, reordenar horario",
         cancelText: "Deshacer cambio",
         okButtonProps: { danger: true },
         onOk: () => {
-          setLockedSections(prev => {
-            const newObj = { ...prev };
-            delete newObj[frozenKey];
-            return newObj;
-          });
           pinDraggedEventsAndRecalculate();
           setDraggedEventInfo(null);
         },
@@ -4105,22 +4208,7 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
 
-    if (conflictFound) {
-      Modal.confirm({
-        title: "Confirmar Cambios",
-        content: `La posición tiene conflictos o restricciones ocupadas. ¿Deseas aplicar el cambio de todos modos y forzar la posición (recalcular el horario)?`,
-        okText: "Sí, forzar y recalcular",
-        cancelText: "Deshacer",
-        okButtonProps: { danger: true },
-        onOk: () => {
-          pinDraggedEventsAndRecalculate();
-          setDraggedEventInfo(null);
-        },
-        onCancel: () => setDraggedEventInfo(null)
-      });
-      return;
-    }
-    // Si no hay conflicto, igual lo anclamos para que soporte futuros recálculos sin perderse
+    // Si no hay conflicto y no está congelada: aplicar con recálculo normal
     pinDraggedEventsAndRecalculate();
     setDraggedEventInfo(null);
   };
