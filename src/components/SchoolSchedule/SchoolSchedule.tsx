@@ -916,12 +916,17 @@ const SchoolSchedule: React.FC = () => {
     // Check all existing events for conflicts
     for (const existingEvent of eventsToCheck) {
       if (!existingEvent.extendedProps) continue;
+      // Skip cross-quarter ghost events: estos se evalúan por separado más abajo
+      // con la lógica de solapamiento de períodos calendario (T1/T2/T3). Si se
+      // comparan aquí, se marcan como conflicto aun cuando los periodos no se
+      // solapan (ej: clase T1 vs T2 trimestrales puras).
+      if (existingEvent.extendedProps.isCrossQuarterGhost) continue;
       const existingDay = existingEvent.daysOfWeek?.[0];
       const existingStart = existingEvent.startTime;
-      
+
       // Skip if different day or time
       if (existingDay !== targetDay || existingStart !== targetStartTime) continue;
-      
+
       // Skip if same event (shouldn't happen but just in case)
       if (getEventId(existingEvent) === getEventId(event)) continue;
 
@@ -2239,8 +2244,36 @@ const SchoolSchedule: React.FC = () => {
         }
       });
 
-      // Aplicar el cambio directo sin recalcular
+      // Aplicar el cambio directo sin recalcular (registra el override y muestra mensaje)
       applyClassroomChangeAndRecalculate(false, false);
+
+      // ─── Actualizar visualmente los eventos en eventData, loadedScheduleEvents y lockedSections ───
+      // Necesario porque NO hay regeneración para secciones congeladas
+      const matchesEvent = (evt: Event) =>
+        evt.daysOfWeek.includes(classroomChangeEvent.day) &&
+        evt.title === classroomChangeEvent.title &&
+        evt.startTime >= classroomChangeEvent.startTime &&
+        evt.startTime < classroomChangeEvent.endTime &&
+        evt.extendedProps.classroomId === classroomChangeEvent.currentClassroomId;
+
+      const patchEvent = (evt: Event): Event => ({
+        ...evt,
+        extendedProps: {
+          ...evt.extendedProps,
+          classroomId: newClassroomId,
+          classroomName: newClassroom.classroom,
+        },
+      });
+
+      setEventData(prev => prev.map(e => (matchesEvent(e) ? patchEvent(e) : e)));
+      setLoadedScheduleEvents(prev => prev.map(e => (matchesEvent(e) ? patchEvent(e) : e)));
+      setLockedSections(prev => {
+        const updated: typeof prev = {};
+        for (const [key, events] of Object.entries(prev)) {
+          updated[key] = events.map(e => (matchesEvent(e) ? patchEvent(e) : e));
+        }
+        return updated;
+      });
 
       // Marcar los eventos con conflictos para mostrar borde rojo
       setEventsWithConflicts(prev => {
