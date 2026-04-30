@@ -18,6 +18,7 @@ This file is the shared, append-only memory for any coding agent (and any human)
 - 2026-04-28 — schedule/ghosts — Stop showing ghost events from unrelated PNFs in trimestral views; per-subject overlap check in `buildCrossQuarterGhostEvents` and per-view filters (PNF, professor, classroom). — files: `src/components/SchoolSchedule/crossQuarterGhost.ts`, `src/components/SchoolSchedule/SchoolSchedule.tsx`
 - 2026-04-30 — harness — Introduced `agents.md` operational protocol, moved old index to `DOCS_INDEX.md`, created `progress.md`. — files: `agents.md`, `DOCS_INDEX.md`, `progress.md`, `README.md` — commit: `b8ad130`
 - 2026-04-30 — business-rules — Consolidated business rules from interrogation (blocks A–H). Rewrote `SCHEDULE_RULES.md` in English. Updated `agents.md` §7 with complete non-negotiable invariants. — files: `SCHEDULE_RULES.md`, `agents.md`, `progress.md` — commit: `6be0345`
+- 2026-04-30 — docs — Translated `ESTRUCTURA_APP.md` and `database_schema.md` from Spanish to English. — files: `ESTRUCTURA_APP.md`, `database_schema.md` — commit: `5b88c07`
 
 ---
 
@@ -70,7 +71,7 @@ This file is the shared, append-only memory for any coding agent (and any human)
 
 - [ ] **Test infrastructure** — No test runner is installed yet. Per `agents.md` §5, the next critical-code change must propose Vitest (frontend) or `node:test` (backend) and create a minimal regression suite. _Resume from:_ `agents.md` §5.2.
 - [x] **Business rules audit** — Done on 2026-04-30. `SCHEDULE_RULES.md` rewritten in English; `agents.md` §7 carries the non-negotiable invariants. Open follow-ups are tracked under "Open Hypotheses / Stale Docs".
-- [ ] **Doc translation backlog** — `ESTRUCTURA_APP.md`, `database_schema.md`, and most files under `docs/` are still in Spanish. Translate opportunistically when touched (per `agents.md` §6.3).
+- [ ] **Doc translation backlog** — `ESTRUCTURA_APP.md` and `database_schema.md` translated (2026-04-30). Most files under `docs/` are still in Spanish. Translate opportunistically when touched (per `agents.md` §6.3).
 
 ---
 
