@@ -16,7 +16,7 @@ This file is the shared, append-only memory for any coding agent (and any human)
 
 - 2026-04-28 — schedule/staging — Fix block render after staging drop: switched from minute-based offset to slot-index-based offset to handle slot gaps correctly. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 - 2026-04-28 — schedule/ghosts — Stop showing ghost events from unrelated PNFs in trimestral views; per-subject overlap check in `buildCrossQuarterGhostEvents` and per-view filters (PNF, professor, classroom). — files: `src/components/SchoolSchedule/crossQuarterGhost.ts`, `src/components/SchoolSchedule/SchoolSchedule.tsx`
-- 2026-04-30 — harness — Introduced `agents.md` operational protocol, moved old index to `DOCS_INDEX.md`, created `progress.md`. — files: `agents.md`, `DOCS_INDEX.md`, `progress.md`
+- 2026-04-30 — harness — Introduced `agents.md` operational protocol, moved old index to `DOCS_INDEX.md`, created `progress.md`. — files: `agents.md`, `DOCS_INDEX.md`, `progress.md`, `README.md` — commit: `b8ad130`
 
 ---
 
