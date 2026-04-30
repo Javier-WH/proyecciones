@@ -197,23 +197,47 @@ These are observed in the existing codebase. New code MUST follow them.
 
 ## 7. Critical Business Rules
 
-This section is intentionally short. Detailed business rules live in dedicated docs (see `SCHEDULE_RULES.md`, `docs/SchoolSchedule.md`). The rules below are NON-NEGOTIABLE invariants.
+This section lists NON-NEGOTIABLE invariants. Full domain documentation lives in [`SCHEDULE_RULES.md`](./SCHEDULE_RULES.md). When in doubt, that file wins.
 
-### 7.1 Schedule periods (cross-quarter overlap)
-- Trimester `Trim1` overlaps **only** with Semester `Sem1`.
-- Trimester `Trim2` overlaps with `Sem1` and `Sem2`.
-- Trimester `Trim3` overlaps **only** with `Sem2`.
-- Trimesters never overlap with each other.
-- Two semesters never overlap with each other (even if they share a calendar trimester such as `T2`).
+### 7.1 Calendar overlap (cross-quarter)
+- Trimesters are sequential and never overlap each other (`Trim1 ⊥ Trim2 ⊥ Trim3`).
+- Semesters are sequential and never overlap each other (`Sem1 ⊥ Sem2`), even when they share a calendar month.
+- Cross-overlap table:
+  - `Trim1 ↔ Sem1` only
+  - `Trim2 ↔ Sem1` and `Sem2`
+  - `Trim3 ↔ Sem2` only
+- Conflicts (same teacher / classroom / section + same time) are only possible when calendar periods actually overlap.
 
-### 7.2 Schedule generation stages
-- The two stages (automatic calculation and official mode) are **INDEPENDENT**.
+### 7.2 Stage independence
+- Stage 1 (automatic generation) and Stage 2 (locked sections + staging) are **INDEPENDENT**.
 - A change in one stage MUST NOT affect the other.
 
-### 7.3 Frozen sections
-- Sections marked as locked must keep their assignments unless the user explicitly unlocks them.
+### 7.3 Locked sections
+- Locking is **per section** (whole section), not per subject.
+- The auto algorithm cannot move any subject of a locked section.
+- The auto algorithm MUST consider resources occupied by locked sections when placing non-locked subjects.
+- An event lives in **exactly one place** at a time (schedule OR deposit, never both).
 
-> Other business rules are pending review and rewrite. Until that interrogation happens, when in doubt, **ask the user** before assuming a rule.
+### 7.4 Subject data model (CAUTION: retrofitted)
+- Quarter fields (`q1`, `q2`, `q3`) refer to **trimesters**. Semestral support is a flag (`isSemestral`) layered on top of a trimester-native model.
+- `subject.hours[qN]` = weekly hours during that trimester.
+- `subject.quarter[qN]` = teacher ID assigned for that trimester.
+- A subject may have a different teacher per trimester.
+- A subject without a teacher MUST still be scheduled, with a "no teacher" indicator.
+
+### 7.5 Linked sections
+- `linkedToSection = true` means the section is merged into another for class delivery.
+- Hours are taught **once** by the teacher; **never duplicate** them in the teacher's load.
+
+### 7.6 Teacher restrictions
+- All teacher restrictions are **global** across projections. There is no per-projection restriction.
+- Workload limits are advisory: the system warns but does not block overload.
+
+### 7.7 Determinism
+- The schedule generation algorithm MUST be deterministic: same inputs → same output.
+
+### 7.8 Single active projection
+- Only one projection is active at a time. Do not introduce code paths that assume concurrent projections.
 
 ---
 

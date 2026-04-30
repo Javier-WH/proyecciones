@@ -17,6 +17,7 @@ This file is the shared, append-only memory for any coding agent (and any human)
 - 2026-04-28 — schedule/staging — Fix block render after staging drop: switched from minute-based offset to slot-index-based offset to handle slot gaps correctly. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 - 2026-04-28 — schedule/ghosts — Stop showing ghost events from unrelated PNFs in trimestral views; per-subject overlap check in `buildCrossQuarterGhostEvents` and per-view filters (PNF, professor, classroom). — files: `src/components/SchoolSchedule/crossQuarterGhost.ts`, `src/components/SchoolSchedule/SchoolSchedule.tsx`
 - 2026-04-30 — harness — Introduced `agents.md` operational protocol, moved old index to `DOCS_INDEX.md`, created `progress.md`. — files: `agents.md`, `DOCS_INDEX.md`, `progress.md`, `README.md` — commit: `b8ad130`
+- 2026-04-30 — business-rules — Consolidated business rules from interrogation (blocks A–H). Rewrote `SCHEDULE_RULES.md` in English. Updated `agents.md` §7 with complete non-negotiable invariants. — files: `SCHEDULE_RULES.md`, `agents.md`, `progress.md`
 
 ---
 
@@ -35,6 +36,16 @@ This file is the shared, append-only memory for any coding agent (and any human)
   - Any future agent must read `agents.md` before acting.
   - Existing Spanish docs remain valid until substantially edited; at that point they are translated.
   - Identifiers continue to follow project conventions (PascalCase for components/types/files of components; camelCase for variables, functions, and util/hook/fetch files).
+
+### 2026-04-30 — Business rules consolidation
+- **Context:** The original `SCHEDULE_RULES.md` covered the two-stage architecture and drag-and-drop, but lacked authoritative definitions of domain entities (PNF, trayecto, sección, turno), subject taxonomy (quarter fields, `isSemestral`, `linkedToSection`), teacher and classroom rules, and the calendar overlap model. An 8-block interrogation with the user produced the missing rules.
+- **Decision:**
+  - `SCHEDULE_RULES.md` is now the single source of truth for schedule semantics, written in English, organized in 11 sections (glossary, calendar, subjects, teachers, classrooms, generation, locked sections, stage independence, conflicts, persistence, update policy).
+  - `agents.md` §7 carries an extracted **non-negotiable invariants** subset for fast agent reference; full detail stays in `SCHEDULE_RULES.md`.
+  - The `isSemestral` flag and the trimester-native data model (`q1/q2/q3`) are explicitly documented as **retrofitted**, so future agents know the model is brittle around semestral subjects.
+- **Consequences:**
+  - Any code touching `SchoolSchedule/`, `crossQuarterGhost.ts`, or `backend/src/backEnd/schedule/` must verify against §2 (calendar) and §7 (locked sections) before merging.
+  - The legacy "save schedule" feature is recorded as **being deprecated**; agents should not rely on it for correctness.
 
 ### 2026-04-28 — Slot-based offset for staging drops
 - **Context:** Schedule slots can include gaps (e.g. break between `10:10` and `10:15`). A minute-based offset produced new event times that did not match any slot, so `buildGrid` could not align rows.
@@ -58,8 +69,8 @@ This file is the shared, append-only memory for any coding agent (and any human)
 > Things not finished. Each item: scope, what is missing, where to resume.
 
 - [ ] **Test infrastructure** — No test runner is installed yet. Per `agents.md` §5, the next critical-code change must propose Vitest (frontend) or `node:test` (backend) and create a minimal regression suite. _Resume from:_ `agents.md` §5.2.
-- [ ] **Business rules audit** — User has indicated the critical business rules need to be reviewed and rewritten. A structured interrogation is pending. _Resume from:_ `SCHEDULE_RULES.md` and `docs/SchoolSchedule.md`.
-- [ ] **Doc translation backlog** — `ESTRUCTURA_APP.md`, `SCHEDULE_RULES.md`, `database_schema.md`, and most files under `docs/` are still in Spanish. Translate opportunistically when touched (per `agents.md` §6.3).
+- [x] **Business rules audit** — Done on 2026-04-30. `SCHEDULE_RULES.md` rewritten in English; `agents.md` §7 carries the non-negotiable invariants. Open follow-ups are tracked under "Open Hypotheses / Stale Docs".
+- [ ] **Doc translation backlog** — `ESTRUCTURA_APP.md`, `database_schema.md`, and most files under `docs/` are still in Spanish. Translate opportunistically when touched (per `agents.md` §6.3).
 
 ---
 
@@ -67,7 +78,11 @@ This file is the shared, append-only memory for any coding agent (and any human)
 
 > Things you are unsure about, or docs known to be outdated. Add what you know and what would confirm/deny the hypothesis.
 
-- _(none recorded yet)_
+- **Semestral home-quarter inference** — `crossQuarterGhost.ts#getSubjectPeriod` infers a semestral subject's home quarter from the first non-zero `hours[qN]`. This works today because the curriculum encodes Sem1 in `q1` (or `q1+q2`) and Sem2 in `q2`/`q3`. If the convention drifts (e.g. a Sem2 starting at `q1`), the model will misclassify. _Confirms/denies:_ inspect a real subject of each kind in production data; verify all semestral subjects respect the assumed convention.
+- **Linked-section hour dedup** — Per §3.4 of `SCHEDULE_RULES.md`, hours of `linkedToSection = true` subjects must NOT be duplicated for the teacher. Verify that `generateScheduleEvents` and the schedule view collapse the merged sections into a single block (no double-count). _Resume from:_ `src/components/SchoolSchedule/fucntions.tsx`.
+- **"End-of-turn" classroom flag** — Subjects in classrooms marked end-of-turn should be scheduled at the end of the turn. Confirm whether `generateScheduleEvents` already implements this preference or if it is only enforced visually.
+- **Auto-resolve cap** — No explicit cap on the auto-resolve algorithm's attempts is documented. Verify whether the implementation has a timeout / iteration cap, especially given the low-spec PCs at the university.
+- **Save schedule feature** — Currently described as being deprecated. Decide soon whether to remove the code paths or keep them dormant; conflicts with the rule that frontend and backend must always be in sync.
 
 ---
 
