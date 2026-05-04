@@ -1,4 +1,23 @@
-# React + TypeScript + Vite
+# Proyecciones
+
+Web application for academic projections and schedule management at UPTLL "Juana Ramírez". React + TypeScript frontend, Node.js + Express + Sequelize backend.
+
+## 📖 Project Documentation
+
+| File | Purpose |
+|------|---------|
+| [`agents.md`](./agents.md) | **Operational protocol for any coding agent.** Read before doing anything. |
+| [`DOCS_INDEX.md`](./DOCS_INDEX.md) | Index of every documentation file in the repo. |
+| [`progress.md`](./progress.md) | Persistent agent memory: task log, design decisions, open TODOs. |
+| [`ESTRUCTURA_APP.md`](./ESTRUCTURA_APP.md) | High-level application architecture. |
+| [`SCHEDULE_RULES.md`](./SCHEDULE_RULES.md) | Critical schedule-system rules. |
+| [`database_schema.md`](./database_schema.md) | Database schema reference. |
+
+Human onboarding lives in [`docs/ONBOARDING.md`](./docs/ONBOARDING.md). Bug catalog lives in [`docs/TROUBLESHOOTING.md`](./docs/TROUBLESHOOTING.md).
+
+---
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

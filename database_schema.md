@@ -1,78 +1,78 @@
-# Estructura de la Base de Datos - Sistema de Proyecciones
+# Database Structure - Projections System
 
-Este documento detalla la estructura de las tablas principales de la base de datos del sistema.
+This document details the structure of the main database tables in the system.
 
-## 1. Gestión de Horarios (Módulo Schedule)
+## 1. Schedule Management (Schedule Module)
 
-### Tabla: `classrooms` (Aulas)
-| Campo | Tipo | Descripción |
+### Table: `classrooms` (Classrooms)
+| Field | Type | Description |
 | :--- | :--- | :--- |
-| `id` | UUID | Clave primaria. |
-| `classroom` | STRING(50) | Nombre del aula (Ej: Aula 1, LAB B). Único. |
-| `active` | BOOLEAN | Estado del aula (Abierta/Cerrada). |
+| `id` | UUID | Primary key. |
+| `classroom` | STRING(50) | Classroom name (E.g: Classroom 1, LAB B). Unique. |
+| `active` | BOOLEAN | Classroom status (Open/Closed). |
 
-### Tabla: `subjects_restrictions` (Restricciones de Materias)
-| Campo | Tipo | Descripción |
+### Table: `subjects_restrictions` (Subject Restrictions)
+| Field | Type | Description |
 | :--- | :--- | :--- |
-| `id` | UUID | Clave primaria. |
-| `proyection_id` | UUID | Relación con la proyección. |
-| `subject_key` | STRING(36) | Identificador único de la materia (normalizado). |
-| `subject_name` | STRING | Nombre legible de la materia. |
-| `classroom_ids` | JSON | Lista de IDs de aulas preferidas. |
-| `pnf_id` | UUID | PNF al que pertenece la restricción. |
-| `is_exclusive` | BOOLEAN | Si es `true`, solo permite usar las aulas seleccionadas. |
+| `id` | UUID | Primary key. |
+| `proyection_id` | UUID | Relationship with the projection. |
+| `subject_key` | STRING(36) | Unique subject identifier (normalized). |
+| `subject_name` | STRING | Human-readable subject name. |
+| `classroom_ids` | JSON | List of preferred classroom IDs. |
+| `pnf_id` | UUID | PNF to which the restriction belongs. |
+| `is_exclusive` | BOOLEAN | If `true`, only allows using the selected classrooms. |
 
-### Tabla: `schedule_config` (Configuración del Calendario)
-| Campo | Tipo | Descripción |
+### Table: `schedule_config` (Calendar Configuration)
+| Field | Type | Description |
 | :--- | :--- | :--- |
-| `id` | UUID | Clave primaria. |
-| `days` | JSON | Días activos de la semana (Ej: [1, 2, 3, 4, 5]). |
-| `turnos` | JSON | Estructura de bloques horarios por turno. |
-| `conserve_slots` | INTEGER | Máximo de horas consecutivas. |
-| `min_consecutive_slots` | INTEGER | Mínimo de horas consecutivas. |
-| `distribute_equitably` | BOOLEAN | Activa distribución de carga. |
-| `prevent_single_hour_blocks` | BOOLEAN | Evita bloques de 1 hora. |
+| `id` | UUID | Primary key. |
+| `days` | JSON | Active days of the week (E.g: [1, 2, 3, 4, 5]). |
+| `turnos` | JSON | Time block structure per shift. |
+| `conserve_slots` | INTEGER | Maximum consecutive hours. |
+| `min_consecutive_slots` | INTEGER | Minimum consecutive hours. |
+| `distribute_equitably` | BOOLEAN | Activates load distribution. |
+| `prevent_single_hour_blocks` | BOOLEAN | Prevents 1-hour blocks. |
 
-### Tabla: `schedules` (Horarios Guardados)
-| Campo | Tipo | Descripción |
+### Table: `schedules` (Saved Schedules)
+| Field | Type | Description |
 | :--- | :--- | :--- |
-| `id` | UUID | Clave primaria. |
-| `name` | STRING | Nombre del horario guardado. |
-| `schedule` | TEXT | Datos JSON del horario completo. |
-| `proyection_id` | UUID | ID de la proyección asociada. |
+| `id` | UUID | Primary key. |
+| `name` | STRING | Name of the saved schedule. |
+| `schedule` | TEXT | JSON data of the complete schedule. |
+| `proyection_id` | UUID | ID of the associated projection. |
 
 ---
 
-## 2. Personal Académico
+## 2. Academic Personnel
 
-### Tabla: `teachers` (Profesores)
-| Campo | Tipo | Descripción |
+### Table: `teachers` (Teachers)
+| Field | Type | Description |
 | :--- | :--- | :--- |
-| `id` | UUID | Clave primaria. |
-| `name` | STRING | Nombre del profesor. |
-| `last_name` | STRING | Apellido del profesor. |
-| `ci` | STRING | Cédula de identidad (Única). |
-| `title` | STRING | Título académico. |
-| `active` | BOOLEAN | Estado del profesor. |
-| `is_placeholder` | BOOLEAN | Indica si es un profesor genérico/temporal. |
-| `PNF` | UUID | PNF de adscripción. |
+| `id` | UUID | Primary key. |
+| `name` | STRING | Teacher's first name. |
+| `last_name` | STRING | Teacher's last name. |
+| `ci` | STRING | Identity card number (Unique). |
+| `title` | STRING | Academic title. |
+| `active` | BOOLEAN | Teacher status. |
+| `is_placeholder` | BOOLEAN | Indicates if it is a generic/temporary teacher. |
+| `PNF` | UUID | PNF of affiliation. |
 
-### Tabla: `teachers_restrictions` (Restricciones de Profesores)
-| Campo | Tipo | Descripción |
+### Table: `teachers_restrictions` (Teacher Restrictions)
+| Field | Type | Description |
 | :--- | :--- | :--- |
-| `id` | UUID | Clave primaria. |
-| `teacher_id` | UUID | Relación con el profesor. |
-| `restricted_days` | JSON | Días que el profesor NO puede trabajar. |
-| `restricted_hours` | JSON | Bloques específicos de horas no disponibles. |
+| `id` | UUID | Primary key. |
+| `teacher_id` | UUID | Relationship with the teacher. |
+| `restricted_days` | JSON | Days the teacher CANNOT work. |
+| `restricted_hours` | JSON | Specific blocks of unavailable hours. |
 
 ---
 
-## 3. Tablas de Soporte
+## 3. Support Tables
 
-- **`subjects`**: Catálogo general de materias.
-- **`proyections`**: Registro de proyecciones académicas por periodo.
-- **`users`**: Usuarios del sistema (Su, administrador, regular).
-- **`pnfs`**: Programas Nacionales de Formación (Carreras).
-- **`contract_types`**: Tipos de contrato (Tiempo completo, medio tiempo, etc).
-- **`genders`**: Catálogo de géneros.
-- **`trayectos`**: Definición de niveles académicos (Trayecto I, II, etc).
+- **`subjects`**: General subject catalog.
+- **`proyections`**: Academic projection records by period.
+- **`users`**: System users (SU, administrator, regular).
+- **`pnfs`**: National Training Programs (Careers).
+- **`contract_types`**: Contract types (Full-time, part-time, etc).
+- **`genders`**: Gender catalog.
+- **`trayectos`**: Definition of academic levels (Trayecto I, II, etc).
