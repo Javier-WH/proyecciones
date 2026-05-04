@@ -40,6 +40,12 @@ import {
   emptyState
 } from '../schedule/stateService.js'
 import { generateScheduleEvents } from '../schedule/engine/index.js'
+import {
+  loadTeacherRestrictions,
+  loadSubjectRestrictions,
+  loadClassroomOverrides,
+  loadLockedSections
+} from '../schedule/loadRestrictions.js'
 
 const TRIM_VALUES = new Set(['q1', 'q2', 'q3'])
 
@@ -175,16 +181,28 @@ export function registerScheduleHandlers (io, socket) {
         proyectionId,
         trimestre,
         baseVersion: Number(baseVersion ?? 0),
-        mutator: (state) => {
+        mutator: async (state) => {
+          // Load restrictions from database
+          const unavailableDays = await loadTeacherRestrictions()
+          const preferredClassrooms = await loadSubjectRestrictions(proyectionId)
+          const classroomOverrides = await loadClassroomOverrides(proyectionId)
+          const lockedSections = await loadLockedSections(proyectionId)
+
+          // Convert locked sections to flat locked events array
+          const lockedEvents = []
+          for (const [sectionKey, events] of Object.entries(lockedSections)) {
+            lockedEvents.push(...events)
+          }
+
           /** @type {import('../schedule/engine/types.js').ScheduleError[]} */
           const errors = []
           const events = generateScheduleEvents({
             subjects: payload.subjects || [],
             classrooms: payload.classrooms || [],
             trimestre,
-            unavailableDays: payload.unavailableDays,
-            preferredClassrooms: payload.preferredClassrooms,
-            classroomOverrides: state.classroomOverrides || [],
+            unavailableDays,
+            preferredClassrooms,
+            classroomOverrides,
             conserveSlots: payload.conserveSlots,
             minConsecutiveSlots: payload.minConsecutiveSlots,
             customDays: payload.customDays,
@@ -193,13 +211,14 @@ export function registerScheduleHandlers (io, socket) {
             teachers: payload.teachers,
             preventSingleHourBlocks: payload.preventSingleHourBlocks,
             breaks: payload.breaks,
-            lockedEvents: payload.lockedEvents,
+            lockedEvents,
             setErrors: (e) => errors.push(e)
           })
 
           return {
             ...state,
             eventData: events,
+            classroomOverrides,
             scheduleConfig: payload.scheduleConfig || state.scheduleConfig || {},
             lastGenerationErrors: errors
           }

@@ -419,6 +419,22 @@ body,
   background-color: #3b82f6;
 }
 
+.schedule-status-indicator .sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: 8px;
+}
+
+.schedule-status-indicator .sync-dot.connected {
+  background-color: #10b981;
+}
+
+.schedule-status-indicator .sync-dot.disconnected {
+  background-color: #ef4444;
+}
+}
+
 @keyframes pulse {
   0% {
     transform: scale(1);

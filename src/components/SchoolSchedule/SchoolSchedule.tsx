@@ -116,7 +116,7 @@ const hexToRgba = (hexColor: string, alpha = 0.15): string => {
 
 
 const SchoolSchedule: React.FC = () => {
-  const { subjects, teachers, trayectosList, proyectionId, subjectColors, handleSubjectChange, lockedSections, setLockedSections, userData, userPerfil } =
+  const { subjects, teachers, trayectosList, proyectionId, subjectColors, handleSubjectChange, lockedSections: contextLockedSections, setLockedSections, userData, userPerfil } =
     useContext(MainContext) as MainContextValues;
 
   const { addSubjectToTeacher } = useSetSubject(subjects || []);
@@ -149,6 +149,19 @@ const SchoolSchedule: React.FC = () => {
   const [subjectRestriction, setSubjectRestriction] = useState<SubjectRestriction[]>([]);
   const [subjectRestrictionsReady, setSubjectRestrictionsReady] = useState(false);
   const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">(() => (localStorage.getItem("schedule_trimestre") as "q1" | "q2" | "q3") || "q1");
+
+  // Backend-driven schedule state via socket
+  // const { state: scheduleState, connected: scheduleConnected, dispatch: scheduleDispatch } = useScheduleSocket(proyectionId, trimestre);
+
+  // Use backend state when available, otherwise fall back to local state
+  const [localEventData, setLocalEventData] = useState<Event[]>([]);
+  // const eventData = scheduleState.eventData.length > 0 ? scheduleState.eventData : localEventData;
+  const eventData = localEventData;
+  const setEventData = setLocalEventData;
+
+  // Use backend lockedSections when available, otherwise fall back to context
+  // const lockedSections = scheduleState.lockedSections && Object.keys(scheduleState.lockedSections).length > 0 ? scheduleState.lockedSections : contextLockedSections;
+  const lockedSections = contextLockedSections;
 
   // ─── Cross-quarter ghost events ───
   // Eventos de OTROS trimestres calendario que se solapan con el trimestre
@@ -204,6 +217,15 @@ const SchoolSchedule: React.FC = () => {
   const [errors, setErrors] = useState<scheduleError[]>([]);
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
+  const [activeScheduleName, setActiveScheduleName] = useState<string>("Horario fresco");
+
+  // Classroom overrides state
+  const [classroomOverrides, setClassroomOverrides] = useState<ClassroomOverride[]>([]);
+  const [isOverridesModalOpen, setIsOverridesModalOpen] = useState(false);
+  const [hasUnsavedOverrides, setHasUnsavedOverrides] = useState(false);
   // Contador de generación: se incrementa cada vez que cambian las restricciones
   // para forzar la regeneración del horario
   const [generationCounter, setGenerationCounter] = useState(0);
@@ -1482,20 +1504,6 @@ const SchoolSchedule: React.FC = () => {
     }
 
     return sanitized;
-  }, [scheduleConfig]);
-  const activeDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
-  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
-  const [activeScheduleName, setActiveScheduleName] = useState<string>("Horario fresco");
-
-  // Classroom overrides state
-  const [classroomOverrides, setClassroomOverrides] = useState<ClassroomOverride[]>([]);
-  const [isOverridesModalOpen, setIsOverridesModalOpen] = useState(false);
-  const [hasUnsavedOverrides, setHasUnsavedOverrides] = useState(false);
-
-  // Ref for the printable component
-  const printableRef = useRef<HTMLDivElement>(null);
 
   const schedulableSubjects = useMemo(() => {
     if (!subjects || subjects.length === 0) return [];
@@ -4441,6 +4449,7 @@ const SchoolSchedule: React.FC = () => {
               <div className={`dot ${activeScheduleName === "Horario fresco" ? "fresh" : "loaded"}`} />
               <span className="status-text">{activeScheduleName === "Horario fresco" ? "Nuevo" : "Cargado"}</span>
               <span className="schedule-name">{activeScheduleName}</span>
+              {/* <div className={`sync-dot ${scheduleConnected ? "connected" : "disconnected"}`} title={scheduleConnected ? "Sincronizado con backend" : "Desconectado del backend"} /> */}
             </div>
           </div>
 
