@@ -23,6 +23,19 @@ Schedule.init(
         key: "id",
       },
     },
+    version: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    staged: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    state_snapshot: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
   },
   {
     sequelize,

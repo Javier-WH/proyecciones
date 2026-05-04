@@ -8,7 +8,8 @@
     "build": "tsc && vite build --emptyOutDir --outDir backend/src/frontEnd",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "serve": "cd backend && npm run dev"
+    "serve": "cd backend && npm run dev",
+    "test:backend": "node --test \"backend/src/backEnd/schedule/engine/__tests__/**/*.test.js\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

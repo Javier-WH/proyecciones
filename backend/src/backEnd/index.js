@@ -11,6 +11,7 @@ import setTableRelations from './dataBase/relations/tableRelations.js'
 import syncSagaTables from './dataBase/sycnSagaDB/syncSagaTables.js'
 import syncSchedule from './dataBase/syncScheduleTables/syncSchedule.js'
 import { checkAndApplyGlobalRestrictions } from './dataBase/alters/checkAndApplyGlobalRestrictions.js'
+import { up as addScheduleVersionAndState } from './dataBase/alters/addScheduleVersionAndState.js'
 import session from 'express-session'
 import connectSessionSequelize from 'connect-session-sequelize'
 import sequelize from '#dataBaseConnection'
@@ -39,6 +40,9 @@ await sessionStore.sync()
 
 // Check and apply global restrictions migration if needed
 await checkAndApplyGlobalRestrictions()
+// Additive migration for backend-driven schedule state (version + staged + snapshot)
+await addScheduleVersionAndState()
+
 
 await loadProyection()
 

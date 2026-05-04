@@ -4,6 +4,7 @@ import { checkIfProyectionExists } from './socketUtils.js'
 import { updateProyection } from '../dataBase/create/updateProyection.js'
 import Config from '#models/config.js'
 import validateSubjectData from '#utils/validateSubject.js'
+import { registerScheduleHandlers } from './scheduleHandlers.js'
 
 let io = null
 
@@ -121,6 +122,9 @@ export default function setupSocket(server, sessionMiddleware) {
     // Escuchar eventos de error
     socket.on('error', (error) => {
       console.log(error)
+
+    // Backend-driven schedule: optimistic-locked state + rooms per (proyection, trim)
+    registerScheduleHandlers(io, socket)
     })
   })
 

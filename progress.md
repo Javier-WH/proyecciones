@@ -19,6 +19,7 @@ This file is the shared, append-only memory for any coding agent (and any human)
 - 2026-04-30 — harness — Introduced `agents.md` operational protocol, moved old index to `DOCS_INDEX.md`, created `progress.md`. — files: `agents.md`, `DOCS_INDEX.md`, `progress.md`, `README.md` — commit: `b8ad130`
 - 2026-04-30 — business-rules — Consolidated business rules from interrogation (blocks A–H). Rewrote `SCHEDULE_RULES.md` in English. Updated `agents.md` §7 with complete non-negotiable invariants. — files: `SCHEDULE_RULES.md`, `agents.md`, `progress.md` — commit: `6be0345`
 - 2026-04-30 — docs — Translated `ESTRUCTURA_APP.md` and `database_schema.md` from Spanish to English. — files: `ESTRUCTURA_APP.md`, `database_schema.md` — commit: `5b88c07`
+- 2026-05-04 — backend/schedule — Foundation for backend-driven schedule sync: ported `fucntions.tsx` (1749 LOC) to `backend/src/backEnd/schedule/engine/` (ES modules with JSDoc), ported `crossQuarterGhost.ts`, added `stateService.js` (optimistic-locked writes via `applyAction` + `schedules.version/staged/state_snapshot` columns with additive migration `addScheduleVersionAndState.js`), registered `scheduleHandlers.js` socket actions (`schedule:join|leave|getState|regenerate|setState|saveOverride|deleteOverride|deleteAllOverrides`), added minimal frontend hook `useScheduleSocket.ts`, added `npm run test:backend` wired to `node:test`. Engine smoke tests 7/7 pass. — files: `backend/src/backEnd/schedule/engine/**`, `backend/src/backEnd/schedule/stateService.js`, `backend/src/backEnd/schedule/stateTypes.js`, `backend/src/backEnd/socket/scheduleHandlers.js`, `backend/src/backEnd/socket/socket.js`, `backend/src/backEnd/index.js`, `backend/src/backEnd/dataBase/alters/addScheduleVersionAndState.js`, `backend/src/backEnd/dataBase/models/schedule/schedule.js`, `src/hooks/useScheduleSocket.ts`, `package.json` — commits: `852efda` (engine port), pending (infra+hook)
 
 ---
 
@@ -47,6 +48,20 @@ This file is the shared, append-only memory for any coding agent (and any human)
 - **Consequences:**
   - Any code touching `SchoolSchedule/`, `crossQuarterGhost.ts`, or `backend/src/backEnd/schedule/` must verify against §2 (calendar) and §7 (locked sections) before merging.
   - The legacy "save schedule" feature is recorded as **being deprecated**; agents should not rely on it for correctness.
+
+### 2026-05-04 — Backend-driven schedule state (phase 1: infra + engine)
+- **Context:** The frontend owned the full schedule state (subjects, staging, locked sections, overrides, generation) and computed everything client-side, which fragmented state across components and prevented multi-client collaboration.
+- **Decision:**
+  - Port the entire CSP engine (`fucntions.tsx` 1749 LOC + `crossQuarterGhost.ts`) to backend ES modules under `backend/src/backEnd/schedule/engine/` with JSDoc-typed public API (`index.js`).
+  - Add a **state service** (`stateService.js`) as the single authoritative writer, using Sequelize transactions + `SELECT … FOR UPDATE` + a monotonic `version` column for optimistic locking. A fresh JSON snapshot (`state_snapshot`) is persisted on every successful mutation; the legacy `schedule` TEXT column stays in sync for backwards compatibility.
+  - Schema change is **additive** (`addScheduleVersionAndState.js`) with idempotent `up()` that checks `information_schema` before each `ALTER`. Migration runs automatically at backend startup alongside `checkAndApplyGlobalRestrictions`.
+  - Socket transport uses rooms named `schedule:<proyectionId>:<trimestre>`. Envelope: `{ baseVersion, payload }` + ack `{ ok, version | code, message, currentVersion? }`. Every successful mutation triggers a `schedule:state` broadcast to the room.
+  - Initial registered actions cover join/leave/getState/regenerate/setState/saveOverride/deleteOverride/deleteAllOverrides. The `schedule:setState` escape hatch lets the frontend push a fully-computed state during the transition before every fine-grained drag/drop/staging action has been ported.
+  - Engine state quirk preserved verbatim: the original `backtrackCounter` is module-level mutable state. To keep parity the solver uses a module-level `counter.value`; the state service must serialise generation per room to honour this (CPU-bound generation never yields the event loop mid-solve, so this holds in practice).
+- **Consequences:**
+  - Frontend `fucntions.tsx` is **not** removed yet. Parity between the two copies must be enforced manually until golden fixtures are captured from the live app and wired into `node:test`. Any algorithmic change MUST land on both files in the same commit.
+  - Two follow-up sessions needed: (a) capture golden fixtures + add parity tests; (b) gut `SchoolSchedule.tsx` to use `useScheduleSocket` and port the remaining fine-grained socket actions (`dropBetweenCells`, `moveToStaging`, `returnFromStaging`, `clearStaging`, `confirmOfficialStage`, `toggleFreeze`, `changeClassroom`).
+  - `npm run test:backend` is the canonical way to run engine tests; it uses Node's built-in `node:test` runner so no new dependency was installed.
 
 ### 2026-04-28 — Slot-based offset for staging drops
 - **Context:** Schedule slots can include gaps (e.g. break between `10:10` and `10:15`). A minute-based offset produced new event times that did not match any slot, so `buildGrid` could not align rows.
