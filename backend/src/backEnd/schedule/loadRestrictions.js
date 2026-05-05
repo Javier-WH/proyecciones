@@ -6,10 +6,10 @@
 // format expected by the schedule engine.
 // =====================================================
 
-import TeachersRestrictions from '#models/teachers_restrictions'
-import SubjectRestrictions from '#models/subjects_restrictions'
-import ClassroomOverrides from '#models/classroom_overrides'
-import LockedSections from '#models/frozen_sections'
+import TeachersRestrictions from '#models/schedule/teacherRestrictions.js'
+import SubjectRestrictions from '#models/schedule/subjectsRestrictions.js'
+import ClassroomOverrides from '#models/schedule/classroomOverrides.js'
+import LockedSections from '#models/schedule/lockedSections.js'
 
 /**
  * Load all teacher restrictions from the database.

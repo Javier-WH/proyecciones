@@ -433,7 +433,6 @@ body,
 .schedule-status-indicator .sync-dot.disconnected {
   background-color: #ef4444;
 }
-}
 
 @keyframes pulse {
   0% {

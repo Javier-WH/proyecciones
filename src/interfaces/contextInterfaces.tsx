@@ -5,6 +5,7 @@ import { Trayecto } from "./trayecto";
 import { Turno } from "./turnos";
 import { UserDataInterface } from "../interfaces/userInterfacer.tsx";
 import { Event } from "../components/SchoolSchedule/fucntions";
+import type { Socket } from "socket.io-client";
 
 export interface MainContextValues {
   teachers: Teacher[] | null;
@@ -54,5 +55,6 @@ export interface MainContextValues {
   setUserData: React.Dispatch<React.SetStateAction<UserDataInterface | null>>;
   lockedSections: Record<string, Event[]>;
   setLockedSections: React.Dispatch<React.SetStateAction<Record<string, Event[]>>>;
+  socket: Socket | null;
 }
 

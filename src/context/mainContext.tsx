@@ -372,6 +372,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     setUserData,
     lockedSections,
     setLockedSections,
+    socket,
   };
 
   return (

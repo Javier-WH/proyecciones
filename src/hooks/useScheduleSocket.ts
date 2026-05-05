@@ -13,7 +13,6 @@
 // =====================================================
 
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { Socket } from "socket.io-client";
 import { MainContext } from "../context/mainContext";
 import type { MainContextValues } from "../interfaces/contextInterfaces";
 import type { Event } from "../components/SchoolSchedule/fucntions";
@@ -52,7 +51,7 @@ export function useScheduleSocket(
   trimestre: Trimestre
 ) {
   const ctx = useContext(MainContext) as MainContextValues | null;
-  const socket = (ctx as unknown as { socket: Socket | null })?.socket ?? null;
+  const socket = ctx?.socket ?? null;
 
   const [state, setState] = useState<ScheduleState>(emptyState);
   const [version, setVersion] = useState<number>(0);
@@ -64,6 +63,10 @@ export function useScheduleSocket(
 
   useEffect(() => {
     if (!socket || !proyectionId) return;
+
+    // Initialise from the socket's current state in case it's already
+    // connected before this effect runs.
+    setConnected(!!socket.connected);
 
     const onState = (msg: { proyectionId: string; trimestre: Trimestre; version: number; state: ScheduleState }) => {
       if (msg.proyectionId !== proyectionId || msg.trimestre !== trimestre) return;

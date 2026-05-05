@@ -51,6 +51,7 @@ import {
 } from "../../fetch/schedule/classroomOverrideFetch";
 import { upsertLockedSection } from "../../fetch/schedule/lockedSectionsFetch";
 import useSetSubject from "../../hooks/useSetSubject";
+import { useScheduleSocket } from "../../hooks/useScheduleSocket";
 
 
 type RawSubjectRestriction = {
@@ -116,7 +117,7 @@ const hexToRgba = (hexColor: string, alpha = 0.15): string => {
 
 
 const SchoolSchedule: React.FC = () => {
-  const { subjects, teachers, trayectosList, proyectionId, subjectColors, handleSubjectChange, lockedSections: contextLockedSections, setLockedSections, userData, userPerfil } =
+  const { subjects, teachers, trayectosList, proyectionId, subjectColors, handleSubjectChange, lockedSections, setLockedSections, userData, userPerfil } =
     useContext(MainContext) as MainContextValues;
 
   const { addSubjectToTeacher } = useSetSubject(subjects || []);
@@ -150,18 +151,22 @@ const SchoolSchedule: React.FC = () => {
   const [subjectRestrictionsReady, setSubjectRestrictionsReady] = useState(false);
   const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">(() => (localStorage.getItem("schedule_trimestre") as "q1" | "q2" | "q3") || "q1");
 
-  // Backend-driven schedule state via socket
-  // const { state: scheduleState, connected: scheduleConnected, dispatch: scheduleDispatch } = useScheduleSocket(proyectionId, trimestre);
-
-  // Use backend state when available, otherwise fall back to local state
-  const [localEventData, setLocalEventData] = useState<Event[]>([]);
-  // const eventData = scheduleState.eventData.length > 0 ? scheduleState.eventData : localEventData;
-  const eventData = localEventData;
-  const setEventData = setLocalEventData;
-
-  // Use backend lockedSections when available, otherwise fall back to context
-  // const lockedSections = scheduleState.lockedSections && Object.keys(scheduleState.lockedSections).length > 0 ? scheduleState.lockedSections : contextLockedSections;
-  const lockedSections = contextLockedSections;
+  // ─── Backend-driven schedule state via socket ───
+  // Phase 1 integration: subscribe to backend room and mirror local eventData
+  // both ways. Local generation still runs in the frontend; the backend acts as
+  // the persistent record + real-time fan-out for other clients in the same
+  // (proyection, trimestre).
+  const {
+    state: scheduleState,
+    version: scheduleVersion,
+    connected: scheduleConnected,
+    dispatch: scheduleDispatch,
+  } = useScheduleSocket(proyectionId, trimestre);
+  // Track which versions we've already applied or pushed, plus a hash of the
+  // last-synced snapshot, to break the feedback loop between the outbound
+  // (push) and inbound (apply) effects.
+  const lastSyncedVersionRef = useRef<number>(0);
+  const lastSyncedHashRef = useRef<string>("");
 
   // ─── Cross-quarter ghost events ───
   // Eventos de OTROS trimestres calendario que se solapan con el trimestre
@@ -1504,6 +1509,11 @@ const SchoolSchedule: React.FC = () => {
     }
 
     return sanitized;
+  }, [scheduleConfig]);
+  const activeDays = scheduleConfig?.days || [1, 2, 3, 4, 5];
+
+  // Ref for the printable component
+  const printableRef = useRef<HTMLDivElement>(null);
 
   const schedulableSubjects = useMemo(() => {
     if (!subjects || subjects.length === 0) return [];
@@ -3729,6 +3739,49 @@ const SchoolSchedule: React.FC = () => {
     generationCounter,  // Fuerza regeneración cuando se aplican restricciones
   ]);
 
+  // ─── Backend sync: outbound (push local snapshot) ───
+  // Whenever the local snapshot (eventData/overrides/locks) changes, push it
+  // to the backend room so the state is persisted with a version and
+  // broadcast to other clients. Uses content hash dedup to avoid echo loops.
+  useEffect(() => {
+    if (!scheduleConnected || !proyectionId) return;
+    if (eventData.length === 0) return;
+    const snapshot = { eventData, classroomOverrides, lockedSections };
+    const hash = JSON.stringify(snapshot);
+    if (hash === lastSyncedHashRef.current) return; // already in sync
+    lastSyncedHashRef.current = hash;
+    let cancelled = false;
+    scheduleDispatch("schedule:setState", {
+      ...snapshot,
+      stagedEvents: [],
+      scheduleConfig: scheduleConfig || {},
+    }).then((ack) => {
+      if (cancelled) return;
+      if (ack.ok && typeof ack.version === "number") {
+        lastSyncedVersionRef.current = ack.version;
+      }
+    }).catch(() => { /* ignore */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventData, classroomOverrides, lockedSections, scheduleConnected, proyectionId]);
+
+  // ─── Backend sync: inbound (apply remote-sourced state) ───
+  // When the backend pushes a state version we have not seen, apply it locally.
+  // Updates the hash ref so the outbound effect won't re-push the same content.
+  useEffect(() => {
+    if (!scheduleVersion || scheduleVersion === lastSyncedVersionRef.current) return;
+    lastSyncedVersionRef.current = scheduleVersion;
+    if (Array.isArray(scheduleState.eventData) && scheduleState.eventData.length > 0) {
+      lastSyncedHashRef.current = JSON.stringify({
+        eventData: scheduleState.eventData,
+        classroomOverrides,
+        lockedSections,
+      });
+      setEventData(scheduleState.eventData);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleVersion]);
+
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {
     let filteredLoaded: Event[] = [];
@@ -4449,7 +4502,9 @@ const SchoolSchedule: React.FC = () => {
               <div className={`dot ${activeScheduleName === "Horario fresco" ? "fresh" : "loaded"}`} />
               <span className="status-text">{activeScheduleName === "Horario fresco" ? "Nuevo" : "Cargado"}</span>
               <span className="schedule-name">{activeScheduleName}</span>
-              {/* <div className={`sync-dot ${scheduleConnected ? "connected" : "disconnected"}`} title={scheduleConnected ? "Sincronizado con backend" : "Desconectado del backend"} /> */}
+              <Tooltip title={scheduleConnected ? `Sincronizado con backend (v${scheduleVersion})` : "Desconectado del backend"}>
+                <div className={`sync-dot ${scheduleConnected ? "connected" : "disconnected"}`} />
+              </Tooltip>
             </div>
           </div>
 
