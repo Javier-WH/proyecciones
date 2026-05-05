@@ -2599,6 +2599,38 @@ const SchoolSchedule: React.FC = () => {
     ) {
       return;
     }
+
+    // ─── Backend-driven generation ───
+    // When the socket is connected, delegate the entire generation to the
+    // backend. The backend loads all restrictions from the database, runs the
+    // CSP engine, persists the result with optimistic versioning, and
+    // broadcasts the new state to every client in the room. Our inbound sync
+    // effect picks it up and updates `eventData`.
+    //
+    // The local generation below is kept as an offline fallback ONLY. As soon
+    // as auto-solve / self-healing are ported (Fase B) the offline branch
+    // will be removed entirely.
+    if (scheduleConnected && proyectionId) {
+      scheduleDispatch("schedule:regenerate", {
+        subjects: currentSubjects,
+        classrooms: classrooms.filter(c => c.active !== false),
+        teachers: teachersRef.current || [],
+        conserveSlots: scheduleConfig?.conserve_slots || consecutiveConfig.maxSlots,
+        minConsecutiveSlots: scheduleConfig?.min_consecutive_slots || consecutiveConfig.minSlots,
+        customDays: scheduleConfig?.days,
+        customTurnos: activeTurnos,
+        distributeEquitably: scheduleConfig?.distribute_equitably,
+        preventSingleHourBlocks: scheduleConfig?.prevent_single_hour_blocks,
+        breaks: scheduleConfig?.breaks,
+        scheduleConfig: scheduleConfig || {},
+      }).then(ack => {
+        if (!ack.ok) {
+          console.warn("[schedule:regenerate] failed", ack);
+        }
+      }).catch(err => console.error("[schedule:regenerate] error", err));
+      return;
+    }
+
     const localErrors: scheduleError[] = [];
 
     // --- SELF-HEALING LOCKED SECTIONS ALGORITHM ---
@@ -3737,6 +3769,7 @@ const SchoolSchedule: React.FC = () => {
     // on every WebSocket update (which shuffles the schedule visually due to
     // non-deterministic backtracking in the scheduling algorithm).
     generationCounter,  // Fuerza regeneración cuando se aplican restricciones
+    scheduleConnected,  // Cuando el socket se conecta, delegar al backend
   ]);
 
   // ─── Backend sync: outbound (push local snapshot) ───
