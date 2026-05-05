@@ -45,7 +45,8 @@ import {
   selfHealLockedSections,
   runAutoSolve,
   removePhantomEvents,
-  enforceFrozenSections
+  enforceFrozenSections,
+  getEventId as scheduleEventId
 } from '../schedule/engine/index.js'
 import {
   loadTeacherRestrictions,
@@ -383,6 +384,288 @@ export function registerScheduleHandlers (io, socket) {
         trimestre,
         baseVersion: Number(baseVersion ?? 0),
         mutator: (state) => ({ ...state, classroomOverrides: [] })
+      })
+      broadcastState(io, proyectionId, trimestre, result.version, result.state)
+      ok({ version: result.version })
+    } catch (err) {
+      fail(err)
+    }
+  })
+
+  // ─── fine-grained atomic actions (Fase C) ──────────────────────────────
+  //
+  // Each of the following handlers performs a single, atomic mutation on the
+  // schedule state via `applyAction`. They are versioned and broadcast just
+  // like `schedule:setState`, but they avoid sending the entire snapshot and
+  // make the intent explicit. The frontend can still optimistically apply
+  // the change locally; on the inbound `schedule:state` broadcast the
+  // authoritative state will overwrite any divergent client state.
+
+  // Toggle freeze on a section. When `freeze=true`, the events of the given
+  // section in the active trimestre are copied from `eventData` into
+  // `lockedSections[sectionKey]`. When `freeze=false`, the key is removed.
+  // Optionally accepts an explicit `events` array to freeze (used when the
+  // frontend wants to freeze a snapshot that may differ from current state).
+  //
+  // Payload: { sectionKey: string, freeze: boolean, events?: ScheduleEvent[] }
+  // sectionKey format: `${pnfId}-${trayectoId}-${seccion}-${trimestre}`
+  socket.on('schedule:toggleFreeze', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, trimestre, baseVersion, payload } = msg || {}
+      validateRoom({ proyectionId, trimestre })
+      const sectionKey = payload?.sectionKey
+      const freeze = !!payload?.freeze
+      if (typeof sectionKey !== 'string' || !sectionKey.endsWith(`-${trimestre}`)) {
+        throw new ValidationError('sectionKey must be a string ending with the active trimestre')
+      }
+
+      const result = await applyAction({
+        proyectionId,
+        trimestre,
+        baseVersion: Number(baseVersion ?? 0),
+        mutator: (state) => {
+          const lockedSections = { ...(state.lockedSections || {}) }
+          if (freeze) {
+            // Either use the provided event list or derive it from eventData.
+            const explicit = Array.isArray(payload.events) ? payload.events : null
+            const sectionPrefix = sectionKey.slice(0, sectionKey.lastIndexOf('-'))
+            const fromEventData = (state.eventData || []).filter(ev => {
+              const p = ev.extendedProps || {}
+              return `${p.pnfId}-${p.trayectoId}-${p.seccion}` === sectionPrefix
+            })
+            lockedSections[sectionKey] = explicit && explicit.length > 0 ? explicit : fromEventData
+          } else {
+            delete lockedSections[sectionKey]
+          }
+          return { ...state, lockedSections }
+        }
+      })
+      broadcastState(io, proyectionId, trimestre, result.version, result.state)
+      ok({ version: result.version })
+    } catch (err) {
+      fail(err)
+    }
+  })
+
+  // Move events from `eventData` to `stagedEvents`. Events are matched by id
+  // (`subjectId-seccion-day-startTime`). Events not present in eventData are
+  // ignored silently.
+  //
+  // Payload: { eventIds: string[] }
+  socket.on('schedule:moveToStaging', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, trimestre, baseVersion, payload } = msg || {}
+      validateRoom({ proyectionId, trimestre })
+      const ids = Array.isArray(payload?.eventIds) ? payload.eventIds : null
+      if (!ids || ids.length === 0) throw new ValidationError('eventIds must be a non-empty array')
+
+      const idSet = new Set(ids)
+      const result = await applyAction({
+        proyectionId,
+        trimestre,
+        baseVersion: Number(baseVersion ?? 0),
+        mutator: (state) => {
+          const eventData = state.eventData || []
+          const stagedEvents = state.stagedEvents || []
+          const movedEvents = []
+          const remaining = []
+          for (const ev of eventData) {
+            if (idSet.has(scheduleEventId(ev))) movedEvents.push(ev)
+            else remaining.push(ev)
+          }
+          return {
+            ...state,
+            eventData: remaining,
+            stagedEvents: [...stagedEvents, ...movedEvents]
+          }
+        }
+      })
+      broadcastState(io, proyectionId, trimestre, result.version, result.state)
+      ok({ version: result.version })
+    } catch (err) {
+      fail(err)
+    }
+  })
+
+  // Move events from `stagedEvents` back to `eventData`.
+  //
+  // Payload: { eventIds: string[] }
+  socket.on('schedule:returnFromStaging', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, trimestre, baseVersion, payload } = msg || {}
+      validateRoom({ proyectionId, trimestre })
+      const ids = Array.isArray(payload?.eventIds) ? payload.eventIds : null
+      if (!ids || ids.length === 0) throw new ValidationError('eventIds must be a non-empty array')
+
+      const idSet = new Set(ids)
+      const result = await applyAction({
+        proyectionId,
+        trimestre,
+        baseVersion: Number(baseVersion ?? 0),
+        mutator: (state) => {
+          const stagedEvents = state.stagedEvents || []
+          const returned = []
+          const remaining = []
+          for (const ev of stagedEvents) {
+            if (idSet.has(scheduleEventId(ev))) returned.push(ev)
+            else remaining.push(ev)
+          }
+          return {
+            ...state,
+            eventData: [...(state.eventData || []), ...returned],
+            stagedEvents: remaining
+          }
+        }
+      })
+      broadcastState(io, proyectionId, trimestre, result.version, result.state)
+      ok({ version: result.version })
+    } catch (err) {
+      fail(err)
+    }
+  })
+
+  // Clear all events from `stagedEvents`.
+  //
+  // Payload: {}
+  socket.on('schedule:clearStaging', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, trimestre, baseVersion } = msg || {}
+      validateRoom({ proyectionId, trimestre })
+      const result = await applyAction({
+        proyectionId,
+        trimestre,
+        baseVersion: Number(baseVersion ?? 0),
+        mutator: (state) => ({ ...state, stagedEvents: [] })
+      })
+      broadcastState(io, proyectionId, trimestre, result.version, result.state)
+      ok({ version: result.version })
+    } catch (err) {
+      fail(err)
+    }
+  })
+
+  // Change the classroom of one or more events. Events are identified by id.
+  // The classroomId/classroomName are written into `extendedProps`.
+  //
+  // Payload: { eventIds: string[], classroomId: string, classroomName: string }
+  socket.on('schedule:changeClassroom', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, trimestre, baseVersion, payload } = msg || {}
+      validateRoom({ proyectionId, trimestre })
+      const ids = Array.isArray(payload?.eventIds) ? payload.eventIds : null
+      const classroomId = payload?.classroomId
+      const classroomName = payload?.classroomName
+      if (!ids || ids.length === 0) throw new ValidationError('eventIds must be a non-empty array')
+      if (!classroomId) throw new ValidationError('classroomId is required')
+
+      const idSet = new Set(ids)
+      const apply = (events) => events.map(ev => {
+        if (!idSet.has(scheduleEventId(ev))) return ev
+        return {
+          ...ev,
+          extendedProps: {
+            ...(ev.extendedProps || {}),
+            classroomId,
+            classroomName: classroomName || ev.extendedProps?.classroomName
+          }
+        }
+      })
+
+      const result = await applyAction({
+        proyectionId,
+        trimestre,
+        baseVersion: Number(baseVersion ?? 0),
+        mutator: (state) => {
+          // Update both eventData and lockedSections so frozen sections
+          // also reflect the new classroom.
+          const lockedSections = { ...(state.lockedSections || {}) }
+          for (const [key, evs] of Object.entries(lockedSections)) {
+            if (!key.endsWith(`-${trimestre}`)) continue
+            lockedSections[key] = apply(evs)
+          }
+          return {
+            ...state,
+            eventData: apply(state.eventData || []),
+            lockedSections
+          }
+        }
+      })
+      broadcastState(io, proyectionId, trimestre, result.version, result.state)
+      ok({ version: result.version })
+    } catch (err) {
+      fail(err)
+    }
+  })
+
+  // Drop a single event onto a new (day, startTime, endTime, classroom).
+  // The new event id is recomputed from (subjectId, seccion, day, startTime).
+  // No conflict validation is performed here — the frontend pre-validates
+  // for instant UX and the optimistic version check guarantees ordering.
+  //
+  // Payload: {
+  //   eventId: string,
+  //   targetDay: number,
+  //   targetStartTime: string,
+  //   targetEndTime: string,
+  //   targetClassroomId: string,
+  //   targetClassroomName?: string
+  // }
+  socket.on('schedule:dropEvent', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, trimestre, baseVersion, payload } = msg || {}
+      validateRoom({ proyectionId, trimestre })
+      const {
+        eventId, targetDay, targetStartTime, targetEndTime,
+        targetClassroomId, targetClassroomName
+      } = payload || {}
+      if (!eventId) throw new ValidationError('eventId is required')
+      if (typeof targetDay !== 'number') throw new ValidationError('targetDay must be a number')
+      if (!targetStartTime || !targetEndTime) throw new ValidationError('targetStartTime/targetEndTime required')
+      if (!targetClassroomId) throw new ValidationError('targetClassroomId required')
+
+      const result = await applyAction({
+        proyectionId,
+        trimestre,
+        baseVersion: Number(baseVersion ?? 0),
+        mutator: (state) => {
+          const updateEvent = (ev) => {
+            if (scheduleEventId(ev) !== eventId) return ev
+            return {
+              ...ev,
+              daysOfWeek: [targetDay],
+              startTime: targetStartTime,
+              endTime: targetEndTime,
+              extendedProps: {
+                ...(ev.extendedProps || {}),
+                classroomId: targetClassroomId,
+                classroomName: targetClassroomName || ev.extendedProps?.classroomName
+              }
+            }
+          }
+          const lockedSections = { ...(state.lockedSections || {}) }
+          for (const [key, evs] of Object.entries(lockedSections)) {
+            if (!key.endsWith(`-${trimestre}`)) continue
+            lockedSections[key] = evs.map(updateEvent)
+          }
+          return {
+            ...state,
+            eventData: (state.eventData || []).map(updateEvent),
+            stagedEvents: (state.stagedEvents || []).map(updateEvent),
+            lockedSections
+          }
+        }
       })
       broadcastState(io, proyectionId, trimestre, result.version, result.state)
       ok({ version: result.version })

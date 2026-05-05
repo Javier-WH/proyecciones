@@ -46,6 +46,7 @@ This file is the central index for every piece of documentation in the project. 
 
 ### Business Logic
 - **[docs/BackendSchedule.md](./docs/BackendSchedule.md)** — Backend schedule logic, automatic generation, conflict validation.
+- **[docs/BackendScheduleSync.md](./docs/BackendScheduleSync.md)** — WebSocket protocol, backend-driven state, optimistic concurrency, fine-grained atomic actions.
 - **[docs/BackendReport.md](./docs/BackendReport.md)** — Backend report generation, Excel/PDF export.
 
 ---
