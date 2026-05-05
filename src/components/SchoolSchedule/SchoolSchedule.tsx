@@ -2622,6 +2622,7 @@ const SchoolSchedule: React.FC = () => {
         distributeEquitably: scheduleConfig?.distribute_equitably,
         preventSingleHourBlocks: scheduleConfig?.prevent_single_hour_blocks,
         breaks: scheduleConfig?.breaks,
+        loadedScheduleEvents,
         scheduleConfig: scheduleConfig || {},
       }).then(ack => {
         if (!ack.ok) {

@@ -15,3 +15,10 @@ export {
   periodsOverlap,
   stripGhostFlags
 } from './crossQuarterGhost.js'
+export {
+  selfHealLockedSections,
+  runAutoSolve,
+  removePhantomEvents,
+  enforceFrozenSections,
+  getEventId
+} from './autoSolve.js'

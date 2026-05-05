@@ -39,7 +39,14 @@ import {
   ValidationError,
   emptyState
 } from '../schedule/stateService.js'
-import { generateScheduleEvents } from '../schedule/engine/index.js'
+import {
+  generateScheduleEvents,
+  buildCrossQuarterGhostEvents,
+  selfHealLockedSections,
+  runAutoSolve,
+  removePhantomEvents,
+  enforceFrozenSections
+} from '../schedule/engine/index.js'
 import {
   loadTeacherRestrictions,
   loadSubjectRestrictions,
@@ -182,22 +189,48 @@ export function registerScheduleHandlers (io, socket) {
         trimestre,
         baseVersion: Number(baseVersion ?? 0),
         mutator: async (state) => {
-          // Load restrictions from database
+          // ─── Load restrictions from database ───
           const unavailableDays = await loadTeacherRestrictions()
           const preferredClassrooms = await loadSubjectRestrictions(proyectionId)
           const classroomOverrides = await loadClassroomOverrides(proyectionId)
-          const lockedSections = await loadLockedSections(proyectionId)
+          let lockedSections = await loadLockedSections(proyectionId)
 
-          // Convert locked sections to flat locked events array
-          const lockedEvents = []
-          for (const [sectionKey, events] of Object.entries(lockedSections)) {
-            lockedEvents.push(...events)
+          // ─── 1. SELF-HEAL locked sections ───
+          // Sync professorId on locked events with current subject assignments
+          // and remove phantom duplicates.
+          const subjects = payload.subjects || []
+          const healed = selfHealLockedSections(lockedSections, subjects, trimestre)
+          lockedSections = healed.lockedSections
+
+          // Flat list of locked events for the active trimestre + cross-quarter ghosts
+          const lockedEventsActiveTrim = []
+          for (const [key, events] of Object.entries(lockedSections)) {
+            if (!key.endsWith(`-${trimestre}`)) continue
+            lockedEventsActiveTrim.push(...events)
           }
 
+          // Compute cross-quarter ghost events for this trimestre. They occupy
+          // teacher/classroom slots without being part of the produced events.
+          let crossGhosts = []
+          try {
+            const allLockedEvents = []
+            for (const events of Object.values(lockedSections)) allLockedEvents.push(...events)
+            crossGhosts = buildCrossQuarterGhostEvents({
+              activeTrimestre: trimestre,
+              allEvents: allLockedEvents,
+              lockedSectionsFlat: Object.entries(lockedSections).map(([key, events]) => ({ key, events })),
+              eventDataCurrent: [],
+              subjects
+            }) || []
+          } catch (e) {
+            console.warn('[regenerate] crossQuarterGhost computation failed', e)
+          }
+
+          // ─── 2. INITIAL GENERATION ───
           /** @type {import('../schedule/engine/types.js').ScheduleError[]} */
-          const errors = []
-          const events = generateScheduleEvents({
-            subjects: payload.subjects || [],
+          const initialErrors = []
+          const generated = generateScheduleEvents({
+            subjects,
             classrooms: payload.classrooms || [],
             trimestre,
             unavailableDays,
@@ -211,16 +244,43 @@ export function registerScheduleHandlers (io, socket) {
             teachers: payload.teachers,
             preventSingleHourBlocks: payload.preventSingleHourBlocks,
             breaks: payload.breaks,
-            lockedEvents,
-            setErrors: (e) => errors.push(e)
+            lockedEvents: [...lockedEventsActiveTrim, ...crossGhosts],
+            setErrors: (e) => initialErrors.push(e)
           })
+
+          // ─── 3. AUTO-SOLVE (pass 2 + pass 3) ───
+          const solved = runAutoSolve({
+            eventsdata: generated,
+            initialErrors,
+            loadedScheduleEvents: payload.loadedScheduleEvents || [],
+            crossQuarterGhostEvents: crossGhosts,
+            currentSubjects: subjects,
+            activeTurnos: payload.customTurnos || {},
+            scheduleConfig: payload.scheduleConfig || {},
+            teacherRestrictions: unavailableDays,
+            subjectRestriction: preferredClassrooms,
+            classrooms: payload.classrooms || [],
+            consecutiveConfig: {
+              minSlots: payload.minConsecutiveSlots ?? 2,
+              maxSlots: payload.conserveSlots ?? 3
+            },
+            trimestre,
+            lockedSections
+          })
+
+          // ─── 4. PHANTOM CLEANUP ───
+          let finalEvents = removePhantomEvents(solved.eventsdata)
+
+          // ─── 5. FROZEN SECTIONS ENFORCEMENT ───
+          finalEvents = enforceFrozenSections(finalEvents, lockedSections, trimestre)
 
           return {
             ...state,
-            eventData: events,
+            eventData: finalEvents,
             classroomOverrides,
+            lockedSections,
             scheduleConfig: payload.scheduleConfig || state.scheduleConfig || {},
-            lastGenerationErrors: errors
+            lastGenerationErrors: solved.errors
           }
         }
       })
