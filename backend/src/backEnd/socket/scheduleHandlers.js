@@ -56,7 +56,11 @@ import {
 } from '../schedule/loadRestrictions.js'
 import TeachersRestrictions from '#models/schedule/teacherRestrictions.js'
 import SubjectRestrictions from '#models/schedule/subjectsRestrictions.js'
+import ClassroomOverrides from '#models/schedule/classroomOverrides.js'
 import ScheduleConfig from '#models/schedule/scheduleConfig.js'
+import Classrooms from '#models/schedule/classrooms.js'
+import Proyections from '#models/proyections.js'
+import getTeacherList from '#querys/teachers/getTeacherList.js'
 import { recalcSchedulesForProyection } from '../schedule/scheduleService.js'
 
 const TRIM_VALUES = new Set(['q1', 'q2', 'q3'])
@@ -184,44 +188,63 @@ export function registerScheduleHandlers (io, socket) {
     }
   })
 
-  // ─── regenerate ─────────────────────────────────────────────────────────
+  // ─── regenerate (backend-driven) ─────────────────────────────────────────
+  // Loads ALL data from the database: subjects, classrooms, teachers,
+  // restrictions, overrides, config, and locked sections. No client payload
+  // is required beyond proyectionId + trimestre. The result is persisted
+  // via applyAction and broadcast to the room.
   socket.on('schedule:regenerate', async (msg, ack) => {
     const { ok, fail } = makeResponders(ack)
     try {
       requireAuth(socket)
-      const { proyectionId, trimestre, baseVersion, payload } = msg || {}
+      const { proyectionId, trimestre, baseVersion } = msg || {}
       validateRoom({ proyectionId, trimestre })
-      if (!payload || typeof payload !== 'object') {
-        throw new ValidationError('missing generation payload')
-      }
 
       const result = await applyAction({
         proyectionId,
         trimestre,
         baseVersion: Number(baseVersion ?? 0),
-        mutator: async (state) => {
-          // ─── Load restrictions from database ───
+        mutator: async () => {
+          // ─── Load ALL data from database ───
+          const proyection = await Proyections.findOne({ where: { id: proyectionId }, raw: true })
+          if (!proyection) throw new ValidationError('proyection not found')
+          const subjects = JSON.parse(proyection.subjects || '[]')
+          if (subjects.length === 0) {
+            return { eventData: [], stagedEvents: [], lockedSections: {}, classroomOverrides: [], scheduleConfig: {}, lastGenerationErrors: [] }
+          }
+
+          const classrooms = await Classrooms.findAll({ raw: true })
+          const teachers = await getTeacherList()
+          const scheduleConfigRow = await ScheduleConfig.findOne({ where: { active: true }, raw: true })
+          const scheduleConfig = scheduleConfigRow || {}
+
           const unavailableDays = await loadTeacherRestrictions()
           const preferredClassrooms = await loadSubjectRestrictions(proyectionId)
           const classroomOverrides = await loadClassroomOverrides(proyectionId)
           let lockedSections = await loadLockedSections(proyectionId)
 
+          const config = {
+            conserveSlots: scheduleConfig.conserve_slots ?? 3,
+            minConsecutiveSlots: scheduleConfig.min_consecutive_slots ?? 2,
+            customDays: scheduleConfig.days || [1, 2, 3, 4, 5],
+            customTurnos: scheduleConfig.turnos || {},
+            distributeEquitably: scheduleConfig.distribute_equitably || false,
+            preventSingleHourBlocks: scheduleConfig.prevent_single_hour_blocks || false,
+            breaks: scheduleConfig.breaks || []
+          }
+
           // ─── 1. SELF-HEAL locked sections ───
-          // Sync professorId on locked events with current subject assignments
-          // and remove phantom duplicates.
-          const subjects = payload.subjects || []
           const healed = selfHealLockedSections(lockedSections, subjects, trimestre)
           lockedSections = healed.lockedSections
 
-          // Flat list of locked events for the active trimestre + cross-quarter ghosts
+          // Flat locked events for the active trimestre
           const lockedEventsActiveTrim = []
           for (const [key, events] of Object.entries(lockedSections)) {
             if (!key.endsWith(`-${trimestre}`)) continue
             lockedEventsActiveTrim.push(...events)
           }
 
-          // Compute cross-quarter ghost events for this trimestre. They occupy
-          // teacher/classroom slots without being part of the produced events.
+          // Cross-quarter ghosts
           let crossGhosts = []
           try {
             const allLockedEvents = []
@@ -242,38 +265,38 @@ export function registerScheduleHandlers (io, socket) {
           const initialErrors = []
           const generated = generateScheduleEvents({
             subjects,
-            classrooms: payload.classrooms || [],
+            classrooms,
             trimestre,
             unavailableDays,
             preferredClassrooms,
             classroomOverrides,
-            conserveSlots: payload.conserveSlots,
-            minConsecutiveSlots: payload.minConsecutiveSlots,
-            customDays: payload.customDays,
-            customTurnos: payload.customTurnos,
-            distributeEquitably: payload.distributeEquitably,
-            teachers: payload.teachers,
-            preventSingleHourBlocks: payload.preventSingleHourBlocks,
-            breaks: payload.breaks,
+            conserveSlots: config.conserveSlots,
+            minConsecutiveSlots: config.minConsecutiveSlots,
+            customDays: config.customDays,
+            customTurnos: config.customTurnos,
+            distributeEquitably: config.distributeEquitably,
+            teachers,
+            preventSingleHourBlocks: config.preventSingleHourBlocks,
+            breaks: config.breaks,
             lockedEvents: [...lockedEventsActiveTrim, ...crossGhosts],
             setErrors: (e) => initialErrors.push(e)
           })
 
-          // ─── 3. AUTO-SOLVE (pass 2 + pass 3) ───
+          // ─── 3. AUTO-SOLVE ───
           const solved = runAutoSolve({
             eventsdata: generated,
             initialErrors,
-            loadedScheduleEvents: payload.loadedScheduleEvents || [],
+            loadedScheduleEvents: [],
             crossQuarterGhostEvents: crossGhosts,
             currentSubjects: subjects,
-            activeTurnos: payload.customTurnos || {},
-            scheduleConfig: payload.scheduleConfig || {},
+            activeTurnos: config.customTurnos,
+            scheduleConfig,
             teacherRestrictions: unavailableDays,
             subjectRestriction: preferredClassrooms,
-            classrooms: payload.classrooms || [],
+            classrooms,
             consecutiveConfig: {
-              minSlots: payload.minConsecutiveSlots ?? 2,
-              maxSlots: payload.conserveSlots ?? 3
+              minSlots: config.minConsecutiveSlots,
+              maxSlots: config.conserveSlots
             },
             trimestre,
             lockedSections
@@ -286,11 +309,11 @@ export function registerScheduleHandlers (io, socket) {
           finalEvents = enforceFrozenSections(finalEvents, lockedSections, trimestre)
 
           return {
-            ...state,
             eventData: finalEvents,
+            stagedEvents: [],
             classroomOverrides,
             lockedSections,
-            scheduleConfig: payload.scheduleConfig || state.scheduleConfig || {},
+            scheduleConfig,
             lastGenerationErrors: solved.errors
           }
         }
@@ -329,27 +352,35 @@ export function registerScheduleHandlers (io, socket) {
     }
   })
 
-  // ─── classroom overrides ────────────────────────────────────────────────
+  // ─── classroom overrides (DB-backed + reactive recalc) ──────────────────
+  // Overrides are persisted to the classroom_overrides DB table and a full
+  // schedule recalculation is triggered so all connected clients receive the
+  // updated state. The in-memory snapshot is no longer the source of truth.
   socket.on('schedule:saveOverride', async (msg, ack) => {
     const { ok, fail } = makeResponders(ack)
     try {
       requireAuth(socket)
-      const { proyectionId, trimestre, baseVersion, payload } = msg || {}
-      validateRoom({ proyectionId, trimestre })
+      const { proyectionId, payload } = msg || {}
+      if (!proyectionId) throw new ValidationError('proyectionId required')
       const newOverrides = Array.isArray(payload?.overrides) ? payload.overrides : null
       if (!newOverrides) throw new ValidationError('overrides must be an array')
 
-      const result = await applyAction({
-        proyectionId,
-        trimestre,
-        baseVersion: Number(baseVersion ?? 0),
-        mutator: (state) => ({
-          ...state,
-          classroomOverrides: [...(state.classroomOverrides || []), ...newOverrides]
+      for (const ov of newOverrides) {
+        await ClassroomOverrides.create({
+          proyection_id: proyectionId,
+          subject_name: ov.subjectName || ov.subject_name,
+          day: ov.day,
+          start_time: ov.startTime || ov.start_time,
+          end_time: ov.endTime || ov.end_time,
+          classroom_id: ov.classroomId || ov.classroom_id,
+          seccion: ov.seccion || null,
+          pnf_id: ov.pnfId || ov.pnf_id || null,
+          trayecto_id: ov.trayectoId || ov.trayecto_id || null
         })
-      })
-      broadcastState(io, proyectionId, trimestre, result.version, result.state)
-      ok({ version: result.version })
+      }
+
+      recalcSchedulesForProyection(proyectionId, io)
+      ok({})
     } catch (err) {
       fail(err)
     }
@@ -359,25 +390,35 @@ export function registerScheduleHandlers (io, socket) {
     const { ok, fail } = makeResponders(ack)
     try {
       requireAuth(socket)
-      const { proyectionId, trimestre, baseVersion, payload } = msg || {}
-      validateRoom({ proyectionId, trimestre })
+      const { proyectionId, payload } = msg || {}
+      if (!proyectionId) throw new ValidationError('proyectionId required')
       const matcher = payload?.matcher
       if (!matcher || typeof matcher !== 'object') {
         throw new ValidationError('matcher is required')
       }
-      const result = await applyAction({
-        proyectionId,
-        trimestre,
-        baseVersion: Number(baseVersion ?? 0),
-        mutator: (state) => ({
-          ...state,
-          classroomOverrides: (state.classroomOverrides || []).filter((ov) =>
-            !Object.entries(matcher).every(([k, v]) => ov[k] === v)
-          )
-        })
-      })
-      broadcastState(io, proyectionId, trimestre, result.version, result.state)
-      ok({ version: result.version })
+
+      // Convert camelCase matcher keys to DB snake_case column names
+      const where = { proyection_id: proyectionId }
+      const keyMap = {
+        id: 'id',
+        subjectName: 'subject_name',
+        day: 'day',
+        startTime: 'start_time',
+        endTime: 'end_time',
+        classroomId: 'classroom_id',
+        seccion: 'seccion',
+        pnfId: 'pnf_id',
+        trayectoId: 'trayecto_id'
+      }
+      for (const [k, v] of Object.entries(matcher)) {
+        const col = keyMap[k] || k
+        where[col] = v
+      }
+
+      await ClassroomOverrides.destroy({ where })
+
+      recalcSchedulesForProyection(proyectionId, io)
+      ok({})
     } catch (err) {
       fail(err)
     }
@@ -387,16 +428,13 @@ export function registerScheduleHandlers (io, socket) {
     const { ok, fail } = makeResponders(ack)
     try {
       requireAuth(socket)
-      const { proyectionId, trimestre, baseVersion } = msg || {}
-      validateRoom({ proyectionId, trimestre })
-      const result = await applyAction({
-        proyectionId,
-        trimestre,
-        baseVersion: Number(baseVersion ?? 0),
-        mutator: (state) => ({ ...state, classroomOverrides: [] })
-      })
-      broadcastState(io, proyectionId, trimestre, result.version, result.state)
-      ok({ version: result.version })
+      const { proyectionId } = msg || {}
+      if (!proyectionId) throw new ValidationError('proyectionId required')
+
+      await ClassroomOverrides.destroy({ where: { proyection_id: proyectionId } })
+
+      recalcSchedulesForProyection(proyectionId, io)
+      ok({})
     } catch (err) {
       fail(err)
     }

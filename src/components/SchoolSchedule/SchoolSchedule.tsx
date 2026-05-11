@@ -122,10 +122,7 @@ const SchoolSchedule: React.FC = () => {
 
   const { addSubjectToTeacher } = useSetSubject(subjects || []);
 
-  // Use a ref for teachers so that generateScheduleEvents can access the latest
-  // value without being listed as a dependency (which would cause the schedule
-  // to regenerate every time the teacher list updates via WebSocket, producing
-  // visually shuffled professor names due to non-deterministic backtracking).
+  // Teachers list kept in sync via WebSocket; used for display and lookups.
   const teachersRef = useRef(teachers);
   useEffect(() => {
     teachersRef.current = teachers;
@@ -145,10 +142,10 @@ const SchoolSchedule: React.FC = () => {
   const [trimestre, setTrimestre] = useState<"q1" | "q2" | "q3">(() => (localStorage.getItem("schedule_trimestre") as "q1" | "q2" | "q3") || "q1");
 
   // ─── Backend-driven schedule state via socket ───
-  // Phase 1 integration: subscribe to backend room and mirror local eventData
-  // both ways. Local generation still runs in the frontend; the backend acts as
-  // the persistent record + real-time fan-out for other clients in the same
-  // (proyection, trimestre).
+  // The backend is the single source of truth. Schedule generation runs
+  // entirely on the server. Manual edits (drag/drop) are pushed via
+  // schedule:setState as an escape hatch until fine-grained actions are
+  // implemented. The frontend subscribes to schedule:state broadcasts.
   const {
     state: scheduleState,
     version: scheduleVersion,
@@ -3872,6 +3869,9 @@ const SchoolSchedule: React.FC = () => {
                 visible={isConfigModalOpen}
                 onClose={() => setIsConfigModalOpen(false)}
                 onConfigUpdate={(newConfig) => setScheduleConfig(newConfig)}
+                onConfigSave={(newConfig) => {
+                  scheduleDispatch("schedule:saveConfig", { config: newConfig });
+                }}
               />
             </div>
           </div>

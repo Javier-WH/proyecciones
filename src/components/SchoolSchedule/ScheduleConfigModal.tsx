@@ -10,6 +10,7 @@ interface ScheduleConfigModalProps {
     visible: boolean;
     onClose: () => void;
     onConfigUpdate: (config: ScheduleConfig) => void;
+    onConfigSave?: (config: ScheduleConfig) => void;
 }
 
 const DAYS_OPTIONS = [
@@ -22,7 +23,7 @@ const DAYS_OPTIONS = [
     { label: "Domingo", value: 7 },
 ];
 
-const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onClose, onConfigUpdate }) => {
+const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onClose, onConfigUpdate, onConfigSave }) => {
     const [form] = Form.useForm();
     const [config, setConfig] = useState<ScheduleConfig | null>(null);
     const [loading, setLoading] = useState(false);
@@ -88,6 +89,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
             } else {
                 message.success("Configuración actualizada correctamente");
                 onConfigUpdate(result);
+                if (onConfigSave) onConfigSave(result);
                 onClose();
             }
         } catch (error) {
@@ -329,6 +331,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
                     } else {
                         message.success("Configuración restaurada a valores predeterminados");
                         onConfigUpdate(result);
+                        if (onConfigSave) onConfigSave(result);
                     }
                 } catch (error) {
                     console.error(error);
