@@ -233,7 +233,7 @@ const SchoolSchedule: React.FC = () => {
   const [hasUnsavedOverrides, setHasUnsavedOverrides] = useState(false);
   // Contador de generación: se incrementa cada vez que cambian las restricciones
   // para forzar la regeneración del horario
-  const [generationCounter, setGenerationCounter] = useState(0);
+  const [generationCounter] = useState(0);
   // State to open TeacherRestrictionModal from TeachersRestrictionsListModal
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
 
@@ -1864,7 +1864,6 @@ const SchoolSchedule: React.FC = () => {
   const handleDeleteOverrides = async (overridesToDelete: ClassroomOverride[]) => {
     const newOverrides = classroomOverrides.filter((o) => !overridesToDelete.includes(o));
     setClassroomOverrides(newOverrides);
-    setGenerationCounter((prev) => prev + 1);
 
     // Limpiar conflictos de los eventos afectados por los overrides eliminados
     setEventsWithConflicts(prev => {
@@ -1905,7 +1904,6 @@ const SchoolSchedule: React.FC = () => {
       okButtonProps: { danger: true },
       onOk: async () => {
         setClassroomOverrides([]);
-        setGenerationCounter((prev) => prev + 1);
 
         if (proyectionId) {
           try {
@@ -2095,7 +2093,6 @@ const SchoolSchedule: React.FC = () => {
     });
 
     setLoadedScheduleEvents(prev => [...prev, ...finalResult.events]);
-    setGenerationCounter(prev => prev + 1);
   }, [eventData, loadedScheduleEvents, classrooms, activeTurnos, trimestre, scheduleConfig, teacherRestrictions, subjectRestriction]);
 
 
@@ -2127,7 +2124,7 @@ const SchoolSchedule: React.FC = () => {
       return sameDay && usesTargetClassroom && overlapsTime && isOtherEvent;
     });
 
-    const applyClassroomChangeAndRecalculate = (returnFirstModifiedOnly = false, shouldRecalculate = true) => {
+    const applyClassroomChangeAndRecalculate = (returnFirstModifiedOnly = false) => {
       const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData), ...crossQuarterGhostEvents];
 
       // Find the specific events we are modifying
@@ -2184,10 +2181,8 @@ const SchoolSchedule: React.FC = () => {
 
       if (returnFirstModifiedOnly) return firstModified;
 
-      // Recalcular todo el horario alrededor de este nuevo evento fijo (solo si no está congelado)
-      if (shouldRecalculate) {
-        setGenerationCounter((prev) => prev + 1);
-      }
+      // Backend recalc is triggered reactively via socket when restrictions change.
+      // No local counter bump needed when backend is connected.
 
 
 
@@ -2198,7 +2193,7 @@ const SchoolSchedule: React.FC = () => {
       setNewClassroomId("");
     };
 
-    const firstModifiedEvent = applyClassroomChangeAndRecalculate(true, false) as any;
+    const firstModifiedEvent = applyClassroomChangeAndRecalculate(true) as any;
     const isFrozen = firstModifiedEvent ? !!lockedSections[`${firstModifiedEvent.extendedProps?.pnfId}-${firstModifiedEvent.extendedProps?.trayectoId}-${firstModifiedEvent.extendedProps?.seccion}-${trimestre}`] : false;
 
     // ─── Lógica de cambio de aula para secciones congeladas ───
@@ -2263,7 +2258,7 @@ const SchoolSchedule: React.FC = () => {
       });
 
       // Aplicar el cambio directo sin recalcular (registra el override y muestra mensaje)
-      applyClassroomChangeAndRecalculate(false, false);
+      applyClassroomChangeAndRecalculate(false);
 
       // ─── Actualizar visualmente los eventos en eventData, loadedScheduleEvents y lockedSections ───
       // Necesario porque NO hay regeneración para secciones congeladas
@@ -2377,11 +2372,13 @@ const SchoolSchedule: React.FC = () => {
     }
 
     setSubjectRestriction(updatedRestrictions);
-    // Forzar regeneración del horario
-    setGenerationCounter((c) => c + 1);
 
     try {
       await persistSubjectRestrictions(updatedRestrictions);
+      // Notify backend via socket so it persists + reactively recalculates schedule
+      if (scheduleConnected) {
+        scheduleDispatch("schedule:saveSubjectRestrictions", { restrictions: updatedRestrictions });
+      }
     } catch (error) {
       const status = (error as Error & { status?: number })?.status;
       if (status === 404) {
@@ -2391,8 +2388,6 @@ const SchoolSchedule: React.FC = () => {
         return;
       }
       setSubjectRestriction(previousRestrictions);
-      // También forzar regeneración al hacer rollback
-      setGenerationCounter((c) => c + 1);
       throw error;
     }
   };
@@ -2424,8 +2419,18 @@ const SchoolSchedule: React.FC = () => {
       }
     });
     setTeacherRestrictionsReady(true);
-    // Forzar regeneración del horario
-    setGenerationCounter((c) => c + 1);
+    // Notify backend via socket so it persists + reactively recalculates schedule
+    if (scheduleConnected) {
+      const nextRestrictions = (restricions.length === 0 && hours.length === 0)
+        ? teacherRestrictions.filter((rest) => rest.teacherId !== id)
+        : (() => {
+            const existing = teacherRestrictions.find((rest) => rest.teacherId === id);
+            return existing
+              ? teacherRestrictions.map((rest) => rest.teacherId === id ? { ...rest, days: [...restricions], hours: [...hours] } : rest)
+              : [...teacherRestrictions, { teacherId: id, days: [...restricions], hours: [...hours] }];
+          })();
+      scheduleDispatch("schedule:saveTeacherRestrictions", { restrictions: nextRestrictions });
+    }
   };
 
   const saveSchedule = async () => {
@@ -4392,8 +4397,6 @@ const SchoolSchedule: React.FC = () => {
         if (!resp.error && resp.data) {
           handleSubjectChange(resp.data);
         }
-      } else {
-        setGenerationCounter(prev => prev + 1);
       }
     };
 
