@@ -151,9 +151,11 @@ export function registerScheduleHandlers (io, socket) {
       })
       ok({ version })
 
+      console.log('[DBG schedule:join]', meta.proyectionId, meta.trimestre, 'version=', version, 'eventData.len=', state?.eventData?.length)
       // Cold-start: if the schedule has never been computed for this room,
       // kick off a reactive recalc so the client receives data shortly.
       if (version === 0 || !state?.eventData || state.eventData.length === 0) {
+        console.log('[DBG schedule:join] COLD START triggering recalc for', meta.proyectionId)
         recalcSchedulesForProyection(meta.proyectionId, io)
       }
     } catch (err) {

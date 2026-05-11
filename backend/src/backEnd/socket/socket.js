@@ -129,10 +129,10 @@ export default function setupSocket(server, sessionMiddleware) {
     // Escuchar eventos de error
     socket.on('error', (error) => {
       console.log(error)
+    })
 
     // Backend-driven schedule: optimistic-locked state + rooms per (proyection, trim)
     registerScheduleHandlers(io, socket)
-    })
   })
 
   return io

@@ -62,6 +62,7 @@ export function useScheduleSocket(
   useEffect(() => { versionRef.current = version; }, [version]);
 
   useEffect(() => {
+    console.log("[DBG useScheduleSocket effect] socket=", !!socket, "connected=", socket?.connected, "proyectionId=", proyectionId, "trimestre=", trimestre);
     if (!socket || !proyectionId) return;
 
     // Initialise from the socket's current state in case it's already
@@ -69,7 +70,11 @@ export function useScheduleSocket(
     setConnected(!!socket.connected);
 
     const onState = (msg: { proyectionId: string; trimestre: Trimestre; version: number; state: ScheduleState }) => {
-      if (msg.proyectionId !== proyectionId || msg.trimestre !== trimestre) return;
+      console.log("[DBG schedule:state RECEIVED] msg.proyectionId=", msg.proyectionId, "expected=", proyectionId, "trimestre=", msg.trimestre, "expected=", trimestre, "version=", msg.version, "events=", msg.state?.eventData?.length);
+      if (msg.proyectionId !== proyectionId || msg.trimestre !== trimestre) {
+        console.warn("[DBG schedule:state IGNORED] mismatch");
+        return;
+      }
       setState({ ...emptyState, ...msg.state });
       setVersion(msg.version);
     };
@@ -80,11 +85,13 @@ export function useScheduleSocket(
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
 
+    console.log("[DBG emitting schedule:join]", proyectionId, trimestre);
     // Join the room
     socket.emit(
       "schedule:join",
       { proyectionId, trimestre },
       (ack: Ack) => {
+        console.log("[DBG schedule:join ACK]", ack);
         if (!ack?.ok) console.error("schedule:join failed", ack);
       }
     );

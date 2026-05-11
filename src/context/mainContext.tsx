@@ -277,13 +277,12 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     });
     socket.on("updateSubjects", (newSubjects) => {
       setSubjects(newSubjects);
-
     });
 
     socket.on("proyectionData", (proyectionData) => {
+      console.log("[DBG proyectionData received]", proyectionData);
       setProyectionName(proyectionData.proyectionName);
       setProyectionId(proyectionData.proyectionId);
-
     });
 
     socket.on("connect_error", (err) => {
@@ -295,7 +294,9 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     });
 
     socket.on("connect", () => {
+      console.log("[DBG socket connected] emitting reload to force re-send of initial data");
       handleConnect();
+      socket.emit("reload");
     });
 
     return () => {
