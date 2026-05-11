@@ -69,6 +69,7 @@ export function useScheduleSocket(
     setConnected(!!socket.connected);
 
     const onState = (msg: { proyectionId: string; trimestre: Trimestre; version: number; state: ScheduleState }) => {
+      console.log('[useScheduleSocket] received schedule:state', 'proyectionId:', msg.proyectionId, 'trimestre:', msg.trimestre, 'version:', msg.version, 'lockedSections:', JSON.stringify(Object.keys(msg.state?.lockedSections || {})))
       if (msg.proyectionId !== proyectionId || msg.trimestre !== trimestre) return;
       setState({ ...emptyState, ...msg.state });
       setVersion(msg.version);
@@ -97,10 +98,11 @@ export function useScheduleSocket(
     };
   }, [socket, proyectionId, trimestre]);
 
-  const dispatch = useMemo(
+const dispatch = useMemo(
     () =>
       (name: string, payload: unknown): Promise<Ack> =>
         new Promise((resolve) => {
+          console.log('[dispatch]', name, 'socket connected:', !!socket, 'proyectionId:', proyectionId, 'trimestre:', trimestre)
           if (!socket || !proyectionId) {
             resolve({ ok: false, code: "NO_SOCKET", message: "Socket no conectado" });
             return;
@@ -108,7 +110,10 @@ export function useScheduleSocket(
           socket.emit(
             name,
             { proyectionId, trimestre, baseVersion: versionRef.current, payload },
-            (ack: Ack) => resolve(ack ?? { ok: false, code: "NO_ACK", message: "Sin respuesta" })
+            (ack: Ack) => {
+              console.log('[dispatch]', name, 'ack:', JSON.stringify(ack))
+              resolve(ack ?? { ok: false, code: "NO_ACK", message: "Sin respuesta" })
+            }
           );
         }),
     [socket, proyectionId, trimestre]

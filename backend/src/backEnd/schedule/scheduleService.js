@@ -2,7 +2,7 @@ import Proyections from '#models/proyections.js'
 import Classrooms from '#models/schedule/classrooms.js'
 import ScheduleConfig from '#models/schedule/scheduleConfig.js'
 import getTeacherList from '#querys/teachers/getTeacherList.js'
-import { applyAction } from './stateService.js'
+import { applyAction, getState } from './stateService.js'
 import {
   generateScheduleEvents,
   buildCrossQuarterGhostEvents,
@@ -25,7 +25,9 @@ function roomName (proyectionId, trimestre) {
 }
 
 function broadcastState (io, proyectionId, trimestre, version, state) {
-  io.to(roomName(proyectionId, trimestre)).emit('schedule:state', {
+  const room = `schedule:${proyectionId}:${trimestre}`
+  console.log(`[broadcastState] emitting to room ${room} (v${version}), lockedSections keys: ${JSON.stringify(Object.keys(state?.lockedSections || {}))}`)
+  io.to(room).emit('schedule:state', {
     proyectionId,
     trimestre,
     version,
@@ -74,10 +76,14 @@ export async function recalcSchedulesForProyection (proyectionId, io) {
 
     for (const trimestre of TRIMESTRES) {
       try {
+        // Read the current version so we pass the correct baseVersion for
+        // optimistic locking, rather than hardcoding 0 which causes version
+        // conflicts on every subsequent recalc.
+        const { version: currentVersion } = await getState(proyectionId, trimestre)
         const result = await applyAction({
           proyectionId,
           trimestre,
-          baseVersion: 0,
+          baseVersion: currentVersion,
           mutator: async () => {
             // Self-heal locked sections
             const healed = selfHealLockedSections(lockedSections, subjects, trimestre)
@@ -163,7 +169,7 @@ export async function recalcSchedulesForProyection (proyectionId, io) {
         })
 
         broadcastState(io, proyectionId, trimestre, result.version, result.state)
-        console.log(`[scheduleService] ${trimestre} recalculated (v${result.version})`)
+        console.log(`[scheduleService] ${trimestre} recalculated (v${result.version}), eventData: ${result.state.eventData?.length} events, lockedSections: ${JSON.stringify(Object.keys(result.state.lockedSections || {}))}`)
       } catch (err) {
         if (err.code === 'VERSION_CONFLICT') {
           console.warn(`[scheduleService] ${trimestre} version conflict, skipping`)

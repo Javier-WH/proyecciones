@@ -362,29 +362,31 @@ const SchoolSchedule: React.FC = () => {
         content: "Al desbloquear esta sección, las materias se recalcularán automáticamente en el próximo proceso de generación y su orden o ubicación podrían cambiar. ¿Deseas continuar?",
         okText: "Sí, desbloquear",
         cancelText: "Cancelar",
-        onOk: () => {
+onOk: () => {
           setLockedSections((prev: any) => {
             const newObj = { ...prev };
             delete newObj[key];
-            message.info(`Sección ${sec} desbloqueada.`);
+            message.info(`SecciA3n ${sec} desbloqueada.`);
             return newObj;
           });
           setIsOfficialStageMode(false);
+          scheduleDispatch("schedule:toggleFreeze", { sectionKey: key, freeze: false });
         }
       });
-    } else {
+} else {
+      const sectionEvents = getScheduleEvents(eventData).filter(e =>
+        e.extendedProps.pnfId === pnfId &&
+        e.extendedProps.trayectoId === trayId &&
+        e.extendedProps.seccion === sec
+      );
       setLockedSections((prev: any) => {
         const newObj = { ...prev };
-        // Collect unmerged events for this section (only schedule events)
-        const sectionEvents = getScheduleEvents(eventData).filter(e =>
-          e.extendedProps.pnfId === pnfId &&
-          e.extendedProps.trayectoId === trayId &&
-          e.extendedProps.seccion === sec
-        );
         newObj[key] = sectionEvents;
-        message.success(`Sección ${sec} bloqueada.`);
+        message.success(`SecciA3n ${sec} bloqueada.`);
         return newObj;
       });
+      console.log('[freeze] dispatching, connected:', scheduleConnected, 'proyectionId:', proyectionId)
+      scheduleDispatch("schedule:toggleFreeze", { sectionKey: key, freeze: true, events: sectionEvents });
     }
   };
 
@@ -1364,7 +1366,8 @@ const SchoolSchedule: React.FC = () => {
             message.info(`Trayecto ${trayName} descongelado.`);
             return newObj;
           });
-        }
+          sections.forEach(sec => scheduleDispatch("schedule:toggleFreeze", { sectionKey: `${pnfId}-${trayId}-${sec}-${trim}`, freeze: false }));
+        },
       });
     } else {
       setLockedSections(prev => {
@@ -1373,15 +1376,20 @@ const SchoolSchedule: React.FC = () => {
           const key = `${pnfId}-${trayId}-${sec}-${trim}`;
           if (!newObj[key]) {
             const sectionEvents = eventData.filter(e =>
-              e.extendedProps.pnfId === pnfId &&
-              e.extendedProps.trayectoId === trayId &&
-              e.extendedProps.seccion === sec
+              e.extendedProps.pnfId === pnfId && e.extendedProps.trayectoId === trayId && e.extendedProps.seccion === sec
             );
             newObj[key] = sectionEvents;
           }
         });
         message.success(`Trayecto ${trayName} congelado.`);
         return newObj;
+      });
+      sections.forEach(sec => {
+        const key = `${pnfId}-${trayId}-${sec}-${trim}`;
+        const sectionEvents = eventData.filter(e =>
+          e.extendedProps.pnfId === pnfId && e.extendedProps.trayectoId === trayId && e.extendedProps.seccion === sec
+        );
+        scheduleDispatch("schedule:toggleFreeze", { sectionKey: key, freeze: true, events: sectionEvents });
       });
     }
   };
@@ -1406,7 +1414,8 @@ const SchoolSchedule: React.FC = () => {
             message.info(`PNF ${pnfName} descongelado.`);
             return newObj;
           });
-        }
+          sectionsMap.forEach(({ trayId, sec }) => scheduleDispatch("schedule:toggleFreeze", { sectionKey: `${pnfId}-${trayId}-${sec}-${trim}`, freeze: false }));
+        },
       });
     } else {
       setLockedSections(prev => {
@@ -1424,6 +1433,11 @@ const SchoolSchedule: React.FC = () => {
         });
         message.success(`PNF ${pnfName} congelado.`);
         return newObj;
+      });
+      sectionsMap.forEach(({ trayId, sec }) => {
+        const key = `${pnfId}-${trayId}-${sec}-${trim}`;
+        const sectionEvents = eventData.filter(e => e.extendedProps.pnfId === pnfId && e.extendedProps.trayectoId === trayId && e.extendedProps.seccion === sec);
+        scheduleDispatch("schedule:toggleFreeze", { sectionKey: key, freeze: true, events: sectionEvents });
       });
     }
   };
@@ -2590,19 +2604,21 @@ const SchoolSchedule: React.FC = () => {
 
 
   // ─── Backend sync: outbound (push local snapshot) ───
-  // Whenever the local snapshot (eventData/overrides/locks) changes, push it
-  // to the backend room so the state is persisted with a version and
-  // broadcast to other clients. Uses content hash dedup to avoid echo loops.
+  // Only eventData and classroomOverrides are pushed. lockedSections are
+  // synchronized via schedule:toggleFreeze dispatch + server recalc broadcast
+  // (no echo loop). schedule:setState is the escape hatch for manual edits.
   useEffect(() => {
     if (!scheduleConnected || !proyectionId) return;
     if (eventData.length === 0) return;
-    const snapshot = { eventData, classroomOverrides, lockedSections };
+    const snapshot = { eventData, classroomOverrides };
     const hash = JSON.stringify(snapshot);
-    if (hash === lastSyncedHashRef.current) return; // already in sync
+    if (hash === lastSyncedHashRef.current) return;
     lastSyncedHashRef.current = hash;
     let cancelled = false;
     scheduleDispatch("schedule:setState", {
-      ...snapshot,
+      eventData,
+      classroomOverrides,
+      lockedSections: {},
       stagedEvents: [],
       scheduleConfig: scheduleConfig || {},
     }).then((ack) => {
@@ -2613,21 +2629,29 @@ const SchoolSchedule: React.FC = () => {
     }).catch(() => { /* ignore */ });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventData, classroomOverrides, lockedSections, scheduleConnected, proyectionId]);
+  }, [eventData, classroomOverrides, scheduleConnected, proyectionId]);
 
-  // ─── Backend sync: inbound (apply remote-sourced state) ───
+// ─── Backend sync: inbound (apply remote-sourced state) ───
   // When the backend pushes a state version we have not seen, apply it locally.
   // Updates the hash ref so the outbound effect won't re-push the same content.
   useEffect(() => {
+    console.log('[inbound] scheduleVersion:', scheduleVersion, 'lastSynced:', lastSyncedVersionRef.current)
+    console.log('[inbound] scheduleState.lockedSections:', JSON.stringify(Object.keys(scheduleState?.lockedSections || {})))
     if (!scheduleVersion || scheduleVersion === lastSyncedVersionRef.current) return;
     lastSyncedVersionRef.current = scheduleVersion;
+    console.log('[inbound] applying state, eventData length:', scheduleState.eventData?.length)
     if (Array.isArray(scheduleState.eventData) && scheduleState.eventData.length > 0) {
       lastSyncedHashRef.current = JSON.stringify({
         eventData: scheduleState.eventData,
-        classroomOverrides,
-        lockedSections,
+        classroomOverrides: scheduleState.classroomOverrides,
       });
       setEventData(scheduleState.eventData);
+    }
+    if (scheduleState.lockedSections && typeof scheduleState.lockedSections === 'object') {
+      console.log('[inbound] applying lockedSections:', JSON.stringify(Object.keys(scheduleState.lockedSections)))
+      setLockedSections(scheduleState.lockedSections as Record<string, Event[]>);
+    } else {
+      console.log('[inbound] NO lockedSections in scheduleState')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleVersion]);

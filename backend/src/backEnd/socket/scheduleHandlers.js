@@ -60,6 +60,7 @@ import ClassroomOverrides from '#models/schedule/classroomOverrides.js'
 import ScheduleConfig from '#models/schedule/scheduleConfig.js'
 import Classrooms from '#models/schedule/classrooms.js'
 import Proyections from '#models/proyections.js'
+import LockedSections from '#models/schedule/lockedSections.js'
 import getTeacherList from '#querys/teachers/getTeacherList.js'
 import { recalcSchedulesForProyection } from '../schedule/scheduleService.js'
 
@@ -451,48 +452,51 @@ export function registerScheduleHandlers (io, socket) {
 
   // Toggle freeze on a section. When `freeze=true`, the events of the given
   // section in the active trimestre are copied from `eventData` into
-  // `lockedSections[sectionKey]`. When `freeze=false`, the key is removed.
-  // Optionally accepts an explicit `events` array to freeze (used when the
-  // frontend wants to freeze a snapshot that may differ from current state).
+  // ─── freeze / unfreeze sections (DB-backed + reactive recalc) ────────────
+  // Persists to `frozen_sections` table (not the schedule snapshot) and
+  // triggers a full recalculation so all connected clients receive the updated
+  // state. sectionKey format: `${pnfId}-${trayectoId}-${seccion}-${trimestre}`.
   //
   // Payload: { sectionKey: string, freeze: boolean, events?: ScheduleEvent[] }
-  // sectionKey format: `${pnfId}-${trayectoId}-${seccion}-${trimestre}`
   socket.on('schedule:toggleFreeze', async (msg, ack) => {
     const { ok, fail } = makeResponders(ack)
     try {
       requireAuth(socket)
-      const { proyectionId, trimestre, baseVersion, payload } = msg || {}
-      validateRoom({ proyectionId, trimestre })
+      const { proyectionId, payload } = msg || {}
+      console.log('[schedule:toggleFreeze] received:', { proyectionId, payload })
+      if (!proyectionId) throw new ValidationError('proyectionId required')
       const sectionKey = payload?.sectionKey
       const freeze = !!payload?.freeze
-      if (typeof sectionKey !== 'string' || !sectionKey.endsWith(`-${trimestre}`)) {
-        throw new ValidationError('sectionKey must be a string ending with the active trimestre')
+      if (typeof sectionKey !== 'string') {
+        throw new ValidationError('sectionKey must be a string')
       }
 
-      const result = await applyAction({
-        proyectionId,
-        trimestre,
-        baseVersion: Number(baseVersion ?? 0),
-        mutator: (state) => {
-          const lockedSections = { ...(state.lockedSections || {}) }
-          if (freeze) {
-            // Either use the provided event list or derive it from eventData.
-            const explicit = Array.isArray(payload.events) ? payload.events : null
-            const sectionPrefix = sectionKey.slice(0, sectionKey.lastIndexOf('-'))
-            const fromEventData = (state.eventData || []).filter(ev => {
-              const p = ev.extendedProps || {}
-              return `${p.pnfId}-${p.trayectoId}-${p.seccion}` === sectionPrefix
-            })
-            lockedSections[sectionKey] = explicit && explicit.length > 0 ? explicit : fromEventData
-          } else {
-            delete lockedSections[sectionKey]
-          }
-          return { ...state, lockedSections }
+      if (freeze) {
+        let events = payload?.events
+        if (!Array.isArray(events) || events.length === 0) {
+          const existing = await LockedSections.findOne({
+            where: { proyection_id: proyectionId, section_key: sectionKey }
+          })
+          events = existing?.events || []
         }
-      })
-      broadcastState(io, proyectionId, trimestre, result.version, result.state)
-      ok({ version: result.version })
+        await LockedSections.upsert({
+          proyection_id: proyectionId,
+          section_key: sectionKey,
+          events,
+          stage: 'planning'
+        })
+      } else {
+        await LockedSections.destroy({
+          where: { proyection_id: proyectionId, section_key: sectionKey }
+        })
+      }
+
+      console.log('[schedule:toggleFreeze] DB write done, calling recalc')
+      await recalcSchedulesForProyection(proyectionId, io)
+      console.log('[schedule:toggleFreeze] recalc done, sending ack')
+      ok({})
     } catch (err) {
+      console.error('[schedule:toggleFreeze] error:', err)
       fail(err)
     }
   })
