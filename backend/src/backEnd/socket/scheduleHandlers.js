@@ -150,6 +150,12 @@ export function registerScheduleHandlers (io, socket) {
         state
       })
       ok({ version })
+
+      // Cold-start: if the schedule has never been computed for this room,
+      // kick off a reactive recalc so the client receives data shortly.
+      if (version === 0 || !state?.eventData || state.eventData.length === 0) {
+        recalcSchedulesForProyection(meta.proyectionId, io)
+      }
     } catch (err) {
       fail(err)
     }
