@@ -2597,7 +2597,6 @@ const SchoolSchedule: React.FC = () => {
   // When the backend pushes a state version we have not seen, apply it locally.
   // Updates the hash ref so the outbound effect won't re-push the same content.
   useEffect(() => {
-    console.log("[DBG inbound] proyectionId=", proyectionId, "trimestre=", trimestre, "connected=", scheduleConnected, "version=", scheduleVersion, "eventData.len=", scheduleState.eventData?.length);
     if (!scheduleVersion || scheduleVersion === lastSyncedVersionRef.current) return;
     lastSyncedVersionRef.current = scheduleVersion;
     if (Array.isArray(scheduleState.eventData) && scheduleState.eventData.length > 0) {
@@ -2607,7 +2606,6 @@ const SchoolSchedule: React.FC = () => {
         lockedSections,
       });
       setEventData(scheduleState.eventData);
-      console.log("[DBG inbound] APPLIED", scheduleState.eventData.length, "events");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleVersion]);
@@ -2803,7 +2801,6 @@ const SchoolSchedule: React.FC = () => {
 
     // Combinar: eventos cargados (ya mergeados) + eventos generados (recién mergeados) + ghosts
     const combinedEvents = [...filteredLoaded, ...mergedGenerated, ...mergedGhosts];
-    console.log("[DBG filter] viewMode=", viewMode, "pnf=", pnf, "seccion=", seccion, "trayectoId=", trayectoId, "turn=", turn, "eventData.len=", eventData.length, "filteredGenerated.len=", filteredGenerated.length, "combined.len=", combinedEvents.length, "eventDataSample=", eventData[0]);
     setEvents(combinedEvents);
   }, [
     eventData,
