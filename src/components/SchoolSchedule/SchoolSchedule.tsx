@@ -1005,6 +1005,31 @@ const SchoolSchedule: React.FC = () => {
     return conflicts;
   };
 
+  // ─── Reactive conflict detection ────────────────────────────────────────
+  // Re-run conflict detection whenever eventData changes (from any source:
+  // local drag/drop OR remote schedule:state broadcast). This makes conflicts
+  // consistent across clients and persistent across reloads without needing
+  // to store them separately in the backend — they are derived from eventData.
+  useEffect(() => {
+    const scheduleEvents = getScheduleEvents(eventData);
+    if (scheduleEvents.length === 0) {
+      setEventsWithConflicts({});
+      return;
+    }
+    const next: Record<string, string[]> = {};
+    for (const ev of scheduleEvents) {
+      const day = ev.daysOfWeek?.[0];
+      const start = ev.startTime;
+      if (!day || !start) continue;
+      const conflicts = checkEventConflicts(ev, day, start, scheduleEvents);
+      if (conflicts.length > 0) {
+        next[getEventId(ev)] = conflicts;
+      }
+    }
+    setEventsWithConflicts(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventData, crossQuarterGhostEvents, teachers, classrooms, subjects, trimestre]);
+
   // Handle drop from staging area to schedule
   const handleDropFromStaging = (
     targetDay: number,
@@ -3180,6 +3205,34 @@ const SchoolSchedule: React.FC = () => {
         return [...filtered, ...targetOverrides];
       });
       setHasUnsavedOverrides(true);
+
+      // Mutate eventData: move each moving event to its new (day, time) slot.
+      // Backend-driven generation no longer runs locally, so we must apply
+      // the change to eventData directly. The outbound sync effect will
+      // push the new snapshot to the backend and broadcast to peers.
+      const movingIds = new Set(movingEvents.map(e =>
+        `${e.extendedProps?.subjectId}|${e.daysOfWeek?.[0]}|${e.startTime}`
+      ));
+      setEventData(prev => prev.map(e => {
+        const key = `${e.extendedProps?.subjectId}|${e.daysOfWeek?.[0]}|${e.startTime}`;
+        if (!movingIds.has(key)) return e;
+        const evtStartIdx = tableSlots.findIndex(s => s[0] === e.startTime);
+        const diffIndex = evtStartIdx - sourceStartIdx;
+        if (diffIndex < 0 || diffIndex >= targetSlots.length) return e;
+        const newStartTime = targetSlots[diffIndex][0];
+        const newEndTime = targetSlots[diffIndex][1];
+        return {
+          ...e,
+          daysOfWeek: [targetDay],
+          startTime: newStartTime,
+          endTime: newEndTime,
+          extendedProps: {
+            ...e.extendedProps,
+            professorId: profId || e.extendedProps?.professorId,
+            classroomId: classroomId || e.extendedProps?.classroomId,
+          },
+        };
+      }));
 
       if (isReassigningProfessor && profId) {
         const resp = addSubjectToTeacher({ subjectId: firstMovingEvent.extendedProps?.subjectId as string, teacherId: profId });
