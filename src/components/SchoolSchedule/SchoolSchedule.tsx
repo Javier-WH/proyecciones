@@ -2653,6 +2653,10 @@ onOk: () => {
     } else {
       console.log('[inbound] NO lockedSections in scheduleState')
     }
+    if (scheduleState.scheduleConfig && typeof scheduleState.scheduleConfig === 'object' && Object.keys(scheduleState.scheduleConfig).length > 0) {
+      console.log('[inbound] applying scheduleConfig days:', scheduleState.scheduleConfig.days)
+      setScheduleConfig(scheduleState.scheduleConfig as unknown as ScheduleConfig);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleVersion]);
 
@@ -3894,6 +3898,7 @@ onOk: () => {
                 onClose={() => setIsConfigModalOpen(false)}
                 onConfigUpdate={(newConfig) => setScheduleConfig(newConfig)}
                 onConfigSave={(newConfig) => {
+                  console.log('[configModal] onConfigSave called, dispatching schedule:saveConfig')
                   scheduleDispatch("schedule:saveConfig", { config: newConfig });
                 }}
               />

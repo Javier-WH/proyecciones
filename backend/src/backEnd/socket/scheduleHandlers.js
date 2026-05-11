@@ -791,6 +791,7 @@ export function registerScheduleHandlers (io, socket) {
     try {
       requireAuth(socket)
       const { proyectionId, payload } = msg || {}
+      console.log('[schedule:saveConfig] received:', { proyectionId, configKeys: Object.keys(payload?.config || {}) })
       if (!proyectionId) throw new ValidationError('proyectionId required')
       const config = payload?.config
       if (!config || typeof config !== 'object') throw new ValidationError('config required')
@@ -808,9 +809,12 @@ export function registerScheduleHandlers (io, socket) {
         breaks: config.breaks || []
       })
 
-      recalcSchedulesForProyection(proyectionId, io)
+      console.log('[schedule:saveConfig] upsert done, calling recalc')
+      await recalcSchedulesForProyection(proyectionId, io)
+      console.log('[schedule:saveConfig] recalc done')
       ok({})
     } catch (err) {
+      console.error('[schedule:saveConfig] error:', err)
       fail(err)
     }
   })
