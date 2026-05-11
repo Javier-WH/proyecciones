@@ -9,7 +9,7 @@ export default async function getReport({ pnfId, type }: { pnfId: string; type: 
     type,
   });
 
-  const url = import.meta.env.MODE === "development" ? `http://localhost:3000/excelreport` : `/excelreport`;
+  const url = import.meta.env.MODE === "development" ? `/excelreport` : `/excelreport`;
 
   try {
     const response = await fetch(url, {

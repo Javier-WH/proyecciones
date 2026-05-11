@@ -53,7 +53,7 @@ function ImageUploader({ filename, gender }: { filename: string | undefined, gen
 
     try {
       const apiUrl = import.meta.env.MODE === 'development'
-        ? 'http://localhost:3000/photo'
+        ? '/photo'
         : '/photo';
 
       const response = await fetch(apiUrl, {

@@ -1,7 +1,7 @@
 
 export default async function getPensum({ programaId, trayectoId, mayaId }: { programaId: string | null | undefined, trayectoId: string | null | undefined, mayaId: string | null | undefined }) {
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/proyecciones/pensum/" : "/proyecciones/pensum/";
+  const url = import.meta.env.MODE === 'development' ? "/proyecciones/pensum/" : "/proyecciones/pensum/";
   const headersList = {
     "Accept": "*/*"
   }

@@ -2,7 +2,7 @@ export default async function getProyections() {
   const headersList = {
     "Accept": "*/*",
   }
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/proyeccions" : "/proyeccions";
+  const url = import.meta.env.MODE === 'development' ? "/proyeccions" : "/proyeccions";
 
   const response = await fetch(url, {
     method: "GET",

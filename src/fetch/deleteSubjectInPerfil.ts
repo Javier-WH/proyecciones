@@ -4,7 +4,7 @@ export default async function deleteSubjectInPerfil({ id }: { id: string }) {
     }
   
     const url = import.meta.env.MODE === 'development' 
-      ? `http://localhost:3000/subjectinprofile/${id}` 
+      ? `/subjectinprofile/${id}` 
       : `/subjectinprofile/${id}`;
   
     const response = await fetch(url, {

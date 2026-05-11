@@ -14,7 +14,7 @@ export interface ScheduleConfig {
 }
 
 const API_BASE_URL = import.meta.env.MODE === 'development'
-    ? 'http://localhost:3000/schedule-config'
+    ? '/schedule-config'
     : '/schedule-config';
 
 export const getScheduleConfig = async (): Promise<ScheduleConfig | null> => {

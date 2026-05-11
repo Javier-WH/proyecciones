@@ -1,6 +1,6 @@
 export default async function getUser(ci: string) {
   const url =
-    import.meta.env.MODE === "development" ? `http://localhost:3000/user?ci=${ci}` : `/user?ci=${ci}`;
+    import.meta.env.MODE === "development" ? `/user?ci=${ci}` : `/user?ci=${ci}`;
   const headersList = {
     Accept: "*/*",
   };

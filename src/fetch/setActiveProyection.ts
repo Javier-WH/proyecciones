@@ -8,7 +8,7 @@ export default async function setActiveProyection({ active_proyection }: { activ
   }
 
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/setProyection" : "/setProyection";
+  const url = import.meta.env.MODE === 'development' ? "/setProyection" : "/setProyection";
 
   const response = await fetch(url, {
     method: "POST",

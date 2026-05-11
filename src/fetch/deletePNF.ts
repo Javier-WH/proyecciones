@@ -4,7 +4,7 @@ export default async function deletePNF({ id }: { id: string }) {
   }
 
   const url = import.meta.env.MODE === 'development'
-    ? `http://localhost:3000/pnf/${id}`
+    ? `/pnf/${id}`
     : `/pnf/${id}`;
 
   const response = await fetch(url, {

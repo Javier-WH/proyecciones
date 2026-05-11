@@ -4,7 +4,7 @@ export interface TeacherRestrictionPayload {
   restricted_hours: { day: number; start: string; end: string }[];
 }
 
-const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
+const BASE_URL = import.meta.env.MODE === "development" ? "" : "";
 
 const defaultHeaders = {
   Accept: "*/*",

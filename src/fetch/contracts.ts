@@ -10,7 +10,7 @@ export async function getContracts() {
     const headersList = {
       "Accept": "*/*",
     }
-    const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/contractTypes" : "/contractTypes";
+    const url = import.meta.env.MODE === 'development' ? "/contractTypes" : "/contractTypes";
   
     const response = await fetch(url, {
       method: "GET",
@@ -35,7 +35,7 @@ export async function putContract({id, contractType, hours, active }: ContractTy
     if (hours) body.hours = hours;
     if (active) body.active = active;
   
-    const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/contractType" : "/contractType";
+    const url = import.meta.env.MODE === 'development' ? "/contractType" : "/contractType";
   
     const response = await fetch(url, {
       method: "PUT",

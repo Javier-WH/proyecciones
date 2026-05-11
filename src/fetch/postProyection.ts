@@ -11,7 +11,7 @@ export default async function postProyection({ year, name }: { year: string , na
     name
   });
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/proyeccion" : "/proyeccion";
+  const url = import.meta.env.MODE === 'development' ? "/proyeccion" : "/proyeccion";
 
   const response = await fetch(url, {
     method: "POST",

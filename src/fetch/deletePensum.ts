@@ -5,7 +5,7 @@ export default async function deletePensum({ id }: { id: string }) {
   }
 
   const url = import.meta.env.MODE === 'development'
-    ? `http://localhost:3000/pensum/${id}`
+    ? `/pensum/${id}`
     : `/pensum/${id}`;
 
   const response = await fetch(url, {

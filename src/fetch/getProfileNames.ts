@@ -2,7 +2,7 @@ export default async function getProfileNames() {
   const headersList = {
     "Accept": "*/*",
   }
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/profileNames" : "/profileNames";
+  const url = import.meta.env.MODE === 'development' ? "/profileNames" : "/profileNames";
 
   const response = await fetch(url, {
     method: "GET",

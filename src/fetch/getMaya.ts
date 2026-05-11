@@ -1,7 +1,7 @@
 
 export default async function getMaya({ sagaPNFID }: { sagaPNFID: string | null | undefined }) {
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/proyecciones/mayas/" : "/proyecciones/mayas/";
+  const url = import.meta.env.MODE === 'development' ? "/proyecciones/mayas/" : "/proyecciones/mayas/";
   const headersList = {
     "Accept": "*/*"
   }

@@ -2,7 +2,7 @@
 export default async function getInscriptionData({programId, trayectoId}: {programId: string, trayectoId: string}) {
 
   const url = import.meta.env.MODE === 'development' 
-    ? `http://localhost:3000/proyecciones/inscriptionData/${programId}/${trayectoId}` 
+    ? `/proyecciones/inscriptionData/${programId}/${trayectoId}` 
     : `/proyecciones/inscriptionData/${programId}/${trayectoId}`
 
   const headersList = {

@@ -10,7 +10,7 @@ export default async function login({ user, password }: { user: string , passwor
     password
   });
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/login" : "/login";
+  const url = import.meta.env.MODE === 'development' ? "/login" : "/login";
 
   const response = await fetch(url, {
     method: "POST",
@@ -32,7 +32,7 @@ export async function logout() {
   }
 
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/logout" : "/logout";
+  const url = import.meta.env.MODE === 'development' ? "/logout" : "/logout";
 
   const response = await fetch(url, {
     method: "GET",

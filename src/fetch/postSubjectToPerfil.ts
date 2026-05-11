@@ -13,7 +13,7 @@ export default async function postSubjectToPerfil({ perfil_name_id, subject_id, 
 
 
   const url = import.meta.env.MODE === 'development'
-    ? "http://localhost:3000/profile/addSubject"
+    ? "/profile/addSubject"
     : "/profile/addSubject";
 
   const response = await fetch(url, {

@@ -6,7 +6,7 @@ export default async function putUser(user: UserData) {
   };
   const body = user;
 
-  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/user" : "/user";
+  const url = import.meta.env.MODE === "development" ? "/user" : "/user";
 
   const response = await fetch(url, {
     method: "PUT",

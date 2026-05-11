@@ -6,7 +6,7 @@ export default async function deleteUser(requestData: UserData) {
   };
 
 
-  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/user" : "/user";
+  const url = import.meta.env.MODE === "development" ? "/user" : "/user";
 
   const response = await fetch(url, {
     method: "DELETE",

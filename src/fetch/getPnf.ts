@@ -1,6 +1,6 @@
 export default async function getPnf() {
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/pnfs" : "/pnfs";
+  const url = import.meta.env.MODE === 'development' ? "/pnfs" : "/pnfs";
   const headersList = {
     "Accept": "*/*"
   }

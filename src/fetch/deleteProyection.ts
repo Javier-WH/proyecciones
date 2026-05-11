@@ -1,6 +1,6 @@
 export default async function deleteProyection(id: string) {
   const token = sessionStorage.getItem("token");
-  const baseUrl = import.meta.env.MODE === 'development' ? "http://localhost:3000" : "";
+  const baseUrl = import.meta.env.MODE === 'development' ? "" : "";
 
   const response = await fetch(`${baseUrl}/proyeccion/${id}`, {
     method: "DELETE",

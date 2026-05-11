@@ -18,7 +18,7 @@ export default async function postTeacher(requestData: {
   };
   const bodyContent = JSON.stringify(requestData);
 
-  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/teacher" : "/teacher";
+  const url = import.meta.env.MODE === "development" ? "/teacher" : "/teacher";
 
   const response = await fetch(url, {
     method: "POST",

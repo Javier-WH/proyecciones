@@ -12,7 +12,7 @@ export default async function postSubjects({ id, name, active }: { id: string | 
     active
   });
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/subject" : "/subject";
+  const url = import.meta.env.MODE === 'development' ? "/subject" : "/subject";
 
   const response = await fetch(url, {
     method: "POST",

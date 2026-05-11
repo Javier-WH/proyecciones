@@ -251,7 +251,7 @@ const ScheduleConfigModal: React.FC<ScheduleConfigModalProps> = ({ visible, onCl
         setLoading(true);
         try {
             const apiUrl = import.meta.env.MODE === 'development'
-                ? 'http://localhost:3000/photo'
+                ? '/photo'
                 : '/photo';
 
             const response = await fetch(apiUrl, {

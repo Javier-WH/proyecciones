@@ -1,5 +1,5 @@
 export default async function getTeachers() {
-  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/teachers" : "/teachers";
+  const url = import.meta.env.MODE === "development" ? "/teachers" : "/teachers";
   const headersList = {
     Accept: "*/*",
   };

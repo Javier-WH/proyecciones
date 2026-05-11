@@ -14,7 +14,7 @@ export default async function postPNF({ id, name, active, saga_id, color }
     color
   });
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/pnf" : "/pnf";
+  const url = import.meta.env.MODE === 'development' ? "/pnf" : "/pnf";
 
   const response = await fetch(url, {
     method: "POST",

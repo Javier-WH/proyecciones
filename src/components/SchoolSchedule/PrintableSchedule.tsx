@@ -60,7 +60,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
     if (logoUrl.startsWith("data:")) return logoUrl;
     if (logoUrl === "logo_impresion_horario") {
       const baseUrl = import.meta.env.MODE === 'development'
-        ? 'http://localhost:3000/photo'
+        ? '/photo'
         : '/photo';
       return `${baseUrl}/logo_impresion_horario`;
     }

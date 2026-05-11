@@ -9,7 +9,7 @@ export default async function setProfile({name, description}: {name: string, des
         name,
         description
     }
-    const url = import.meta.env.MODE === 'development' ? `http://localhost:3000/profile` : `/profile`;
+    const url = import.meta.env.MODE === 'development' ? `/profile` : `/profile`;
   
     const response = await fetch(url, {
       method: "POST",

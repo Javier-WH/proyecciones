@@ -15,7 +15,7 @@ export default async function postPensum({ id, pnf_id, subject_id, trayecto_id, 
     quarter
   });
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/pensum" : "/pensum";
+  const url = import.meta.env.MODE === 'development' ? "/pensum" : "/pensum";
 
   const response = await fetch(url, {
     method: "POST",

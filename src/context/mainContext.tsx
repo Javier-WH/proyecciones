@@ -248,7 +248,9 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
   ///websocket/////////////////////////////////////////////////////////////////////////////////
   useEffect(() => {
     if (!isAuthenticated) return;
-    setSocket(import.meta.env.MODE === "development" ? io("ws://localhost:3000") : io());
+    // In dev, the Vite proxy (see vite.config.ts) forwards /socket.io to the backend,
+    // so calling io() without an explicit URL works in both dev and production.
+    setSocket(io());
   }, [isAuthenticated]);
 
   useEffect(() => {

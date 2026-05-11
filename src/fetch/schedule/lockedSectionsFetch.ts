@@ -1,7 +1,7 @@
 import { Event } from "../../components/SchoolSchedule/fucntions";
 
 function baseUrl(path: string): string {
-  return import.meta.env.MODE === "development" ? `http://localhost:3000${path}` : path;
+  return import.meta.env.MODE === "development" ? `${path}` : path;
 }
 
 export async function getLockedSections(proyectionId: string): Promise<{

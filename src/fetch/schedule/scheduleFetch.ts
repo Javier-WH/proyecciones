@@ -11,7 +11,7 @@ export async function createClassroom(classroom: string, active: boolean = true,
     "Content-Type": "application/json",
   };
 
-  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/classroom" : "/classroom";
+  const url = import.meta.env.MODE === "development" ? "/classroom" : "/classroom";
 
   const response = await fetch(url, {
     method: "POST",
@@ -32,7 +32,7 @@ export async function updateClassroom(id: string, classroom: string, active: boo
     "Content-Type": "application/json",
   };
 
-  const url = import.meta.env.MODE === "development" ? `http://localhost:3000/classroom/${id}` : `/classroom/${id}`;
+  const url = import.meta.env.MODE === "development" ? `/classroom/${id}` : `/classroom/${id}`;
 
   const response = await fetch(url, {
     method: "PUT",
@@ -52,7 +52,7 @@ export async function deleteClassroom(id: string) {
     Accept: "*/*",
   };
 
-  const url = import.meta.env.MODE === "development" ? `http://localhost:3000/classroom/${id}` : `/classroom/${id}`;
+  const url = import.meta.env.MODE === "development" ? `/classroom/${id}` : `/classroom/${id}`;
 
   const response = await fetch(url, {
     method: "DELETE",
@@ -80,7 +80,7 @@ export async function saveSubjectRestrictions(payload: {
     "Content-Type": "application/json",
   };
 
-  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/subject-restrictions" : "/subject-restrictions";
+  const url = import.meta.env.MODE === "development" ? "/subject-restrictions" : "/subject-restrictions";
 
   const response = await fetch(url, {
     method: "POST",
@@ -111,7 +111,7 @@ export async function getSubjectRestrictions(proyectionId: string) {
   };
 
   const url = import.meta.env.MODE === "development"
-    ? `http://localhost:3000/subject-restrictions/${proyectionId}`
+    ? `/subject-restrictions/${proyectionId}`
     : `/subject-restrictions/${proyectionId}`;
 
   const response = await fetch(url, {
@@ -141,7 +141,7 @@ export async function getClassrooms() {
     Accept: "*/*",
   };
 
-  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/classrooms" : "/classrooms";
+  const url = import.meta.env.MODE === "development" ? "/classrooms" : "/classrooms";
 
   const response = await fetch(url, {
     method: "GET",
@@ -171,7 +171,7 @@ export async function insertOrUpdateSchedule({
     proyection_id,
   });
 
-  const url = import.meta.env.MODE === "development" ? "http://localhost:3000/schedule" : "/schedule";
+  const url = import.meta.env.MODE === "development" ? "/schedule" : "/schedule";
 
   const response = await fetch(url, {
     method: "POST",
@@ -191,7 +191,7 @@ export async function getSchedule({ id }: { id?: string | undefined }) {
   };
   const url =
     import.meta.env.MODE === "development"
-      ? `http://localhost:3000/schedule${id ? `?id=${id}` : ""}`
+      ? `/schedule${id ? `?id=${id}` : ""}`
       : `/schedule${id ? `?id=${id}` : ""}`;
 
   const response = await fetch(url, {

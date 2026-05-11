@@ -9,7 +9,7 @@ export default async function PostTrayecto({ name, order }: { name: string | und
   }
 
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/trayectos" : "/trayectos";
+  const url = import.meta.env.MODE === 'development' ? "/trayectos" : "/trayectos";
 
   const response = await fetch(url, {
     method: "POST",

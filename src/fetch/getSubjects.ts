@@ -13,7 +13,7 @@ export default async function getSubjects({
   if (trayectoId !== undefined && trayectoId !== null) params.set("trayectoId", String(trayectoId));
   if (mayaId !== undefined && mayaId !== null) params.set("mayaId", String(mayaId));
 
-  const base = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
+  const base = import.meta.env.MODE === "development" ? "" : "";
   const url = `${base}/api/subjects/simple?${params.toString()}`;
 
   try {

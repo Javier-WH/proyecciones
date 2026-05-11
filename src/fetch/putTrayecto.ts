@@ -10,7 +10,7 @@ export default async function putTrayecto({id, name, order}: {id: string, name: 
   }
 
 
-  const url = import.meta.env.MODE === 'development' ? "http://localhost:3000/trayectos" : "/trayectos";
+  const url = import.meta.env.MODE === 'development' ? "/trayectos" : "/trayectos";
 
   const response = await fetch(url, {
     method: "PUT",
