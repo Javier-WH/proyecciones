@@ -16,11 +16,12 @@ import AdministrativeHoursModal from "./AdministrativeHoursModal";
 import { v4 as uuidv4 } from 'uuid';
 
 const Subjects: React.FC<{
-  data: Subject[] | null;
+  data: Subject[];
   showAllSubjects: boolean;
   overloaded: boolean;
   emptyHours: boolean;
-}> = ({ data, showAllSubjects, overloaded, emptyHours }) => {
+  semestreFilter?: "s1" | "s2" | null;
+}> = ({ data, showAllSubjects, overloaded, emptyHours, semestreFilter }) => {
   const {
     setOpenAddSubjectToTeacherModal,
     selectedTeacerId,
@@ -387,15 +388,16 @@ const Subjects: React.FC<{
 
                     {showAllSubjects ? (
                       subject.isSemestral ? (
-                        <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject?.hours?.q1 || subject?.hours?.q2 || 0
-                          } / ${subject?.hours?.q3 || 0}`}</Tag>
+                        <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject?.hours?.q1 || 0
+                          } / ${subject?.hours?.q2 || subject?.hours?.q3 || 0}`}</Tag>
                       ) : (
                         <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject?.hours?.q1 || 0
                           } / ${subject?.hours?.q2 || 0} / ${subject?.hours?.q3 || 0}`}</Tag>
                       )
                     ) : (
-                      <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject.isSemestral && (selectedQuarter === "q1" || selectedQuarter === "q2")
-                        ? (subject?.hours?.q1 || subject?.hours?.q2 || 0)
+                      <Tag color="purple" style={{ margin: 0 }}>{`Horas: ${subject.isSemestral
+                        ? semestreFilter === "s2" ? (subject?.hours?.q2 || subject?.hours?.q3 || 0)
+                        : (subject?.hours?.q1 || subject?.hours?.q2 || 0)
                         : (subject?.hours?.[selectedQuarter] || 0)
                         }`}</Tag>
                     )}

@@ -356,6 +356,7 @@ export default function SelectedTeacher() {
         <Subjects
           data={subjecData}
           showAllSubjects={showAllSubjects}
+          semestreFilter={semestreFilter}
           overloaded={overloadedQ1 || overloadedQ2 || overloadedQ3}
           emptyHours={
             ((usedHoursQ1 === "0" && selectedQuarter === "q1") ||

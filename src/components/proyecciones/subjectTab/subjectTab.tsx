@@ -256,8 +256,8 @@ export default function SubjectTab({ searchByUserPerfil }: props) {
       key: 'horas',
       render: (_: unknown, record: Subject) => {
         if (record.isSemestral) {
-          const sem1 = record.hours?.q1 || record.hours?.q2 || 0;
-          const sem2 = record.hours?.q3 || 0;
+          const sem1 = record.hours?.q1 || 0;
+          const sem2 = record.hours?.q2 || record.hours?.q3 || 0;
           return <Text>{`${sem1} / ${sem2}`}</Text>;
         }
         return <Text>{`${record.hours?.q1 || 0} / ${record.hours?.q2 || 0} / ${record.hours?.q3 || 0}`}</Text>;
