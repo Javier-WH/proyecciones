@@ -1,6 +1,8 @@
 /* eslint-disable camelcase */
 import Proyections from '#models/proyections.js'
 import { v4 as uuidv4 } from 'uuid'
+import { recalcSchedulesForProyection } from '../../../schedule/scheduleService.js'
+import { getIO } from '../../../socket/socket.js'
 
 export default async function createProyection (req, res) {
   const { year, name } = req.body
@@ -28,6 +30,8 @@ export default async function createProyection (req, res) {
     // se crea la proyeccion
     const id = uuidv4()
     await Proyections.create({ id, year, name, subjects })
+    const io = getIO()
+    if (io) recalcSchedulesForProyection(id, io)
     res.status(201).json({ message: 'Proyeccion creada exitosamente' })
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {

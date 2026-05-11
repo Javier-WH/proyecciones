@@ -5,6 +5,7 @@ import { updateProyection } from '../dataBase/create/updateProyection.js'
 import Config from '#models/config.js'
 import validateSubjectData from '#utils/validateSubject.js'
 import { registerScheduleHandlers } from './scheduleHandlers.js'
+import { recalcSchedulesForProyection } from '../schedule/scheduleService.js'
 
 let io = null
 
@@ -50,6 +51,8 @@ export async function setTeacherList() {
   teachers = teacherList
   io?.emit('updateTeachers', teachers)
 }
+
+export function getIO () { return io }
 
 export default function setupSocket(server, sessionMiddleware) {
   io = new Server(server, {
@@ -100,6 +103,9 @@ export default function setupSocket(server, sessionMiddleware) {
 
       // Emitir la actualización de asignaturas a todos los clientes
       io.emit('updateSubjects', subjects)
+
+      // Trigger schedule recalculation for all trimestres
+      recalcSchedulesForProyection(currentProyectionId, io)
     })
 
     socket.on('reload', () => {
@@ -116,6 +122,7 @@ export default function setupSocket(server, sessionMiddleware) {
         socket.emit('updateTeachers', teachers)
         socket.emit('updateSubjects', subjects)
         socket.emit('proyectionData', { proyectionName, proyectionId })
+        recalcSchedulesForProyection(currentProyectionId, io)
       })
     })
 

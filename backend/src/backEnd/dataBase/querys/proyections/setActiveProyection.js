@@ -1,5 +1,7 @@
 /* eslint-disable camelcase */
 import config from '#models/config.js'
+import { recalcSchedulesForProyection } from '../../../schedule/scheduleService.js'
+import { getIO } from '../../../socket/socket.js'
 
 export default async function getActiveProyection (req, res) {
   const { active_proyection } = req.body
@@ -22,6 +24,8 @@ export default async function getActiveProyection (req, res) {
     }
 
     // Responder con el registro actualizado o creado
+    const io = getIO()
+    if (io) recalcSchedulesForProyection(active_proyection, io)
     res.json(proyection)
   } catch (error) {
     console.error(error)

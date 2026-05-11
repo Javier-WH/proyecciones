@@ -54,6 +54,10 @@ import {
   loadClassroomOverrides,
   loadLockedSections
 } from '../schedule/loadRestrictions.js'
+import TeachersRestrictions from '#models/schedule/teacherRestrictions.js'
+import SubjectRestrictions from '#models/schedule/subjectsRestrictions.js'
+import ScheduleConfig from '#models/schedule/scheduleConfig.js'
+import { recalcSchedulesForProyection } from '../schedule/scheduleService.js'
 
 const TRIM_VALUES = new Set(['q1', 'q2', 'q3'])
 
@@ -676,6 +680,91 @@ export function registerScheduleHandlers (io, socket) {
 
   socket.on('error', (err) => {
     console.log('[scheduleHandlers] socket error:', err)
+  })
+
+  // ─── restriction / config persistence + reactive recalc ────────────────
+  // These handlers replace the frontend's generationCounter++ pattern.
+  // Each persists the data to DB and triggers a full schedule recalculation.
+
+  socket.on('schedule:saveTeacherRestrictions', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, payload } = msg || {}
+      if (!proyectionId) throw new ValidationError('proyectionId required')
+      const restrictions = Array.isArray(payload?.restrictions) ? payload.restrictions : null
+      if (!restrictions) throw new ValidationError('restrictions must be an array')
+
+      for (const r of restrictions) {
+        await TeachersRestrictions.upsert({
+          teacher_id: r.teacherId,
+          restricted_days: r.days || [],
+          restricted_hours: r.hours || []
+        })
+      }
+
+      recalcSchedulesForProyection(proyectionId, io)
+      ok({})
+    } catch (err) {
+      fail(err)
+    }
+  })
+
+  socket.on('schedule:saveSubjectRestrictions', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, payload } = msg || {}
+      if (!proyectionId) throw new ValidationError('proyectionId required')
+      const restrictions = Array.isArray(payload?.restrictions) ? payload.restrictions : null
+      if (!restrictions) throw new ValidationError('restrictions must be an array')
+
+      for (const r of restrictions) {
+        await SubjectRestrictions.upsert({
+          proyection_id: proyectionId,
+          subject_key: r.subjectKey,
+          subject_name: r.subjectName,
+          classroom_ids: r.classroomIds || [],
+          pnf_id: r.pnfId || null,
+          is_exclusive: r.isExclusive || false,
+          split_hours: r.splitHours || false
+        })
+      }
+
+      recalcSchedulesForProyection(proyectionId, io)
+      ok({})
+    } catch (err) {
+      fail(err)
+    }
+  })
+
+  socket.on('schedule:saveConfig', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, payload } = msg || {}
+      if (!proyectionId) throw new ValidationError('proyectionId required')
+      const config = payload?.config
+      if (!config || typeof config !== 'object') throw new ValidationError('config required')
+
+      await ScheduleConfig.upsert({
+        id: config.id,
+        days: config.days,
+        turnos: config.turnos,
+        conserve_slots: config.conserve_slots,
+        min_consecutive_slots: config.min_consecutive_slots,
+        active: config.active !== false,
+        distribute_equitably: config.distribute_equitably || false,
+        prevent_single_hour_blocks: config.prevent_single_hour_blocks || false,
+        auto_solve: config.auto_solve || false,
+        breaks: config.breaks || []
+      })
+
+      recalcSchedulesForProyection(proyectionId, io)
+      ok({})
+    } catch (err) {
+      fail(err)
+    }
   })
 
   // Re-export references for downstream introspection / testing.
