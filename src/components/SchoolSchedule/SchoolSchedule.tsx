@@ -2844,13 +2844,77 @@ onOk: () => {
       });
     }
 
-    // Mergear solo los eventos generados (los cargados ya están mergeados)
-    const mergedGenerated = mergeConsecutiveEvents(filteredGenerated);
-    // Los ghosts también se mergean para que aparezcan como bloques contiguos
-    const mergedGhosts = mergeConsecutiveEvents(filteredGhosts);
+    // Snap de tiempos a los slots actuales antes del merge.
+    // Motivo: si el `scheduleConfig` (slots) cambió después de generar el
+    // horario, los eventos guardados pueden tener `startTime`/`endTime`
+    // ligeramente desalineados respecto a `tableSlots` (p. ej. 09:15 vs
+    // 09:25). Eso provoca que `mergeConsecutiveEvents` no una eventos
+    // contiguos (porque exige `startTime === endTime` exacto) y que
+    // `buildGrid` los descarte (slotIndex === -1). Aplicamos un snap por
+    // proximidad para que el render sea robusto frente a esos desfases.
+    // Derivar slots localmente (sin depender de `tableSlots`, que se calcula
+    // después en un useMemo y depende de `events`, lo que crearía un ciclo).
+    let snapSlots: string[][] = [];
+    if (viewMode === "professor" || viewMode === "classroom") {
+      const all = new Set<string>();
+      if (activeTurnos) {
+        Object.values(activeTurnos).forEach((turnSlots) => {
+          if (Array.isArray(turnSlots)) {
+            turnSlots.forEach((slot) => all.add(JSON.stringify(slot)));
+          }
+        });
+      }
+      snapSlots = Array.from(all)
+        .map((s) => JSON.parse(s) as [string, string])
+        .sort((a, b) => a[0].localeCompare(b[0]));
+    } else {
+      snapSlots = activeTurnos?.[turn] || [];
+    }
 
-    // Combinar: eventos cargados (ya mergeados) + eventos generados (recién mergeados) + ghosts
-    const combinedEvents = [...filteredLoaded, ...mergedGenerated, ...mergedGhosts];
+    const snapEventsToSlots = (events: Event[]): Event[] => {
+      if (!snapSlots || snapSlots.length === 0) return events;
+      const TOL_MIN = 20; // tolerancia para considerar que un tiempo "es" el de un slot
+      const toMin = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
+        return h * 60 + m;
+      };
+      const findIdx = (time: string, which: 0 | 1): number => {
+        const target = toMin(time);
+        let bestIdx = -1;
+        let bestDiff = Infinity;
+        for (let i = 0; i < snapSlots.length; i++) {
+          const diff = Math.abs(toMin(snapSlots[i][which]) - target);
+          if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+        }
+        return bestDiff <= TOL_MIN ? bestIdx : -1;
+      };
+      const seen = new Set<string>();
+      const out: Event[] = [];
+      for (const e of events) {
+        const startIdx = findIdx(e.startTime, 0);
+        const endIdxRaw = findIdx(e.endTime, 1);
+        const endIdx = endIdxRaw >= 0 ? Math.max(endIdxRaw, startIdx) : startIdx;
+        const snappedStart = startIdx >= 0 ? snapSlots[startIdx][0] : e.startTime;
+        const snappedEnd = endIdx >= 0 ? snapSlots[endIdx][1] : e.endTime;
+        // Dedupe por (día + slot inicial + materia + sección) para evitar duplicados
+        // que aparecen cuando dos eventos colapsan al mismo slot tras el snap.
+        const dedupeKey = `${e.daysOfWeek?.[0]}|${snappedStart}|${e.extendedProps?.subjectId}|${e.extendedProps?.seccion}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        if (snappedStart === e.startTime && snappedEnd === e.endTime) {
+          out.push(e);
+        } else {
+          out.push({ ...e, startTime: snappedStart, endTime: snappedEnd });
+        }
+      }
+      return out;
+    };
+
+    const mergedLoaded = mergeConsecutiveEvents(snapEventsToSlots(filteredLoaded));
+    const mergedGenerated = mergeConsecutiveEvents(snapEventsToSlots(filteredGenerated));
+    const mergedGhosts = mergeConsecutiveEvents(snapEventsToSlots(filteredGhosts));
+
+    const combinedEvents = [...mergedLoaded, ...mergedGenerated, ...mergedGhosts];
     setEvents(combinedEvents);
   }, [
     eventData,
@@ -2865,6 +2929,7 @@ onOk: () => {
     trimestre,
     viewMode,
     selectedClassroomId,
+    activeTurnos,
   ]);
 
   // Set default values when data loads
