@@ -49,7 +49,7 @@ import {
   saveClassroomOverrides,
   type ClassroomOverride,
 } from "../../fetch/schedule/classroomOverrideFetch";
-import { upsertLockedSection, saveLockedSections } from "../../fetch/schedule/lockedSectionsFetch";
+import { upsertLockedSection } from "../../fetch/schedule/lockedSectionsFetch";
 import useSetSubject from "../../hooks/useSetSubject";
 import { useScheduleSocket } from "../../hooks/useScheduleSocket";
 
@@ -2315,9 +2315,38 @@ onOk: () => {
         return updated;
       });
 
-      message.success(
-        `Aula cambiada a "${newClassroom.classroom}" para ${classroomChangeEvent.title} (sección congelada, sin recálculo).`
+message.success(
+        `Aula cambiada a "${newClassroom.classroom}" para ${classroomChangeEvent.title} (secciA3n congelada${conflictMap.size > 0 ? ", recalculando descongeladas..." : ", sin recA�lculo"}).`
       );
+
+      // Si hay conflictos en secciA3n congelada, guardar overrides y disparar recA�lculo
+      // para recolocar las secciones descongeladas alrededor del cambio.
+      if (conflictMap.size > 0 && proyectionId) {
+        const newOverride: ClassroomOverride = {
+          subject_name: classroomChangeEvent.title,
+          day: classroomChangeEvent.day,
+          start_time: classroomChangeEvent.startTime,
+          end_time: classroomChangeEvent.endTime,
+          classroom_id: newClassroomId,
+          seccion: firstModifiedEvent?.extendedProps?.seccion || null,
+          pnf_id: firstModifiedEvent?.extendedProps?.pnfId || null,
+          trayecto_id: firstModifiedEvent?.extendedProps?.trayectoId || null,
+        };
+        const filtered = classroomOverrides.filter(
+          o => !(o.subject_name === newOverride.subject_name && o.day === newOverride.day && o.start_time === newOverride.start_time)
+        );
+        const nextOverrides = [...filtered, newOverride];
+        saveClassroomOverrides(proyectionId, nextOverrides).then(() => {
+          setHasUnsavedOverrides(false);
+          if (scheduleConnected) {
+            scheduleDispatch("schedule:regenerate", {}).catch((err) => {
+              console.error("schedule:regenerate error after classroom change:", err);
+            });
+          }
+        }).catch((err) => {
+          console.error("Error saving overrides after classroom change:", err);
+        });
+      }
       setClassroomChangeEvent(null);
       setNewClassroomId("");
       return;
@@ -2656,6 +2685,12 @@ onOk: () => {
     if (scheduleState.scheduleConfig && typeof scheduleState.scheduleConfig === 'object' && Object.keys(scheduleState.scheduleConfig).length > 0) {
       console.log('[inbound] applying scheduleConfig days:', scheduleState.scheduleConfig.days)
       setScheduleConfig(scheduleState.scheduleConfig as unknown as ScheduleConfig);
+    }
+    if (Array.isArray(scheduleState.lastGenerationErrors) && scheduleState.lastGenerationErrors.length > 0) {
+      console.log('[inbound] applying lastGenerationErrors:', scheduleState.lastGenerationErrors.length, 'errors')
+      setErrors(scheduleState.lastGenerationErrors as scheduleError[]);
+    } else if (Array.isArray(scheduleState.lastGenerationErrors) && scheduleState.lastGenerationErrors.length === 0) {
+      setErrors([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleVersion]);
@@ -3291,8 +3326,8 @@ onOk: () => {
         trayecto_id: firstMovingEvent.extendedProps?.trayectoId || null,
       }];
 
-      setClassroomOverrides(prev => {
-        // Remover cualquier versión previa en la posición de origen (source) o destino (target)
+setClassroomOverrides(prev => {
+        // Remover cualquier versiA3n previa en la posiciA3n de origen (source) o destino (target)
         const filtered = prev.filter(o => {
           const isFromSource = o.subject_name === title &&
             o.day === sourceDay &&
@@ -3381,48 +3416,103 @@ onOk: () => {
     // - Si está congelada: aplicar drop y disparar recálculo backend para ajustar secciones descongeladas
     // - Si NO está congelada y hay conflicto: mostrar confirmación
     // - Si NO está congelada y NO hay conflicto: aplicar con recálculo
-    if (isFrozen) {
-      // Sección congelada: aplicar drop localmente
-      pinDraggedEventsAndRecalculate(isFrozen);
+if (isFrozen) {
+      // SecciA3n congelada: aplicar drop localmente
+pinDraggedEventsAndRecalculate(isFrozen);
       setDraggedEventInfo(null);
 
-      // Guardar lockedSections actualizadas en la base de datos antes de disparar recálculo
-      // Esto asegura que el backend cargue las posiciones congeladas correctas y las excluya del recálculo
+      // Guardar overrides a BD y disparar schedule:toggleFreeze para la secciA3n congelada.
+      // toggleFreeze persiste en DB + dispara recalc automA�ticamente, evitando
+      // el deadlock que causaba saveLockedSections (DELETE masivo + INSERT).
       if (proyectionId) {
-        saveLockedSections(proyectionId, lockedSections).then((result) => {
-          if (result.error) {
-            console.error("Error saving locked sections:", result);
-            return;
-          }
-
-          // Después de guardar, disparar recálculo backend para regenerar secciones descongeladas
-          // alrededor de las nuevas posiciones congeladas
-          if (scheduleConnected) {
-            scheduleDispatch("schedule:regenerate", {}).then((ack) => {
-              if (!ack.ok) {
-                console.error("schedule:regenerate failed", ack);
-              }
-            }).catch((err) => {
-              console.error("schedule:regenerate error", err);
-            });
-          }
-        }).catch((err) => {
-          console.error("Error saving locked sections:", err);
+        const frozenKey = `${firstMovingEvent.extendedProps?.pnfId}-${firstMovingEvent.extendedProps?.trayectoId}-${firstMovingEvent.extendedProps?.seccion}-${trimestre}`;
+        const frozenEvents = getScheduleEvents(eventData).filter(
+          e => e.extendedProps?.pnfId === firstMovingEvent.extendedProps?.pnfId &&
+            e.extendedProps?.trayectoId === firstMovingEvent.extendedProps?.trayectoId &&
+            e.extendedProps?.seccion === firstMovingEvent.extendedProps?.seccion
+        );
+        // Aplicar transformaciA3n de posiciA3n a los eventos movidos dentro del array frozen
+        const movingIds = new Set(movingEvents.map(e =>
+          `${e.extendedProps?.subjectId}|${e.daysOfWeek?.[0]}|${e.startTime}`
+        ));
+        const patchedFrozen = frozenEvents.map(e => {
+          const key = `${e.extendedProps?.subjectId}|${e.daysOfWeek?.[0]}|${e.startTime}`;
+          if (!movingIds.has(key)) return e;
+          const evtStartIdx = tableSlots.findIndex(s => s[0] === e.startTime);
+          const diffIndex = evtStartIdx - sourceStartIdx;
+          if (diffIndex < 0 || diffIndex >= targetSlots.length) return e;
+          return {
+            ...e,
+            daysOfWeek: [targetDay],
+            startTime: targetSlots[diffIndex][0],
+            endTime: targetSlots[diffIndex][1],
+            extendedProps: {
+              ...e.extendedProps,
+              professorId: profId || e.extendedProps?.professorId,
+              classroomId: classroomId || e.extendedProps?.classroomId,
+            },
+          };
         });
+
+        const dragOverrides: ClassroomOverride[] = [{
+          subject_name: title,
+          day: targetDay,
+          start_time: targetSlots[0][0],
+          end_time: targetSlots[targetSlots.length - 1][1],
+          classroom_id: classroomId,
+          seccion: firstMovingEvent?.extendedProps?.seccion || null,
+          pnf_id: firstMovingEvent?.extendedProps?.pnfId || null,
+          trayecto_id: firstMovingEvent?.extendedProps?.trayectoId || null,
+        }];
+        const filteredOv = classroomOverrides.filter(
+          o => !(o.subject_name === dragOverrides[0].subject_name && o.day === dragOverrides[0].day)
+        );
+        saveClassroomOverrides(proyectionId, [...filteredOv, ...dragOverrides]).then(() => {
+          setHasUnsavedOverrides(false);
+          scheduleDispatch("schedule:toggleFreeze", {
+            sectionKey: frozenKey,
+            freeze: true,
+            events: patchedFrozen,
+          }).catch(err => console.error("toggleFreeze error:", err));
+        }).catch(err => console.error("Error saving overrides:", err));
       }
       return;
     }
 
-    if (conflictFound) {
+if (conflictFound) {
       Modal.confirm({
-        title: "Reasignación con Conflictos",
-        content: `La nueva asignación genera conflictos. ¿Deseas reordenar el horario alrededor de este cambio?`,
-        okText: "Sí, reordenar horario",
+        title: "ReasignaciA3n con Conflictos",
+        content: `La nueva asignaciA3n genera conflictos. A�Deseas reordenar el horario alrededor de este cambio?`,
+        okText: "SA-, reordenar horario",
         cancelText: "Deshacer cambio",
         okButtonProps: { danger: true },
         onOk: () => {
           pinDraggedEventsAndRecalculate(false);
           setDraggedEventInfo(null);
+          // Guardar overrides antes de regenerar para que el backend los use
+          const dragOverrides: ClassroomOverride[] = [{
+            subject_name: title,
+            day: targetDay,
+            start_time: targetSlots[0][0],
+            end_time: targetSlots[targetSlots.length - 1][1],
+            classroom_id: classroomId,
+            seccion: firstMovingEvent?.extendedProps?.seccion || null,
+            pnf_id: firstMovingEvent?.extendedProps?.pnfId || null,
+            trayecto_id: firstMovingEvent?.extendedProps?.trayectoId || null,
+          }];
+          if (proyectionId) {
+            const filtered = classroomOverrides.filter(
+              o => !(o.subject_name === dragOverrides[0].subject_name && o.day === dragOverrides[0].day)
+            );
+            saveClassroomOverrides(proyectionId, [...filtered, ...dragOverrides]).then(() => {
+              setHasUnsavedOverrides(false);
+              if (scheduleConnected) {
+                scheduleDispatch("schedule:regenerate", {}).catch((err) => {
+                  console.error("schedule:regenerate error", err);
+                });
+              }
+            }).catch(err => console.error('Error saving overrides for regenerate:', err));
+          }
         },
         onCancel: () => setDraggedEventInfo(null)
       });

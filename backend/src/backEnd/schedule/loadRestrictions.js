@@ -60,14 +60,14 @@ export async function loadClassroomOverrides (proyectionId) {
   })
   return rows.map(row => ({
     id: row.id,
-    subjectName: row.subject_name,
+    subject_name: row.subject_name,
     day: row.day,
-    startTime: row.start_time,
-    endTime: row.end_time,
-    classroomId: row.classroom_id,
+    start_time: row.start_time,
+    end_time: row.end_time,
+    classroom_id: row.classroom_id,
     seccion: row.seccion,
-    pnfId: row.pnf_id,
-    trayectoId: row.trayecto_id
+    pnf_id: row.pnf_id,
+    trayecto_id: row.trayecto_id
   }))
 }
 
