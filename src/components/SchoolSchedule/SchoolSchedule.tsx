@@ -49,7 +49,7 @@ import {
   saveClassroomOverrides,
   type ClassroomOverride,
 } from "../../fetch/schedule/classroomOverrideFetch";
-import { upsertLockedSection } from "../../fetch/schedule/lockedSectionsFetch";
+import { upsertLockedSection, saveLockedSections } from "../../fetch/schedule/lockedSectionsFetch";
 import useSetSubject from "../../hooks/useSetSubject";
 import { useScheduleSocket } from "../../hooks/useScheduleSocket";
 
@@ -2604,13 +2604,13 @@ onOk: () => {
 
 
   // ─── Backend sync: outbound (push local snapshot) ───
-  // Only eventData and classroomOverrides are pushed. lockedSections are
-  // synchronized via schedule:toggleFreeze dispatch + server recalc broadcast
-  // (no echo loop). schedule:setState is the escape hatch for manual edits.
+  // eventData, classroomOverrides, and lockedSections are pushed.
+  // The backend needs lockedSections to recalculate unfrozen sections around frozen positions.
+  // schedule:setState is the escape hatch for manual edits.
   useEffect(() => {
     if (!scheduleConnected || !proyectionId) return;
     if (eventData.length === 0) return;
-    const snapshot = { eventData, classroomOverrides };
+    const snapshot = { eventData, classroomOverrides, lockedSections };
     const hash = JSON.stringify(snapshot);
     if (hash === lastSyncedHashRef.current) return;
     lastSyncedHashRef.current = hash;
@@ -2618,7 +2618,7 @@ onOk: () => {
     scheduleDispatch("schedule:setState", {
       eventData,
       classroomOverrides,
-      lockedSections: {},
+      lockedSections,
       stagedEvents: [],
       scheduleConfig: scheduleConfig || {},
     }).then((ack) => {
@@ -2629,7 +2629,7 @@ onOk: () => {
     }).catch(() => { /* ignore */ });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventData, classroomOverrides, scheduleConnected, proyectionId]);
+  }, [eventData, classroomOverrides, lockedSections, scheduleConnected, proyectionId]);
 
 // ─── Backend sync: inbound (apply remote-sourced state) ───
   // When the backend pushes a state version we have not seen, apply it locally.
@@ -3279,7 +3279,7 @@ onOk: () => {
     const sourceSlots = tableSlots.slice(sourceStartIdx, sourceStartIdx + rowSpan);
     const sourceSlotStarts = sourceSlots.map(s => s[0]);
 
-    const pinDraggedEventsAndRecalculate = () => {
+    const pinDraggedEventsAndRecalculate = (isFrozen: boolean) => {
       const targetOverrides: ClassroomOverride[] = [{
         subject_name: title,
         day: targetDay,
@@ -3337,6 +3337,38 @@ onOk: () => {
         };
       }));
 
+      // If moving within a frozen section, also update lockedSections locally
+      // so the outbound sync sends the updated frozen positions to the backend
+      if (isFrozen) {
+        const frozenKey = `${firstMovingEvent.extendedProps?.pnfId}-${firstMovingEvent.extendedProps?.trayectoId}-${firstMovingEvent.extendedProps?.seccion}-${trimestre}`;
+        setLockedSections(prev => {
+          const newObj = { ...prev };
+          if (newObj[frozenKey]) {
+            const patchedEvents = newObj[frozenKey].map(e => {
+              const isMoving = e.extendedProps?.subjectId === firstMovingEvent.extendedProps?.subjectId &&
+                e.daysOfWeek.includes(sourceDay) &&
+                sourceSlotStarts.includes(e.startTime);
+
+              if (isMoving) {
+                const diffIndex = sourceSlotStarts.indexOf(e.startTime);
+                const newStartTime = targetSlotStarts[diffIndex];
+                const newEndTime = targetSlots[diffIndex][1];
+                return {
+                  ...e,
+                  daysOfWeek: [targetDay],
+                  startTime: newStartTime,
+                  endTime: newEndTime,
+                  extendedProps: { ...e.extendedProps, professorId: profId, classroomId: classroomId }
+                };
+              }
+              return e;
+            });
+            newObj[frozenKey] = patchedEvents;
+          }
+          return newObj;
+        });
+      }
+
       if (isReassigningProfessor && profId) {
         const resp = addSubjectToTeacher({ subjectId: firstMovingEvent.extendedProps?.subjectId as string, teacherId: profId });
         if (!resp.error && resp.data) {
@@ -3345,83 +3377,39 @@ onOk: () => {
       }
     };
 
-    const frozenKey = `${firstMovingEvent.extendedProps?.pnfId}-${firstMovingEvent.extendedProps?.trayectoId}-${firstMovingEvent.extendedProps?.seccion}-${trimestre}`;
-
-    if (isFrozen && !conflictFound) {
-      // 1. Actualizar "lockedSections" para parchear el cambio en caliente sin desordenar
-      setLockedSections(prev => {
-        const newObj = { ...prev };
-        if (newObj[frozenKey]) {
-          const patchedEvents = newObj[frozenKey].map(e => {
-            const isMoving = e.extendedProps?.subjectId === firstMovingEvent.extendedProps?.subjectId &&
-              e.daysOfWeek.includes(sourceDay) &&
-              sourceSlotStarts.includes(e.startTime);
-
-            if (isMoving) {
-              const diffIndex = sourceSlotStarts.indexOf(e.startTime);
-              const newStartTime = targetSlotStarts[diffIndex];
-              const newEndTime = targetSlots[diffIndex][1];
-              return {
-                ...e,
-                daysOfWeek: [targetDay],
-                startTime: newStartTime,
-                endTime: newEndTime,
-                extendedProps: { ...e.extendedProps, professorId: profId, classroomId: classroomId }
-              };
-            }
-            return e;
-          });
-          newObj[frozenKey] = patchedEvents;
-        }
-        return newObj;
-      });
-
-      // 2. Si reasignó profesor, actualizar en backend
-      if (isReassigningProfessor && profId) {
-        const resp = addSubjectToTeacher({ subjectId: firstMovingEvent.extendedProps?.subjectId as string, teacherId: profId });
-        if (!resp.error && resp.data) {
-          handleSubjectChange(resp.data);
-        }
-      }
-
-      const pnfIdStr = firstMovingEvent.extendedProps?.pnfId;
-      const trayIdStr = firstMovingEvent.extendedProps?.trayectoId;
-      const secStr = firstMovingEvent.extendedProps?.seccion;
-
-      if (pnfIdStr && trayIdStr && secStr) {
-        setHasUnsavedOverrides(true);
-        // Force the section to temporarily "unfreeze" and "refreeze" to force an update logic for React state while saving
-        setLockedSections(prev => {
-          const newObj = { ...prev };
-          delete newObj[frozenKey];
-          return newObj;
-        });
-
-        setTimeout(() => {
-          setLockedSections(prev => {
-            const newObj = { ...prev };
-            newObj[frozenKey] = eventData.filter(e =>
-              e.extendedProps.pnfId === pnfIdStr &&
-              e.extendedProps.trayectoId === trayIdStr &&
-              e.extendedProps.seccion === secStr
-            );
-            return newObj;
-          });
-        }, 100);
-      }
-
-      setDraggedEventInfo(null);
-      return; // Completado silenciosamente sin lanzar recálculo masivo
-    }
-
     // ─── Lógica de drop para secciones congeladas ───
-    // - Si está congelada: aplicar drop directo SIN recalcular (conflictos se marcan visualmente)
+    // - Si está congelada: aplicar drop y disparar recálculo backend para ajustar secciones descongeladas
     // - Si NO está congelada y hay conflicto: mostrar confirmación
     // - Si NO está congelada y NO hay conflicto: aplicar con recálculo
     if (isFrozen) {
-      // Sección congelada: aplicar drop directo sin recalcular (conflictos se marcan visualmente)
-      pinDraggedEventsAndRecalculate();
+      // Sección congelada: aplicar drop localmente
+      pinDraggedEventsAndRecalculate(isFrozen);
       setDraggedEventInfo(null);
+
+      // Guardar lockedSections actualizadas en la base de datos antes de disparar recálculo
+      // Esto asegura que el backend cargue las posiciones congeladas correctas y las excluya del recálculo
+      if (proyectionId) {
+        saveLockedSections(proyectionId, lockedSections).then((result) => {
+          if (result.error) {
+            console.error("Error saving locked sections:", result);
+            return;
+          }
+
+          // Después de guardar, disparar recálculo backend para regenerar secciones descongeladas
+          // alrededor de las nuevas posiciones congeladas
+          if (scheduleConnected) {
+            scheduleDispatch("schedule:regenerate", {}).then((ack) => {
+              if (!ack.ok) {
+                console.error("schedule:regenerate failed", ack);
+              }
+            }).catch((err) => {
+              console.error("schedule:regenerate error", err);
+            });
+          }
+        }).catch((err) => {
+          console.error("Error saving locked sections:", err);
+        });
+      }
       return;
     }
 
@@ -3433,7 +3421,7 @@ onOk: () => {
         cancelText: "Deshacer cambio",
         okButtonProps: { danger: true },
         onOk: () => {
-          pinDraggedEventsAndRecalculate();
+          pinDraggedEventsAndRecalculate(false);
           setDraggedEventInfo(null);
         },
         onCancel: () => setDraggedEventInfo(null)
@@ -3442,7 +3430,7 @@ onOk: () => {
     }
 
     // Si no hay conflicto y no está congelada: aplicar con recálculo normal
-    pinDraggedEventsAndRecalculate();
+    pinDraggedEventsAndRecalculate(false);
     setDraggedEventInfo(null);
   };
 
