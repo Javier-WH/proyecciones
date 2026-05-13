@@ -2916,6 +2916,19 @@ onOk: () => {
 
     const combinedEvents = [...mergedLoaded, ...mergedGenerated, ...mergedGhosts];
     setEvents(combinedEvents);
+
+    // [DEBUG TEMPORAL] Exponer estado para inspección desde consola.
+    // Quitar tras diagnosticar pérdida de horas al renderizar bloques.
+    if (typeof window !== "undefined") {
+      (window as any).__events = combinedEvents;
+      (window as any).__eventData = eventData;
+      (window as any).__loadedScheduleEvents = loadedScheduleEvents;
+      (window as any).__filteredLoaded = filteredLoaded;
+      (window as any).__filteredGenerated = filteredGenerated;
+      (window as any).__mergedLoaded = mergedLoaded;
+      (window as any).__mergedGenerated = mergedGenerated;
+      (window as any).__lockedSections = lockedSections;
+    }
   }, [
     eventData,
     loadedScheduleEvents,

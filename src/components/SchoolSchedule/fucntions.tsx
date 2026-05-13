@@ -1058,10 +1058,48 @@ export function generateScheduleEvents({
       ).length;
       const totalHours = originalTotalHours - placedHours;
 
-      if (totalHours <= 0 || !professorId) return [];
+      if (totalHours <= 0) return [];
+      if (!professorId) {
+        setErrors({
+          name: sub.subject,
+          description: `No se pudo asignar: faltan ${originalTotalHours} de ${originalTotalHours} horas. Esta materia no tiene profesor asignado para el trimestre. Para solucionarlo: asigne un profesor desde la sección de Proyección.`,
+          seccion: sub.seccion,
+          year: sub.trayectoName,
+          turn: sub.turnoName,
+          pnfName: sub.pnf || "",
+          professorName: "Sin Profesor Asignado",
+          trimestre,
+          subjectId: sub.innerId,
+          trayectoId: sub.trayectoId,
+          pnfId: sub.pnfId,
+          totalHours: originalTotalHours,
+        });
+        return [];
+      }
 
       const timeSlots = activeTurnos[turnoName];
-      if (!timeSlots || timeSlots.length === 0) return [];
+      if (!timeSlots || timeSlots.length === 0) {
+        const teacherObj = teachers?.find((t: any) => t.id === professorId);
+        const professorName = teacherObj
+          ? `${teacherObj.name} ${teacherObj.lastName}`
+          : professorId;
+        setErrors({
+          name: sub.subject,
+          description: `No se pudo asignar: faltan ${totalHours} de ${originalTotalHours} horas. El turno "${sub.turnoName || "(sin turno)"}" no tiene franjas horarias configuradas. Para solucionarlo: configure las franjas horarias del turno en Configuración (⚙️).`,
+          seccion: sub.seccion,
+          year: sub.trayectoName,
+          turn: sub.turnoName,
+          pnfName: sub.pnf || "",
+          professorName,
+          trimestre,
+          subjectId: sub.innerId,
+          professorId,
+          trayectoId: sub.trayectoId,
+          pnfId: sub.pnfId,
+          totalHours,
+        });
+        return [];
+      }
 
       // Si preventSingleHourBlocks está activo y solo tiene 1 hora TOTAL, reportar error
       if (preventSingleHourBlocks && originalTotalHours === 1) {
@@ -1214,7 +1252,7 @@ export function generateScheduleEvents({
           (!ov.trayecto_id || sub.trayectoId === ov.trayecto_id)
       ) || [];
 
-      let remainingHours = originalTotalHours;
+      let remainingHours = totalHours;
       const results: SubjectTask[] = [];
 
       for (const ov of subjectOverrides) {

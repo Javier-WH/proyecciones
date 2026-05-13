@@ -58,8 +58,7 @@ Router.post('/locked-sections', express.json({ limit: '10mb' }), async (req, res
       return res.status(404).json({ message: 'La proyección indicada no existe' })
     }
 
-    const transaction = await sequelize.transaction()
-    try {
+    await sequelize.transaction(async (transaction) => {
       // Eliminar todas las secciones bloqueadas de esta proyección
       await LockedSections.destroy({
         where: { proyection_id },
@@ -81,12 +80,7 @@ Router.post('/locked-sections', express.json({ limit: '10mb' }), async (req, res
       if (records.length > 0) {
         await LockedSections.bulkCreate(records, { transaction })
       }
-
-      await transaction.commit()
-    } catch (error) {
-      await transaction.rollback()
-      throw error
-    }
+    })
 
     return res.status(200).json({ message: 'Secciones bloqueadas guardadas correctamente' })
   } catch (error) {
