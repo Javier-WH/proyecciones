@@ -296,9 +296,13 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
     socket.on("connect", () => {
       handleConnect();
-      // Force backend to re-emit initial data (proyectionData/updateTeachers/updateSubjects)
-      // in case the listeners were attached after the initial emission on connection.
-      socket.emit("reload");
+      // NOTE: socket.emit("reload") was removed because the backend-driven
+      // schedule state is now persisted in DB (schedules.state_snapshot).
+      // Reloading on every connect forced a full recalculation of all 3
+      // trimestres, causing long load times on browser refresh.
+      // Initial data (proyectionData/updateTeachers/updateSubjects) is
+      // pushed by the server on connection; schedule state is fetched
+      // on-demand via schedule:join in useScheduleSocket.
     });
 
     return () => {

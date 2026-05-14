@@ -385,7 +385,6 @@ onOk: () => {
         message.success(`SecciA3n ${sec} bloqueada.`);
         return newObj;
       });
-      console.log('[freeze] dispatching, connected:', scheduleConnected, 'proyectionId:', proyectionId)
       scheduleDispatch("schedule:toggleFreeze", { sectionKey: key, freeze: true, events: sectionEvents });
     }
   };
@@ -2664,11 +2663,8 @@ message.success(
   // When the backend pushes a state version we have not seen, apply it locally.
   // Updates the hash ref so the outbound effect won't re-push the same content.
   useEffect(() => {
-    console.log('[inbound] scheduleVersion:', scheduleVersion, 'lastSynced:', lastSyncedVersionRef.current)
-    console.log('[inbound] scheduleState.lockedSections:', JSON.stringify(Object.keys(scheduleState?.lockedSections || {})))
     if (!scheduleVersion || scheduleVersion === lastSyncedVersionRef.current) return;
     lastSyncedVersionRef.current = scheduleVersion;
-    console.log('[inbound] applying state, eventData length:', scheduleState.eventData?.length)
     if (Array.isArray(scheduleState.eventData) && scheduleState.eventData.length > 0) {
       lastSyncedHashRef.current = JSON.stringify({
         eventData: scheduleState.eventData,
@@ -2677,17 +2673,12 @@ message.success(
       setEventData(scheduleState.eventData);
     }
     if (scheduleState.lockedSections && typeof scheduleState.lockedSections === 'object') {
-      console.log('[inbound] applying lockedSections:', JSON.stringify(Object.keys(scheduleState.lockedSections)))
       setLockedSections(scheduleState.lockedSections as Record<string, Event[]>);
-    } else {
-      console.log('[inbound] NO lockedSections in scheduleState')
     }
     if (scheduleState.scheduleConfig && typeof scheduleState.scheduleConfig === 'object' && Object.keys(scheduleState.scheduleConfig).length > 0) {
-      console.log('[inbound] applying scheduleConfig days:', scheduleState.scheduleConfig.days)
       setScheduleConfig(scheduleState.scheduleConfig as unknown as ScheduleConfig);
     }
     if (Array.isArray(scheduleState.lastGenerationErrors) && scheduleState.lastGenerationErrors.length > 0) {
-      console.log('[inbound] applying lastGenerationErrors:', scheduleState.lastGenerationErrors.length, 'errors')
       setErrors(scheduleState.lastGenerationErrors as scheduleError[]);
     } else if (Array.isArray(scheduleState.lastGenerationErrors) && scheduleState.lastGenerationErrors.length === 0) {
       setErrors([]);
@@ -4054,7 +4045,6 @@ if (conflictFound) {
                 onClose={() => setIsConfigModalOpen(false)}
                 onConfigUpdate={(newConfig) => setScheduleConfig(newConfig)}
                 onConfigSave={(newConfig) => {
-                  console.log('[configModal] onConfigSave called, dispatching schedule:saveConfig')
                   scheduleDispatch("schedule:saveConfig", { config: newConfig });
                 }}
               />

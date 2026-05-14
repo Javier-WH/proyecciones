@@ -59,26 +59,34 @@ Router.post('/locked-sections', express.json({ limit: '10mb' }), async (req, res
     }
 
     await sequelize.transaction(async (transaction) => {
-      // Eliminar todas las secciones bloqueadas de esta proyección
-      await LockedSections.destroy({
+      // Fetch existing keys to know which ones to delete (avoid full-table lock)
+      const existing = await LockedSections.findAll({
         where: { proyection_id },
+        attributes: ['section_key'],
+        raw: true,
         transaction
       })
+      const existingKeys = new Set(existing.map(r => r.section_key))
+      const incomingKeys = new Set(Object.keys(locked_sections))
 
-      // Crear nuevos registros
-      const records = []
+      // Delete keys that are no longer present
+      const keysToDelete = [...existingKeys].filter(k => !incomingKeys.has(k))
+      if (keysToDelete.length > 0) {
+        await LockedSections.destroy({
+          where: { proyection_id, section_key: keysToDelete },
+          transaction
+        })
+      }
+
+      // Upsert new/updated keys
       for (const [sectionKey, events] of Object.entries(locked_sections)) {
         if (Array.isArray(events)) {
-          records.push({
+          await LockedSections.upsert({
             proyection_id,
             section_key: sectionKey,
             events
-          })
+          }, { transaction })
         }
-      }
-
-      if (records.length > 0) {
-        await LockedSections.bulkCreate(records, { transaction })
       }
     })
 
