@@ -28,6 +28,16 @@ export interface ScheduleState {
   lastGenerationErrors?: unknown[];
 }
 
+export interface StateDelta {
+  eventData?: {
+    added?: Event[];
+    removed?: string[];
+    changed?: Event[];
+  };
+  lockedSections?: Record<string, Event[]>;
+  classroomOverrides?: unknown[];
+}
+
 const emptyState: ScheduleState = {
   eventData: [],
   stagedEvents: [],
@@ -35,6 +45,54 @@ const emptyState: ScheduleState = {
   classroomOverrides: [],
   scheduleConfig: {},
 };
+
+function getEventId (event: Event): string {
+  return `${event.extendedProps?.subjectId}-${event.extendedProps?.seccion}-${event.daysOfWeek?.[0]}-${event.startTime}`;
+}
+
+/**
+ * Apply a delta (add/remove/change) on top of a previous state.
+ * Returns a new state without mutating the previous one.
+ */
+function applyDelta (prev: ScheduleState, delta: StateDelta): ScheduleState {
+  const next = { ...prev };
+
+  if (delta.eventData) {
+    const removedIds = new Set(delta.eventData.removed || []);
+    const changedMap = new Map<string, Event>();
+    for (const e of (delta.eventData.changed || [])) {
+      changedMap.set(getEventId(e), e);
+    }
+    const addedMap = new Map<string, Event>();
+    for (const e of (delta.eventData.added || [])) {
+      addedMap.set(getEventId(e), e);
+    }
+
+    // Remove
+    let filtered = next.eventData.filter(e => !removedIds.has(getEventId(e)));
+    // Replace changed
+    filtered = filtered.map(e => {
+      const id = getEventId(e);
+      return changedMap.has(id) ? changedMap.get(id)! : e;
+    });
+    // Add (only if not already present)
+    for (const [id, newEv] of addedMap) {
+      if (!filtered.some(e => getEventId(e) === id)) {
+        filtered.push(newEv);
+      }
+    }
+    next.eventData = filtered;
+  }
+
+  if (delta.lockedSections) {
+    next.lockedSections = { ...prev.lockedSections, ...delta.lockedSections };
+  }
+  if (delta.classroomOverrides) {
+    next.classroomOverrides = delta.classroomOverrides;
+  }
+
+  return next;
+}
 
 export interface AckSuccess { ok: true; version?: number; state?: ScheduleState }
 export interface AckFailure { ok: false; code: string; message: string; currentVersion?: number }
@@ -68,11 +126,23 @@ export function useScheduleSocket(
     // connected before this effect runs.
     setConnected(!!socket.connected);
 
-    const onState = (msg: { proyectionId: string; trimestre: Trimestre; version: number; state: ScheduleState }) => {
-      if (msg.proyectionId !== proyectionId || msg.trimestre !== trimestre) return;
-      setState({ ...emptyState, ...msg.state });
-      setVersion(msg.version);
-    };
+    const onState = (msg: {
+        proyectionId: string;
+        trimestre: Trimestre;
+        version: number;
+        state: ScheduleState;
+        delta?: StateDelta;
+      }) => {
+        if (msg.proyectionId !== proyectionId || msg.trimestre !== trimestre) return;
+
+        // Apply delta when available, contiguous, and the delta is smaller
+        if (msg.delta && msg.version === versionRef.current + 1) {
+          setState(prev => applyDelta(prev, msg.delta!));
+        } else {
+          setState({ ...emptyState, ...msg.state });
+        }
+        setVersion(msg.version);
+      };
     const onConnect = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
 

@@ -9,7 +9,8 @@ import {
   selfHealLockedSections,
   runAutoSolve,
   removePhantomEvents,
-  enforceFrozenSections
+  enforceFrozenSections,
+  getEventId
 } from './engine/index.js'
 import {
   loadTeacherRestrictions,
@@ -19,39 +20,20 @@ import {
 } from './loadRestrictions.js'
 
 const TRIMESTRES = ['q1', 'q2', 'q3']
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
-function roomName (proyectionId, trimestre) {
-  return `schedule:${proyectionId}:${trimestre}`
-}
+// ─── Recalc context cache ─────────────────────────────────────────────
+// Static context (subjects, classrooms, teachers, config, restrictions)
+// rarely changes between recalculations.  We cache it per proyectionId
+// and only reload lockedSections + classroomOverrides on each call.
+// When the cache is explicitly invalidated (clearRecalcCache), the next
+// recalc loads everything fresh.
 
-function broadcastState (io, proyectionId, trimestre, version, state) {
-  const room = `schedule:${proyectionId}:${trimestre}`
-  console.log(`[broadcastState] emitting to room ${room} (v${version}), lockedSections keys: ${JSON.stringify(Object.keys(state?.lockedSections || {}))}`)
-  io.to(room).emit('schedule:state', {
-    proyectionId,
-    trimestre,
-    version,
-    state
-  })
-}
+/** @type {Map<string, {static: RecalcContext, timestamp: number}>} */
+const recalcCache = new Map()
 
 /**
- * Shared context loaded once per projection. Passed to `recalcSingleTrimestre`
- * so that multi-trimestre recalcs don't hit the DB three times.
- *
- * @typedef {Object} RecalcContext
- * @property {any[]} subjects
- * @property {any[]} classrooms
- * @property {any[]} teachers
- * @property {any} scheduleConfig
- * @property {any[]} unavailableDays
- * @property {any[]} preferredClassrooms
- * @property {any[]} classroomOverrides
- * @property {Record<string,any[]>} lockedSections
- */
-
-/**
- * Load the shared recalc context for a projection.
+ * Load the full recalc context from DB (7 queries).
  * @param {string} proyectionId
  * @returns {Promise<RecalcContext|null>}
  */
@@ -72,13 +54,6 @@ async function loadRecalcContext (proyectionId) {
   const classroomOverrides = await loadClassroomOverrides(proyectionId)
   const lockedSections = await loadLockedSections(proyectionId)
 
-  // Debug: log each locked section's events classroomId to verify manual changes
-  for (const [key, events] of Object.entries(lockedSections)) {
-    for (const ev of events) {
-      console.log('[loadRecalcContext] lockedSection', key, 'event', ev.title, 'day', ev.daysOfWeek?.[0], 'start', ev.startTime, 'classroomId', ev.extendedProps?.classroomId, 'classroomName', ev.extendedProps?.classroomName)
-    }
-  }
-
   return {
     subjects,
     classrooms,
@@ -89,6 +64,141 @@ async function loadRecalcContext (proyectionId) {
     classroomOverrides,
     lockedSections
   }
+}
+
+/**
+ * Get recalc context with caching.
+ * On first call or after invalidation: full DB load (7 queries).
+ * On subsequent calls within TTL: reuses static context, refreshes
+ * only lockedSections + classroomOverrides (2 queries).
+ *
+ * @param {string} proyectionId
+ * @returns {Promise<RecalcContext|null>}
+ */
+async function getRecalcContext (proyectionId) {
+  const cached = recalcCache.get(proyectionId)
+  const now = Date.now()
+
+  if (!cached || (now - cached.timestamp > CACHE_TTL_MS)) {
+    const fresh = await loadRecalcContext(proyectionId)
+    if (!fresh) return null
+    recalcCache.set(proyectionId, { static: fresh, timestamp: now })
+    // Debug log events on full load
+    for (const [key, events] of Object.entries(fresh.lockedSections)) {
+      for (const ev of events) {
+        console.log('[loadRecalcContext] lockedSection', key, 'event', ev.title, 'day', ev.daysOfWeek?.[0], 'start', ev.startTime, 'classroomId', ev.extendedProps?.classroomId, 'classroomName', ev.extendedProps?.classroomName)
+      }
+    }
+    return fresh
+  }
+
+  // Reuse static context, refresh only the dynamic parts
+  const ctx = { ...cached.static }
+  ctx.lockedSections = await loadLockedSections(proyectionId)
+  ctx.classroomOverrides = await loadClassroomOverrides(proyectionId)
+  recalcCache.set(proyectionId, { static: ctx, timestamp: now })
+
+  for (const [key, events] of Object.entries(ctx.lockedSections)) {
+    for (const ev of events) {
+      console.log('[loadRecalcContext] lockedSection', key, 'event', ev.title, 'day', ev.daysOfWeek?.[0], 'start', ev.startTime, 'classroomId', ev.extendedProps?.classroomId, 'classroomName', ev.extendedProps?.classroomName)
+    }
+  }
+  return ctx
+}
+
+/**
+ * Invalidate the cached recalc context so the next call loads everything
+ * fresh from the DB. Call this when subjects, classrooms, restrictions,
+ * or config change globally.
+ *
+ * @param {string} [proyectionId] — if omitted, clears the entire cache
+ */
+export function clearRecalcCache (proyectionId) {
+  if (proyectionId) {
+    recalcCache.delete(proyectionId)
+  } else {
+    recalcCache.clear()
+  }
+}
+
+/**
+ * Compute the delta between old and new schedule state.
+ * Returns null if the delta is not significantly smaller than the full state.
+ *
+ * @param {object} oldState
+ * @param {object} newState
+ * @returns {object|null}
+ */
+function computeStateDelta (oldState, newState) {
+  const oldEvents = oldState?.eventData || []
+  const newEvents = newState?.eventData || []
+
+  const oldMap = new Map()
+  for (const e of oldEvents) {
+    const id = getEventId(e)
+    if (id) oldMap.set(id, e)
+  }
+
+  const newMap = new Map()
+  for (const e of newEvents) {
+    const id = getEventId(e)
+    if (id) newMap.set(id, e)
+  }
+
+  const added = []
+  const removed = []
+  const changed = []
+
+  for (const [id, newEv] of newMap) {
+    const oldEv = oldMap.get(id)
+    if (!oldEv) {
+      added.push(newEv)
+    } else if (JSON.stringify(oldEv) !== JSON.stringify(newEv)) {
+      changed.push(newEv)
+    }
+  }
+
+  for (const [id] of oldMap) {
+    if (!newMap.has(id)) {
+      removed.push(id)
+    }
+  }
+
+  const totalDelta = added.length + removed.length + changed.length
+  const totalNew = newEvents.length
+
+  // Only use delta if it's at most 30% of the full state size
+  if (totalNew === 0 || totalDelta > totalNew * 0.3) return null
+
+  const delta = { eventData: {} }
+  if (added.length) delta.eventData.added = added
+  if (removed.length) delta.eventData.removed = removed
+  if (changed.length) delta.eventData.changed = changed
+
+  // Include lockedSections only if changed
+  if (JSON.stringify(oldState?.lockedSections) !== JSON.stringify(newState?.lockedSections)) {
+    delta.lockedSections = newState?.lockedSections
+  }
+
+  // Include classroomOverrides only if changed
+  if (JSON.stringify(oldState?.classroomOverrides) !== JSON.stringify(newState?.classroomOverrides)) {
+    delta.classroomOverrides = newState?.classroomOverrides
+  }
+
+  console.log(`[delta] ${totalNew} events → delta ${totalDelta} (added ${added.length}, removed ${removed.length}, changed ${changed.length})`)
+  return delta
+}
+
+function broadcastState (io, proyectionId, trimestre, version, state, delta) {
+  const room = `schedule:${proyectionId}:${trimestre}`
+  const payload = { proyectionId, trimestre, version, state }
+  if (delta) {
+    payload.delta = delta
+    console.log(`[broadcastState] emitting delta to room ${room} (v${version}), lockedSections keys: ${JSON.stringify(Object.keys(state?.lockedSections || {}))}`)
+  } else {
+    console.log(`[broadcastState] emitting to room ${room} (v${version}), lockedSections keys: ${JSON.stringify(Object.keys(state?.lockedSections || {}))}`)
+  }
+  io.to(room).emit('schedule:state', payload)
 }
 
 /**
@@ -108,7 +218,7 @@ export async function recalcSingleTrimestre (proyectionId, io, trimestre, contex
 
   let ctx = context
   if (!ctx) {
-    ctx = await loadRecalcContext(proyectionId)
+    ctx = await getRecalcContext(proyectionId)
     if (!ctx) return
   }
 
@@ -125,7 +235,7 @@ export async function recalcSingleTrimestre (proyectionId, io, trimestre, contex
   let retries = 0
   while (retries <= maxRetries) {
     try {
-      const { version: currentVersion } = await getState(proyectionId, trimestre)
+      const { version: currentVersion, state: oldState } = await getState(proyectionId, trimestre)
       const result = await applyAction({
         proyectionId,
         trimestre,
@@ -215,7 +325,8 @@ export async function recalcSingleTrimestre (proyectionId, io, trimestre, contex
         }
       })
 
-      broadcastState(io, proyectionId, trimestre, result.version, result.state)
+      const delta = computeStateDelta(oldState, result.state)
+      broadcastState(io, proyectionId, trimestre, result.version, result.state, delta)
       console.log(`[scheduleService] ${trimestre} recalculated (v${result.version}), eventData: ${result.state.eventData?.length} events`)
       return
     } catch (err) {
@@ -247,7 +358,7 @@ export async function recalcSingleTrimestre (proyectionId, io, trimestre, contex
 export async function recalcSchedulesForProyection (proyectionId, io) {
   if (!proyectionId || !io) return
 
-  const context = await loadRecalcContext(proyectionId)
+  const context = await getRecalcContext(proyectionId)
   if (!context) return
 
   for (const trimestre of TRIMESTRES) {

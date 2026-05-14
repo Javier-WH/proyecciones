@@ -62,7 +62,7 @@ import Classrooms from '#models/schedule/classrooms.js'
 import Proyections from '#models/proyections.js'
 import LockedSections from '#models/schedule/lockedSections.js'
 import getTeacherList from '#querys/teachers/getTeacherList.js'
-import { recalcSchedulesForProyection, recalcSingleTrimestre } from '../schedule/scheduleService.js'
+import { recalcSchedulesForProyection, recalcSingleTrimestre, clearRecalcCache } from '../schedule/scheduleService.js'
 
 const TRIM_VALUES = new Set(['q1', 'q2', 'q3'])
 
@@ -789,6 +789,7 @@ export function registerScheduleHandlers (io, socket) {
         })
       }
 
+      clearRecalcCache(proyectionId)
       recalcSchedulesForProyection(proyectionId, io)
       ok({})
     } catch (err) {
@@ -817,6 +818,7 @@ export function registerScheduleHandlers (io, socket) {
         })
       }
 
+      clearRecalcCache(proyectionId)
       recalcSchedulesForProyection(proyectionId, io)
       ok({})
     } catch (err) {
@@ -848,6 +850,7 @@ export function registerScheduleHandlers (io, socket) {
       })
 
       console.log('[schedule:saveConfig] upsert done, calling recalc')
+      clearRecalcCache(proyectionId)
       await recalcSchedulesForProyection(proyectionId, io)
       console.log('[schedule:saveConfig] recalc done')
       ok({})
