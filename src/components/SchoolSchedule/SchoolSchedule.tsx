@@ -1033,6 +1033,10 @@ onOk: () => {
         next[getEventId(ev)] = conflicts;
       }
     }
+    const conflictCount = Object.keys(next).length;
+    if (conflictCount > 0) {
+      console.log('[ConflictCheck] Found', conflictCount, 'conflicts:', next);
+    }
     setEventsWithConflicts(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventData, crossQuarterGhostEvents, teachers, classrooms, subjects, trimestre]);
@@ -2336,13 +2340,14 @@ onOk: () => {
 
       setEventData(prev => prev.map(e => (matchesEvent(e) ? patchEvent(e) : e)));
       setLoadedScheduleEvents(prev => prev.map(e => (matchesEvent(e) ? patchEvent(e) : e)));
-      setLockedSections(prev => {
-        const updated: typeof prev = {};
-        for (const [key, events] of Object.entries(prev)) {
-          updated[key] = events.map(e => (matchesEvent(e) ? patchEvent(e) : e));
-        }
-        return updated;
-      });
+
+      // Compute updated locked sections NOW so we can use the value for the
+      // Happy Path persistence below (React state updates are async).
+      const updatedLockedSections: Record<string, Event[]> = {};
+      for (const [key, events] of Object.entries(lockedSections)) {
+        updatedLockedSections[key] = events.map(e => (matchesEvent(e) ? patchEvent(e) : e));
+      }
+      setLockedSections(updatedLockedSections);
 
       // Marcar los eventos con conflictos para mostrar borde rojo
       setEventsWithConflicts(prev => {
@@ -2367,6 +2372,12 @@ onOk: () => {
         message.success(
           `Aula cambiada a "${_nc.classroom}" para ${_cce.title}. Recalculando secciones descongeladas...`
         );
+
+        // Persist the updated locked section to frozen_sections FIRST so that
+        // the backend regenerate loads the correct frozen position.
+        const changedSectionKey = `${firstModifiedEvent?.extendedProps?.pnfId}-${firstModifiedEvent?.extendedProps?.trayectoId}-${firstModifiedEvent?.extendedProps?.seccion}-${trimestre}`;
+        const updatedLockedEvents = updatedLockedSections[changedSectionKey] || [];
+
         const newOverride: ClassroomOverride = {
           subject_name: _cce.title,
           day: _cce.day,
@@ -2381,16 +2392,32 @@ onOk: () => {
           o => !(o.subject_name === newOverride.subject_name && o.day === newOverride.day && o.start_time === newOverride.start_time)
         );
         const nextOverrides = [...filtered, newOverride];
-        saveClassroomOverrides(proyectionId, nextOverrides).then(() => {
-          setHasUnsavedOverrides(false);
-          if (scheduleConnected) {
-            scheduleDispatch("schedule:regenerate", {}).catch((err) => {
-              console.error("schedule:regenerate error after classroom change:", err);
-            });
-          }
-        }).catch((err) => {
-          console.error("Error saving overrides after classroom change:", err);
-        });
+
+        console.log('[HappyPath] Persisting locked section', changedSectionKey, 'events count', updatedLockedEvents.length);
+        upsertLockedSection(proyectionId, changedSectionKey, updatedLockedEvents)
+          .then((saveResp) => {
+            console.log('[HappyPath] locked section saved', saveResp);
+            // Use schedule:saveOverride instead of manual save + schedule:regenerate.
+            // saveOverride writes to DB and triggers recalc automatically WITHOUT
+            // optimistic locking, so it never fails with VERSION_CONFLICT.
+            if (scheduleConnected) {
+              console.log('[HappyPath] dispatching schedule:saveOverride');
+              return scheduleDispatch("schedule:saveOverride", { overrides: [newOverride] }).then((ack) => {
+                console.log('[HappyPath] schedule:saveOverride ack', ack);
+                if (ack?.ok) {
+                  setHasUnsavedOverrides(false);
+                }
+              });
+            } else {
+              // Fallback: HTTP save when socket is disconnected
+              return saveClassroomOverrides(proyectionId, nextOverrides).then(() => {
+                setHasUnsavedOverrides(false);
+              });
+            }
+          })
+          .catch((err) => {
+            console.error("[HappyPath] Error saving locked section / overrides:", err);
+          });
       } else {
         // No conflicts at all
         message.success(
@@ -2715,6 +2742,7 @@ onOk: () => {
   // Updates the hash ref so the outbound effect won't re-push the same content.
   useEffect(() => {
     if (!scheduleVersion || scheduleVersion === lastSyncedVersionRef.current) return;
+    console.log('[InboundSync] received schedule:state version', scheduleVersion, 'eventData length', scheduleState.eventData?.length, 'lockedSections keys', Object.keys(scheduleState.lockedSections || {}));
     lastSyncedVersionRef.current = scheduleVersion;
     if (Array.isArray(scheduleState.eventData) && scheduleState.eventData.length > 0) {
       lastSyncedHashRef.current = JSON.stringify({

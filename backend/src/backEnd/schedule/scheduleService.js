@@ -72,6 +72,13 @@ async function loadRecalcContext (proyectionId) {
   const classroomOverrides = await loadClassroomOverrides(proyectionId)
   const lockedSections = await loadLockedSections(proyectionId)
 
+  // Debug: log each locked section's events classroomId to verify manual changes
+  for (const [key, events] of Object.entries(lockedSections)) {
+    for (const ev of events) {
+      console.log('[loadRecalcContext] lockedSection', key, 'event', ev.title, 'day', ev.daysOfWeek?.[0], 'start', ev.startTime, 'classroomId', ev.extendedProps?.classroomId, 'classroomName', ev.extendedProps?.classroomName)
+    }
+  }
+
   return {
     subjects,
     classrooms,
