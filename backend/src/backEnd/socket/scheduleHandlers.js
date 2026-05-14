@@ -396,7 +396,15 @@ export function registerScheduleHandlers (io, socket) {
         })
       }
 
-      recalcSchedulesForProyection(proyectionId, io)
+      // Recalculate only the affected trimestre instead of all three so
+      // classroom changes don't block the UI for seconds while the other
+      // trimestres are recomputed unnecessarily.
+      const affectedTrimestre = TRIM_VALUES.has(msg.trimestre) ? msg.trimestre : null
+      if (affectedTrimestre) {
+        recalcSingleTrimestre(proyectionId, io, affectedTrimestre)
+      } else {
+        recalcSchedulesForProyection(proyectionId, io)
+      }
       ok({})
     } catch (err) {
       fail(err)
