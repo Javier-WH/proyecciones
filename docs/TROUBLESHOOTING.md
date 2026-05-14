@@ -278,6 +278,35 @@ Al congelar y descongelar secciones repetidamente en rápida sucesión, el backe
 - [agents.md](../agents.md) §7.3 — Locked sections
 - [docs/BackendScheduleSync.md](./BackendScheduleSync.md)
 
+### 8. Happy Path de Sección Congelada: Borde rojo persistente y hash mismatch en sync
+
+**Problema Identificado:**
+Al cambiar el aula de una materia en la única sección congelada, el sistema no distinguía correctamente entre conflictos resalables (sección descongelada → Happy Path) e irresolubles (sección congelada → Sad Path). Además, un **hash mismatch** entre el inbound sync y el outbound sync causaba que el estado correcto del backend nunca se estabilizara en el frontend, forzando un refresh manual para ver el resultado.
+
+**Síntoma:**
+- Happy Path (conflicto con sección descongelada): se marcaba borde rojo de conflicto que persistía hasta refrescar el navegador.
+- El recálculo del backend SÍ ocurría correctamente (al refrescar se veía bien), pero el frontend no lo reflejaba sin refresh.
+
+**Causa:**
+1. **Hash mismatch crítico**: El inbound sync (`schedule:state`) calculaba `lastSyncedHashRef` con `{eventData, classroomOverrides}`, pero el outbound sync comparaba contra `{eventData, classroomOverrides, lockedSections}`. Los hashes **nunca coincidían**, causando un bucle infinito de `schedule:setState` que empujaba estado al backend continuamente, enterrando el broadcast correcto del recálculo.
+2. El inbound sync nunca actualizaba `classroomOverrides` desde el backend, dejándolo stale.
+3. Ghost events (`isCrossQuarterGhost`) en `eventsToCheck` causaban falsos positivos en `hasConflictWithFrozenSection`.
+4. `handleDrop` mostraba errores para secciones congeladas sin distinguir Happy vs Sad Path.
+
+**Solución:**
+1. **Unificar el hash**: El inbound sync ahora computa `lastSyncedHashRef` con los mismos tres campos (`eventData`, `classroomOverrides`, `lockedSections`) que el outbound sync, y lo hace DESPUÉS de todos los state updates.
+2. Sincronizar `classroomOverrides` desde el backend en el inbound sync y limpiar `hasUnsavedOverrides`.
+3. Filtrar `isCrossQuarterGhost` de `allEventsBeforeChange` y excluir la propia sección (`currentSectionKey`) del análisis Happy/Sad Path.
+4. En `handleDrop`, diferenciar conflicto con sección congelada (Sad Path: error, abortar) vs descongelada (Happy Path: proceder, backend recalcula).
+5. En Happy Path, limpiar `eventsWithConflicts` de los eventos modificados (el `useEffect` reactivo los recalculará con el estado del backend).
+
+**Archivos Afectados:**
+- `src/components/SchoolSchedule/SchoolSchedule.tsx`
+
+**Referencias:**
+- [SCHEDULE_RULES.md](../SCHEDULE_RULES.md) §7 — Locked sections
+- [agents.md](../agents.md) §7.3 — Locked sections
+
 ---
 
 ## 🔗 Referencias
@@ -288,4 +317,4 @@ Al congelar y descongelar secciones repetidamente en rápida sucesión, el backe
 
 ---
 
-*Última actualización: 14 de mayo de 2026*
+*Last updated: May 14, 2026*

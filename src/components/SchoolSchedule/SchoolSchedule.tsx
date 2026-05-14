@@ -2254,7 +2254,13 @@ onOk: () => {
       }
 
       // Sección congelada: detectar conflictos ANTES de aplicar el cambio
-      const allEventsBeforeChange = [...loadedScheduleEvents, ...getScheduleEvents(eventData), ...crossQuarterGhostEvents];
+      // Exclude cross-quarter ghosts from both the events to check and the
+      // events to compare against. Ghosts represent subjects from another
+      // trimester and must not be treated as "real" occupants of the target
+      // classroom for the Happy/Sad Path analysis.
+      const allEventsBeforeChange = [...loadedScheduleEvents, ...getScheduleEvents(eventData)].filter(
+        evt => !evt.extendedProps?.isCrossQuarterGhost
+      );
       const eventsToCheck = allEventsBeforeChange.filter((evt) => {
         const matchesDay = evt.daysOfWeek.includes(classroomChangeEvent.day);
         const matchesTitle = evt.title === classroomChangeEvent.title;
@@ -2286,6 +2292,10 @@ onOk: () => {
 
       // ─── Happy Path vs Sad Path analysis ───
       // Determine if the conflicting events belong to frozen or unfrozen sections.
+      // The section we are editing is frozen; events from THAT same section are
+      // not "conflicts with a frozen section" — they are part of the section we
+      // are repositioning.  Only a DIFFERENT frozen section blocks us.
+      const currentSectionKey = `${firstModifiedEvent?.extendedProps?.pnfId}-${firstModifiedEvent?.extendedProps?.trayectoId}-${firstModifiedEvent?.extendedProps?.seccion}-${trimestre}`;
       let hasConflictWithFrozenSection = false;
       let hasConflictWithUnfrozenSection = false;
 
@@ -2297,14 +2307,13 @@ onOk: () => {
 
         for (const existing of allEventsBeforeChange) {
           if (!existing.extendedProps) continue;
-          if (existing.extendedProps.isCrossQuarterGhost) continue;
           if (existing.daysOfWeek?.[0] !== simDay) continue;
           if (existing.startTime !== simStart) continue;
           if (getEventId(existing) === getEventId(simEv)) continue;
 
-          // Check classroom conflict specifically
           if (existing.extendedProps.classroomId === newClassroomId) {
             const existingSectionKey = `${existing.extendedProps.pnfId}-${existing.extendedProps.trayectoId}-${existing.extendedProps.seccion}-${trimestre}`;
+            if (existingSectionKey === currentSectionKey) continue;
             if (lockedSections[existingSectionKey]) {
               hasConflictWithFrozenSection = true;
             } else {
@@ -2315,11 +2324,34 @@ onOk: () => {
       }
 
       // ─── Aplicar el cambio directo ───
-      // Guardar refs locales porque applyClassroomChangeAndRecalculate limpia el estado
+      // Do NOT call applyClassroomChangeAndRecalculate(false) here because it
+      // shows a success message before we know the final path.  Instead apply
+      // the state changes manually and show the appropriate message per-path.
       const _cce = classroomChangeEvent;
       const _ncid = newClassroomId;
       const _nc = newClassroom;
-      applyClassroomChangeAndRecalculate(false);
+
+      // Register the classroom override (same logic as applyClassroomChangeAndRecalculate)
+      if (eventsToCheck.length > 0) {
+        const firstEvt = eventsToCheck[0];
+        const overrideObj: ClassroomOverride = {
+          subject_name: _cce.title,
+          day: _cce.day,
+          start_time: _cce.startTime,
+          end_time: _cce.endTime,
+          classroom_id: _ncid,
+          seccion: firstEvt?.extendedProps?.seccion || null,
+          pnf_id: firstEvt?.extendedProps?.pnfId || null,
+          trayecto_id: firstEvt?.extendedProps?.trayectoId || null,
+        };
+        setClassroomOverrides((prev) => {
+          const filtered = prev.filter(
+            (o) => !(o.subject_name === overrideObj.subject_name && o.day === overrideObj.day && o.start_time === overrideObj.start_time)
+          );
+          return [...filtered, overrideObj];
+        });
+        setHasUnsavedOverrides(true);
+      }
 
       // ─── Actualizar visualmente los eventos en eventData, loadedScheduleEvents y lockedSections ───
       const matchesEvent = (evt: Event) =>
@@ -2349,26 +2381,36 @@ onOk: () => {
       }
       setLockedSections(updatedLockedSections);
 
-      // Marcar los eventos con conflictos para mostrar borde rojo
-      setEventsWithConflicts(prev => {
-        const updated = { ...prev };
-        eventsToCheck.forEach(ev => delete updated[getEventId(ev)]);
-        conflictMap.forEach((conflicts, eventId) => {
-          updated[eventId] = conflicts;
-        });
-        return updated;
-      });
-
       // ─── Routing: Happy Path vs Sad Path ───
       if (hasConflictWithFrozenSection) {
         // Sad Path: the classroom is occupied by a frozen section. We cannot
-        // recalculate because frozen sections are immovable. Show error.
+        // recalculate because frozen sections are immovable. Show error and
+        // mark the conflicts with a red border.
+        setEventsWithConflicts(prev => {
+          const updated = { ...prev };
+          eventsToCheck.forEach(ev => delete updated[getEventId(ev)]);
+          conflictMap.forEach((conflicts, eventId) => {
+            updated[eventId] = conflicts;
+          });
+          return updated;
+        });
         message.error(
           `No se puede asignar el aula "${_nc.classroom}" porque está ocupada a esta hora por una sección congelada.`
         );
       } else if (hasConflictWithUnfrozenSection && proyectionId) {
         // Happy Path: the classroom is occupied by an unfrozen section. The
-        // backend can recalculate and move that section elsewhere.
+        // backend can recalculate and move that section elsewhere. Clear the
+        // conflict markers for these events so the red border doesn't flash
+        // while recalculation is in progress; the reactive useEffect will
+        // re-detect conflicts FROM the backend state once it arrives.
+        setEventsWithConflicts(prev => {
+          const updated = { ...prev };
+          eventsToCheck.forEach(ev => delete updated[getEventId(ev)]);
+          conflictMap.forEach((_, eventId) => {
+            delete updated[eventId];
+          });
+          return updated;
+        });
         message.success(
           `Aula cambiada a "${_nc.classroom}" para ${_cce.title}. Recalculando secciones descongeladas...`
         );
@@ -2745,15 +2787,23 @@ onOk: () => {
     console.log('[InboundSync] received schedule:state version', scheduleVersion, 'eventData length', scheduleState.eventData?.length, 'lockedSections keys', Object.keys(scheduleState.lockedSections || {}));
     lastSyncedVersionRef.current = scheduleVersion;
     if (Array.isArray(scheduleState.eventData) && scheduleState.eventData.length > 0) {
-      lastSyncedHashRef.current = JSON.stringify({
-        eventData: scheduleState.eventData,
-        classroomOverrides: scheduleState.classroomOverrides,
-      });
       setEventData(scheduleState.eventData);
     }
     if (scheduleState.lockedSections && typeof scheduleState.lockedSections === 'object') {
       setLockedSections(scheduleState.lockedSections as Record<string, Event[]>);
     }
+    if (Array.isArray(scheduleState.classroomOverrides)) {
+      setClassroomOverrides(scheduleState.classroomOverrides as ClassroomOverride[]);
+    }
+    // Set the hash AFTER all state updates (React batches them) so the
+    // outbound sync effect sees the same snapshot that came from the backend
+    // and does NOT re-push it.
+    lastSyncedHashRef.current = JSON.stringify({
+      eventData: scheduleState.eventData,
+      classroomOverrides: scheduleState.classroomOverrides,
+      lockedSections: scheduleState.lockedSections,
+    });
+    setHasUnsavedOverrides(false);
     if (scheduleState.scheduleConfig && typeof scheduleState.scheduleConfig === 'object' && Object.keys(scheduleState.scheduleConfig).length > 0) {
       setScheduleConfig(scheduleState.scheduleConfig as unknown as ScheduleConfig);
     }
@@ -3332,34 +3382,94 @@ onOk: () => {
 
     // --- REVISIÓN DE RESTRICCIONES Y CONFLICTOS ---
     let conflictFound = false;
+    let hasConflictWithFrozenSection = false;
+    let hasConflictWithUnfrozenSection = false;
 
     // 1. Conflictos de profesor, sección y aula
     for (const evt of allEvents) {
       if (movingEvents.includes(evt)) continue; // Ignorar el propio evento que se mueve
       if (!evt.daysOfWeek.includes(targetDay)) continue;
+      if (evt.extendedProps?.isCrossQuarterGhost) continue;
 
       if (targetSlotStarts.includes(evt.startTime)) {
-        const isGhost = !!evt.extendedProps.isCrossQuarterGhost;
-        const ghostTag = isGhost ? " (otro trimestre)" : "";
         const sameClassroom = evt.extendedProps.classroomId === classroomId;
         const sameProf = profId && evt.extendedProps.professorId === profId;
         const sameSection =
-          !isGhost &&
           evt.extendedProps.seccion === seccion &&
           evt.extendedProps.pnfName === pnfName &&
           evt.extendedProps.trayectoId === trayId;
 
-        if (sameClassroom) {
-          message.error(`El aula ya está ocupada por "${evt.title}"${ghostTag} a las ${evt.startTime}.`);
-          conflictFound = true; break;
+        if (sameClassroom || sameProf || sameSection) {
+          const evtSectionKey = `${evt.extendedProps.pnfId}-${evt.extendedProps.trayectoId}-${evt.extendedProps.seccion}-${trimestre}`;
+          if (lockedSections[evtSectionKey]) {
+            hasConflictWithFrozenSection = true;
+          } else {
+            hasConflictWithUnfrozenSection = true;
+          }
+          conflictFound = true;
         }
-        if (sameProf) {
-          message.error(`El profesor ya da clase de "${evt.title}"${ghostTag} a las ${evt.startTime}.`);
-          conflictFound = true; break;
-        }
-        if (sameSection) {
-          message.error(`La sección ya ve "${evt.title}" a las ${evt.startTime}.`);
-          conflictFound = true; break;
+      }
+    }
+
+    // For frozen sections, differentiate between Happy Path (conflict with
+    // unfrozen → recalculate) and Sad Path (conflict with frozen → block).
+    // If isFrozen and only has conflicts with unfrozen sections, we still
+    // proceed with the drop — the backend will recalculate the unfrozen
+    // sections around the new position.
+    if (isFrozen && hasConflictWithFrozenSection && !hasConflictWithUnfrozenSection) {
+      // Sad Path: conflict with another frozen section — cannot resolve.
+      const firstConflictEvent = allEvents.find(evt => {
+        if (movingEvents.includes(evt)) return false;
+        if (!evt.daysOfWeek?.includes(targetDay)) return false;
+        if (evt.extendedProps?.isCrossQuarterGhost) return false;
+        if (!targetSlotStarts.includes(evt.startTime)) return false;
+        const evtSectionKey = `${evt.extendedProps.pnfId}-${evt.extendedProps.trayectoId}-${evt.extendedProps.seccion}-${trimestre}`;
+        return !!lockedSections[evtSectionKey];
+      });
+      if (firstConflictEvent) {
+        message.error(`No se puede mover: el aula ya está ocupada por "${firstConflictEvent.title}" (sección congelada).`);
+      } else {
+        message.error("No se puede mover: hay conflicto con otra sección congelada.");
+      }
+      setDraggedEventInfo(null);
+      return;
+    }
+    if (isFrozen && conflictFound && !hasConflictWithFrozenSection) {
+      // Happy Path: conflict with unfrozen section(s) only — proceed, the
+      // backend recalculation will resolve the conflict.  Suppress the error
+      // messages and let the drop proceed.
+      conflictFound = false;
+    }
+
+    if (!isFrozen && conflictFound) {
+      // Non-frozen section with conflicts: show specific error messages.
+      for (const evt of allEvents) {
+        if (movingEvents.includes(evt)) continue;
+        if (!evt.daysOfWeek.includes(targetDay)) continue;
+
+        if (targetSlotStarts.includes(evt.startTime)) {
+          const isGhost = !!evt.extendedProps.isCrossQuarterGhost;
+          const ghostTag = isGhost ? " (otro trimestre)" : "";
+          const sameClassroom = evt.extendedProps.classroomId === classroomId;
+          const sameProf = profId && evt.extendedProps.professorId === profId;
+          const sameSection =
+            !isGhost &&
+            evt.extendedProps.seccion === seccion &&
+            evt.extendedProps.pnfName === pnfName &&
+            evt.extendedProps.trayectoId === trayId;
+
+          if (sameClassroom) {
+            message.error(`El aula ya está ocupada por "${evt.title}"${ghostTag} a las ${evt.startTime}.`);
+            break;
+          }
+          if (sameProf) {
+            message.error(`El profesor ya da clase de "${evt.title}"${ghostTag} a las ${evt.startTime}.`);
+            break;
+          }
+          if (sameSection) {
+            message.error(`La sección ya ve "${evt.title}" a las ${evt.startTime}.`);
+            break;
+          }
         }
       }
     }
