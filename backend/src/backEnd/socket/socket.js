@@ -118,12 +118,13 @@ export default function setupSocket(server, sessionMiddleware) {
           return
         }
       }
-      loadProyection().then(() => {
-        socket.emit('updateTeachers', teachers)
-        socket.emit('updateSubjects', subjects)
-        socket.emit('proyectionData', { proyectionName, proyectionId })
-        recalcSchedulesForProyection(currentProyectionId, io)
-      })
+      // reload is now a lightweight data refresh only.
+      // Schedule recalculation is never triggered by reload; it is only
+      // triggered by explicit schedule actions (toggleFreeze, saveOverride,
+      // saveConfig, etc.) or by the initial cold-start in schedule:join.
+      socket.emit('updateTeachers', teachers)
+      socket.emit('updateSubjects', subjects)
+      socket.emit('proyectionData', { proyectionName, proyectionId })
     })
 
     // Escuchar eventos de error

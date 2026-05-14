@@ -62,7 +62,7 @@ import Classrooms from '#models/schedule/classrooms.js'
 import Proyections from '#models/proyections.js'
 import LockedSections from '#models/schedule/lockedSections.js'
 import getTeacherList from '#querys/teachers/getTeacherList.js'
-import { recalcSchedulesForProyection } from '../schedule/scheduleService.js'
+import { recalcSchedulesForProyection, recalcSingleTrimestre } from '../schedule/scheduleService.js'
 
 const TRIM_VALUES = new Set(['q1', 'q2', 'q3'])
 
@@ -491,9 +491,23 @@ export function registerScheduleHandlers (io, socket) {
         })
       }
 
-      console.log('[schedule:toggleFreeze] DB write done, calling recalc')
-      await recalcSchedulesForProyection(proyectionId, io)
-      console.log('[schedule:toggleFreeze] recalc done, sending ack')
+      // Extract the trimestre from the sectionKey so we only recalculate the
+      // affected trimestre instead of all three. This prevents version
+      // conflicts when the user toggles multiple sections rapidly.
+      const trimFromKey = sectionKey.split('-').pop()
+      const affectedTrimestre = TRIM_VALUES.has(trimFromKey) ? trimFromKey : null
+
+      console.log('[schedule:toggleFreeze] DB write done, calling recalc for', affectedTrimestre || 'all')
+      // Recalc in the background so the client gets the ack immediately.
+      // The client already updated its local lockedSections optimistically.
+      const recalcPromise = affectedTrimestre
+        ? recalcSingleTrimestre(proyectionId, io, affectedTrimestre)
+        : recalcSchedulesForProyection(proyectionId, io)
+
+      recalcPromise
+        .then(() => console.log('[schedule:toggleFreeze] recalc done'))
+        .catch((err) => console.error('[schedule:toggleFreeze] recalc failed:', err))
+
       ok({})
     } catch (err) {
       console.error('[schedule:toggleFreeze] error:', err)

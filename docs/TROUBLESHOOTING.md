@@ -195,6 +195,91 @@ Faltaba implementación de handlers de drag & drop en `StagingArea.tsx`.
 
 ---
 
+### 5. Cambio de Aula en Sección Congelada: Recálculo Indiscriminado
+
+**Problema Identificado:**
+Al cambiar el aula de una materia en una sección congelada, el sistema siempre intentaba recalcular el horario cuando detectaba un conflicto, sin distinguir si el conflicto era con una sección congelada (inamovible) o con una sección descongelada (recolocable).
+
+**Síntoma:**
+- Happy Path (conflicto con sección descongelada): el recálculo funcionaba correctamente.
+- Sad Path (conflicto con sección congelada): el recálculo fallaba silenciosamente porque el algoritmo no puede mover secciones congeladas, dejando el conflicto sin resolver y sin advertencia clara al usuario.
+
+**Causa:**
+El bloque de manejo de conflictos para secciones congeladas (`isFrozen`) simplemente verificaba `conflictMap.size > 0` y siempre disparaba `schedule:regenerate`. No analizaba la naturaleza del evento conflictivo.
+
+**Solución:**
+1. Después de detectar conflictos, iterar sobre los eventos simulados y encontrar los eventos reales que causan conflicto de aula.
+2. Para cada evento conflictivo, construir su `sectionKey` y verificar si existe en `lockedSections`.
+3. **Happy Path** (`hasConflictWithUnfrozenSection = true`, `hasConflictWithFrozenSection = false`): guardar el override y disparar `schedule:regenerate` para que el backend recoloque la sección descongelada.
+4. **Sad Path** (`hasConflictWithFrozenSection = true`): mostrar `message.error()` explicando que el aula está ocupada por una sección congelada, NO disparar recálculo, y mantener los conflictos marcados con borde rojo en la UI.
+
+**Archivos Afectados:**
+- `src/components/SchoolSchedule/SchoolSchedule.tsx`
+
+**Referencias:**
+- [SCHEDULE_RULES.md](../SCHEDULE_RULES.md) §7.2 — Effects of freezing
+- [agents.md](../agents.md) §7.3 — Locked sections
+
+---
+
+### 6. Deadlock en `frozen_sections` al Descongelar Sección
+
+**Problema Identificado:**
+MySQL reportaba `ER_LOCK_DEADLOCK` (error 1213) cuando un usuario descongelaba una sección. El deadlock ocurría en la tabla `frozen_sections` durante un `INSERT ... ON DUPLICATE KEY UPDATE`.
+
+**Síntoma:**
+- Log del backend: `Error al guardar locked sections: Error ... SequelizeDatabaseError ... Deadlock found when trying to get lock`
+- La operación de descongelar fallaba intermitentemente.
+
+**Causa:**
+Dos rutas de escritura competían simultáneamente por las mismas filas de `frozen_sections`:
+1. **Socket handler** (`schedule:toggleFreeze` en `scheduleHandlers.js`): al descongelar, hace `LockedSections.destroy()` y luego `recalcSchedulesForProyection()`, que lee `frozen_sections` via `loadLockedSections()`.
+2. **Legacy HTTP bulk-save** (`POST /locked-sections` en `lockedSectionsRoutes.js`): el frontend tenía un `useEffect` en `mainContext.tsx` con debounce de 500ms que enviaba el objeto completo de `lockedSections` vía HTTP cada vez que cambiaba. Este POST abría una transacción, hacía `findAll` + `destroy` + `upsert` en bucle.
+
+Cuando el usuario descongelaba una sección, el socket handler modificaba `frozen_sections` e iniciaba recálculo. Casi inmediatamente, el frontend recibía el broadcast `schedule:state`, actualizaba su estado local, y el `useEffect` con debounce disparaba el POST HTTP. La transacción del POST competía con las operaciones autocommit del socket handler y con las lecturas del recálculo, produciendo deadlock.
+
+**Solución:**
+1. En `src/context/mainContext.tsx`: agregar `socket?.connected` como early-return en el `useEffect` de guardado. Cuando el socket está conectado, el backend maneja la persistencia de locked sections; el frontend no debe enviar el bulk-save HTTP.
+2. En `src/components/SchoolSchedule/SchoolSchedule.tsx`: agregar la misma guarda `scheduleConnected` en el `useEffect` de `pendingLockedSectionSaves`, que también persistía secciones individuales vía HTTP (`PUT /locked-sections`).
+
+**Archivos Afectados:**
+- `src/context/mainContext.tsx`
+- `src/components/SchoolSchedule/SchoolSchedule.tsx`
+
+**Referencias:**
+- [agents.md](../agents.md) §7.3 — Locked sections
+- [docs/BackendScheduleSync.md](./BackendScheduleSync.md) — Backend-driven schedule architecture
+
+### 7. Version Conflicts Masivos al Congelar/Descongelar Secciones Rápidamente
+
+**Problema Identificado:**
+Al congelar y descongelar secciones repetidamente en rápida sucesión, el backend generaba una cascada de errores `VERSION_CONFLICT` y el proxy de Vite reportaba `ECONNRESET`/`ECONNABORTED`.
+
+**Síntoma:**
+- Logs del backend: `[scheduleService] q1 version conflict, skipping` repetidos para q1, q2, q3.
+- El frontend perdía la conexión con el backend (ECONNRESET en Vite proxy).
+- El estado final podía quedar inconsistente entre trimestres.
+
+**Causa:**
+1. `schedule:toggleFreeze` llamaba `recalcSchedulesForProyection`, que recalculaba **los 3 trimestres secuencialmente** dentro de un mismo handler. Cada trimestre usa `applyAction` con `SELECT ... FOR UPDATE`.
+2. Si el usuario hacía 3 clicks rápidos, se lanzaban 3 handlers `toggleFreeze` concurrentemente. Cada uno leía la misma versión base de los trimestres, y al intentar escribir, solo el primero tenía éxito; los demás fallaban con `VERSION_CONFLICT`.
+3. Como cada recalc de 3 trimestres tomaba varios segundos, los handlers se solapaban y se bloqueaban mutuamente.
+
+**Solución:**
+1. **Refactorizar `scheduleService.js`**: extraer `recalcSingleTrimestre` de `recalcSchedulesForProyection`. La nueva función acepta un contexto pre-cargado (para no repetir queries cuando se recalculan múltiples trimestres) y tiene retry automático con backoff exponencial (3 intentos) ante `VERSION_CONFLICT`.
+2. **Extraer trimestre del `sectionKey`**: el `sectionKey` tiene formato `pnfId-trayectoId-seccion-trimestre`. Al togglear, el backend extrae el trimestre y solo recalcula ese trimestre, no los 3.
+3. **Recalc en background**: `schedule:toggleFreeze` responde al cliente inmediatamente (`ok({})`) y lanza el recalc en background (`Promise` sin `await`). Esto reduce la latencia percibida y evita que el Vite proxy timeoutee.
+
+**Archivos Afectados:**
+- `backend/src/backEnd/schedule/scheduleService.js`
+- `backend/src/backEnd/socket/scheduleHandlers.js`
+
+**Referencias:**
+- [agents.md](../agents.md) §7.3 — Locked sections
+- [docs/BackendScheduleSync.md](./BackendScheduleSync.md)
+
+---
+
 ## 🔗 Referencias
 
 - **[agents.md](../agents.md)** - Índice de documentación
@@ -203,4 +288,4 @@ Faltaba implementación de handlers de drag & drop en `StagingArea.tsx`.
 
 ---
 
-*Última actualización: 21 de abril de 2026*
+*Última actualización: 14 de mayo de 2026*

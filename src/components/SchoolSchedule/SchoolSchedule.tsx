@@ -420,6 +420,15 @@ onOk: () => {
   useEffect(() => {
     if (!proyectionId || pendingLockedSectionSaves.length === 0) return;
 
+    // When the backend-driven socket is connected, locked sections are
+    // persisted atomically via schedule:toggleFreeze / schedule:setState.
+    // Skip the legacy HTTP upsert to avoid deadlocks with the socket
+    // handlers that also touch frozen_sections.
+    if (scheduleConnected) {
+      setPendingLockedSectionSaves([]);
+      return;
+    }
+
     let cancelled = false;
     const queue = [...pendingLockedSectionSaves];
     setPendingLockedSectionSaves([]);
@@ -454,7 +463,7 @@ onOk: () => {
     return () => {
       cancelled = true;
     };
-  }, [pendingLockedSectionSaves, proyectionId, eventData, setLockedSections]);
+  }, [pendingLockedSectionSaves, proyectionId, eventData, setLockedSections, scheduleConnected]);
 
   // Staging area functions for official stage mode
   const getEventId = (event: Event): string => {
@@ -2271,24 +2280,57 @@ onOk: () => {
         }
       });
 
-      // Aplicar el cambio directo sin recalcular (registra el override y muestra mensaje)
+      // ─── Happy Path vs Sad Path analysis ───
+      // Determine if the conflicting events belong to frozen or unfrozen sections.
+      let hasConflictWithFrozenSection = false;
+      let hasConflictWithUnfrozenSection = false;
+
+      for (const simEv of simulatedEvents) {
+        const simProps = simEv.extendedProps;
+        const simDay = simEv.daysOfWeek?.[0];
+        const simStart = simEv.startTime;
+        if (!simProps || !simDay || !simStart) continue;
+
+        for (const existing of allEventsBeforeChange) {
+          if (!existing.extendedProps) continue;
+          if (existing.extendedProps.isCrossQuarterGhost) continue;
+          if (existing.daysOfWeek?.[0] !== simDay) continue;
+          if (existing.startTime !== simStart) continue;
+          if (getEventId(existing) === getEventId(simEv)) continue;
+
+          // Check classroom conflict specifically
+          if (existing.extendedProps.classroomId === newClassroomId) {
+            const existingSectionKey = `${existing.extendedProps.pnfId}-${existing.extendedProps.trayectoId}-${existing.extendedProps.seccion}-${trimestre}`;
+            if (lockedSections[existingSectionKey]) {
+              hasConflictWithFrozenSection = true;
+            } else {
+              hasConflictWithUnfrozenSection = true;
+            }
+          }
+        }
+      }
+
+      // ─── Aplicar el cambio directo ───
+      // Guardar refs locales porque applyClassroomChangeAndRecalculate limpia el estado
+      const _cce = classroomChangeEvent;
+      const _ncid = newClassroomId;
+      const _nc = newClassroom;
       applyClassroomChangeAndRecalculate(false);
 
       // ─── Actualizar visualmente los eventos en eventData, loadedScheduleEvents y lockedSections ───
-      // Necesario porque NO hay regeneración para secciones congeladas
       const matchesEvent = (evt: Event) =>
-        evt.daysOfWeek.includes(classroomChangeEvent.day) &&
-        evt.title === classroomChangeEvent.title &&
-        evt.startTime >= classroomChangeEvent.startTime &&
-        evt.startTime < classroomChangeEvent.endTime &&
-        evt.extendedProps.classroomId === classroomChangeEvent.currentClassroomId;
+        evt.daysOfWeek.includes(_cce.day) &&
+        evt.title === _cce.title &&
+        evt.startTime >= _cce.startTime &&
+        evt.startTime < _cce.endTime &&
+        evt.extendedProps.classroomId === _cce.currentClassroomId;
 
       const patchEvent = (evt: Event): Event => ({
         ...evt,
         extendedProps: {
           ...evt.extendedProps,
-          classroomId: newClassroomId,
-          classroomName: newClassroom.classroom,
+          classroomId: _ncid,
+          classroomName: _nc.classroom,
         },
       });
 
@@ -2305,28 +2347,32 @@ onOk: () => {
       // Marcar los eventos con conflictos para mostrar borde rojo
       setEventsWithConflicts(prev => {
         const updated = { ...prev };
-        // Limpiar conflictos anteriores de estos eventos
         eventsToCheck.forEach(ev => delete updated[getEventId(ev)]);
-        // Agregar nuevos conflictos detectados
         conflictMap.forEach((conflicts, eventId) => {
           updated[eventId] = conflicts;
         });
         return updated;
       });
 
-message.success(
-        `Aula cambiada a "${newClassroom.classroom}" para ${classroomChangeEvent.title} (secciA3n congelada${conflictMap.size > 0 ? ", recalculando descongeladas..." : ", sin recA�lculo"}).`
-      );
-
-      // Si hay conflictos en secciA3n congelada, guardar overrides y disparar recA�lculo
-      // para recolocar las secciones descongeladas alrededor del cambio.
-      if (conflictMap.size > 0 && proyectionId) {
+      // ─── Routing: Happy Path vs Sad Path ───
+      if (hasConflictWithFrozenSection) {
+        // Sad Path: the classroom is occupied by a frozen section. We cannot
+        // recalculate because frozen sections are immovable. Show error.
+        message.error(
+          `No se puede asignar el aula "${_nc.classroom}" porque está ocupada a esta hora por una sección congelada.`
+        );
+      } else if (hasConflictWithUnfrozenSection && proyectionId) {
+        // Happy Path: the classroom is occupied by an unfrozen section. The
+        // backend can recalculate and move that section elsewhere.
+        message.success(
+          `Aula cambiada a "${_nc.classroom}" para ${_cce.title}. Recalculando secciones descongeladas...`
+        );
         const newOverride: ClassroomOverride = {
-          subject_name: classroomChangeEvent.title,
-          day: classroomChangeEvent.day,
-          start_time: classroomChangeEvent.startTime,
-          end_time: classroomChangeEvent.endTime,
-          classroom_id: newClassroomId,
+          subject_name: _cce.title,
+          day: _cce.day,
+          start_time: _cce.startTime,
+          end_time: _cce.endTime,
+          classroom_id: _ncid,
           seccion: firstModifiedEvent?.extendedProps?.seccion || null,
           pnf_id: firstModifiedEvent?.extendedProps?.pnfId || null,
           trayecto_id: firstModifiedEvent?.extendedProps?.trayectoId || null,
@@ -2345,6 +2391,11 @@ message.success(
         }).catch((err) => {
           console.error("Error saving overrides after classroom change:", err);
         });
+      } else {
+        // No conflicts at all
+        message.success(
+          `Aula cambiada a "${_nc.classroom}" para ${_cce.title} (sección congelada, sin conflicto).`
+        );
       }
       setClassroomChangeEvent(null);
       setNewClassroomId("");

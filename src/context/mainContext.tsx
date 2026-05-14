@@ -133,6 +133,12 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     // Don't persist to backend until we've loaded from it at least once
     if (!lockedSectionsLoadedRef.current || !proyectionId) return;
 
+    // When the socket is connected, the backend handles persistence
+    // via schedule:toggleFreeze / schedule:setState / schedule:regenerate.
+    // Skip the legacy HTTP save to avoid race conditions and deadlocks
+    // with the socket handlers that also touch frozen_sections.
+    if (socket?.connected) return;
+
     // Debounce backend save to avoid excessive API calls
     if (saveLockedTimeoutRef.current !== null) {
       clearTimeout(saveLockedTimeoutRef.current);
@@ -150,7 +156,7 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         clearTimeout(saveLockedTimeoutRef.current);
       }
     };
-  }, [lockedSections, proyectionId]);
+  }, [lockedSections, proyectionId, socket]);
 
   const [subjectColors, setSubjectColors] = useState<Record<string, string> | null>(null);
 
@@ -296,13 +302,11 @@ export const MainContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
     socket.on("connect", () => {
       handleConnect();
-      // NOTE: socket.emit("reload") was removed because the backend-driven
-      // schedule state is now persisted in DB (schedules.state_snapshot).
-      // Reloading on every connect forced a full recalculation of all 3
-      // trimestres, causing long load times on browser refresh.
-      // Initial data (proyectionData/updateTeachers/updateSubjects) is
-      // pushed by the server on connection; schedule state is fetched
-      // on-demand via schedule:join in useScheduleSocket.
+      // Re-request initial data in case the socket emitted it before
+      // our listeners were attached (race condition on page refresh).
+      // The backend 'reload' handler now only re-emits data; it does
+      // NOT trigger schedule recalculation anymore.
+      socket.emit("reload");
     });
 
     return () => {
