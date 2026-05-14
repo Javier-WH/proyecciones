@@ -367,11 +367,27 @@ export function registerScheduleHandlers (io, socket) {
       if (!newOverrides) throw new ValidationError('overrides must be an array')
 
       for (const ov of newOverrides) {
+        const subj = ov.subjectName || ov.subject_name
+        const day = ov.day
+        const start = ov.startTime || ov.start_time
+        // Drop any previous override for the same subject + day + start_time
+        // before inserting the new one. Without this, stale overrides
+        // accumulate in the DB and the recalc may pick the wrong classroom.
+        if (subj && day != null && start) {
+          await ClassroomOverrides.destroy({
+            where: {
+              proyection_id: proyectionId,
+              subject_name: subj,
+              day,
+              start_time: start
+            }
+          })
+        }
         await ClassroomOverrides.create({
           proyection_id: proyectionId,
-          subject_name: ov.subjectName || ov.subject_name,
-          day: ov.day,
-          start_time: ov.startTime || ov.start_time,
+          subject_name: subj,
+          day,
+          start_time: start,
           end_time: ov.endTime || ov.end_time,
           classroom_id: ov.classroomId || ov.classroom_id,
           seccion: ov.seccion || null,

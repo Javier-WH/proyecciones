@@ -157,6 +157,11 @@ const SchoolSchedule: React.FC = () => {
   // (push) and inbound (apply) effects.
   const lastSyncedVersionRef = useRef<number>(0);
   const lastSyncedHashRef = useRef<string>("");
+  // Suppress reactive conflict detection while a Happy Path classroom change
+  // recalculation is pending. The backend will broadcast the corrected state;
+  // until then, marking the temporary local conflict would show a misleading
+  // red border.
+  const recalcPendingRef = useRef<boolean>(false);
 
   // ─── Cross-quarter ghost events ───
   // Eventos de OTROS trimestres calendario que se solapan con el trimestre
@@ -1017,7 +1022,14 @@ onOk: () => {
   // local drag/drop OR remote schedule:state broadcast). This makes conflicts
   // consistent across clients and persistent across reloads without needing
   // to store them separately in the backend — they are derived from eventData.
+  //
+  // When a Happy Path classroom change is pending backend recalculation, the
+  // local eventData temporarily holds the frozen section's new position
+  // together with the unfrozen section still in the same classroom.  That
+  // conflict will be resolved by the backend; suppressing the red border
+  // here avoids misleading the user.
   useEffect(() => {
+    if (recalcPendingRef.current) return;
     const scheduleEvents = getScheduleEvents(eventData);
     if (scheduleEvents.length === 0) {
       setEventsWithConflicts({});
@@ -2399,10 +2411,10 @@ onOk: () => {
         );
       } else if (hasConflictWithUnfrozenSection && proyectionId) {
         // Happy Path: the classroom is occupied by an unfrozen section. The
-        // backend can recalculate and move that section elsewhere. Clear the
-        // conflict markers for these events so the red border doesn't flash
-        // while recalculation is in progress; the reactive useEffect will
-        // re-detect conflicts FROM the backend state once it arrives.
+        // backend can recalculate and move that section elsewhere.
+        // Suppress reactive conflict detection until the backend broadcasts
+        // the corrected state, avoiding a misleading red border.
+        recalcPendingRef.current = true;
         setEventsWithConflicts(prev => {
           const updated = { ...prev };
           eventsToCheck.forEach(ev => delete updated[getEventId(ev)]);
@@ -2448,9 +2460,12 @@ onOk: () => {
                 console.log('[HappyPath] schedule:saveOverride ack', ack);
                 if (ack?.ok) {
                   setHasUnsavedOverrides(false);
+                } else {
+                  recalcPendingRef.current = false;
                 }
               });
             } else {
+              recalcPendingRef.current = false;
               // Fallback: HTTP save when socket is disconnected
               return saveClassroomOverrides(proyectionId, nextOverrides).then(() => {
                 setHasUnsavedOverrides(false);
@@ -2458,6 +2473,7 @@ onOk: () => {
             }
           })
           .catch((err) => {
+            recalcPendingRef.current = false;
             console.error("[HappyPath] Error saving locked section / overrides:", err);
           });
       } else {
@@ -2755,9 +2771,14 @@ onOk: () => {
   // eventData, classroomOverrides, and lockedSections are pushed.
   // The backend needs lockedSections to recalculate unfrozen sections around frozen positions.
   // schedule:setState is the escape hatch for manual edits.
+  //
+  // Suppressed while a Happy Path recalculation is pending (recalcPendingRef),
+  // so the intermediate conflicted local state is never pushed to the backend.
+  // Only the backend's own recalculation broadcast will update the state.
   useEffect(() => {
     if (!scheduleConnected || !proyectionId) return;
     if (eventData.length === 0) return;
+    if (recalcPendingRef.current) return;
     const snapshot = { eventData, classroomOverrides, lockedSections };
     const hash = JSON.stringify(snapshot);
     if (hash === lastSyncedHashRef.current) return;
@@ -2786,6 +2807,7 @@ onOk: () => {
     if (!scheduleVersion || scheduleVersion === lastSyncedVersionRef.current) return;
     console.log('[InboundSync] received schedule:state version', scheduleVersion, 'eventData length', scheduleState.eventData?.length, 'lockedSections keys', Object.keys(scheduleState.lockedSections || {}));
     lastSyncedVersionRef.current = scheduleVersion;
+    recalcPendingRef.current = false;
     if (Array.isArray(scheduleState.eventData) && scheduleState.eventData.length > 0) {
       setEventData(scheduleState.eventData);
     }
@@ -3362,6 +3384,12 @@ onOk: () => {
     const firstMovingEvent = movingEvents[0];
     const isFrozen = !!lockedSections[`${firstMovingEvent.extendedProps?.pnfId}-${firstMovingEvent.extendedProps?.trayectoId}-${firstMovingEvent.extendedProps?.seccion}-${trimestre}`];
 
+    // In classroom view, dropping onto a cell re-assigns the event to that
+    // cell's classroom.  The original `classroomId` (from draggedEventInfo)
+    // is the source classroom; `targetEntityId` is the destination.
+    const isReassigningClassroom = viewMode === "classroom" && targetEntityId && targetEntityId !== classroomId;
+    const effectiveClassroomId = isReassigningClassroom ? targetEntityId : classroomId;
+
     const targetSlots = tableSlots.slice(targetRowIndex, targetRowIndex + rowSpan);
     const targetSlotStarts = targetSlots.map(s => s[0]);
 
@@ -3392,7 +3420,7 @@ onOk: () => {
       if (evt.extendedProps?.isCrossQuarterGhost) continue;
 
       if (targetSlotStarts.includes(evt.startTime)) {
-        const sameClassroom = evt.extendedProps.classroomId === classroomId;
+        const sameClassroom = evt.extendedProps.classroomId === effectiveClassroomId;
         const sameProf = profId && evt.extendedProps.professorId === profId;
         const sameSection =
           evt.extendedProps.seccion === seccion &&
@@ -3437,7 +3465,9 @@ onOk: () => {
     if (isFrozen && conflictFound && !hasConflictWithFrozenSection) {
       // Happy Path: conflict with unfrozen section(s) only — proceed, the
       // backend recalculation will resolve the conflict.  Suppress the error
-      // messages and let the drop proceed.
+      // messages and the reactive conflict detection until the backend
+      // broadcasts the corrected state.
+      recalcPendingRef.current = true;
       conflictFound = false;
     }
 
@@ -3450,7 +3480,7 @@ onOk: () => {
         if (targetSlotStarts.includes(evt.startTime)) {
           const isGhost = !!evt.extendedProps.isCrossQuarterGhost;
           const ghostTag = isGhost ? " (otro trimestre)" : "";
-          const sameClassroom = evt.extendedProps.classroomId === classroomId;
+          const sameClassroom = evt.extendedProps.classroomId === effectiveClassroomId;
           const sameProf = profId && evt.extendedProps.professorId === profId;
           const sameSection =
             !isGhost &&
@@ -3500,7 +3530,7 @@ onOk: () => {
         day: targetDay,
         start_time: targetSlots[0][0],
         end_time: targetSlots[targetSlots.length - 1][1],
-        classroom_id: classroomId,
+        classroom_id: effectiveClassroomId,
         seccion: firstMovingEvent.extendedProps?.seccion || null,
         pnf_id: firstMovingEvent.extendedProps?.pnfId || null,
         trayecto_id: firstMovingEvent.extendedProps?.trayectoId || null,
@@ -3547,7 +3577,7 @@ setClassroomOverrides(prev => {
           extendedProps: {
             ...e.extendedProps,
             professorId: profId || e.extendedProps?.professorId,
-            classroomId: classroomId || e.extendedProps?.classroomId,
+            classroomId: effectiveClassroomId || e.extendedProps?.classroomId,
           },
         };
       }));
@@ -3573,7 +3603,7 @@ setClassroomOverrides(prev => {
                   daysOfWeek: [targetDay],
                   startTime: newStartTime,
                   endTime: newEndTime,
-                  extendedProps: { ...e.extendedProps, professorId: profId, classroomId: classroomId }
+                  extendedProps: { ...e.extendedProps, professorId: profId, classroomId: effectiveClassroomId }
                 };
               }
               return e;
@@ -3629,7 +3659,7 @@ pinDraggedEventsAndRecalculate(isFrozen);
             extendedProps: {
               ...e.extendedProps,
               professorId: profId || e.extendedProps?.professorId,
-              classroomId: classroomId || e.extendedProps?.classroomId,
+classroomId: effectiveClassroomId || e.extendedProps?.classroomId,
             },
           };
         });
@@ -3639,7 +3669,7 @@ pinDraggedEventsAndRecalculate(isFrozen);
           day: targetDay,
           start_time: targetSlots[0][0],
           end_time: targetSlots[targetSlots.length - 1][1],
-          classroom_id: classroomId,
+          classroom_id: effectiveClassroomId,
           seccion: firstMovingEvent?.extendedProps?.seccion || null,
           pnf_id: firstMovingEvent?.extendedProps?.pnfId || null,
           trayecto_id: firstMovingEvent?.extendedProps?.trayectoId || null,
@@ -3675,7 +3705,7 @@ if (conflictFound) {
             day: targetDay,
             start_time: targetSlots[0][0],
             end_time: targetSlots[targetSlots.length - 1][1],
-            classroom_id: classroomId,
+            classroom_id: effectiveClassroomId,
             seccion: firstMovingEvent?.extendedProps?.seccion || null,
             pnf_id: firstMovingEvent?.extendedProps?.pnfId || null,
             trayecto_id: firstMovingEvent?.extendedProps?.trayectoId || null,
