@@ -162,6 +162,26 @@ const SchoolSchedule: React.FC = () => {
   // until then, marking the temporary local conflict would show a misleading
   // red border.
   const recalcPendingRef = useRef<boolean>(false);
+  const [recalcLoading, setRecalcLoading] = useState(false);
+  const recalcLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startRecalcLoading = () => {
+    recalcPendingRef.current = true;
+    setRecalcLoading(true);
+    if (recalcLoadingTimerRef.current) clearTimeout(recalcLoadingTimerRef.current);
+    recalcLoadingTimerRef.current = setTimeout(() => {
+      recalcPendingRef.current = false;
+      setRecalcLoading(false);
+    }, 30_000);
+  };
+  const stopRecalcLoading = () => {
+    recalcPendingRef.current = false;
+    setRecalcLoading(false);
+    if (recalcLoadingTimerRef.current) {
+      clearTimeout(recalcLoadingTimerRef.current);
+      recalcLoadingTimerRef.current = null;
+    }
+  };
 
   // ─── Cross-quarter ghost events ───
   // Eventos de OTROS trimestres calendario que se solapan con el trimestre
@@ -2414,7 +2434,7 @@ onOk: () => {
         // backend can recalculate and move that section elsewhere.
         // Suppress reactive conflict detection until the backend broadcasts
         // the corrected state, avoiding a misleading red border.
-        recalcPendingRef.current = true;
+        startRecalcLoading();
         setEventsWithConflicts(prev => {
           const updated = { ...prev };
           eventsToCheck.forEach(ev => delete updated[getEventId(ev)]);
@@ -2461,11 +2481,11 @@ onOk: () => {
                 if (ack?.ok) {
                   setHasUnsavedOverrides(false);
                 } else {
-                  recalcPendingRef.current = false;
+                  stopRecalcLoading();
                 }
               });
             } else {
-              recalcPendingRef.current = false;
+              stopRecalcLoading();
               // Fallback: HTTP save when socket is disconnected
               return saveClassroomOverrides(proyectionId, nextOverrides).then(() => {
                 setHasUnsavedOverrides(false);
@@ -2473,7 +2493,7 @@ onOk: () => {
             }
           })
           .catch((err) => {
-            recalcPendingRef.current = false;
+            stopRecalcLoading();
             console.error("[HappyPath] Error saving locked section / overrides:", err);
           });
       } else {
@@ -2807,7 +2827,7 @@ onOk: () => {
     if (!scheduleVersion || scheduleVersion === lastSyncedVersionRef.current) return;
     console.log('[InboundSync] received schedule:state version', scheduleVersion, 'eventData length', scheduleState.eventData?.length, 'lockedSections keys', Object.keys(scheduleState.lockedSections || {}));
     lastSyncedVersionRef.current = scheduleVersion;
-    recalcPendingRef.current = false;
+    stopRecalcLoading();
     if (Array.isArray(scheduleState.eventData) && scheduleState.eventData.length > 0) {
       setEventData(scheduleState.eventData);
     }
@@ -3467,7 +3487,7 @@ onOk: () => {
       // backend recalculation will resolve the conflict.  Suppress the error
       // messages and the reactive conflict detection until the backend
       // broadcasts the corrected state.
-      recalcPendingRef.current = true;
+      startRecalcLoading();
       conflictFound = false;
     }
 
@@ -3746,7 +3766,12 @@ if (conflictFound) {
   };
 
   return (
-    <>
+    <Spin
+      spinning={recalcLoading}
+      tip="Recalculando horario..."
+      size="large"
+      style={{ maxHeight: "none" }}
+    >
       <div className="schedule-select-main-container">
         <div className="schedule-select-container">
           <div className="header-row-top">
@@ -5432,7 +5457,7 @@ if (conflictFound) {
           />
         </div>
       )}
-    </>
+    </Spin>
   );
 };
 
