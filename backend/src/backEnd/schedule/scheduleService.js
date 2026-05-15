@@ -325,7 +325,12 @@ export async function recalcSingleTrimestre (proyectionId, io, trimestre, contex
         }
       })
 
-      const delta = computeStateDelta(oldState, result.state)
+      let delta = null
+      try {
+        delta = computeStateDelta(oldState, result.state)
+      } catch (e) {
+        console.warn('[scheduleService] delta computation failed, sending full state:', e.message)
+      }
       broadcastState(io, proyectionId, trimestre, result.version, result.state, delta)
       console.log(`[scheduleService] ${trimestre} recalculated (v${result.version}), eventData: ${result.state.eventData?.length} events`)
       return

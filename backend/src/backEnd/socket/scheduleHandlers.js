@@ -160,6 +160,7 @@ export function registerScheduleHandlers (io, socket) {
       // kick off a reactive recalc so the client receives data shortly.
       if (version === 0 || !state?.eventData || state.eventData.length === 0) {
         recalcSchedulesForProyection(meta.proyectionId, io)
+          .catch(err => console.error('[schedule:join] cold-start recalc failed:', err.message))
       }
     } catch (err) {
       fail(err)
@@ -402,8 +403,10 @@ export function registerScheduleHandlers (io, socket) {
       const affectedTrimestre = TRIM_VALUES.has(msg.trimestre) ? msg.trimestre : null
       if (affectedTrimestre) {
         recalcSingleTrimestre(proyectionId, io, affectedTrimestre)
+          .catch(err => console.error('[schedule:saveOverride] recalc failed:', err.message))
       } else {
         recalcSchedulesForProyection(proyectionId, io)
+          .catch(err => console.error('[schedule:saveOverride] recalc failed:', err.message))
       }
       ok({})
     } catch (err) {
@@ -443,6 +446,7 @@ export function registerScheduleHandlers (io, socket) {
       await ClassroomOverrides.destroy({ where })
 
       recalcSchedulesForProyection(proyectionId, io)
+        .catch(err => console.error('[deleteOverride] recalc failed:', err.message))
       ok({})
     } catch (err) {
       fail(err)
@@ -459,6 +463,7 @@ export function registerScheduleHandlers (io, socket) {
       await ClassroomOverrides.destroy({ where: { proyection_id: proyectionId } })
 
       recalcSchedulesForProyection(proyectionId, io)
+        .catch(err => console.error('[deleteAllOverrides] recalc failed:', err.message))
       ok({})
     } catch (err) {
       fail(err)
@@ -791,6 +796,7 @@ export function registerScheduleHandlers (io, socket) {
 
       clearRecalcCache(proyectionId)
       recalcSchedulesForProyection(proyectionId, io)
+        .catch(err => console.error('[saveTeacherRestrictions] recalc failed:', err.message))
       ok({})
     } catch (err) {
       fail(err)
@@ -820,6 +826,7 @@ export function registerScheduleHandlers (io, socket) {
 
       clearRecalcCache(proyectionId)
       recalcSchedulesForProyection(proyectionId, io)
+        .catch(err => console.error('[saveSubjectRestrictions] recalc failed:', err.message))
       ok({})
     } catch (err) {
       fail(err)
