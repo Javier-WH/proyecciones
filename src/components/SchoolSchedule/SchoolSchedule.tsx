@@ -164,6 +164,9 @@ const SchoolSchedule: React.FC = () => {
   const recalcPendingRef = useRef<boolean>(false);
   const [recalcLoading, setRecalcLoading] = useState(false);
   const recalcLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track keys locally unfrozen so inbound merges don't re-add them before
+  // the backend has processed the unfreeze.
+  const pendingUnfreezesRef = useRef<Set<string>>(new Set());
 
   const startRecalcLoading = () => {
     recalcPendingRef.current = true;
@@ -388,6 +391,7 @@ const SchoolSchedule: React.FC = () => {
         okText: "Sí, desbloquear",
         cancelText: "Cancelar",
 onOk: () => {
+          pendingUnfreezesRef.current.add(key);
           setLockedSections((prev: any) => {
             const newObj = { ...prev };
             delete newObj[key];
@@ -399,6 +403,7 @@ onOk: () => {
         }
       });
 } else {
+      pendingUnfreezesRef.current.delete(key);
       const sectionEvents = getScheduleEvents(eventData).filter(e =>
         e.extendedProps.pnfId === pnfId &&
         e.extendedProps.trayectoId === trayId &&
@@ -1404,6 +1409,7 @@ onOk: () => {
         okText: "Sí, descongelar todo",
         cancelText: "Cancelar",
         onOk: () => {
+          sections.forEach(sec => pendingUnfreezesRef.current.add(`${pnfId}-${trayId}-${sec}-${trim}`));
           setLockedSections(prev => {
             const newObj = { ...prev };
             sections.forEach(sec => delete newObj[`${pnfId}-${trayId}-${sec}-${trim}`]);
@@ -1414,6 +1420,7 @@ onOk: () => {
         },
       });
     } else {
+      sections.forEach(sec => pendingUnfreezesRef.current.delete(`${pnfId}-${trayId}-${sec}-${trim}`));
       setLockedSections(prev => {
         const newObj = { ...prev };
         sections.forEach(sec => {
@@ -1452,6 +1459,7 @@ onOk: () => {
         okText: "Sí, descongelar PNF",
         cancelText: "Cancelar",
         onOk: () => {
+          sectionsMap.forEach(({ trayId, sec }) => pendingUnfreezesRef.current.add(`${pnfId}-${trayId}-${sec}-${trim}`));
           setLockedSections(prev => {
             const newObj = { ...prev };
             sectionsMap.forEach(({ trayId, sec }) => delete newObj[`${pnfId}-${trayId}-${sec}-${trim}`]);
@@ -1462,6 +1470,7 @@ onOk: () => {
         },
       });
     } else {
+      sectionsMap.forEach(({ trayId, sec }) => pendingUnfreezesRef.current.delete(`${pnfId}-${trayId}-${sec}-${trim}`));
       setLockedSections(prev => {
         const newObj = { ...prev };
         sectionsMap.forEach(({ trayId, sec }) => {
@@ -2832,7 +2841,23 @@ onOk: () => {
       setEventData(scheduleState.eventData);
     }
     if (scheduleState.lockedSections && typeof scheduleState.lockedSections === 'object') {
-      setLockedSections(scheduleState.lockedSections as Record<string, Event[]>);
+      // MERGE instead of REPLACE so that local toggles not yet processed
+      // by the backend are preserved — avoids checkbox flickering when
+      // the user freezes/unfreezes multiple sections quickly.
+      const pending = pendingUnfreezesRef.current;
+      setLockedSections(prev => {
+        const incoming = scheduleState.lockedSections as Record<string, Event[]>;
+        const merged = { ...prev };
+        // Remove confirmed unfreezes from pending set
+        for (const pk of pending) {
+          if (!incoming[pk]) pending.delete(pk);
+        }
+        // Merge incoming, preserving locally-unfrozen keys
+        for (const [k, v] of Object.entries(incoming)) {
+          if (!pending.has(k)) merged[k] = v;
+        }
+        return merged;
+      });
     }
     if (Array.isArray(scheduleState.classroomOverrides)) {
       setClassroomOverrides(scheduleState.classroomOverrides as ClassroomOverride[]);
