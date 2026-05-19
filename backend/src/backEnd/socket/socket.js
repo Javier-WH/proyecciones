@@ -5,7 +5,7 @@ import { updateProyection } from '../dataBase/create/updateProyection.js'
 import Config from '#models/config.js'
 import validateSubjectData from '#utils/validateSubject.js'
 import { registerScheduleHandlers } from './scheduleHandlers.js'
-import { recalcSchedulesForProyection } from '../schedule/scheduleService.js'
+import { recalcSchedulesForProyection, clearRecalcCache } from '../schedule/scheduleService.js'
 
 let io = null
 
@@ -46,7 +46,7 @@ export const loadProyection = async () => {
   }
 }
 
-export async function setTeacherList() {
+export async function setTeacherList () {
   const teacherList = await getTeacherList()
   teachers = teacherList
   io?.emit('updateTeachers', teachers)
@@ -54,7 +54,7 @@ export async function setTeacherList() {
 
 export function getIO () { return io }
 
-export default function setupSocket(server, sessionMiddleware) {
+export default function setupSocket (server, sessionMiddleware) {
   io = new Server(server, {
     cors: {
       origin: '*',
@@ -89,7 +89,7 @@ export default function setupSocket(server, sessionMiddleware) {
        if (validName.error) {
          console.log(validName.error)
          return
-       }*/
+       } */
 
       // Actualizar el array de asignaturas para el socket
       subjects = newSubjects
@@ -103,6 +103,9 @@ export default function setupSocket(server, sessionMiddleware) {
 
       // Emitir la actualización de asignaturas a todos los clientes
       io.emit('updateSubjects', subjects)
+
+      // Clear cache to ensure fresh subjects are used in recalc (fixes R2: stale cache)
+      clearRecalcCache(currentProyectionId)
 
       // Trigger schedule recalculation for all trimestres
       recalcSchedulesForProyection(currentProyectionId, io)
@@ -138,4 +141,3 @@ export default function setupSocket(server, sessionMiddleware) {
 
   return io
 }
-

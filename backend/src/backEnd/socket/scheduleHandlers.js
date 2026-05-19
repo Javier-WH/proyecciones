@@ -46,6 +46,7 @@ import {
   runAutoSolve,
   removePhantomEvents,
   enforceFrozenSections,
+  computeLockedSectionsHash,
   getEventId as scheduleEventId
 } from '../schedule/engine/index.js'
 import {
@@ -235,9 +236,13 @@ export function registerScheduleHandlers (io, socket) {
             breaks: scheduleConfig.breaks || []
           }
 
-          // ─── 1. SELF-HEAL locked sections ───
+          // ─── 1. VALIDATE locked sections (no mutations) ───
           const healed = selfHealLockedSections(lockedSections, subjects, trimestre)
           lockedSections = healed.lockedSections
+          if (healed.warnings.length > 0) {
+            console.warn('[scheduleHandlers] Frozen section validation warnings:', healed.warnings)
+            // TODO: Broadcast warnings to client for user visibility
+          }
 
           // Flat locked events for the active trimestre
           const lockedEventsActiveTrim = []
@@ -308,7 +313,18 @@ export function registerScheduleHandlers (io, socket) {
           let finalEvents = removePhantomEvents(solved.eventsdata)
 
           // ─── 5. FROZEN SECTIONS ENFORCEMENT ───
+          // Tripwire: detect any unexpected mutations to locked sections
+          const hashBefore = computeLockedSectionsHash(lockedSections)
           finalEvents = enforceFrozenSections(finalEvents, lockedSections, trimestre)
+          const hashAfter = computeLockedSectionsHash(lockedSections)
+          if (hashBefore !== hashAfter) {
+            console.error(
+              '[scheduleHandlers] FROZEN SECTION MUTATION DETECTED! ' +
+              `Locked sections hash changed during recalc for trimestre ${trimestre}. ` +
+              'This violates the invariant that frozen sections are immutable. ' +
+              `Hash before: ${hashBefore}, Hash after: ${hashAfter}`
+            )
+          }
 
           return {
             eventData: finalEvents,

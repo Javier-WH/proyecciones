@@ -10,6 +10,7 @@ import {
   runAutoSolve,
   removePhantomEvents,
   enforceFrozenSections,
+  computeLockedSectionsHash,
   getEventId
 } from './engine/index.js'
 import {
@@ -241,10 +242,14 @@ export async function recalcSingleTrimestre (proyectionId, io, trimestre, contex
         trimestre,
         baseVersion: currentVersion,
         mutator: async () => {
-          // Self-heal locked sections
+          // Validate locked sections (no mutations - frozen sections are immutable)
           let localLockedSections = ctx.lockedSections
           const healed = selfHealLockedSections(localLockedSections, ctx.subjects, trimestre)
           localLockedSections = healed.lockedSections
+          if (healed.warnings.length > 0) {
+            console.warn('[scheduleService] Frozen section validation warnings:', healed.warnings)
+            // TODO: Broadcast warnings to client for user visibility
+          }
 
           // Flat locked events for this trimestre
           const lockedEventsActiveTrim = []
@@ -312,7 +317,18 @@ export async function recalcSingleTrimestre (proyectionId, io, trimestre, contex
 
           // Phantom cleanup + frozen enforcement
           let finalEvents = removePhantomEvents(solved.eventsdata)
+          // Tripwire: detect any unexpected mutations to locked sections
+          const hashBefore = computeLockedSectionsHash(localLockedSections)
           finalEvents = enforceFrozenSections(finalEvents, localLockedSections, trimestre)
+          const hashAfter = computeLockedSectionsHash(localLockedSections)
+          if (hashBefore !== hashAfter) {
+            throw new Error(
+              '[scheduleService] FROZEN SECTION MUTATION DETECTED! ' +
+              'Locked sections hash changed during recalc for trimestre ' + trimestre + '. ' +
+              'This violates the invariant that frozen sections are immutable. ' +
+              'Hash before: ' + hashBefore + ', Hash after: ' + hashAfter
+            )
+          }
 
           return {
             eventData: finalEvents,

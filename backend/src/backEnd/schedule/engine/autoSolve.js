@@ -7,14 +7,17 @@
 // same schedule it used to produce on the client.
 //
 // Pipeline:
-//   1. selfHealLockedSections()  — sync professorId on locked events and
-//      remove phantom duplicates on the same slot of the same section.
+//   1. selfHealLockedSections()  — validate locked sections without mutation.
+//      Frozen sections are immutable; any professorId mismatches are logged
+//      as warnings but do NOT trigger silent mutations.
 //   2. (caller) generateScheduleEvents() — initial CSP solve.
 //   3. runAutoSolve()            — pass-2 backtracking + pass-3 swap
 //      displacement (compaction + cascade relocation).
 //   4. removePhantomEvents()     — sanity check for duplicates.
 //   5. enforceFrozenSections()   — restore persisted frozen events as the
-//      source of truth for any section marked locked.
+//      source of truth for any section marked locked. A hash check before
+//      and after this step acts as a tripwire to detect any unexpected
+//      mutations to frozen sections.
 //
 // This file intentionally avoids any browser-only APIs.
 // =====================================================
@@ -37,52 +40,44 @@ export function getEventId (event) {
 // ---------------------------------------------------------------------------
 
 /**
- * Sync the professorId on locked events with the current professor assigned
- * to each subject. Also removes phantom duplicates on the same slot of the
- * same section.
+ * Validate locked sections without mutating them.
+ * Frozen sections must be immutable - any professorId mismatches or
+ * data anomalies are reported as warnings but do NOT trigger mutations.
+ *
+ * This replaces the old "self-heal" behavior that silently mutated
+ * frozen events, which violated the invariant that frozen sections
+ * never change unless explicitly unfrozen by the user.
  *
  * @param {Record<string, any[]>} lockedSections
  * @param {any[]} currentSubjects
  * @param {string} trimestre
- * @returns {{ lockedSections: Record<string, any[]>, changed: boolean }}
+ * @returns {{ lockedSections: Record<string, any[]>, warnings: string[] }}
  */
 export function selfHealLockedSections (lockedSections, currentSubjects, trimestre) {
-  const updated = { ...lockedSections }
-  let changed = false
+  const warnings = []
 
-  for (const [key, lockedEvents] of Object.entries(updated)) {
+  for (const [key, lockedEvents] of Object.entries(lockedSections || {})) {
     if (!key.endsWith(`-${trimestre}`)) continue
-    let needsSync = false
 
-    const synchronized = lockedEvents.map(ev => {
+    for (const ev of lockedEvents) {
       const sub = currentSubjects?.find(s => s.innerId === ev.extendedProps?.subjectId)
-      if (!sub) return ev
+      if (!sub) {
+        warnings.push(`Locked event in ${key} references subject ${ev.extendedProps?.subjectId} which no longer exists`)
+        continue
+      }
       const currentProf = sub.quarter?.[trimestre] || null
       if (ev.extendedProps?.professorId !== currentProf) {
-        needsSync = true
-        return { ...ev, extendedProps: { ...ev.extendedProps, professorId: currentProf } }
+        const sectionKey = key.slice(0, key.lastIndexOf('-'))
+        warnings.push(
+          `Frozen section ${sectionKey} (trimestre ${trimestre}) has professorId mismatch: ` +
+          `event has ${ev.extendedProps?.professorId || 'none'}, subject has ${currentProf || 'none'}. ` +
+          'User must unfreeze and refreeze to update.'
+        )
       }
-      return ev
-    })
-
-    // Remove phantom duplicates: two events in the same slot of the same section.
-    const slotMap = new Map()
-    const phantoms = []
-    for (const ev of synchronized) {
-      const slotKey = `${ev.daysOfWeek?.[0]}-${ev.startTime}`
-      if (slotMap.has(slotKey)) { phantoms.push(ev); continue }
-      slotMap.set(slotKey, ev)
-    }
-    const cleaned = phantoms.length > 0 ? Array.from(slotMap.values()) : synchronized
-    if (phantoms.length > 0) needsSync = true
-
-    if (needsSync) {
-      updated[key] = cleaned
-      changed = true
     }
   }
 
-  return { lockedSections: updated, changed }
+  return { lockedSections: lockedSections || {}, warnings }
 }
 
 // ---------------------------------------------------------------------------
@@ -937,6 +932,28 @@ export function removePhantomEvents (eventsdata) {
 // ---------------------------------------------------------------------------
 // 5. FROZEN SECTIONS ENFORCEMENT
 // ---------------------------------------------------------------------------
+
+/**
+ * Compute a stable hash for locked sections to detect mutations.
+ * This is a tripwire: if the hash changes when it shouldn't, something
+ * is mutating frozen sections in violation of the invariant.
+ * @param {Record<string, any[]>} lockedSections
+ * @returns {string}
+ */
+export function computeLockedSectionsHash (lockedSections) {
+  const keys = Object.keys(lockedSections || {}).sort()
+  const parts = []
+  for (const key of keys) {
+    const events = lockedSections[key] || []
+    // Hash based on event IDs and key properties, not full objects
+    const eventHashes = events.map(ev => {
+      const p = ev?.extendedProps || {}
+      return `${ev.daysOfWeek?.[0]}-${ev.startTime}-${ev.endTime}-${p.subjectId}-${p.seccion}-${p.professorId}-${p.classroomId}`
+    }).sort()
+    parts.push(`${key}:${eventHashes.join('|')}`)
+  }
+  return parts.join(';')
+}
 
 /**
  * Replace events for frozen sections with the persisted source-of-truth.
