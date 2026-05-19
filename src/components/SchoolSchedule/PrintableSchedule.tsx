@@ -13,9 +13,28 @@ interface PrintableScheduleProps {
   activeTurnos?: Record<string, [string, string][]> | null;
   headerText?: string[];
   logoUrl?: string;
+  // Days of the week active in the schedule config (1=Mon ... 7=Sun).
+  // Defaults to Monday-Friday if not provided.
+  days?: number[];
 }
 
-const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ events, viewMode, turn, headerInfo, seccion, activeTurnos, headerText, logoUrl }, ref) => {
+// Mapping from day number (1=Mon..7=Sun) to display name (uppercase).
+const DAY_NAMES: Record<number, string> = {
+  1: "LUNES",
+  2: "MARTES",
+  3: "MIÉRCOLES",
+  4: "JUEVES",
+  5: "VIERNES",
+  6: "SÁBADO",
+  7: "DOMINGO",
+};
+
+const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ events, viewMode, turn, headerInfo, seccion, activeTurnos, headerText, logoUrl, days: daysProp }, ref) => {
+  // Active days: prop wins; fall back to Mon-Fri to preserve previous behaviour.
+  // Filter to the valid range (1..7) and sort, in case the prop comes in arbitrary order.
+  const days = (daysProp && daysProp.length > 0 ? daysProp : [1, 2, 3, 4, 5])
+    .filter((d) => d >= 1 && d <= 7)
+    .sort((a, b) => a - b);
   // Generate time slots based on view mode
   // Generate time slots based on view mode
   let timeSlots: [string, string][] = [];
@@ -79,8 +98,13 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
   // Generate grid template rows: 8mm for header + variable height for each time slot
   const rowHeight = (viewMode === "professor" || viewMode === "classroom") ? "8mm" : "10mm";
   const gridTemplateRows = `8mm repeat(${timeSlots.length}, ${rowHeight})`;
-  // Generate grid template columns: 40mm for HORA + 46.6mm for each day
-  const gridTemplateColumns = "40mm repeat(5, 46.6mm)";
+  // Page content is 273mm wide (letter landscape minus margins). The HORA
+  // column is fixed at 40mm; the remainder is distributed evenly across the
+  // active days so adding Saturday/Sunday does not blow past the page width.
+  const PAGE_CONTENT_WIDTH_MM = 273;
+  const HORA_COL_MM = 40;
+  const dayColMm = days.length > 0 ? (PAGE_CONTENT_WIDTH_MM - HORA_COL_MM) / days.length : 46.6;
+  const gridTemplateColumns = `${HORA_COL_MM}mm repeat(${days.length}, ${dayColMm}mm)`;
 
   // Group events logically if viewMode requires it
   const getRenderGroups = () => {
@@ -158,7 +182,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
         }
 
         event.daysOfWeek.forEach((day: number) => {
-          if (day >= 1 && day <= 5) {
+          if (days.includes(day)) {
             const prevSlotIndex = slotIndex - 1;
             let merged = false;
 
@@ -176,7 +200,13 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                   const sameClassroom = prevEvent.extendedProps?.classroomId === event.extendedProps?.classroomId;
                   const sameSection = prevEvent.extendedProps?.seccion === event.extendedProps?.seccion;
 
-                  if (sameTitle && sameProf && sameClassroom && sameSection) {
+                  // Match live render: do not merge cross-quarter ghosts with
+                // real events (they have a distinct style).
+                const sameGhostKind =
+                  !!prevEvent.extendedProps?.isCrossQuarterGhost ===
+                  !!event.extendedProps?.isCrossQuarterGhost;
+
+                if (sameTitle && sameProf && sameClassroom && sameSection && sameGhostKind) {
                     prevEvent.span += span;
                     merged = true;
                     for (let k = 0; k < span; k++) {
@@ -258,7 +288,6 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
 
       {renderGroups.map((group, groupIndex) => {
         const grid = buildGridForEvents(group.events);
-        const days = [1, 2, 3, 4, 5]; // Lunes to Viernes
 
         return (
           <div key={groupIndex} className="printable-page" style={{
@@ -366,66 +395,20 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                 justifyContent: "center",
                 backgroundColor: "#fff"
               }}>HORA</div>
-              <div style={{
-                gridColumn: "2",
-                gridRow: "1",
-                border: "0.4mm solid #000",
-                padding: "2mm",
-                fontWeight: "bold",
-                fontSize: "3.5mm",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "#fff"
-              }}>LUNES</div>
-              <div style={{
-                gridColumn: "3",
-                gridRow: "1",
-                border: "0.4mm solid #000",
-                padding: "2mm",
-                fontWeight: "bold",
-                fontSize: "3.5mm",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "#fff"
-              }}>MARTES</div>
-              <div style={{
-                gridColumn: "4",
-                gridRow: "1",
-                border: "0.4mm solid #000",
-                padding: "2mm",
-                fontWeight: "bold",
-                fontSize: "3.5mm",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "#fff"
-              }}>MIÉRCOLES</div>
-              <div style={{
-                gridColumn: "5",
-                gridRow: "1",
-                border: "0.4mm solid #000",
-                padding: "2mm",
-                fontWeight: "bold",
-                fontSize: "3.5mm",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "#fff"
-              }}>JUEVES</div>
-              <div style={{
-                gridColumn: "6",
-                gridRow: "1",
-                border: "0.4mm solid #000",
-                padding: "2mm",
-                fontWeight: "bold",
-                fontSize: "3.5mm",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "#fff"
-              }}>VIERNES</div>
+              {days.map((day, idx) => (
+                <div key={`hdr-${day}`} style={{
+                  gridColumn: `${idx + 2}`,
+                  gridRow: "1",
+                  border: "0.4mm solid #000",
+                  padding: "2mm",
+                  fontWeight: "bold",
+                  fontSize: "3.5mm",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#fff"
+                }}>{DAY_NAMES[day] || `DÍA ${day}`}</div>
+              ))}
 
               {/* Time slots and content */}
               {timeSlots.map((slot, rowIndex) => {
@@ -452,11 +435,14 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                     </div>
 
                     {/* Day columns */}
-                    {days.map(day => {
+                    {days.map((day, idx) => {
                       const cell = grid[rowIndex][day];
                       if (cell === 'occupied') return null;
 
-                      const gridColumn = day + 1; // +1 because column 1 is HORA
+                      // Column index follows the position in the `days` array,
+                      // not the day number, so non-contiguous day sets still
+                      // render in the expected columns. +2 because column 1 is HORA.
+                      const gridColumn = idx + 2;
 
                       if (cell) {
                         const gridRowEnd = gridRowNum + cell.span;

@@ -5058,6 +5058,7 @@ if (conflictFound) {
                 activeTurnos={activeTurnos}
                 headerText={scheduleConfig?.header_text}
                 logoUrl={scheduleConfig?.logo_url}
+                days={activeDays}
               />
             </div>
           </div>
@@ -5137,7 +5138,7 @@ if (conflictFound) {
                 Nueva aula:
               </label>
               <Select
-                style={{ width: "100%" }}
+git                 style={{ width: "100%" }}
                 value={newClassroomId || undefined}
                 placeholder="Seleccione un aula"
                 onChange={(value) => setNewClassroomId(value)}
