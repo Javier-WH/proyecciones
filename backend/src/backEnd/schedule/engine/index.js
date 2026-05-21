@@ -20,5 +20,6 @@ export {
   runAutoSolve,
   removePhantomEvents,
   enforceFrozenSections,
-  getEventId
+  getEventId,
+  computeLockedSectionsHash
 } from './autoSolve.js'
