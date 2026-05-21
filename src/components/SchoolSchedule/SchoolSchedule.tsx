@@ -1137,6 +1137,8 @@ onOk: () => {
     const processedEvents: Event[] = [];
     const conflicts: { event: Event; conflicts: string[] }[] = [];
     const swappedOutEvents: Event[] = [];
+    const movedOriginalIds = new Set<string>();
+    let keptInStagingCount = 0;
 
     for (const event of sortedEvents) {
       // Apply slot-based offset to preserve slot alignment (handles gaps in slot times)
@@ -1170,12 +1172,10 @@ onOk: () => {
       // If dropping over occupied slot, decide merge/swap behavior
       if (occupyingEvent) {
         if (isSameSubjectAndSection(occupyingEvent, event)) {
-          // Same subject/section: skip this event (already in schedule)
+          keptInStagingCount += 1;
           continue;
-        } else {
-          // Different subject/section: swap
-          swappedOutEvent = occupyingEvent;
         }
+        swappedOutEvent = occupyingEvent;
       }
 
       // Create new event with updated day/time at the drop target position
@@ -1193,6 +1193,7 @@ onOk: () => {
         conflicts.push({ event: newEvent, conflicts: eventConflicts });
       }
 
+      movedOriginalIds.add(getEventId(event));
       processedEvents.push(newEvent);
       if (swappedOutEvent) {
         swappedOutEvents.push(swappedOutEvent);
@@ -1217,16 +1218,16 @@ onOk: () => {
       
       message.warning(`Bloque reubicado con ${conflicts.length} conflicto(s) (${processedEvents.length} eventos)`);
     } else {
-      message.success(`Bloque reubicado en el horario (${processedEvents.length} eventos)`);
+      const stagedSuffix = keptInStagingCount > 0 ? `, ${keptInStagingCount} quedaron en depósito` : "";
+      message.success(`Bloque reubicado en el horario (${processedEvents.length} eventos${stagedSuffix})`);
     }
 
     // Change location for all events being moved and swapped
-    const eventsToMoveIds = new Set(eventsToMove.map(e => getEventId(e)));
     const swappedOutIds = new Set(swappedOutEvents.map(e => getEventId(e)));
 
     setEventData(prev => {
       // Remove original events from staging by their IDs to prevent duplication
-      let updated = prev.filter(e => !eventsToMoveIds.has(getEventId(e)));
+      let updated = prev.filter(e => !movedOriginalIds.has(getEventId(e)));
 
       // Change location: swapped events to 'staging'
       updated = updated.map(e => {
@@ -1242,7 +1243,8 @@ onOk: () => {
         extendedProps: { ...e.extendedProps, location: 'schedule' as const }
       }));
 
-      return [...updated, ...newEvents];
+      const newEventIds = new Set(newEvents.map(e => getEventId(e)));
+      return [...updated.filter(e => !newEventIds.has(getEventId(e))), ...newEvents];
     });
 
     // Track locked section saves for all events
@@ -1376,9 +1378,40 @@ onOk: () => {
       if (c.length > 0) allConflicts.push({ event: newEv, conflicts: c });
     }
 
+    const displacedIds = new Set<string>();
+    for (const newEv of newEvents) {
+      eventsToCheck.forEach(existing => {
+        if (
+          String(existing.daysOfWeek?.[0]) === String(newEv.daysOfWeek?.[0]) &&
+          existing.startTime === newEv.startTime &&
+          String(existing.extendedProps?.pnfId) === String(newEv.extendedProps?.pnfId) &&
+          String(existing.extendedProps?.trayectoId) === String(newEv.extendedProps?.trayectoId) &&
+          String(existing.extendedProps?.seccion) === String(newEv.extendedProps?.seccion)
+        ) {
+          displacedIds.add(getEventId(existing));
+        }
+      });
+    }
+
     // Apply the move: remove old events, add new ones
-    setEventData(prev => [...prev.filter(e => !oldIds.has(getEventId(e))), ...newEvents]);
+    setEventData(prev => {
+      const newIds = new Set(newEvents.map(e => getEventId(e)));
+      const updated = prev
+        .filter(e => !oldIds.has(getEventId(e)))
+        .map(e => displacedIds.has(getEventId(e))
+          ? { ...e, extendedProps: { ...e.extendedProps, location: 'staging' as const } }
+          : e
+        )
+        .filter(e => !newIds.has(getEventId(e)));
+      return [...updated, ...newEvents.map(e => ({
+        ...e,
+        extendedProps: { ...e.extendedProps, location: 'schedule' as const },
+      }))];
+    });
     newEvents.forEach(ev => enqueueLockedSectionSaveFromEvents(ev));
+    eventData
+      .filter(e => displacedIds.has(getEventId(e)))
+      .forEach(ev => enqueueLockedSectionSaveFromEvents(null, ev));
 
     // Update conflict visual indicators
     setEventsWithConflicts(prev => {
@@ -1391,7 +1424,8 @@ onOk: () => {
     if (allConflicts.length > 0) {
       message.warning(`Bloque movido con ${allConflicts.length} conflicto(s) (${newEvents.length} horas)`);
     } else {
-      message.success(`Bloque movido correctamente (${newEvents.length} horas)`);
+      const displacedSuffix = displacedIds.size > 0 ? `, ${displacedIds.size} hora(s) al depósito` : "";
+      message.success(`Bloque movido correctamente (${newEvents.length} horas${displacedSuffix})`);
     }
   };
 

@@ -309,6 +309,32 @@ Al cambiar el aula de una materia en la única sección congelada, el sistema no
 
 ---
 
+### 11. Pérdida o duplicación de horas al mover bloques con el depósito
+
+**Problema Identificado:**
+Al mover bloques entre el depósito y el horario, o entre días del horario, algunas horas podían perderse o duplicarse.
+
+**Síntoma:**
+Un bloque de 3 horas movido desde el depósito podía colocar solo 2 horas y perder la tercera. En otros casos, al mover un bloque, el horario podía mostrar 4 horas por duplicación.
+
+**Causa:**
+`processStagingDrop` eliminaba del depósito todas las horas solicitadas aunque alguna no se hubiera colocado porque el destino ya contenía la misma materia/sección. Además, `handleDropBetweenCells` agregaba los eventos movidos al destino sin sacar explícitamente a los ocupantes existentes de la misma celda/sección, dejando duplicados.
+
+**Solución:**
+1. En `processStagingDrop`, solo se eliminan del depósito las horas que realmente fueron colocadas en el horario.
+2. Si una hora no puede colocarse porque ya existe la misma materia/sección en el destino, queda en el depósito como fallback.
+3. Si el destino tiene otro evento, ese evento se mueve al depósito.
+4. En `handleDropBetweenCells`, los ocupantes desplazados se marcan como `location: 'staging'`.
+5. Antes de agregar los eventos movidos, se filtran duplicados por ID destino.
+
+**Archivos Afectados:**
+- `src/components/SchoolSchedule/SchoolSchedule.tsx`
+
+**Referencias:**
+- [SCHEDULE_RULES.md](../SCHEDULE_RULES.md) §7.3 — un evento está exactamente en un lugar: horario o depósito.
+
+---
+
 ## 🔗 Referencias
 
 - **[agents.md](../agents.md)** - Índice de documentación
@@ -317,4 +343,4 @@ Al cambiar el aula de una materia en la única sección congelada, el sistema no
 
 ---
 
-*Last updated: May 14, 2026*
+*Last updated: May 21, 2026*
