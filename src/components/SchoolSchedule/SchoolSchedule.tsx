@@ -2012,6 +2012,30 @@ onOk: () => {
     }
   };
 
+  const handlePinClassroomOverride = async (overrideToPin: ClassroomOverride) => {
+    const newOverrides = [
+      ...classroomOverrides.filter(
+        (o) => !(o.subject_name === overrideToPin.subject_name && o.day === overrideToPin.day && o.start_time === overrideToPin.start_time)
+      ),
+      overrideToPin,
+    ];
+    setClassroomOverrides(newOverrides);
+
+    if (proyectionId) {
+      try {
+        await saveClassroomOverrides(proyectionId, newOverrides);
+        message.success("Aula fijada en esta posición");
+        setHasUnsavedOverrides(false);
+      } catch (err) {
+        console.error(err);
+        message.error("Error al guardar la fijación de aula");
+        setHasUnsavedOverrides(true);
+      }
+    } else {
+      setHasUnsavedOverrides(true);
+    }
+  };
+
   const handleDeleteAllOverrides = () => {
     Modal.confirm({
       title: "Eliminar todos los cambios de aula",
@@ -4615,6 +4639,18 @@ if (conflictFound) {
                                     (!override.pnf_id || override.pnf_id === cell.extendedProps?.pnfId) &&
                                     (!override.trayecto_id || override.trayecto_id === cell.extendedProps?.trayectoId)
                                   );
+                                  const currentClassroomId = cell.extendedProps?.classroomId || "";
+                                  const currentClassroomName = cell.extendedProps?.classroomName || "";
+                                  const currentPinOverride: ClassroomOverride = {
+                                    subject_name: cell.title,
+                                    day,
+                                    start_time: slot[0],
+                                    end_time: endTime,
+                                    classroom_id: currentClassroomId,
+                                    seccion: cell.extendedProps?.seccion || null,
+                                    pnf_id: cell.extendedProps?.pnfId || null,
+                                    trayecto_id: cell.extendedProps?.trayectoId || null,
+                                  };
 
                                   const tooltipContent = (
                                     <div style={{ textAlign: "center" }}>
@@ -4651,6 +4687,14 @@ if (conflictFound) {
                                         setNewClassroomId(cell.extendedProps?.classroomId || "");
                                       },
                                     },
+                                    ...(pinnedOverrides.length === 0 && currentClassroomId ? [
+                                      {
+                                        key: "pin-classroom",
+                                        icon: <TbPinFilled />,
+                                        label: `Fijar aula ${currentClassroomName || "actual"} aquí`,
+                                        onClick: () => handlePinClassroomOverride(currentPinOverride),
+                                      },
+                                    ] : []),
                                     ...(pinnedOverrides.length > 0 ? [
                                       {
                                         type: "divider" as const,
