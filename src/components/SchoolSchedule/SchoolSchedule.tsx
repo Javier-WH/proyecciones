@@ -391,6 +391,7 @@ const SchoolSchedule: React.FC = () => {
         okText: "Sí, desbloquear",
         cancelText: "Cancelar",
 onOk: () => {
+          startRecalcLoading();
           pendingUnfreezesRef.current.add(key);
           setLockedSections((prev: any) => {
             const newObj = { ...prev };
@@ -399,7 +400,11 @@ onOk: () => {
             return newObj;
           });
           setIsOfficialStageMode(false);
-          scheduleDispatch("schedule:toggleFreeze", { sectionKey: key, freeze: false });
+          scheduleDispatch("schedule:toggleFreeze", { sectionKey: key, freeze: false })
+            .then((ack) => {
+              if (!ack.ok) stopRecalcLoading();
+            })
+            .catch(() => stopRecalcLoading());
         }
       });
 } else {
@@ -1443,6 +1448,7 @@ onOk: () => {
         okText: "Sí, descongelar todo",
         cancelText: "Cancelar",
         onOk: () => {
+          startRecalcLoading();
           sections.forEach(sec => pendingUnfreezesRef.current.add(`${pnfId}-${trayId}-${sec}-${trim}`));
           setLockedSections(prev => {
             const newObj = { ...prev };
@@ -1450,7 +1456,11 @@ onOk: () => {
             message.info(`Trayecto ${trayName} descongelado.`);
             return newObj;
           });
-          sections.forEach(sec => scheduleDispatch("schedule:toggleFreeze", { sectionKey: `${pnfId}-${trayId}-${sec}-${trim}`, freeze: false }));
+          Promise.all(sections.map(sec => scheduleDispatch("schedule:toggleFreeze", { sectionKey: `${pnfId}-${trayId}-${sec}-${trim}`, freeze: false })))
+            .then((acks) => {
+              if (acks.some(ack => !ack.ok)) stopRecalcLoading();
+            })
+            .catch(() => stopRecalcLoading());
         },
       });
     } else {
@@ -1493,6 +1503,7 @@ onOk: () => {
         okText: "Sí, descongelar PNF",
         cancelText: "Cancelar",
         onOk: () => {
+          startRecalcLoading();
           sectionsMap.forEach(({ trayId, sec }) => pendingUnfreezesRef.current.add(`${pnfId}-${trayId}-${sec}-${trim}`));
           setLockedSections(prev => {
             const newObj = { ...prev };
@@ -1500,7 +1511,11 @@ onOk: () => {
             message.info(`PNF ${pnfName} descongelado.`);
             return newObj;
           });
-          sectionsMap.forEach(({ trayId, sec }) => scheduleDispatch("schedule:toggleFreeze", { sectionKey: `${pnfId}-${trayId}-${sec}-${trim}`, freeze: false }));
+          Promise.all(sectionsMap.map(({ trayId, sec }) => scheduleDispatch("schedule:toggleFreeze", { sectionKey: `${pnfId}-${trayId}-${sec}-${trim}`, freeze: false })))
+            .then((acks) => {
+              if (acks.some(ack => !ack.ok)) stopRecalcLoading();
+            })
+            .catch(() => stopRecalcLoading());
         },
       });
     } else {
@@ -2768,11 +2783,29 @@ onOk: () => {
     // finally { setIsFetchingSchedules(false); }
   };
 
-  // Función para crear un nuevo horario (limpiar eventos cargados)
-  const newSchedule = () => {
+  const recalculateSchedule = async () => {
+    if (!scheduleConnected) {
+      message.warning("No se puede recalcular porque el servidor de horarios no está conectado.");
+      return;
+    }
+
+    startRecalcLoading();
     setLoadedScheduleEvents([]);
-    setActiveScheduleName("Horario fresco");
-    message.info("Creando nuevo horario. Los eventos cargados han sido limpiados.");
+    setActiveScheduleName("Horario recalculado");
+
+    try {
+      const ack = await scheduleDispatch("schedule:regenerate", {});
+      if (!ack.ok) {
+        stopRecalcLoading();
+        message.error(ack.message || "No se pudo recalcular el horario.");
+        return;
+      }
+      message.info(`Recalculando el horario del ${trimestre.toUpperCase()}.`);
+    } catch (error) {
+      stopRecalcLoading();
+      console.error("schedule:regenerate error", error);
+      message.error("No se pudo recalcular el horario.");
+    }
   };
 
   // Función que se ejecuta al presionar "Abrir" dentro del Modal
@@ -4247,7 +4280,7 @@ if (conflictFound) {
                 transition: "margin-right 0.2s ease"
               }}
             >
-              <FaPlus title="Nuevo Horario" className={styles.icon} onClick={newSchedule} />
+              <FaPlus title="Recalcular" className={styles.icon} onClick={recalculateSchedule} />
               <FaRegFolderOpen title="Abrir Horarios" className={styles.icon} onClick={openSchedule} />
               <FaRegSave title="Guardar Horario" className={styles.icon} onClick={saveSchedule} />
               <div style={{ display: 'flex', gap: '8px' }}>
