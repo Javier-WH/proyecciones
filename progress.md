@@ -39,6 +39,8 @@ This file is the shared, append-only memory for any coding agent (and any human)
 - 2026-05-25 — frontend/schedule — Renamed the "Nuevo Horario" action to "Recalcular" and changed it to dispatch backend `schedule:regenerate` for the currently selected trimestre, preserving frozen sections via the backend regeneration pipeline. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 - 2026-05-25 — frontend/schedule — Show the recalculation loading overlay when unfreezing a section, trayecto, or PNF because `schedule:toggleFreeze` triggers backend recalculation in the background; failures stop the overlay, successful recalcs stop on inbound `schedule:state`. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 - 2026-05-25 — frontend/schedule — Moved the recalculation loading UI from an Ant Design wrapper `Spin` to a fixed high-z-index overlay so it appears above freeze/unfreeze confirmation modals. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
+- 2026-05-25 — backend/schedule — Fixed recalculation subject restriction loading to fall back to global `subjects_restrictions` (`proyection_id = null`) when no projection-specific restrictions exist, so backend recalculation honors migrated global subject/classroom restrictions. — files: `backend/src/backEnd/schedule/loadRestrictions.js`
+- 2026-05-25 — frontend/schedule — Added a right-click context menu action on pinned schedule blocks to remove the classroom pin directly from the grid, reusing the existing persisted classroom override deletion flow. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 
 ---
 

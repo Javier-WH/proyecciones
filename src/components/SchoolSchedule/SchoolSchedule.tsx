@@ -4606,6 +4606,15 @@ if (conflictFound) {
                                   }
 
                                   const isFrozen = !!lockedSections[`${cell.extendedProps?.pnfId}-${cell.extendedProps?.trayectoId}-${cell.extendedProps?.seccion}-${trimestre}`];
+                                  const pinnedOverrides = classroomOverrides.filter(override =>
+                                    override.subject_name === cell.title &&
+                                    override.day === day &&
+                                    override.start_time >= slot[0] &&
+                                    override.start_time < endTime &&
+                                    (!override.seccion || override.seccion === cell.extendedProps?.seccion) &&
+                                    (!override.pnf_id || override.pnf_id === cell.extendedProps?.pnfId) &&
+                                    (!override.trayecto_id || override.trayecto_id === cell.extendedProps?.trayectoId)
+                                  );
 
                                   const tooltipContent = (
                                     <div style={{ textAlign: "center" }}>
@@ -4642,6 +4651,18 @@ if (conflictFound) {
                                         setNewClassroomId(cell.extendedProps?.classroomId || "");
                                       },
                                     },
+                                    ...(pinnedOverrides.length > 0 ? [
+                                      {
+                                        type: "divider" as const,
+                                      },
+                                      {
+                                        key: "remove-classroom-pin",
+                                        icon: <BsPinAngleFill />,
+                                        label: "Eliminar fijación de aula",
+                                        danger: true,
+                                        onClick: () => handleDeleteOverrides(pinnedOverrides),
+                                      },
+                                    ] : []),
                                   ];
 
                                   // Check if this cell has conflicts

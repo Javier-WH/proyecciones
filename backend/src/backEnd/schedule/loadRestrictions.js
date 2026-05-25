@@ -34,13 +34,18 @@ export async function loadTeacherRestrictions () {
  * @returns {Promise<Array>}
  */
 export async function loadSubjectRestrictions (proyectionId) {
-  const rows = await SubjectRestrictions.findAll({
+  let rows = await SubjectRestrictions.findAll({
     where: { proyection_id: proyectionId }
   })
+  if (rows.length === 0) {
+    rows = await SubjectRestrictions.findAll({
+      where: { proyection_id: null }
+    })
+  }
   return rows.map(row => ({
     subjectKey: row.subject_key,
     subjectName: row.subject_name,
-    classroomIds: row.classroom_ids || [],
+    classroomIds: Array.isArray(row.classroom_ids) ? row.classroom_ids : [],
     pnfId: row.pnf_id,
     isExclusive: row.is_exclusive,
     splitHours: row.split_hours
