@@ -38,6 +38,7 @@ This file is the shared, append-only memory for any coding agent (and any human)
 - 2026-05-21 — backend/schedule — **Fix missing export after rebase**: After rebase, `scheduleService.js` imported `computeLockedSectionsHash` from `engine/index.js` but the export was missing. Added the export to `engine/index.js` from `autoSolve.js`. — files: `backend/src/backEnd/schedule/engine/index.js`
 - 2026-05-25 — frontend/schedule — Renamed the "Nuevo Horario" action to "Recalcular" and changed it to dispatch backend `schedule:regenerate` for the currently selected trimestre, preserving frozen sections via the backend regeneration pipeline. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 - 2026-05-25 — frontend/schedule — Show the recalculation loading overlay when unfreezing a section, trayecto, or PNF because `schedule:toggleFreeze` triggers backend recalculation in the background; failures stop the overlay, successful recalcs stop on inbound `schedule:state`. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
+- 2026-05-25 — frontend/schedule — Moved the recalculation loading UI from an Ant Design wrapper `Spin` to a fixed high-z-index overlay so it appears above freeze/unfreeze confirmation modals. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 
 ---
 

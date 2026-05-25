@@ -3858,12 +3858,22 @@ if (conflictFound) {
   };
 
   return (
-    <Spin
-      spinning={recalcLoading}
-      tip="Recalculando horario..."
-      size="large"
-      style={{ maxHeight: "none" }}
-    >
+    <>
+      {recalcLoading && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 3000,
+            background: "rgba(255, 255, 255, 0.72)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Spin tip="Recalculando horario..." size="large" />
+        </div>
+      )}
       <div className="schedule-select-main-container">
         <div className="schedule-select-container">
           <div className="header-row-top">
@@ -5550,7 +5560,7 @@ git                 style={{ width: "100%" }}
           />
         </div>
       )}
-    </Spin>
+    </>
   );
 };
 
