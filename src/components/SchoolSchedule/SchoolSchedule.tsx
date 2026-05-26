@@ -4669,10 +4669,8 @@ if (conflictFound) {
                                     {
                                       key: "change-classroom",
                                       icon: <SwapOutlined />,
-                                      disabled: isFrozen && !isOfficialStageMode,
-                                      label: (isFrozen && !isOfficialStageMode) ? "Aula Congelada (No editable)" : "Cambiar Aula",
+                                      label: "Cambiar Aula",
                                       onClick: () => {
-                                        if (isFrozen && !isOfficialStageMode) return;
                                         const endTimeIdx = rowIndex + cell.rowSpan - 1;
                                         const evtEndTime = tableSlots[endTimeIdx] ? tableSlots[endTimeIdx][1] : "";
                                         setClassroomChangeEvent({
@@ -5280,7 +5278,7 @@ if (conflictFound) {
                 Nueva aula:
               </label>
               <Select
-git                 style={{ width: "100%" }}
+                style={{ width: "100%" }}
                 value={newClassroomId || undefined}
                 placeholder="Seleccione un aula"
                 onChange={(value) => setNewClassroomId(value)}
