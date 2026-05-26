@@ -169,6 +169,21 @@ Faltaba implementación de handlers de drag & drop en `StagingArea.tsx`.
 
 ## 📝 Errores Futuros
 
+### Drag & Drop rollback with delayed schedule sync
+
+**Problem:** Schedule blocks moved quickly in production could visually return to their previous position.
+
+**Symptom:** Drag/drop from schedule to schedule, or from deposit to schedule, applied locally and then rolled back shortly after.
+
+**Cause:** Manual drag/drop still used optimistic local `eventData` updates plus full-snapshot `schedule:setState`. With production latency, an older `schedule:state` broadcast could arrive while the local edit was still in flight and overwrite the optimistic move.
+
+**Solution:** Added pending manual edit hashing and serialized `schedule:setState` flushing. Delayed inbound states no longer replace local manual edits while the matching snapshot is still being persisted, and only the latest queued snapshot is sent.
+
+**Files:**
+- `src/components/SchoolSchedule/SchoolSchedule.tsx`
+
+---
+
 **Plantilla para agregar nuevos errores:**
 
 ```markdown

@@ -157,6 +157,18 @@ const SchoolSchedule: React.FC = () => {
   // (push) and inbound (apply) effects.
   const lastSyncedVersionRef = useRef<number>(0);
   const lastSyncedHashRef = useRef<string>("");
+  const pendingManualEditHashRef = useRef<string>("");
+  const setStateInFlightRef = useRef<boolean>(false);
+  const queuedSetStateSnapshotRef = useRef<{
+    hash: string;
+    payload: {
+      eventData: Event[];
+      classroomOverrides: ClassroomOverride[];
+      lockedSections: typeof lockedSections;
+      stagedEvents: Event[];
+      scheduleConfig: ScheduleConfig | Record<string, never>;
+    };
+  } | null>(null);
   // Suppress reactive conflict detection while a Happy Path classroom change
   // recalculation is pending. The backend will broadcast the corrected state;
   // until then, marking the temporary local conflict would show a misleading
@@ -184,6 +196,20 @@ const SchoolSchedule: React.FC = () => {
       clearTimeout(recalcLoadingTimerRef.current);
       recalcLoadingTimerRef.current = null;
     }
+  };
+
+  const getScheduleSnapshotHash = (
+    nextEventData: Event[],
+    nextClassroomOverrides: ClassroomOverride[] = classroomOverrides,
+    nextLockedSections: typeof lockedSections = lockedSections
+  ) => JSON.stringify({
+    eventData: nextEventData,
+    classroomOverrides: nextClassroomOverrides,
+    lockedSections: nextLockedSections,
+  });
+
+  const markManualEditPending = (nextEventData: Event[]) => {
+    pendingManualEditHashRef.current = getScheduleSnapshotHash(nextEventData);
   };
 
   // ─── Cross-quarter ghost events ───
@@ -527,12 +553,16 @@ onOk: () => {
         return;
       }
       // Change location to 'staging' instead of moving between arrays
-      setEventData(prev => prev.map(e => {
-        if (getEventId(e) === singleEventId) {
-          return { ...e, extendedProps: { ...e.extendedProps, location: 'staging' as const } };
-        }
-        return e;
-      }));
+      setEventData(prev => {
+        const updated = prev.map(e => {
+          const next = getEventId(e) === singleEventId
+            ? { ...e, extendedProps: { ...e.extendedProps, location: 'staging' as const } }
+            : e;
+          return next;
+        });
+        markManualEditPending(updated);
+        return updated;
+      });
       message.info("Evento movido al área de depósito");
       return;
     }
@@ -595,12 +625,16 @@ onOk: () => {
     }
 
     // Change location to 'staging' instead of moving between arrays
-    setEventData(prev => prev.map(e => {
-      if (eventsToMoveIds.has(getEventId(e))) {
-        return { ...e, extendedProps: { ...e.extendedProps, location: 'staging' as const } };
-      }
-      return e;
-    }));
+    setEventData(prev => {
+      const updated = prev.map(e => {
+        const next = eventsToMoveIds.has(getEventId(e))
+          ? { ...e, extendedProps: { ...e.extendedProps, location: 'staging' as const } }
+          : e;
+        return next;
+      });
+      markManualEditPending(updated);
+      return updated;
+    });
     message.info(`Bloque movido al área de depósito (${eventsToMove.length} hora(s))`);
   };
 
@@ -726,7 +760,11 @@ onOk: () => {
     }
 
     // Add events to eventData
-    setEventData(prev => [...prev, ...newEvents]);
+    setEventData(prev => {
+      const nextEventData = [...prev, ...newEvents];
+      markManualEditPending(nextEventData);
+      return nextEventData;
+    });
 
     // Check conflicts for each new event
     const allConflicts: { event: Event; conflicts: string[] }[] = [];
@@ -841,6 +879,7 @@ onOk: () => {
         }
         return e;
       });
+      markManualEditPending(updated);
       return updated;
     });
     message.info(`Materia devuelta al horario (${events.length} hora(s))`);
@@ -908,6 +947,7 @@ onOk: () => {
             }
             return e;
           });
+          markManualEditPending(updated);
           return updated;
         });
         message.success("Todos los eventos devueltos al horario");
@@ -1249,7 +1289,9 @@ onOk: () => {
       }));
 
       const newEventIds = new Set(newEvents.map(e => getEventId(e)));
-      return [...updated.filter(e => !newEventIds.has(getEventId(e))), ...newEvents];
+      const nextEventData = [...updated.filter(e => !newEventIds.has(getEventId(e))), ...newEvents];
+      markManualEditPending(nextEventData);
+      return nextEventData;
     });
 
     // Track locked section saves for all events
@@ -1314,7 +1356,11 @@ onOk: () => {
     if (blockEvents.length === 0) {
       const oldId = getEventId(sourceEvent);
       const newEvent: Event = { ...sourceEvent, daysOfWeek: [targetDay], startTime: targetStartTime, endTime: _targetEndTime };
-      setEventData(prev => [...prev.filter(e => getEventId(e) !== oldId), newEvent]);
+      setEventData(prev => {
+        const nextEventData = [...prev.filter(e => getEventId(e) !== oldId), newEvent];
+        markManualEditPending(nextEventData);
+        return nextEventData;
+      });
       enqueueLockedSectionSaveFromEvents(newEvent);
       message.success("Evento movido correctamente");
       return;
@@ -1408,10 +1454,12 @@ onOk: () => {
           : e
         )
         .filter(e => !newIds.has(getEventId(e)));
-      return [...updated, ...newEvents.map(e => ({
+      const nextEventData = [...updated, ...newEvents.map(e => ({
         ...e,
         extendedProps: { ...e.extendedProps, location: 'schedule' as const },
       }))];
+      markManualEditPending(nextEventData);
+      return nextEventData;
     });
     newEvents.forEach(ev => enqueueLockedSectionSaveFromEvents(ev));
     eventData
@@ -2899,23 +2947,47 @@ onOk: () => {
     if (!scheduleConnected || !proyectionId) return;
     if (eventData.length === 0) return;
     if (recalcPendingRef.current) return;
-    const snapshot = { eventData, classroomOverrides, lockedSections };
-    const hash = JSON.stringify(snapshot);
-    if (hash === lastSyncedHashRef.current) return;
-    lastSyncedHashRef.current = hash;
-    let cancelled = false;
-    scheduleDispatch("schedule:setState", {
+    const payload = {
       eventData,
       classroomOverrides,
       lockedSections,
       stagedEvents: [],
       scheduleConfig: scheduleConfig || {},
-    }).then((ack) => {
-      if (cancelled) return;
-      if (ack.ok && typeof ack.version === "number") {
-        lastSyncedVersionRef.current = ack.version;
+    };
+    const hash = getScheduleSnapshotHash(eventData, classroomOverrides, lockedSections);
+    if (hash === lastSyncedHashRef.current) return;
+    queuedSetStateSnapshotRef.current = { hash, payload };
+    if (setStateInFlightRef.current) return;
+
+    let cancelled = false;
+    const flushQueuedSnapshot = async () => {
+      while (!cancelled && queuedSetStateSnapshotRef.current) {
+        const queued = queuedSetStateSnapshotRef.current;
+        queuedSetStateSnapshotRef.current = null;
+        setStateInFlightRef.current = true;
+        lastSyncedHashRef.current = queued.hash;
+        try {
+          const ack = await scheduleDispatch("schedule:setState", queued.payload);
+          if (cancelled) return;
+          if (ack.ok && typeof ack.version === "number") {
+            lastSyncedVersionRef.current = ack.version;
+            if (pendingManualEditHashRef.current === queued.hash) {
+              pendingManualEditHashRef.current = "";
+            }
+          } else if (pendingManualEditHashRef.current === queued.hash) {
+            pendingManualEditHashRef.current = "";
+          }
+        } catch {
+          if (pendingManualEditHashRef.current === queued.hash) {
+            pendingManualEditHashRef.current = "";
+          }
+        } finally {
+          setStateInFlightRef.current = false;
+        }
       }
-    }).catch(() => { /* ignore */ });
+    };
+
+    flushQueuedSnapshot();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventData, classroomOverrides, lockedSections, scheduleConnected, proyectionId]);
@@ -2926,12 +2998,21 @@ onOk: () => {
   useEffect(() => {
     if (!scheduleVersion || scheduleVersion === lastSyncedVersionRef.current) return;
     console.log('[InboundSync] received schedule:state version', scheduleVersion, 'eventData length', scheduleState.eventData?.length, 'lockedSections keys', Object.keys(scheduleState.lockedSections || {}));
+    const incomingHash = getScheduleSnapshotHash(
+      Array.isArray(scheduleState.eventData) ? scheduleState.eventData : [],
+      Array.isArray(scheduleState.classroomOverrides) ? scheduleState.classroomOverrides as ClassroomOverride[] : [],
+      scheduleState.lockedSections as typeof lockedSections
+    );
+    const shouldPreservePendingManualEdit =
+      !!pendingManualEditHashRef.current &&
+      incomingHash !== pendingManualEditHashRef.current &&
+      setStateInFlightRef.current;
     lastSyncedVersionRef.current = scheduleVersion;
     stopRecalcLoading();
-    if (Array.isArray(scheduleState.eventData) && scheduleState.eventData.length > 0) {
+    if (!shouldPreservePendingManualEdit && Array.isArray(scheduleState.eventData) && scheduleState.eventData.length > 0) {
       setEventData(scheduleState.eventData);
     }
-    if (scheduleState.lockedSections && typeof scheduleState.lockedSections === 'object') {
+    if (!shouldPreservePendingManualEdit && scheduleState.lockedSections && typeof scheduleState.lockedSections === 'object') {
       // MERGE instead of REPLACE so that local toggles not yet processed
       // by the backend are preserved — avoids checkbox flickering when
       // the user freezes/unfreezes multiple sections quickly.
@@ -2950,17 +3031,18 @@ onOk: () => {
         return merged;
       });
     }
-    if (Array.isArray(scheduleState.classroomOverrides)) {
+    if (!shouldPreservePendingManualEdit && Array.isArray(scheduleState.classroomOverrides)) {
       setClassroomOverrides(scheduleState.classroomOverrides as ClassroomOverride[]);
     }
     // Set the hash AFTER all state updates (React batches them) so the
     // outbound sync effect sees the same snapshot that came from the backend
     // and does NOT re-push it.
-    lastSyncedHashRef.current = JSON.stringify({
-      eventData: scheduleState.eventData,
-      classroomOverrides: scheduleState.classroomOverrides,
-      lockedSections: scheduleState.lockedSections,
-    });
+    if (!shouldPreservePendingManualEdit) {
+      lastSyncedHashRef.current = incomingHash;
+      if (pendingManualEditHashRef.current === incomingHash) {
+        pendingManualEditHashRef.current = "";
+      }
+    }
     setHasUnsavedOverrides(false);
     if (scheduleState.scheduleConfig && typeof scheduleState.scheduleConfig === 'object' && Object.keys(scheduleState.scheduleConfig).length > 0) {
       setScheduleConfig(scheduleState.scheduleConfig as unknown as ScheduleConfig);
@@ -3697,26 +3779,30 @@ setClassroomOverrides(prev => {
       const movingIds = new Set(movingEvents.map(e =>
         `${e.extendedProps?.subjectId}|${e.daysOfWeek?.[0]}|${e.startTime}`
       ));
-      setEventData(prev => prev.map(e => {
-        const key = `${e.extendedProps?.subjectId}|${e.daysOfWeek?.[0]}|${e.startTime}`;
-        if (!movingIds.has(key)) return e;
-        const evtStartIdx = tableSlots.findIndex(s => s[0] === e.startTime);
-        const diffIndex = evtStartIdx - sourceStartIdx;
-        if (diffIndex < 0 || diffIndex >= targetSlots.length) return e;
-        const newStartTime = targetSlots[diffIndex][0];
-        const newEndTime = targetSlots[diffIndex][1];
-        return {
-          ...e,
-          daysOfWeek: [targetDay],
-          startTime: newStartTime,
-          endTime: newEndTime,
-          extendedProps: {
-            ...e.extendedProps,
-            professorId: profId || e.extendedProps?.professorId,
-            classroomId: effectiveClassroomId || e.extendedProps?.classroomId,
-          },
-        };
-      }));
+      setEventData(prev => {
+        const nextEventData = prev.map(e => {
+          const key = `${e.extendedProps?.subjectId}|${e.daysOfWeek?.[0]}|${e.startTime}`;
+          if (!movingIds.has(key)) return e;
+          const evtStartIdx = tableSlots.findIndex(s => s[0] === e.startTime);
+          const diffIndex = evtStartIdx - sourceStartIdx;
+          if (diffIndex < 0 || diffIndex >= targetSlots.length) return e;
+          const newStartTime = targetSlots[diffIndex][0];
+          const newEndTime = targetSlots[diffIndex][1];
+          return {
+            ...e,
+            daysOfWeek: [targetDay],
+            startTime: newStartTime,
+            endTime: newEndTime,
+            extendedProps: {
+              ...e.extendedProps,
+              professorId: profId || e.extendedProps?.professorId,
+              classroomId: effectiveClassroomId || e.extendedProps?.classroomId,
+            },
+          };
+        });
+        markManualEditPending(nextEventData);
+        return nextEventData;
+      });
 
       // If moving within a frozen section, also update lockedSections locally
       // so the outbound sync sends the updated frozen positions to the backend
