@@ -224,8 +224,12 @@ const SchoolSchedule: React.FC = () => {
     setManualEditSaving(true);
   };
 
-  const hasManualEditPending = () =>
-    manualEditSaving || setStateInFlightRef.current || !!queuedSetStateSnapshotRef.current;
+  useEffect(() => {
+    if (!manualEditSaving) return;
+    if (!setStateInFlightRef.current && !queuedSetStateSnapshotRef.current && !pendingManualEditHashRef.current) {
+      setManualEditSaving(false);
+    }
+  }, [manualEditSaving, eventData]);
 
   // ─── Cross-quarter ghost events ───
   // Eventos de OTROS trimestres calendario que se solapan con el trimestre
@@ -556,10 +560,6 @@ onOk: () => {
 
   const moveEventToStaging = (event: Event) => {
     if (!isOfficialStageMode) return;
-    if (hasManualEditPending()) {
-      message.warning("Espera a que se guarde el movimiento anterior antes de mover otra materia.");
-      return;
-    }
 
     const day = event.daysOfWeek?.[0];
     const subjectId = event.extendedProps?.subjectId;
@@ -675,10 +675,6 @@ onOk: () => {
   const handleDropFromSchedule = (event: Event) => {
     if (!isOfficialStageMode) {
       message.warning("El modo de depósito solo está disponible en modo oficial");
-      return;
-    }
-    if (hasManualEditPending()) {
-      message.warning("Espera a que se guarde el movimiento anterior antes de mover otra materia.");
       return;
     }
     moveEventToStaging(event);
@@ -1171,11 +1167,6 @@ onOk: () => {
   };
 
   const processStagingDrop = (targetDay: number, targetStartTime: string, eventsToMove: Event[]) => {
-    if (hasManualEditPending()) {
-      message.warning("Espera a que se guarde el movimiento anterior antes de mover otra materia.");
-      return;
-    }
-
     const isSameSubjectAndSection = (a: Event, b: Event) =>
       String(a.extendedProps?.subjectId) === String(b.extendedProps?.subjectId) &&
       String(a.extendedProps?.seccion) === String(b.extendedProps?.seccion);
@@ -1341,11 +1332,6 @@ onOk: () => {
 
   // Handle drop between schedule cells (in official stage mode)
   const handleDropBetweenCells = (targetDay: number, targetStartTime: string, _targetEndTime: string, sourceEvent: Event) => {
-    if (hasManualEditPending()) {
-      message.warning("Espera a que se guarde el movimiento anterior antes de mover otra materia.");
-      return;
-    }
-
     const sourceDay = sourceEvent.daysOfWeek?.[0];
     const subjectId = sourceEvent.extendedProps?.subjectId;
     const seccion = sourceEvent.extendedProps?.seccion;
@@ -5185,10 +5171,6 @@ if (conflictFound) {
                                       onDrop={(e) => {
                                         e.preventDefault();
                                         setDropPreview(null); // Clear preview on drop
-                                        if (hasManualEditPending()) {
-                                          message.warning("Espera a que se guarde el movimiento anterior antes de mover otra materia.");
-                                          return;
-                                        }
 
                                         // Check if dropping from staging area
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
