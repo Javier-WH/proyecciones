@@ -45,6 +45,9 @@ This file is the shared, append-only memory for any coding agent (and any human)
 - 2026-05-25 — frontend/schedule — Enabled the right-click "Cambiar Aula" action for frozen sections outside official stage mode, allowing it to use the existing frozen-section classroom change flow instead of disabling the menu item. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 - 2026-05-26 — frontend/build — Fixed a TypeScript build failure caused by an accidental `git` JSX attribute on the classroom-change `Select`; `npm run build` now completes successfully. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 - 2026-05-26 — frontend/schedule-sync — Added pending manual edit protection and serialized `schedule:setState` flushing to prevent drag/drop changes from visually rolling back when delayed backend broadcasts arrive in production. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
+- 2026-05-26 — frontend/schedule-sync — Hardened the drag/drop rollback fix by preventing concurrent manual moves while a previous snapshot is queued/in flight, ensuring queued `schedule:setState` flushes are not cancelled by React effect cleanup, validating that source events still exist before applying a move, and deduplicating event snapshots before persistence. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
+- 2026-05-26 — frontend/schedule-ui — Added a simple "Guardando..." LED indicator to the staging area while a manual drag/drop movement is still being persisted. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`, `src/components/SchoolSchedule/StagingArea.tsx`
+- 2026-05-26 — frontend/schedule-ui — Fixed the "Guardando..." state getting stuck by computing pending manual-edit hashes from normalized event data and clearing the pending flag when the normalized snapshot already matches the last synced state. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 
 ---
 

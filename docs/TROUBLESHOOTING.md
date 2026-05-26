@@ -179,6 +179,10 @@ Faltaba implementación de handlers de drag & drop en `StagingArea.tsx`.
 
 **Solution:** Added pending manual edit hashing and serialized `schedule:setState` flushing. Delayed inbound states no longer replace local manual edits while the matching snapshot is still being persisted, and only the latest queued snapshot is sent.
 
+**Follow-up hardening:** The first production fix reduced the rollback frequency but still allowed rapid sequential drops while a snapshot was queued or in flight. This could apply a second move against stale local drag data and duplicate one hour of a block. The final hardening blocks concurrent manual moves until the previous snapshot is confirmed, keeps queued flushes alive across React effect reruns, validates that source events still exist before applying a move, and deduplicates snapshots before persistence.
+
+**Indicator regression:** The staging-area "Guardando..." indicator initially used a pending hash computed from raw `eventData`, while persistence used normalized `eventData`. When duplicates were normalized out, the hashes did not match and the pending flag could remain stuck, blocking all future moves. The pending hash is now computed from normalized event data and is cleared if the current normalized snapshot already matches the last synced hash.
+
 **Files:**
 - `src/components/SchoolSchedule/SchoolSchedule.tsx`
 

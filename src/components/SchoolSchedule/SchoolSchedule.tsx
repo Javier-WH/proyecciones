@@ -175,6 +175,7 @@ const SchoolSchedule: React.FC = () => {
   // red border.
   const recalcPendingRef = useRef<boolean>(false);
   const [recalcLoading, setRecalcLoading] = useState(false);
+  const [manualEditSaving, setManualEditSaving] = useState(false);
   const recalcLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track keys locally unfrozen so inbound merges don't re-add them before
   // the backend has processed the unfreeze.
@@ -208,9 +209,23 @@ const SchoolSchedule: React.FC = () => {
     lockedSections: nextLockedSections,
   });
 
-  const markManualEditPending = (nextEventData: Event[]) => {
-    pendingManualEditHashRef.current = getScheduleSnapshotHash(nextEventData);
+  const normalizeEventData = (events: Event[]) => {
+    const seen = new Set<string>();
+    return events.filter(event => {
+      const id = getEventId(event);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
   };
+
+  const markManualEditPending = (nextEventData: Event[]) => {
+    pendingManualEditHashRef.current = getScheduleSnapshotHash(normalizeEventData(nextEventData));
+    setManualEditSaving(true);
+  };
+
+  const hasManualEditPending = () =>
+    manualEditSaving || setStateInFlightRef.current || !!queuedSetStateSnapshotRef.current;
 
   // ─── Cross-quarter ghost events ───
   // Eventos de OTROS trimestres calendario que se solapan con el trimestre
@@ -541,6 +556,10 @@ onOk: () => {
 
   const moveEventToStaging = (event: Event) => {
     if (!isOfficialStageMode) return;
+    if (hasManualEditPending()) {
+      message.warning("Espera a que se guarde el movimiento anterior antes de mover otra materia.");
+      return;
+    }
 
     const day = event.daysOfWeek?.[0];
     const subjectId = event.extendedProps?.subjectId;
@@ -656,6 +675,10 @@ onOk: () => {
   const handleDropFromSchedule = (event: Event) => {
     if (!isOfficialStageMode) {
       message.warning("El modo de depósito solo está disponible en modo oficial");
+      return;
+    }
+    if (hasManualEditPending()) {
+      message.warning("Espera a que se guarde el movimiento anterior antes de mover otra materia.");
       return;
     }
     moveEventToStaging(event);
@@ -1148,6 +1171,11 @@ onOk: () => {
   };
 
   const processStagingDrop = (targetDay: number, targetStartTime: string, eventsToMove: Event[]) => {
+    if (hasManualEditPending()) {
+      message.warning("Espera a que se guarde el movimiento anterior antes de mover otra materia.");
+      return;
+    }
+
     const isSameSubjectAndSection = (a: Event, b: Event) =>
       String(a.extendedProps?.subjectId) === String(b.extendedProps?.subjectId) &&
       String(a.extendedProps?.seccion) === String(b.extendedProps?.seccion);
@@ -1250,6 +1278,12 @@ onOk: () => {
       return;
     }
 
+    const currentStagedIds = new Set(getStagingEvents(eventData).map(e => getEventId(e)));
+    if (![...movedOriginalIds].every(id => currentStagedIds.has(id))) {
+      message.warning("El bloque cambió antes de completar el movimiento. Intenta moverlo nuevamente.");
+      return;
+    }
+
     // Check if any events have conflicts - allow movement but show visual indicators
     if (conflicts.length > 0) {
       // Update conflict visual indicators for events with conflicts
@@ -1307,6 +1341,11 @@ onOk: () => {
 
   // Handle drop between schedule cells (in official stage mode)
   const handleDropBetweenCells = (targetDay: number, targetStartTime: string, _targetEndTime: string, sourceEvent: Event) => {
+    if (hasManualEditPending()) {
+      message.warning("Espera a que se guarde el movimiento anterior antes de mover otra materia.");
+      return;
+    }
+
     const sourceDay = sourceEvent.daysOfWeek?.[0];
     const subjectId = sourceEvent.extendedProps?.subjectId;
     const seccion = sourceEvent.extendedProps?.seccion;
@@ -1423,6 +1462,11 @@ onOk: () => {
 
     // Check conflicts for each new event (excluding the block's own old events)
     const eventsToCheck = eventData.filter(e => !oldIds.has(getEventId(e)));
+    const currentScheduleIds = new Set(getScheduleEvents(eventData).map(e => getEventId(e)));
+    if (![...oldIds].every(id => currentScheduleIds.has(id))) {
+      message.warning("El bloque cambió antes de completar el movimiento. Intenta moverlo nuevamente.");
+      return;
+    }
     const allConflicts: { event: Event; conflicts: string[] }[] = [];
     for (const newEv of newEvents) {
       const c = checkEventConflicts(newEv, targetDay, newEv.startTime, eventsToCheck);
@@ -2947,48 +2991,58 @@ onOk: () => {
     if (!scheduleConnected || !proyectionId) return;
     if (eventData.length === 0) return;
     if (recalcPendingRef.current) return;
+    const normalizedEventData = normalizeEventData(eventData);
     const payload = {
-      eventData,
+      eventData: normalizedEventData,
       classroomOverrides,
       lockedSections,
       stagedEvents: [],
       scheduleConfig: scheduleConfig || {},
     };
-    const hash = getScheduleSnapshotHash(eventData, classroomOverrides, lockedSections);
-    if (hash === lastSyncedHashRef.current) return;
+    const hash = getScheduleSnapshotHash(normalizedEventData, classroomOverrides, lockedSections);
+    if (hash === lastSyncedHashRef.current) {
+      if (pendingManualEditHashRef.current === hash) {
+        pendingManualEditHashRef.current = "";
+        setManualEditSaving(false);
+      }
+      return;
+    }
     queuedSetStateSnapshotRef.current = { hash, payload };
     if (setStateInFlightRef.current) return;
-
-    let cancelled = false;
     const flushQueuedSnapshot = async () => {
-      while (!cancelled && queuedSetStateSnapshotRef.current) {
+      if (setStateInFlightRef.current) return;
+      while (queuedSetStateSnapshotRef.current) {
         const queued = queuedSetStateSnapshotRef.current;
         queuedSetStateSnapshotRef.current = null;
         setStateInFlightRef.current = true;
         lastSyncedHashRef.current = queued.hash;
         try {
           const ack = await scheduleDispatch("schedule:setState", queued.payload);
-          if (cancelled) return;
           if (ack.ok && typeof ack.version === "number") {
             lastSyncedVersionRef.current = ack.version;
             if (pendingManualEditHashRef.current === queued.hash) {
               pendingManualEditHashRef.current = "";
+              setManualEditSaving(false);
             }
           } else if (pendingManualEditHashRef.current === queued.hash) {
             pendingManualEditHashRef.current = "";
+            setManualEditSaving(false);
           }
         } catch {
           if (pendingManualEditHashRef.current === queued.hash) {
             pendingManualEditHashRef.current = "";
+            setManualEditSaving(false);
           }
         } finally {
           setStateInFlightRef.current = false;
+          if (!pendingManualEditHashRef.current && !queuedSetStateSnapshotRef.current) {
+            setManualEditSaving(false);
+          }
         }
       }
     };
 
     flushQueuedSnapshot();
-    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventData, classroomOverrides, lockedSections, scheduleConnected, proyectionId]);
 
@@ -3041,6 +3095,7 @@ onOk: () => {
       lastSyncedHashRef.current = incomingHash;
       if (pendingManualEditHashRef.current === incomingHash) {
         pendingManualEditHashRef.current = "";
+        setManualEditSaving(false);
       }
     }
     setHasUnsavedOverrides(false);
@@ -5130,6 +5185,10 @@ if (conflictFound) {
                                       onDrop={(e) => {
                                         e.preventDefault();
                                         setDropPreview(null); // Clear preview on drop
+                                        if (hasManualEditPending()) {
+                                          message.warning("Espera a que se guarde el movimiento anterior antes de mover otra materia.");
+                                          return;
+                                        }
 
                                         // Check if dropping from staging area
                                         const isStagedEvent = e.dataTransfer.types.includes("application/staged-event");
@@ -5695,6 +5754,7 @@ if (conflictFound) {
             onClearAll={clearAllStaged}
             onConfirmChanges={handleConfirmStagingChanges}
             confirmLoading={confirmStagingLoading}
+            manualEditSaving={manualEditSaving}
             onClose={() => setIsOfficialStageMode(false)}
             onDragStart={(event) => setDraggingFromStaging(event)}
             onDragEnd={() => setDraggingFromStaging(null)}

@@ -16,6 +16,7 @@ interface StagingAreaProps {
   onDragEnd?: () => void;
   onDropFromSchedule?: (event: Event) => void;
   confirmLoading?: boolean;
+  manualEditSaving?: boolean;
   errors?: scheduleError[];
 }
 
@@ -35,6 +36,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
   onDragEnd,
   onDropFromSchedule,
   confirmLoading = false,
+  manualEditSaving = false,
   errors = [],
 }) => {
   const dayNames = ['', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -156,6 +158,14 @@ const StagingArea: React.FC<StagingAreaProps> = ({
               />
             )}
           </h3>
+          {manualEditSaving && (
+            <Tooltip title="Guardando el último movimiento">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#faad14', fontSize: 12, marginTop: 2 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#faad14', display: 'inline-block' }} />
+                Guardando...
+              </div>
+            </Tooltip>
+          )}
           <Button
             type="text"
             icon={<CloseOutlined />}
