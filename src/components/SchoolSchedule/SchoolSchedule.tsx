@@ -176,6 +176,7 @@ const SchoolSchedule: React.FC = () => {
   const recalcPendingRef = useRef<boolean>(false);
   const [recalcLoading, setRecalcLoading] = useState(false);
   const [manualEditSaving, setManualEditSaving] = useState(false);
+  const [savingEventKeys, setSavingEventKeys] = useState<Set<string>>(new Set());
   const recalcLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track keys locally unfrozen so inbound merges don't re-add them before
   // the backend has processed the unfreeze.
@@ -219,9 +220,12 @@ const SchoolSchedule: React.FC = () => {
     });
   };
 
-  const markManualEditPending = (nextEventData: Event[]) => {
+  const markManualEditPending = (nextEventData: Event[], changedEventKeys?: string[]) => {
     pendingManualEditHashRef.current = getScheduleSnapshotHash(normalizeEventData(nextEventData));
     setManualEditSaving(true);
+    if (changedEventKeys && changedEventKeys.length > 0) {
+      setSavingEventKeys(prev => new Set([...Array.from(prev), ...changedEventKeys]));
+    }
   };
 
   useEffect(() => {
@@ -230,6 +234,12 @@ const SchoolSchedule: React.FC = () => {
       setManualEditSaving(false);
     }
   }, [manualEditSaving, eventData]);
+
+  useEffect(() => {
+    if (!manualEditSaving && savingEventKeys.size > 0) {
+      setSavingEventKeys(new Set());
+    }
+  }, [manualEditSaving, savingEventKeys.size]);
 
   // ─── Cross-quarter ghost events ───
   // Eventos de OTROS trimestres calendario que se solapan con el trimestre
@@ -377,7 +387,6 @@ const SchoolSchedule: React.FC = () => {
 
         // ⚠ DEBUG TEMPORAL: loggear cada conflicto detectado con todo el contexto.
         // Esto ayuda a identificar eventos fantasma o duplicados en lockedSections.
-        // eslint-disable-next-line no-console
         console.warn('[professorMismatchConflict]', {
           A: {
             title: a.title,
@@ -579,7 +588,7 @@ onOk: () => {
             : e;
           return next;
         });
-        markManualEditPending(updated);
+        markManualEditPending(updated, [singleEventId]);
         return updated;
       });
       message.info("Evento movido al área de depósito");
@@ -651,7 +660,7 @@ onOk: () => {
           : e;
         return next;
       });
-      markManualEditPending(updated);
+      markManualEditPending(updated, Array.from(eventsToMoveIds));
       return updated;
     });
     message.info(`Bloque movido al área de depósito (${eventsToMove.length} hora(s))`);
@@ -781,7 +790,7 @@ onOk: () => {
     // Add events to eventData
     setEventData(prev => {
       const nextEventData = [...prev, ...newEvents];
-      markManualEditPending(nextEventData);
+      markManualEditPending(nextEventData, newEvents.map(e => getEventId(e)));
       return nextEventData;
     });
 
@@ -898,7 +907,7 @@ onOk: () => {
         }
         return e;
       });
-      markManualEditPending(updated);
+      markManualEditPending(updated, Array.from(eventsToReturnIds));
       return updated;
     });
     message.info(`Materia devuelta al horario (${events.length} hora(s))`);
@@ -958,6 +967,7 @@ onOk: () => {
       okText: "Sí, devolver todos",
       cancelText: "Cancelar",
       onOk: () => {
+        const stagedEventIds = currentStagedEvents.map(e => getEventId(e));
         // Change location to 'schedule' for all staged events
         setEventData(prev => {
           const updated = prev.map(e => {
@@ -966,7 +976,7 @@ onOk: () => {
             }
             return e;
           });
-          markManualEditPending(updated);
+          markManualEditPending(updated, stagedEventIds);
           return updated;
         });
         message.success("Todos los eventos devueltos al horario");
@@ -1315,7 +1325,7 @@ onOk: () => {
 
       const newEventIds = new Set(newEvents.map(e => getEventId(e)));
       const nextEventData = [...updated.filter(e => !newEventIds.has(getEventId(e))), ...newEvents];
-      markManualEditPending(nextEventData);
+      markManualEditPending(nextEventData, [...Array.from(movedOriginalIds), ...newEvents.map(e => getEventId(e))]);
       return nextEventData;
     });
 
@@ -1383,7 +1393,7 @@ onOk: () => {
       const newEvent: Event = { ...sourceEvent, daysOfWeek: [targetDay], startTime: targetStartTime, endTime: _targetEndTime };
       setEventData(prev => {
         const nextEventData = [...prev.filter(e => getEventId(e) !== oldId), newEvent];
-        markManualEditPending(nextEventData);
+        markManualEditPending(nextEventData, [oldId, getEventId(newEvent)]);
         return nextEventData;
       });
       enqueueLockedSectionSaveFromEvents(newEvent);
@@ -1488,7 +1498,7 @@ onOk: () => {
         ...e,
         extendedProps: { ...e.extendedProps, location: 'schedule' as const },
       }))];
-      markManualEditPending(nextEventData);
+      markManualEditPending(nextEventData, [...Array.from(oldIds), ...newEvents.map(e => getEventId(e))]);
       return nextEventData;
     });
     newEvents.forEach(ev => enqueueLockedSectionSaveFromEvents(ev));
@@ -3841,7 +3851,7 @@ setClassroomOverrides(prev => {
             },
           };
         });
-        markManualEditPending(nextEventData);
+        markManualEditPending(nextEventData, movingEvents.map(e => getEventId(e)));
         return nextEventData;
       });
 
@@ -4840,6 +4850,7 @@ if (conflictFound) {
                                   const profMismatch = professorMismatchConflicts.get(cellEventId) || [];
                                   const cellConflicts = [...baseCellConflicts, ...profMismatch];
                                   const hasConflict = cellConflicts.length > 0;
+                                  const isEventSaving = savingEventKeys.has(getEventId(cell));
 
                                   return (
                                     <td
@@ -5032,6 +5043,18 @@ if (conflictFound) {
                                             !
                                           </div>
                                         </Tooltip>
+                                      )}
+                                      {isEventSaving && (
+                                        <div
+                                          style={{
+                                            position: "absolute",
+                                            bottom: 4,
+                                            left: 4,
+                                            zIndex: 10,
+                                          }}
+                                        >
+                                          <Spin size="small" />
+                                        </div>
                                       )}
                                       <Dropdown menu={{ items: contextMenuItems }} trigger={["contextMenu"]}>
                                         <Tooltip title={isOfficialStageMode ? "" : tooltipContent}>

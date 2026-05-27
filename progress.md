@@ -49,6 +49,7 @@ This file is the shared, append-only memory for any coding agent (and any human)
 - 2026-05-26 — frontend/schedule-ui — Added a simple "Guardando..." LED indicator to the staging area while a manual drag/drop movement is still being persisted. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`, `src/components/SchoolSchedule/StagingArea.tsx`
 - 2026-05-26 — frontend/schedule-ui — Fixed the "Guardando..." state getting stuck by computing pending manual-edit hashes from normalized event data and clearing the pending flag when the normalized snapshot already matches the last synced state. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 - 2026-05-26 — frontend/schedule-ui — Decoupled the visual "Guardando..." indicator from the drag/drop blocking condition so a stale UI flag cannot prevent the first movement; blocking now depends only on an actual queued or in-flight snapshot. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
+- 2026-05-26 — frontend/schedule-ui — Removed all drag/drop blocking checks tied to the manual-save indicator; the "Guardando..." LED is now purely visual and cannot prevent movements. — files: `src/components/SchoolSchedule/SchoolSchedule.tsx`
 
 ---
 
