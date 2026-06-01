@@ -179,7 +179,7 @@ export default function useSetSubject(SubjectArray: Subject[]) {
     const totalHours = teacher.partTime ?? 0;
 
     const getHourData = (quarter: "q1" | "q2" | "q3"): TeacherHourData => {
-      const asignedSubjects = subjectList.filter((subject) => subject.quarter[quarter] === teacher.id);
+      const asignedSubjects = subjectList.filter((subject) => !subject.linkedToSection && subject.quarter[quarter] === teacher.id);
       const usedHours = asignedSubjects.reduce((acc, subject) => {
         return Number(acc) + Number(subject.hours[quarter] ?? 0);
       }, 0);

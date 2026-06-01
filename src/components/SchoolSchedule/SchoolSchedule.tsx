@@ -177,6 +177,7 @@ const SchoolSchedule: React.FC = () => {
   const [recalcLoading, setRecalcLoading] = useState(false);
   const [manualEditSaving, setManualEditSaving] = useState(false);
   const [savingEventKeys, setSavingEventKeys] = useState<Set<string>>(new Set());
+  const savingEventKeysTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recalcLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track keys locally unfrozen so inbound merges don't re-add them before
   // the backend has processed the unfreeze.
@@ -225,6 +226,10 @@ const SchoolSchedule: React.FC = () => {
     setManualEditSaving(true);
     if (changedEventKeys && changedEventKeys.length > 0) {
       setSavingEventKeys(prev => new Set([...Array.from(prev), ...changedEventKeys]));
+      if (savingEventKeysTimerRef.current) clearTimeout(savingEventKeysTimerRef.current);
+      savingEventKeysTimerRef.current = setTimeout(() => {
+        setSavingEventKeys(new Set());
+      }, 30_000);
     }
   };
 
@@ -235,11 +240,6 @@ const SchoolSchedule: React.FC = () => {
     }
   }, [manualEditSaving, eventData]);
 
-  useEffect(() => {
-    if (!manualEditSaving && savingEventKeys.size > 0) {
-      setSavingEventKeys(new Set());
-    }
-  }, [manualEditSaving, savingEventKeys.size]);
 
   // ─── Cross-quarter ghost events ───
   // Eventos de OTROS trimestres calendario que se solapan con el trimestre
@@ -1740,6 +1740,16 @@ onOk: () => {
     );
   }, [subjects]);
 
+  // Set of innerIds of linked-section subjects — used to deduplicate professor view
+  const linkedSubjectIds = useMemo(() => {
+    if (!subjects || subjects.length === 0) return new Set<string>();
+    return new Set(
+      (subjects as Subject[])
+        .filter(s => !!s.linkedToSection)
+        .map(s => s.innerId)
+    );
+  }, [subjects]);
+
   // Keep a ref so the generation effect can access the latest data
   // without needing the array reference as a dependency.
   const schedulableSubjectsRef = useRef(schedulableSubjects);
@@ -2987,7 +2997,92 @@ onOk: () => {
     if (!scheduleConnected || !proyectionId) return;
     if (eventData.length === 0) return;
     if (recalcPendingRef.current) return;
-    const normalizedEventData = normalizeEventData(eventData);
+    let normalizedEventData = normalizeEventData(eventData);
+
+    // Post-edit validation: when a manual edit is pending, ensure the active
+    // section has the correct number of hours per subject. Excess schedule
+    // events → staging; missing → staging placeholders.
+    if (pendingManualEditHashRef.current && pnf && trayectoId && seccion && subjects?.length) {
+      let validated = false;
+      const activeSubjects = (subjects as Subject[]).filter(s =>
+        s.pnfId === pnf && s.trayectoId === trayectoId && s.seccion === seccion
+      );
+
+      for (const subject of activeSubjects) {
+        const expectedHours = subject.hours?.[trimestre] ?? 0;
+        if (expectedHours <= 0) continue;
+
+        const scheduleForSubject: { evt: Event; idx: number }[] = [];
+        const stagingForSubject: { evt: Event; idx: number }[] = [];
+        for (let i = 0; i < normalizedEventData.length; i++) {
+          const e = normalizedEventData[i];
+          if (e.extendedProps?.subjectId !== subject.innerId) continue;
+          if (e.extendedProps?.location === 'staging') {
+            stagingForSubject.push({ evt: e, idx: i });
+          } else {
+            scheduleForSubject.push({ evt: e, idx: i });
+          }
+        }
+
+        const scheduleCount = scheduleForSubject.length;
+        const totalCount = scheduleCount + stagingForSubject.length;
+
+        // Excess schedule events → move to staging (preserve the first N)
+        if (scheduleCount > expectedHours) {
+          const excess = scheduleForSubject.slice(expectedHours);
+          for (const { idx } of excess) {
+            normalizedEventData[idx] = {
+              ...normalizedEventData[idx],
+              extendedProps: { ...normalizedEventData[idx].extendedProps, location: 'staging' as const }
+            };
+            validated = true;
+          }
+        }
+
+        // Missing total events → add staging placeholders
+        if (totalCount < expectedHours) {
+          const missing = expectedHours - totalCount;
+          const turnoKey = (subject.turnoName || turn).toLowerCase();
+          const turnoSlots = activeTurnos[turnoKey] || [];
+          const fallbackClassroom = classrooms?.[0];
+
+          for (let i = 0; i < missing; i++) {
+            const slotIdx = i % turnoSlots.length;
+            const [slotStart, slotEnd] = turnoSlots[slotIdx] || ['07:00', '07:45'];
+            const day = activeDays[i % activeDays.length] || 1;
+            normalizedEventData.push({
+              title: subject.subject,
+              daysOfWeek: [day],
+              startTime: slotStart,
+              endTime: slotEnd,
+              extendedProps: {
+                subjectId: subject.innerId,
+                professorId: subject.quarter?.[trimestre] ?? null,
+                classroomId: fallbackClassroom?.id ?? '',
+                classroomName: fallbackClassroom?.classroom ?? 'Sin aula',
+                pnfId: subject.pnfId,
+                trayectoId: subject.trayectoId,
+                trayectoName: subject.trayectoName ?? '',
+                seccion: subject.seccion,
+                pnfName: subject.pnf ?? '',
+                turnName: subject.turnoName,
+                blockId: `${day}-${subject.innerId}-staging-${Date.now()}-${i}`,
+                location: 'staging' as const,
+              }
+            });
+            validated = true;
+          }
+        }
+      }
+
+      if (validated) {
+        normalizedEventData = normalizeEventData(normalizedEventData);
+        setEventData(normalizedEventData);
+        pendingManualEditHashRef.current = '';
+        return; // Let the next render cycle push the validated state
+      }
+    }
+
     const payload = {
       eventData: normalizedEventData,
       classroomOverrides,
@@ -3001,6 +3096,8 @@ onOk: () => {
         pendingManualEditHashRef.current = "";
         setManualEditSaving(false);
       }
+      setSavingEventKeys(new Set());
+      if (savingEventKeysTimerRef.current) clearTimeout(savingEventKeysTimerRef.current);
       return;
     }
     queuedSetStateSnapshotRef.current = { hash, payload };
@@ -3024,16 +3121,22 @@ onOk: () => {
             pendingManualEditHashRef.current = "";
             setManualEditSaving(false);
           }
+          setSavingEventKeys(new Set());
+          if (savingEventKeysTimerRef.current) clearTimeout(savingEventKeysTimerRef.current);
         } catch {
           if (pendingManualEditHashRef.current === queued.hash) {
             pendingManualEditHashRef.current = "";
             setManualEditSaving(false);
           }
+          setSavingEventKeys(new Set());
+          if (savingEventKeysTimerRef.current) clearTimeout(savingEventKeysTimerRef.current);
         } finally {
           setStateInFlightRef.current = false;
           if (!pendingManualEditHashRef.current && !queuedSetStateSnapshotRef.current) {
             setManualEditSaving(false);
           }
+          setSavingEventKeys(new Set());
+          if (savingEventKeysTimerRef.current) clearTimeout(savingEventKeysTimerRef.current);
         }
       }
     };
@@ -3055,8 +3158,7 @@ onOk: () => {
     );
     const shouldPreservePendingManualEdit =
       !!pendingManualEditHashRef.current &&
-      incomingHash !== pendingManualEditHashRef.current &&
-      setStateInFlightRef.current;
+      incomingHash !== pendingManualEditHashRef.current;
     lastSyncedVersionRef.current = scheduleVersion;
     stopRecalcLoading();
     if (!shouldPreservePendingManualEdit && Array.isArray(scheduleState.eventData) && scheduleState.eventData.length > 0) {
@@ -3092,6 +3194,8 @@ onOk: () => {
       if (pendingManualEditHashRef.current === incomingHash) {
         pendingManualEditHashRef.current = "";
         setManualEditSaving(false);
+        setSavingEventKeys(new Set());
+        if (savingEventKeysTimerRef.current) clearTimeout(savingEventKeysTimerRef.current);
       }
     }
     setHasUnsavedOverrides(false);
@@ -3202,11 +3306,12 @@ onOk: () => {
       );
 
       // 2. Mostrar TODAS las materias de esos profesores (sin importar el PNF de la materia)
+      // Excluir eventos de secciones vinculadas: no duplican horas del profesor
       filteredLoaded = loadedScheduleEvents.filter(
-        (event) => !!event.extendedProps.professorId && targetTeacherIds.has(String(event.extendedProps.professorId))
+        (event) => !!event.extendedProps.professorId && targetTeacherIds.has(String(event.extendedProps.professorId)) && !linkedSubjectIds.has(event.extendedProps.subjectId)
       );
       filteredGenerated = getScheduleEvents(eventData).filter(
-        (event) => !!event.extendedProps.professorId && targetTeacherIds.has(String(event.extendedProps.professorId))
+        (event) => !!event.extendedProps.professorId && targetTeacherIds.has(String(event.extendedProps.professorId)) && !linkedSubjectIds.has(event.extendedProps.subjectId)
       );
       // Ghosts del profesor: clases del mismo profesor en otro trim calendario.
       // Excluir slots ya ocupados por un evento real del mismo profesor (el real
