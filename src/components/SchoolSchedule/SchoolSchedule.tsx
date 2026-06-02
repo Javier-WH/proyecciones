@@ -1152,6 +1152,51 @@ onOk: () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventData, crossQuarterGhostEvents, teachers, classrooms, subjects, trimestre]);
 
+  // ─── Derive frozen-section conflict errors from reactive detection ───
+  // When eventsWithConflicts changes (every eventData mutation), convert
+  // conflicts involving frozen sections into persistent error entries so
+  // they appear in the ErrorsModal and error badge, not just as red borders.
+  useEffect(() => {
+    const frozenKeys = new Set(Object.keys(lockedSections || {}));
+    const conflictErrors: scheduleError[] = [];
+    const seen = new Set<string>();
+
+    for (const [eventId, msgs] of Object.entries(eventsWithConflicts)) {
+      if (!msgs || msgs.length === 0) continue;
+      const ev = getScheduleEvents(eventData).find(e => getEventId(e) === eventId);
+      if (!ev?.extendedProps) continue;
+
+      // Only report if the conflicting event belongs to a frozen section
+      const evKey = `${ev.extendedProps.pnfId}-${ev.extendedProps.trayectoId}-${ev.extendedProps.seccion}-${trimestre}`;
+      if (!frozenKeys.has(evKey)) continue;
+
+      const dedupeKey = `${ev.extendedProps.subjectId}-${ev.extendedProps.seccion}-${ev.daysOfWeek?.[0] || ''}-${ev.startTime || ''}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+
+      conflictErrors.push({
+        name: ev.title,
+        description: `[CONFLICTO DETECTADO] ${msgs[0]}`,
+        seccion: ev.extendedProps.seccion || '',
+        turn: ev.extendedProps.turnName || '',
+        year: ev.extendedProps.trayectoName || '',
+        pnfName: ev.extendedProps.pnfName || '',
+        trimestre,
+        subjectId: ev.extendedProps.subjectId,
+        professorName: undefined,
+        professorId: ev.extendedProps.professorId || undefined,
+        trayectoId: ev.extendedProps.trayectoId,
+        pnfId: ev.extendedProps.pnfId,
+      });
+    }
+
+    setErrors(prev => {
+      const genErrors = prev.filter(e => !e.description?.startsWith('[CONFLICTO DETECTADO]'));
+      return [...genErrors, ...conflictErrors];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventsWithConflicts, lockedSections, trimestre]);
+
   // Handle drop from staging area to schedule
   const handleDropFromStaging = (
     targetDay: number,
@@ -2609,6 +2654,21 @@ onOk: () => {
         message.error(
           `No se puede asignar el aula "${_nc.classroom}" porque está ocupada a esta hora por una sección congelada.`
         );
+        setErrors(prev => {
+          const desc = `[CONFLICTO] No se puede asignar el aula "${_nc.classroom}" a "${_cce.title}" porque está ocupada por una sección congelada.`;
+          return [...prev.filter(e => e.description !== desc), {
+            name: _cce.title,
+            description: desc,
+            seccion: firstModifiedEvent?.extendedProps?.seccion || '',
+            turn: firstModifiedEvent?.extendedProps?.turnName || '',
+            year: firstModifiedEvent?.extendedProps?.trayectoName || '',
+            pnfName: firstModifiedEvent?.extendedProps?.pnfName || '',
+            trimestre,
+            subjectId: firstModifiedEvent?.extendedProps?.subjectId,
+            trayectoId: firstModifiedEvent?.extendedProps?.trayectoId,
+            pnfId: firstModifiedEvent?.extendedProps?.pnfId,
+          }];
+        });
       } else if (hasConflictWithUnfrozenSection && proyectionId) {
         // Happy Path: the classroom is occupied by an unfrozen section. The
         // backend can recalculate and move that section elsewhere.
@@ -3830,6 +3890,21 @@ onOk: () => {
       });
       if (firstConflictEvent) {
         message.error(`No se puede mover: el aula ya está ocupada por "${firstConflictEvent.title}" (sección congelada).`);
+        setErrors(prev => {
+          const filtered = prev.filter(e => e.description !== `[CONFLICTO] No se puede mover "${title}" porque "${firstConflictEvent.title}" (sección congelada) ocupa el mismo espacio.`);
+          return [...filtered, {
+            name: title,
+            description: `[CONFLICTO] No se puede mover "${title}" porque "${firstConflictEvent.title}" (sección congelada) ocupa el mismo espacio.`,
+            seccion: seccion || '',
+            turn: firstMovingEvent?.extendedProps?.turnName || '',
+            year: firstMovingEvent?.extendedProps?.trayectoName || '',
+            pnfName: pnfName || '',
+            trimestre,
+            subjectId: firstMovingEvent?.extendedProps?.subjectId,
+            trayectoId: trayId,
+            pnfId: firstMovingEvent?.extendedProps?.pnfId,
+          }];
+        });
       } else {
         message.error("No se puede mover: hay conflicto con otra sección congelada.");
       }
