@@ -1,7 +1,7 @@
 import React from 'react';
 import { Event } from './fucntions';
 import { Badge, Empty, Tooltip, Button, Tabs } from 'antd';
-import { ClockCircleOutlined, EnvironmentOutlined, ArrowLeftOutlined, ClearOutlined, CloseOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, EnvironmentOutlined, ArrowLeftOutlined, ClearOutlined, CloseOutlined, CheckCircleOutlined, ExclamationCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import styles from './StagingArea.module.css';
 import { scheduleError } from './ErrorsModal';
 
@@ -12,6 +12,7 @@ interface StagingAreaProps {
   onClearAll: () => void;
   onConfirmChanges: () => void;
   onClose: () => void;
+  onRefresh?: () => void;
   onDragStart?: (event: Event) => void;
   onDragEnd?: () => void;
   onDropFromSchedule?: (event: Event) => void;
@@ -32,6 +33,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
   onClearAll,
   onConfirmChanges,
   onClose,
+  onRefresh,
   onDragStart,
   onDragEnd,
   onDropFromSchedule,
@@ -200,7 +202,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
           ]}
         />
         <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-          <Button
+           <Button
             size="small"
             type="primary"
             icon={<CheckCircleOutlined />}
@@ -209,6 +211,17 @@ const StagingArea: React.FC<StagingAreaProps> = ({
           >
             Confirmar cambios
           </Button>
+          {onRefresh && (
+            <Tooltip title="Sincronizar profesores y horas con la proyección activa">
+              <Button
+                size="small"
+                icon={<ReloadOutlined />}
+                onClick={onRefresh}
+              >
+                Refrescar
+              </Button>
+            </Tooltip>
+          )}
           {stagedEvents.length > 0 && (
             <Button 
               size="small" 

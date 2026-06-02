@@ -923,6 +923,147 @@ onOk: () => {
     message.info(`Materia devuelta al horario (${events.length} hora(s))`);
   };
 
+  const refreshStagingFromProjection = () => {
+    if (!subjects || subjects.length === 0 || !pnf || !trayectoId || !seccion) {
+      message.warning("Selecciona una sección activa primero");
+      return;
+    }
+
+    const activeSubjects = (subjects as Subject[]).filter(s =>
+      s.pnfId === pnf && s.trayectoId === trayectoId && s.seccion === seccion
+    );
+    if (activeSubjects.length === 0) {
+      message.info("No hay materias en la sección activa");
+      return;
+    }
+
+    const projMap = new Map<string, { teacherId: string | null; hours: number }>();
+    for (const s of activeSubjects) {
+      projMap.set(s.innerId, {
+        teacherId: s.quarter?.[trimestre] ?? null,
+        hours: s.hours?.[trimestre] ?? 0,
+      });
+    }
+
+    let updated = [...eventData];
+    let changes = 0;
+
+    // Sync professor assignments: update events where teacher differs from projection
+    updated = updated.map(e => {
+      const sid = e.extendedProps?.subjectId;
+      if (!sid) return e;
+      const proj = projMap.get(sid);
+      if (!proj) return e;
+      if (proj.teacherId && e.extendedProps.professorId !== proj.teacherId) {
+        changes++;
+        return { ...e, extendedProps: { ...e.extendedProps, professorId: proj.teacherId } };
+      }
+      return e;
+    });
+
+    // Adjust hours: same logic as the outbound-sync validation
+    // Remove excess staging first, then excess schedule → staging
+    let validated = false;
+    const idToRemove = new Set<string>();
+    const idToStage = new Set<string>();
+
+    for (const subject of activeSubjects) {
+      const expectedHours = subject.hours?.[trimestre] ?? 0;
+      if (expectedHours <= 0) continue;
+
+      const scheduleIds: string[] = [];
+      const stagingIds: string[] = [];
+      for (const ev of updated) {
+        if (ev.extendedProps?.subjectId !== subject.innerId) continue;
+        if (ev.extendedProps?.location === 'staging') {
+          stagingIds.push(getEventId(ev));
+        } else {
+          scheduleIds.push(getEventId(ev));
+        }
+      }
+
+      const scheduleCount = scheduleIds.length;
+      const stagingCount = stagingIds.length;
+      const totalCount = scheduleCount + stagingCount;
+
+      if (totalCount > expectedHours) {
+        let toRemove = totalCount - expectedHours;
+        for (let i = stagingCount - 1; toRemove > 0 && i >= 0; i--, toRemove--) {
+          idToRemove.add(stagingIds[i]);
+        }
+        for (let i = scheduleCount - 1; toRemove > 0 && i >= 0; i--, toRemove--) {
+          idToStage.add(scheduleIds[i]);
+        }
+        validated = true;
+      }
+
+      if (totalCount < expectedHours) {
+        const missing = expectedHours - totalCount;
+        const turnoKey = (subject.turnoName || turn).toLowerCase();
+        const turnoSlots = activeTurnos[turnoKey] || [];
+        const fallbackClassroom = classrooms?.[0];
+
+        for (let i = 0; i < missing; i++) {
+          const slotIdx = i % turnoSlots.length;
+          const [slotStart, slotEnd] = turnoSlots[slotIdx] || ['07:00', '07:45'];
+          const day = activeDays[i % activeDays.length] || 1;
+          updated.push({
+            title: subject.subject,
+            daysOfWeek: [day],
+            startTime: slotStart,
+            endTime: slotEnd,
+            extendedProps: {
+              subjectId: subject.innerId,
+              professorId: subject.quarter?.[trimestre] ?? null,
+              classroomId: fallbackClassroom?.id ?? '',
+              classroomName: fallbackClassroom?.classroom ?? 'Sin aula',
+              pnfId: subject.pnfId,
+              trayectoId: subject.trayectoId,
+              trayectoName: subject.trayectoName ?? '',
+              seccion: subject.seccion,
+              pnfName: subject.pnf ?? '',
+              turnName: subject.turnoName,
+              blockId: `${day}-${subject.innerId}-refill-${Date.now()}-${i}`,
+              location: 'staging' as const,
+            }
+          });
+          validated = true;
+        }
+      }
+    }
+
+    if (idToRemove.size > 0) {
+      updated = updated.filter(e => !idToRemove.has(getEventId(e)));
+    }
+    if (idToStage.size > 0) {
+      updated = updated.map(e =>
+        idToStage.has(getEventId(e))
+          ? { ...e, extendedProps: { ...e.extendedProps, location: 'staging' as const } }
+          : e
+      );
+    }
+
+    const totalChanges = changes + idToRemove.size + idToStage.size + (validated ? 1 : 0);
+    if (totalChanges > 0) {
+      const clean = normalizeEventData(updated);
+      setEventData(clean);
+      // Clean stale "No Asignadas" errors for the active section
+      setErrors(prev => prev.filter(err => {
+        if (err.pnfId !== pnf || err.trayectoId !== trayectoId || err.seccion !== seccion) return true;
+        if (!err.subjectId) return false;
+        const sub = (subjects as Subject[]).find(s => s.innerId === err.subjectId);
+        if (!sub) return false;
+        const expected = sub.hours?.[trimestre] ?? 0;
+        const totalPlaced = clean.filter(e => e.extendedProps?.subjectId === err.subjectId).length;
+        return totalPlaced < expected;
+      }));
+      markManualEditPending(updated);
+      message.success(`Sincronizado: ${changes} prof. actualizado(s), ${idToRemove.size} evento(s) eliminado(s) del depósito.`);
+    } else {
+      message.info("Los datos ya están sincronizados con la proyección.");
+    }
+  };
+
   const clearAllStaged = () => {
     const currentStagedEvents = getStagingEvents(eventData);
     if (currentStagedEvents.length === 0) return;
@@ -3182,9 +3323,39 @@ onOk: () => {
       if (validated) {
         normalizedEventData = normalizeEventData(normalizedEventData);
         setEventData(normalizedEventData);
+        // Clean stale "No Asignadas" errors for subjects that now have enough hours
+        setErrors(prev => prev.filter(err => {
+          if (err.pnfId !== pnf || err.trayectoId !== trayectoId || err.seccion !== seccion) return true;
+          if (!err.subjectId) return false;
+          const subject = (subjects as Subject[]).find(s => s.innerId === err.subjectId);
+          if (!subject) return false;
+          const expected = subject.hours?.[trimestre] ?? 0;
+          const totalPlaced = normalizedEventData.filter(e =>
+            e.extendedProps?.subjectId === err.subjectId
+          ).length;
+          return totalPlaced < expected;
+        }));
         pendingManualEditHashRef.current = '';
         return;
       }
+    }
+
+    // Even when eventData is already correct, prune stale "No Asignadas"
+    // errors from the active section — they may have been introduced by a
+    // backend broadcast before the inbound-sync filter ran.
+    if (pnf && trayectoId && seccion && subjects?.length) {
+      setErrors(prev => prev.filter(err => {
+        if (err.description?.startsWith('[CONFLICTO')) return true;
+        if (err.pnfId !== pnf || err.trayectoId !== trayectoId || err.seccion !== seccion) return true;
+        if (!err.subjectId) return false;
+        const sub = (subjects as Subject[]).find(s => s.innerId === err.subjectId);
+        if (!sub) return false;
+        const expected = sub.hours?.[trimestre] ?? 0;
+        const placed = normalizedEventData.filter(e =>
+          e.extendedProps?.subjectId === err.subjectId && e.extendedProps?.location !== 'staging'
+        ).length;
+        return placed < expected;
+      }));
     }
 
     // Suppress push while a backend recalculation is pending — the server
@@ -3310,10 +3481,23 @@ onOk: () => {
     if (scheduleState.scheduleConfig && typeof scheduleState.scheduleConfig === 'object' && Object.keys(scheduleState.scheduleConfig).length > 0) {
       setScheduleConfig(scheduleState.scheduleConfig as unknown as ScheduleConfig);
     }
-    if (Array.isArray(scheduleState.lastGenerationErrors) && scheduleState.lastGenerationErrors.length > 0) {
-      setErrors(scheduleState.lastGenerationErrors as scheduleError[]);
-    } else if (Array.isArray(scheduleState.lastGenerationErrors) && scheduleState.lastGenerationErrors.length === 0) {
-      setErrors([]);
+    if (Array.isArray(scheduleState.lastGenerationErrors)) {
+      // Filter backend errors: keep only subjects that genuinely have missing
+      // hours in the incoming eventData, not subjects already fully placed.
+      const incomingEvents = Array.isArray(scheduleState.eventData) ? scheduleState.eventData : [];
+      setErrors(prev => {
+        const localErrors = prev.filter(e => e.description?.startsWith('[CONFLICTO'));
+        const filteredGenErrors = (scheduleState.lastGenerationErrors as scheduleError[]).filter(err => {
+          if (!err.subjectId) return true; // errors without a specific subject (e.g. "no classrooms")
+          const placedCount = incomingEvents.filter(
+            e => e.extendedProps?.subjectId === err.subjectId && e.extendedProps?.location !== 'staging'
+          ).length;
+          const subject = (subjects as Subject[])?.find(s => s.innerId === err.subjectId);
+          const expected = subject?.hours?.[trimestre] ?? 0;
+          return placedCount < expected;
+        });
+        return [...localErrors, ...filteredGenErrors];
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleVersion]);
@@ -5989,6 +6173,7 @@ if (conflictFound) {
             confirmLoading={confirmStagingLoading}
             manualEditSaving={manualEditSaving}
             onClose={() => setIsOfficialStageMode(false)}
+            onRefresh={refreshStagingFromProjection}
             onDragStart={(event) => setDraggingFromStaging(event)}
             onDragEnd={() => setDraggingFromStaging(null)}
             onDropFromSchedule={handleDropFromSchedule}
