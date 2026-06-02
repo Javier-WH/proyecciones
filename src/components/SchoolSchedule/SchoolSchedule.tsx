@@ -567,6 +567,16 @@ onOk: () => {
   const getStagingEvents = (events: Event[]): Event[] =>
     events.filter(e => e.extendedProps?.location === 'staging');
 
+  const activeStagingEvents = useMemo(() =>
+    getStagingEvents(eventData).filter(e =>
+      e.extendedProps?.pnfId === pnf &&
+      e.extendedProps?.trayectoId === trayectoId &&
+      e.extendedProps?.seccion === seccion &&
+      e.extendedProps?.turnName?.toLowerCase() === turn.toLowerCase()
+    ),
+    [eventData, pnf, trayectoId, seccion, turn]
+  );
+
   const moveEventToStaging = (event: Event) => {
     if (!isOfficialStageMode) return;
 
@@ -1027,6 +1037,15 @@ onOk: () => {
   };
 
   // Check conflicts for an event at a specific position
+  const fmtConflictMeta = (evExtProps: any) => {
+    const parts: string[] = [];
+    if (evExtProps?.pnfName) parts.push(evExtProps.pnfName);
+    if (evExtProps?.seccion) parts.push(`Sec ${evExtProps.seccion}`);
+    if (evExtProps?.trayectoName) parts.push(evExtProps.trayectoName);
+    if (evExtProps?.turnName) parts.push(evExtProps.turnName);
+    return parts.length > 0 ? ` [${parts.join(', ')}]` : '';
+  };
+
   const checkEventConflicts = (
     event: Event,
     targetDay: number,
@@ -1064,20 +1083,20 @@ onOk: () => {
       if (professorId && existingEvent.extendedProps.professorId === professorId) {
         const prof = teachers?.find((t: { id: string; name?: string; lastName?: string }) => t.id === professorId);
         const profName = prof ? `${prof.name || ''} ${prof.lastName || ''}`.trim() : 'Profesor';
-        conflicts.push(`Conflicto de profesor: ${profName} ya tiene clase a esta hora con "${existingEvent.title}"`);
+        conflicts.push(`Conflicto de profesor: ${profName} ya tiene clase a esta hora con "${existingEvent.title}"${fmtConflictMeta(existingEvent.extendedProps)}`);
       }
 
       // Check classroom conflict
       if (classroomId && existingEvent.extendedProps.classroomId === classroomId) {
         const classroom = classrooms?.find((c: { id: string; classroom?: string }) => String(c.id) === String(classroomId));
-        conflicts.push(`Conflicto de aula: ${classroom?.classroom || 'Aula'} ya está ocupada a esta hora por "${existingEvent.title}"`);
+        conflicts.push(`Conflicto de aula: ${classroom?.classroom || 'Aula'} ya está ocupada a esta hora por "${existingEvent.title}"${fmtConflictMeta(existingEvent.extendedProps)}`);
       }
 
       // Check section conflict (same PNF, trayecto, section)
       if (pnfId === existingEvent.extendedProps.pnfId && 
           trayectoId === existingEvent.extendedProps.trayectoId && 
           seccion === existingEvent.extendedProps.seccion) {
-        conflicts.push(`Conflicto de sección: La sección ${seccion} ya tiene clase a esta hora con "${existingEvent.title}"`);
+        conflicts.push(`Conflicto de sección: La sección ${seccion} ya tiene clase a esta hora con "${existingEvent.title}"${fmtConflictMeta(existingEvent.extendedProps)}`);
       }
     }
 
@@ -1105,11 +1124,11 @@ onOk: () => {
       if (professorId && ghost.extendedProps.professorId === professorId) {
         const prof = teachers?.find((t: { id: string; name?: string; lastName?: string }) => t.id === professorId);
         const profName = prof ? `${prof.name || ''} ${prof.lastName || ''}`.trim() : 'Profesor';
-        conflicts.push(`Conflicto cruzado: ${profName} ya tiene clase a esta hora en "${ghost.title}" (${sourceLabel}).`);
+        conflicts.push(`Conflicto cruzado: ${profName} ya tiene clase a esta hora en "${ghost.title}" (${sourceLabel})${fmtConflictMeta(ghost.extendedProps)}.`);
       }
       if (classroomId && ghost.extendedProps.classroomId === classroomId) {
         const classroom = classrooms?.find((c: { id: string; classroom?: string }) => String(c.id) === String(classroomId));
-        conflicts.push(`Conflicto cruzado: ${classroom?.classroom || 'Aula'} ocupada por "${ghost.title}" (${sourceLabel}).`);
+        conflicts.push(`Conflicto cruzado: ${classroom?.classroom || 'Aula'} ocupada por "${ghost.title}" (${sourceLabel})${fmtConflictMeta(ghost.extendedProps)}.`);
       }
     }
 
@@ -3050,98 +3069,127 @@ onOk: () => {
   // The backend needs lockedSections to recalculate unfrozen sections around frozen positions.
   // schedule:setState is the escape hatch for manual edits.
   //
-  // Suppressed while a Happy Path recalculation is pending (recalcPendingRef),
-  // so the intermediate conflicted local state is never pushed to the backend.
+  // Validation of active-section hours runs before every push, even during
+  // a pending recalc, to fix lost/duplicated events from drag-and-drop.
+  // The push itself is suppressed while a Happy Path recalc is in-flight
+  // (recalcPendingRef), so intermediate state is never pushed to the backend.
   // Only the backend's own recalculation broadcast will update the state.
   useEffect(() => {
     if (!scheduleConnected || !proyectionId) return;
     if (eventData.length === 0) return;
-    if (recalcPendingRef.current) return;
     let normalizedEventData = normalizeEventData(eventData);
 
-    // Post-edit validation: when a manual edit is pending, ensure the active
-    // section has the correct number of hours per subject. Excess schedule
-    // events → staging; missing → staging placeholders.
-    if (pendingManualEditHashRef.current && pnf && trayectoId && seccion && subjects?.length) {
+    // ─── Section hours validation (two-tier) ────────────────────────────
+    // Tier 1 (ALWAYS): remove excess events so total (schedule+staging) never
+    // exceeds the projection's configured hours. Excess staging events are
+    // deleted first; if still over the limit, schedule events are moved to
+    // staging and removed on the next sync cycle.
+    // Tier 2 (only on manual edit): add placeholder staging events when total
+    // hours are below the projection's target, so the user can drag them in.
+    {
+      const hasActiveSection = !!(pnf && trayectoId && seccion && subjects?.length);
       let validated = false;
-      const activeSubjects = (subjects as Subject[]).filter(s =>
-        s.pnfId === pnf && s.trayectoId === trayectoId && s.seccion === seccion
-      );
+      let idToRemove = new Set<string>();
+      let idToStage = new Set<string>();
 
-      for (const subject of activeSubjects) {
-        const expectedHours = subject.hours?.[trimestre] ?? 0;
-        if (expectedHours <= 0) continue;
+      if (hasActiveSection) {
+        const activeSubjects = (subjects as Subject[]).filter(s =>
+          s.pnfId === pnf && s.trayectoId === trayectoId && s.seccion === seccion
+        );
 
-        const scheduleForSubject: { evt: Event; idx: number }[] = [];
-        const stagingForSubject: { evt: Event; idx: number }[] = [];
-        for (let i = 0; i < normalizedEventData.length; i++) {
-          const e = normalizedEventData[i];
-          if (e.extendedProps?.subjectId !== subject.innerId) continue;
-          if (e.extendedProps?.location === 'staging') {
-            stagingForSubject.push({ evt: e, idx: i });
-          } else {
-            scheduleForSubject.push({ evt: e, idx: i });
+        for (const subject of activeSubjects) {
+          const expectedHours = subject.hours?.[trimestre] ?? 0;
+          if (expectedHours <= 0) continue;
+
+          const scheduleIds: string[] = [];
+          const stagingIds: string[] = [];
+          for (const e of normalizedEventData) {
+            if (e.extendedProps?.subjectId !== subject.innerId) continue;
+            if (e.extendedProps?.location === 'staging') {
+              stagingIds.push(getEventId(e));
+            } else {
+              scheduleIds.push(getEventId(e));
+            }
           }
-        }
 
-        const scheduleCount = scheduleForSubject.length;
-        const totalCount = scheduleCount + stagingForSubject.length;
+          const scheduleCount = scheduleIds.length;
+          const stagingCount = stagingIds.length;
+          let totalCount = scheduleCount + stagingCount;
 
-        // Excess schedule events → move to staging (preserve the first N)
-        if (scheduleCount > expectedHours) {
-          const excess = scheduleForSubject.slice(expectedHours);
-          for (const { idx } of excess) {
-            normalizedEventData[idx] = {
-              ...normalizedEventData[idx],
-              extendedProps: { ...normalizedEventData[idx].extendedProps, location: 'staging' as const }
-            };
+          // ── Tier 1 (always): remove excess ──────────────────────────
+          if (totalCount > expectedHours) {
+            let toRemove = totalCount - expectedHours;
+            // Remove from staging first
+            for (let i = stagingCount - 1; toRemove > 0 && i >= 0; i--, toRemove--) {
+              idToRemove.add(stagingIds[i]);
+            }
+            // If still excess, move schedule events to staging
+            // (they will be cleaned up on the next validation cycle)
+            for (let i = scheduleCount - 1; toRemove > 0 && i >= 0; i--, toRemove--) {
+              idToStage.add(scheduleIds[i]);
+            }
             validated = true;
           }
-        }
 
-        // Missing total events → add staging placeholders
-        if (totalCount < expectedHours) {
-          const missing = expectedHours - totalCount;
-          const turnoKey = (subject.turnoName || turn).toLowerCase();
-          const turnoSlots = activeTurnos[turnoKey] || [];
-          const fallbackClassroom = classrooms?.[0];
+          // ── Tier 2 (only on manual edit): add placeholders ──────────
+          if (pendingManualEditHashRef.current && totalCount < expectedHours) {
+            const missing = expectedHours - totalCount;
+            const turnoKey = (subject.turnoName || turn).toLowerCase();
+            const turnoSlots = activeTurnos[turnoKey] || [];
+            const fallbackClassroom = classrooms?.[0];
 
-          for (let i = 0; i < missing; i++) {
-            const slotIdx = i % turnoSlots.length;
-            const [slotStart, slotEnd] = turnoSlots[slotIdx] || ['07:00', '07:45'];
-            const day = activeDays[i % activeDays.length] || 1;
-            normalizedEventData.push({
-              title: subject.subject,
-              daysOfWeek: [day],
-              startTime: slotStart,
-              endTime: slotEnd,
-              extendedProps: {
-                subjectId: subject.innerId,
-                professorId: subject.quarter?.[trimestre] ?? null,
-                classroomId: fallbackClassroom?.id ?? '',
-                classroomName: fallbackClassroom?.classroom ?? 'Sin aula',
-                pnfId: subject.pnfId,
-                trayectoId: subject.trayectoId,
-                trayectoName: subject.trayectoName ?? '',
-                seccion: subject.seccion,
-                pnfName: subject.pnf ?? '',
-                turnName: subject.turnoName,
-                blockId: `${day}-${subject.innerId}-staging-${Date.now()}-${i}`,
-                location: 'staging' as const,
-              }
-            });
-            validated = true;
+            for (let i = 0; i < missing; i++) {
+              const slotIdx = i % turnoSlots.length;
+              const [slotStart, slotEnd] = turnoSlots[slotIdx] || ['07:00', '07:45'];
+              const day = activeDays[i % activeDays.length] || 1;
+              normalizedEventData.push({
+                title: subject.subject,
+                daysOfWeek: [day],
+                startTime: slotStart,
+                endTime: slotEnd,
+                extendedProps: {
+                  subjectId: subject.innerId,
+                  professorId: subject.quarter?.[trimestre] ?? null,
+                  classroomId: fallbackClassroom?.id ?? '',
+                  classroomName: fallbackClassroom?.classroom ?? 'Sin aula',
+                  pnfId: subject.pnfId,
+                  trayectoId: subject.trayectoId,
+                  trayectoName: subject.trayectoName ?? '',
+                  seccion: subject.seccion,
+                  pnfName: subject.pnf ?? '',
+                  turnName: subject.turnoName,
+                  blockId: `${day}-${subject.innerId}-staging-${Date.now()}-${i}`,
+                  location: 'staging' as const,
+                }
+              });
+              validated = true;
+            }
           }
         }
+      }
+
+      if (idToRemove.size > 0) {
+        normalizedEventData = normalizedEventData.filter(e => !idToRemove.has(getEventId(e)));
+      }
+      if (idToStage.size > 0) {
+        normalizedEventData = normalizedEventData.map(e =>
+          idToStage.has(getEventId(e))
+            ? { ...e, extendedProps: { ...e.extendedProps, location: 'staging' as const } }
+            : e
+        );
       }
 
       if (validated) {
         normalizedEventData = normalizeEventData(normalizedEventData);
         setEventData(normalizedEventData);
         pendingManualEditHashRef.current = '';
-        return; // Let the next render cycle push the validated state
+        return;
       }
     }
+
+    // Suppress push while a backend recalculation is pending — the server
+    // will broadcast the corrected state shortly.
+    if (recalcPendingRef.current) return;
 
     const payload = {
       eventData: normalizedEventData,
@@ -5482,7 +5530,7 @@ if (conflictFound) {
                                 backgroundColor: isOfficialStageMode ? "#722ed1" : undefined
                               }}
                             >
-                              Depósito{getStagingEvents(eventData).length > 0 ? ` (${getStagingEvents(eventData).length})` : ""}
+                               Depósito{activeStagingEvents.length > 0 ? ` (${activeStagingEvents.length})` : ""}
                             </Button>
                           </Tooltip>
                         )}
@@ -5933,7 +5981,7 @@ if (conflictFound) {
           boxShadow: '-4px 0 20px rgba(0,0,0,0.15)'
         }}>
           <StagingArea
-            stagedEvents={getStagingEvents(eventData)}
+            stagedEvents={activeStagingEvents}
             subjectColors={subjectColors}
             onRemoveGroupFromStaging={removeGroupFromStaging}
             onClearAll={clearAllStaged}
