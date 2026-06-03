@@ -3352,7 +3352,7 @@ onOk: () => {
         if (!sub) return false;
         const expected = sub.hours?.[trimestre] ?? 0;
         const placed = normalizedEventData.filter(e =>
-          e.extendedProps?.subjectId === err.subjectId && e.extendedProps?.location !== 'staging'
+          e.extendedProps?.subjectId === err.subjectId
         ).length;
         return placed < expected;
       }));
@@ -3490,7 +3490,7 @@ onOk: () => {
         const filteredGenErrors = (scheduleState.lastGenerationErrors as scheduleError[]).filter(err => {
           if (!err.subjectId) return true; // errors without a specific subject (e.g. "no classrooms")
           const placedCount = incomingEvents.filter(
-            e => e.extendedProps?.subjectId === err.subjectId && e.extendedProps?.location !== 'staging'
+            e => e.extendedProps?.subjectId === err.subjectId
           ).length;
           const subject = (subjects as Subject[])?.find(s => s.innerId === err.subjectId);
           const expected = subject?.hours?.[trimestre] ?? 0;
@@ -6182,7 +6182,8 @@ if (conflictFound) {
               err.pnfId === pnf &&
               err.trayectoId === trayectoId &&
               err.trimestre === trimestre &&
-              err.turn?.toLowerCase() === turn.toLowerCase()
+              err.turn?.toLowerCase() === turn.toLowerCase() &&
+              !err.description?.startsWith('[CONFLICTO')
             )}
           />
         </div>
