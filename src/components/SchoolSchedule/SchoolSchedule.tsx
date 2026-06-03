@@ -4981,7 +4981,13 @@ if (conflictFound) {
               />
               <ClassroomManagerModal classrooms={classrooms} onClassroomsUpdated={loadClassrooms} />
 
-              <ScheduleErrorsModal errors={errors} onForceInsert={handleForceInsert} />
+              <ScheduleErrorsModal errors={errors} onForceInsert={handleForceInsert} onNavigateToError={(err) => {
+                if (err.pnfId) setPnf(err.pnfId);
+                if (err.trayectoId) setTrayectoId(err.trayectoId);
+                if (err.seccion) setSeccion(err.seccion);
+                if (err.turn) setTurn(err.turn.toLowerCase());
+                if (err.trimestre) setTrimestre(err.trimestre as "q1" | "q2" | "q3");
+              }} />
               <FaCog title="Configuración" className={styles.icon} onClick={() => setIsConfigModalOpen(true)} />
               <ScheduleConfigModal
                 visible={isConfigModalOpen}

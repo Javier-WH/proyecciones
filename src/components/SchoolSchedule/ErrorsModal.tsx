@@ -25,9 +25,10 @@ export interface scheduleError {
 interface params {
   errors: scheduleError[];
   onForceInsert?: (error: scheduleError, ignoreRestrictions: boolean) => void;
+  onNavigateToError?: (error: scheduleError) => void;
 }
 
-const ScheduleErrorsModal: React.FC<params> = ({ errors, onForceInsert }) => {
+const ScheduleErrorsModal: React.FC<params> = ({ errors, onForceInsert, onNavigateToError }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorList, setErrorList] = useState<scheduleError[]>([]);
   const [selectedPnf, setSelectedPnf] = useState<string>("all");
@@ -264,6 +265,20 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors, onForceInsert }) => {
                     >
                       {err.description}
                     </p>
+
+                    {/* Navigation button */}
+                    {onNavigateToError && err.pnfId && err.trayectoId && err.seccion && (
+                      <div style={{ marginTop: 8 }}>
+                        <Button
+                          size="small"
+                          type="link"
+                          style={{ padding: 0, height: 'auto' }}
+                          onClick={() => onNavigateToError(err)}
+                        >
+                          Ir a materia en conflicto
+                        </Button>
+                      </div>
+                    )}
 
                     {/* Solving Buttons */}
                     {canForceInsert(err) && (
