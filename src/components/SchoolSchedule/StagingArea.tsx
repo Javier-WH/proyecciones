@@ -1,7 +1,7 @@
 import React from 'react';
 import { Event } from './fucntions';
 import { Badge, Empty, Tooltip, Button, Tabs } from 'antd';
-import { ClockCircleOutlined, EnvironmentOutlined, ArrowLeftOutlined, ClearOutlined, CloseOutlined, CheckCircleOutlined, ExclamationCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, EnvironmentOutlined, ArrowLeftOutlined, ClearOutlined, CloseOutlined, CheckCircleOutlined, ExclamationCircleOutlined, ReloadOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import styles from './StagingArea.module.css';
 import { scheduleError } from './ErrorsModal';
 
@@ -9,10 +9,12 @@ interface StagingAreaProps {
   stagedEvents: Event[];
   subjectColors?: Record<string, string> | null;
   onRemoveGroupFromStaging: (events: Event[]) => void;
+  onDeleteSubjectFromStaging?: (events: Event[]) => void;
   onClearAll: () => void;
   onConfirmChanges: () => void;
   onClose: () => void;
   onRefresh?: () => void;
+  onAddSubjects?: () => void;
   onDragStart?: (event: Event) => void;
   onDragEnd?: () => void;
   onDropFromSchedule?: (event: Event) => void;
@@ -30,10 +32,12 @@ const StagingArea: React.FC<StagingAreaProps> = ({
   stagedEvents,
   subjectColors,
   onRemoveGroupFromStaging,
+  onDeleteSubjectFromStaging,
   onClearAll,
   onConfirmChanges,
   onClose,
   onRefresh,
+  onAddSubjects,
   onDragStart,
   onDragEnd,
   onDropFromSchedule,
@@ -201,7 +205,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
             },
           ]}
         />
-        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+        <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
            <Button
             size="small"
             type="primary"
@@ -211,6 +215,17 @@ const StagingArea: React.FC<StagingAreaProps> = ({
           >
             Confirmar cambios
           </Button>
+          {onAddSubjects && (
+            <Tooltip title="Agregar materias de la proyección al depósito">
+              <Button
+                size="small"
+                icon={<PlusOutlined />}
+                onClick={onAddSubjects}
+              >
+                Agregar
+              </Button>
+            </Tooltip>
+          )}
           {onRefresh && (
             <Tooltip title="Sincronizar profesores y horas con la proyección activa">
               <Button
@@ -276,18 +291,34 @@ const StagingArea: React.FC<StagingAreaProps> = ({
                       <span className={styles.subjectName}>{truncateText(group.title, 25)}</span>
                       <Badge count={group.events.length} style={{ backgroundColor: '#8c8c8c' }} />
                     </div>
-                    <Tooltip title={`Devolver toda la materia (${group.events.length} hora(s))`}>
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<ArrowLeftOutlined />}
-                        style={{ color: '#52c41a' }}
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent drag when clicking button
-                          onRemoveGroupFromStaging(group.events);
-                        }}
-                      />
-                    </Tooltip>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                      <Tooltip title={`Devolver toda la materia (${group.events.length} hora(s))`}>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<ArrowLeftOutlined />}
+                          style={{ color: '#52c41a' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveGroupFromStaging(group.events);
+                          }}
+                        />
+                      </Tooltip>
+                      {onDeleteSubjectFromStaging && (
+                        <Tooltip title={`Eliminar "${truncateText(group.title, 20)}" del depósito`}>
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            style={{ color: '#ff4d4f' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteSubjectFromStaging(group.events);
+                            }}
+                          />
+                        </Tooltip>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className={styles.subjectEvents}>

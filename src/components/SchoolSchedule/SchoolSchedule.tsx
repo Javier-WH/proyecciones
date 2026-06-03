@@ -344,6 +344,8 @@ const SchoolSchedule: React.FC = () => {
   const [eventsWithConflicts, setEventsWithConflicts] = useState<Record<string, string[]>>({}); // eventId -> conflict messages
   const [conflictNavMeta, setConflictNavMeta] = useState<Record<string, Array<{ title: string; pnfId: string; trayectoId: string; seccion: string; turnName: string; pnfName: string }>>>({});
   const STAGING_PANEL_WIDTH = 320;
+  const [isAddSubjectsModalOpen, setIsAddSubjectsModalOpen] = useState(false);
+  const [selectedSubjectsToAdd, setSelectedSubjectsToAdd] = useState<string[]>([]);
 
   // Detectar conflictos de doble-asignación de profesor: cuando un mismo profesor
   // tiene dos clases asignadas en el mismo día/hora pero en distintas secciones/aulas.
@@ -924,6 +926,86 @@ onOk: () => {
     message.info(`Materia devuelta al horario (${events.length} hora(s))`);
   };
 
+  const deleteSubjectFromStaging = (events: Event[]) => {
+    const idsToDelete = new Set(events.map(e => getEventId(e)));
+    setEventData(prev => {
+      const updated = prev.filter(e => !idsToDelete.has(getEventId(e)));
+      markManualEditPending(updated);
+      return updated;
+    });
+    message.info(`${events.length} hora(s) eliminada(s) del depósito.`);
+  };
+
+  const handleAddSubjects = () => {
+    if (!pnf || !trayectoId || !seccion || !subjects) {
+      message.warning("Selecciona una sección activa primero");
+      return;
+    }
+    setSelectedSubjectsToAdd([]);
+    setIsAddSubjectsModalOpen(true);
+  };
+
+  const confirmAddSelectedSubjects = () => {
+    if (selectedSubjectsToAdd.length === 0) {
+      message.info("No se seleccionó ninguna materia.");
+      return;
+    }
+    const allSubjects = (subjects as Subject[]).filter(s =>
+      s.pnfId === pnf && s.trayectoId === trayectoId && s.seccion === seccion
+    );
+    const selected = allSubjects.filter(s => selectedSubjectsToAdd.includes(s.innerId));
+    if (selected.length === 0) {
+      message.info("No se encontraron las materias seleccionadas.");
+      return;
+    }
+    const turnoKey = turn.toLowerCase();
+    const turnoSlots = activeTurnos[turnoKey] || [];
+    const fallbackClassroom = classrooms?.[0];
+
+    setEventData(prev => {
+      const updated = [...prev];
+      let added = 0;
+      for (const s of selected) {
+        const hours = s.hours?.[trimestre] ?? 0;
+        if (hours <= 0) continue;
+        // Count already-placed events for this subject
+        const existing = updated.filter(e => e.extendedProps?.subjectId === s.innerId).length;
+        const missing = Math.max(0, hours - existing);
+        if (missing <= 0) continue;
+        for (let i = 0; i < missing; i++) {
+          const slotIdx = i % turnoSlots.length;
+          const [slotStart, slotEnd] = turnoSlots[slotIdx] || ['07:00', '07:45'];
+          const day = activeDays[i % activeDays.length] || 1;
+          updated.push({
+            title: s.subject,
+            daysOfWeek: [day],
+            startTime: slotStart,
+            endTime: slotEnd,
+            extendedProps: {
+              subjectId: s.innerId,
+              professorId: s.quarter?.[trimestre] ?? null,
+              classroomId: fallbackClassroom?.id ?? '',
+              classroomName: fallbackClassroom?.classroom ?? 'Sin aula',
+              pnfId: s.pnfId,
+              trayectoId: s.trayectoId,
+              trayectoName: s.trayectoName ?? '',
+              seccion: s.seccion,
+              pnfName: s.pnf ?? '',
+              turnName: s.turnoName,
+              blockId: `${day}-${s.innerId}-add-${Date.now()}-${i}`,
+              location: 'staging' as const,
+            }
+          });
+          added++;
+        }
+      }
+      markManualEditPending(updated);
+      return updated;
+    });
+    message.success(`${selected.length} materia(s) agregada(s) al depósito.`);
+    setIsAddSubjectsModalOpen(false);
+  };
+
   const refreshStagingFromProjection = () => {
     if (!subjects || subjects.length === 0 || !pnf || !trayectoId || !seccion) {
       message.warning("Selecciona una sección activa primero");
@@ -1376,7 +1458,14 @@ onOk: () => {
 
     setErrors(prev => {
       const genErrors = prev.filter(e => !e.description?.startsWith('[CONFLICTO DETECTADO]'));
-      return [...genErrors, ...conflictErrors];
+      const merged = [...genErrors, ...conflictErrors];
+      const seen = new Set<string>();
+      return merged.filter(e => {
+        const k = `${e.subjectId || ''}|${e.pnfId || ''}|${e.trayectoId || ''}|${e.seccion || ''}|${e.description?.substring(0, 80) || ''}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventsWithConflicts, lockedSections, trimestre]);
@@ -3520,7 +3609,14 @@ onOk: () => {
           const expected = subject?.hours?.[trimestre] ?? 0;
           return placedCount < expected;
         });
-        return [...localErrors, ...filteredGenErrors];
+        const merged = [...localErrors, ...filteredGenErrors];
+        const seen = new Set<string>();
+        return merged.filter(e => {
+          const k = `${e.subjectId || ''}|${e.pnfId || ''}|${e.trayectoId || ''}|${e.seccion || ''}|${e.description?.substring(0, 80) || ''}`;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -6205,6 +6301,45 @@ if (conflictFound) {
         onClose={() => setIsStageManagerOpen(false)}
       />
 
+      {/* Add Subjects Modal */}
+      <Modal
+        title="Agregar materias al depósito"
+        open={isAddSubjectsModalOpen}
+        onCancel={() => setIsAddSubjectsModalOpen(false)}
+        onOk={confirmAddSelectedSubjects}
+        okText="Agregar"
+        cancelText="Cancelar"
+        width={500}
+      >
+        <p style={{ marginBottom: 12, color: '#595959' }}>
+          Selecciona las materias de la proyección para agregar al depósito. Solo se agregan las horas faltantes.
+        </p>
+        <Select
+          mode="multiple"
+          style={{ width: '100%' }}
+          placeholder="Buscar y seleccionar materias..."
+          value={selectedSubjectsToAdd}
+          onChange={setSelectedSubjectsToAdd}
+          options={(subjects as Subject[])
+            ?.filter(s => s.pnfId === pnf && s.trayectoId === trayectoId && s.seccion === seccion && (s.hours?.[trimestre] ?? 0) > 0)
+            .map(s => {
+              const existing = eventData.filter(e => e.extendedProps?.subjectId === s.innerId).length;
+              const total = s.hours?.[trimestre] ?? 0;
+              const missing = Math.max(0, total - existing);
+              return {
+                value: s.innerId,
+                label: `${s.subject} (${missing} hora(s) faltante(s) de ${total})`,
+              };
+            })
+            .sort((a, b) => a.label.localeCompare(b.label))
+          }
+          showSearch
+          filterOption={(input, option) =>
+            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+          }
+        />
+      </Modal>
+
       {/* Staging Area - Panel lateral para modo de edición oficial */}
       {isOfficialStageMode && (
         <div style={{
@@ -6226,6 +6361,8 @@ if (conflictFound) {
             manualEditSaving={manualEditSaving}
             onClose={() => setIsOfficialStageMode(false)}
             onRefresh={refreshStagingFromProjection}
+            onAddSubjects={handleAddSubjects}
+            onDeleteSubjectFromStaging={deleteSubjectFromStaging}
             onDragStart={(event) => setDraggingFromStaging(event)}
             onDragEnd={() => setDraggingFromStaging(null)}
             onDropFromSchedule={handleDropFromSchedule}

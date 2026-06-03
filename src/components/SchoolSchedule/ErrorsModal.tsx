@@ -267,7 +267,7 @@ const ScheduleErrorsModal: React.FC<params> = ({ errors, onForceInsert, onNaviga
                     </p>
 
                     {/* Navigation button */}
-                    {onNavigateToError && err.pnfId && err.trayectoId && err.seccion && (
+                    {onNavigateToError && (err.pnfId || err.seccion || err.trayectoId) && (
                       <div style={{ marginTop: 8 }}>
                         <Button
                           size="small"
