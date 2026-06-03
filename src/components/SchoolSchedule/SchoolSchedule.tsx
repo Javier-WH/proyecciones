@@ -342,6 +342,7 @@ const SchoolSchedule: React.FC = () => {
   const [confirmStagingLoading, setConfirmStagingLoading] = useState(false);
   const [pendingLockedSectionSaves, setPendingLockedSectionSaves] = useState<PendingLockedSectionSave[]>([]);
   const [eventsWithConflicts, setEventsWithConflicts] = useState<Record<string, string[]>>({}); // eventId -> conflict messages
+  const [conflictNavMeta, setConflictNavMeta] = useState<Record<string, Array<{ title: string; pnfId: string; trayectoId: string; seccion: string; turnName: string; pnfName: string }>>>({});
   const STAGING_PANEL_WIDTH = 320;
 
   // Detectar conflictos de doble-asignación de profesor: cuando un mismo profesor
@@ -1295,6 +1296,7 @@ onOk: () => {
       return;
     }
     const next: Record<string, string[]> = {};
+    const navMeta: Record<string, Array<{ title: string; pnfId: string; trayectoId: string; seccion: string; turnName: string; pnfName: string }>> = {};
     for (const ev of scheduleEvents) {
       const day = ev.daysOfWeek?.[0];
       const start = ev.startTime;
@@ -1302,6 +1304,27 @@ onOk: () => {
       const conflicts = checkEventConflicts(ev, day, start, scheduleEvents);
       if (conflicts.length > 0) {
         next[getEventId(ev)] = conflicts;
+        // Find conflicting events at same day+time to build nav metadata
+        const targets = scheduleEvents.filter(other => {
+          if (getEventId(other) === getEventId(ev)) return false;
+          if (other.extendedProps?.isCrossQuarterGhost) return false;
+          if (other.daysOfWeek?.[0] !== day || other.startTime !== start) return false;
+          const props = ev.extendedProps || {};
+          const oprops = other.extendedProps || {};
+          return (
+            (props.professorId && oprops.professorId === props.professorId) ||
+            (props.classroomId && oprops.classroomId === props.classroomId) ||
+            (props.pnfId === oprops.pnfId && props.trayectoId === oprops.trayectoId && props.seccion === oprops.seccion)
+          );
+        });
+        navMeta[getEventId(ev)] = targets.map(t => ({
+          title: t.title,
+          pnfId: t.extendedProps?.pnfId || '',
+          trayectoId: t.extendedProps?.trayectoId || '',
+          seccion: t.extendedProps?.seccion || '',
+          turnName: t.extendedProps?.turnName || '',
+          pnfName: t.extendedProps?.pnfName || '',
+        }));
       }
     }
     const conflictCount = Object.keys(next).length;
@@ -1309,6 +1332,7 @@ onOk: () => {
       console.log('[ConflictCheck] Found', conflictCount, 'conflicts:', next);
     }
     setEventsWithConflicts(next);
+    setConflictNavMeta(navMeta);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventData, crossQuarterGhostEvents, teachers, classrooms, subjects, trimestre]);
 
@@ -5436,6 +5460,7 @@ if (conflictFound) {
                                             }}
                                             onClick={(e) => {
                                               e.stopPropagation();
+                                              const navTargets = conflictNavMeta[cellEventId] || [];
                                               Modal.warning({
                                                 title: "Conflictos en este horario",
                                                 content: (
@@ -5446,6 +5471,27 @@ if (conflictFound) {
                                                         <li key={i} style={{ marginBottom: 4 }}>{c}</li>
                                                       ))}
                                                     </ul>
+                                                    {navTargets.length > 0 && (
+                                                      <div style={{ marginTop: 12, borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+                                                        {navTargets.map((t, i) => (
+                                                          <Button
+                                                            key={i}
+                                                            size="small"
+                                                            type="link"
+                                                            style={{ padding: 0, height: 'auto' }}
+                                                            onClick={() => {
+                                                              if (t.pnfId) setPnf(t.pnfId);
+                                                              if (t.trayectoId) setTrayectoId(t.trayectoId);
+                                                              if (t.seccion) setSeccion(t.seccion);
+                                                              if (t.turnName) setTurn(t.turnName.toLowerCase());
+                                                              Modal.destroyAll();
+                                                            }}
+                                                          >
+                                                            Ir a materia en conflicto
+                                                          </Button>
+                                                        ))}
+                                                      </div>
+                                                    )}
                                                   </div>
                                                 ),
                                                 okText: "Entendido"
