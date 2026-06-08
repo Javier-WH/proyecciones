@@ -178,6 +178,7 @@ const SchoolSchedule: React.FC = () => {
   const [manualEditSaving, setManualEditSaving] = useState(false);
   const [savingEventKeys, setSavingEventKeys] = useState<Set<string>>(new Set());
   const savingEventKeysTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingManualEditTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recalcLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track keys locally unfrozen so inbound merges don't re-add them before
   // the backend has processed the unfreeze.
@@ -214,6 +215,9 @@ const SchoolSchedule: React.FC = () => {
   const normalizeEventData = (events: Event[]) => {
     const seen = new Set<string>();
     return events.filter(event => {
+      // Never deduplicate staging events — they are transient placeholders
+      // and can share the same logical slot without harming the schedule.
+      if (event.extendedProps?.location === 'staging') return true;
       const id = getEventId(event);
       if (seen.has(id)) return false;
       seen.add(id);
@@ -231,6 +235,13 @@ const SchoolSchedule: React.FC = () => {
         setSavingEventKeys(new Set());
       }, 30_000);
     }
+    // Safety timeout: clear pending hash + saving state if not acked in 15 s
+    if (pendingManualEditTimerRef.current) clearTimeout(pendingManualEditTimerRef.current);
+    pendingManualEditTimerRef.current = setTimeout(() => {
+      pendingManualEditHashRef.current = '';
+      setManualEditSaving(false);
+      setSavingEventKeys(new Set());
+    }, 15_000);
   };
 
   useEffect(() => {
