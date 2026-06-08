@@ -167,6 +167,7 @@ const SchoolSchedule: React.FC = () => {
       lockedSections: typeof lockedSections;
       stagedEvents: Event[];
       scheduleConfig: ScheduleConfig | Record<string, never>;
+      lastGenerationErrors?: scheduleError[];
     };
   } | null>(null);
   // Suppress reactive conflict detection while a Happy Path classroom change
@@ -183,6 +184,9 @@ const SchoolSchedule: React.FC = () => {
   // Track keys locally unfrozen so inbound merges don't re-add them before
   // the backend has processed the unfreeze.
   const pendingUnfreezesRef = useRef<Set<string>>(new Set());
+  // Subjects whose staging events were manually deleted by the user —
+  // skip Tier 2 placeholder recreation for them in the next sync cycle.
+  const skipTier2SubjectIdsRef = useRef<Set<string>>(new Set());
 
   const startRecalcLoading = () => {
     recalcPendingRef.current = true;
@@ -205,11 +209,13 @@ const SchoolSchedule: React.FC = () => {
   const getScheduleSnapshotHash = (
     nextEventData: Event[],
     nextClassroomOverrides: ClassroomOverride[] = classroomOverrides,
-    nextLockedSections: typeof lockedSections = lockedSections
+    nextLockedSections: typeof lockedSections = lockedSections,
+    nextLastGenerationErrors: scheduleError[] = getPersistedGenerationErrors(errors)
   ) => JSON.stringify({
     eventData: nextEventData,
     classroomOverrides: nextClassroomOverrides,
     lockedSections: nextLockedSections,
+    lastGenerationErrors: nextLastGenerationErrors,
   });
 
   const normalizeEventData = (events: Event[]) => {
@@ -224,6 +230,9 @@ const SchoolSchedule: React.FC = () => {
       return true;
     });
   };
+
+  const getPersistedGenerationErrors = (items: scheduleError[]) =>
+    items.filter(err => !err.description?.startsWith('[CONFLICTO'));
 
   const markManualEditPending = (nextEventData: Event[], changedEventKeys?: string[]) => {
     pendingManualEditHashRef.current = getScheduleSnapshotHash(normalizeEventData(nextEventData));
@@ -796,7 +805,7 @@ onOk: () => {
           classroomId: selectedClassroom.id,
           classroomName: selectedClassroom.classroom,
           pnfName: eventsToDrop[i].extendedProps?.pnfName || '',
-          turnName: eventsToDrop[i].extendedProps?.turnName || '',
+          turnName: eventsToDrop[i].extendedProps?.turnName?.toLowerCase() || turn.toLowerCase(),
           blockId: `${targetDay}-${subject.innerId}`,
           location: 'schedule' as const,
         },
@@ -939,6 +948,9 @@ onOk: () => {
 
   const deleteSubjectFromStaging = (events: Event[]) => {
     const idsToDelete = new Set(events.map(e => getEventId(e)));
+    const deletedSubjectIds = new Set(events.map(e => e.extendedProps?.subjectId).filter(Boolean) as string[]);
+    // Mark these subjects so Tier 2 won't recreate placeholders for them
+    skipTier2SubjectIdsRef.current = new Set([...Array.from(skipTier2SubjectIdsRef.current), ...Array.from(deletedSubjectIds)]);
     setEventData(prev => {
       const updated = prev.filter(e => !idsToDelete.has(getEventId(e)));
       markManualEditPending(updated);
@@ -1002,7 +1014,7 @@ onOk: () => {
               trayectoName: s.trayectoName ?? '',
               seccion: s.seccion,
               pnfName: s.pnf ?? '',
-              turnName: s.turnoName,
+              turnName: s.turnoName?.toLowerCase() || turn.toLowerCase(),
               blockId: `${day}-${s.innerId}-add-${Date.now()}-${i}`,
               location: 'staging' as const,
             }
@@ -1085,9 +1097,6 @@ onOk: () => {
         for (let i = stagingCount - 1; toRemove > 0 && i >= 0; i--, toRemove--) {
           idToRemove.add(stagingIds[i]);
         }
-        for (let i = scheduleCount - 1; toRemove > 0 && i >= 0; i--, toRemove--) {
-          idToStage.add(scheduleIds[i]);
-        }
         validated = true;
       }
 
@@ -1106,21 +1115,21 @@ onOk: () => {
             daysOfWeek: [day],
             startTime: slotStart,
             endTime: slotEnd,
-            extendedProps: {
-              subjectId: subject.innerId,
-              professorId: subject.quarter?.[trimestre] ?? null,
-              classroomId: fallbackClassroom?.id ?? '',
-              classroomName: fallbackClassroom?.classroom ?? 'Sin aula',
-              pnfId: subject.pnfId,
-              trayectoId: subject.trayectoId,
-              trayectoName: subject.trayectoName ?? '',
-              seccion: subject.seccion,
-              pnfName: subject.pnf ?? '',
-              turnName: subject.turnoName,
-              blockId: `${day}-${subject.innerId}-refill-${Date.now()}-${i}`,
-              location: 'staging' as const,
-            }
-          });
+              extendedProps: {
+                subjectId: subject.innerId,
+                professorId: subject.quarter?.[trimestre] ?? null,
+                classroomId: fallbackClassroom?.id ?? '',
+                classroomName: fallbackClassroom?.classroom ?? 'Sin aula',
+                pnfId: subject.pnfId,
+                trayectoId: subject.trayectoId,
+                trayectoName: subject.trayectoName ?? '',
+                seccion: subject.seccion,
+                pnfName: subject.pnf ?? '',
+                turnName: subject.turnoName?.toLowerCase() || turn.toLowerCase(),
+                blockId: `${day}-${subject.innerId}-refill-${Date.now()}-${i}`,
+                location: 'staging' as const,
+              }
+            });
           validated = true;
         }
       }
@@ -1488,12 +1497,13 @@ onOk: () => {
     _targetEndTime: string,
     eventFromDrop?: Event | Event[],
     _targetOccupyingEvent?: Event,
-    isBlockDrag?: boolean
+    isBlockDrag?: boolean,
+    isUnassigned?: boolean
   ) => {
     // Handle block drag from staging header (array of events)
     if (isBlockDrag && Array.isArray(eventFromDrop) && eventFromDrop.length > 0) {
       const eventsToMove = eventFromDrop;
-      processStagingDrop(targetDay, targetStartTime, eventsToMove);
+      processStagingDrop(targetDay, targetStartTime, eventsToMove, isUnassigned);
       return;
     }
 
@@ -1502,10 +1512,10 @@ onOk: () => {
     if (!eventToUse) return;
 
     // For individual drag, only move the single event (no block detection)
-    processStagingDrop(targetDay, targetStartTime, [eventToUse]);
+    processStagingDrop(targetDay, targetStartTime, [eventToUse], isUnassigned);
   };
 
-  const processStagingDrop = (targetDay: number, targetStartTime: string, eventsToMove: Event[]) => {
+  const processStagingDrop = (targetDay: number, targetStartTime: string, eventsToMove: Event[], isUnassigned?: boolean) => {
     const isSameSubjectAndSection = (a: Event, b: Event) =>
       String(a.extendedProps?.subjectId) === String(b.extendedProps?.subjectId) &&
       String(a.extendedProps?.seccion) === String(b.extendedProps?.seccion);
@@ -1608,10 +1618,12 @@ onOk: () => {
       return;
     }
 
-    const currentStagedIds = new Set(getStagingEvents(eventData).map(e => getEventId(e)));
-    if (![...movedOriginalIds].every(id => currentStagedIds.has(id))) {
-      message.warning("El bloque cambió antes de completar el movimiento. Intenta moverlo nuevamente.");
-      return;
+    if (!isUnassigned) {
+      const currentStagedIds = new Set(getStagingEvents(eventData).map(e => getEventId(e)));
+      if (![...movedOriginalIds].every(id => currentStagedIds.has(id))) {
+        message.warning("El bloque cambió antes de completar el movimiento. Intenta moverlo nuevamente.");
+        return;
+      }
     }
 
     // Check if any events have conflicts - allow movement but show visual indicators
@@ -3382,22 +3394,20 @@ onOk: () => {
           let totalCount = scheduleCount + stagingCount;
 
           // ── Tier 1 (always): remove excess ──────────────────────────
+          // Only clean up staging events — never move schedule events
+          // back to staging, as that could undo the user's last placement.
           if (totalCount > expectedHours) {
             let toRemove = totalCount - expectedHours;
-            // Remove from staging first
             for (let i = stagingCount - 1; toRemove > 0 && i >= 0; i--, toRemove--) {
               idToRemove.add(stagingIds[i]);
-            }
-            // If still excess, move schedule events to staging
-            // (they will be cleaned up on the next validation cycle)
-            for (let i = scheduleCount - 1; toRemove > 0 && i >= 0; i--, toRemove--) {
-              idToStage.add(scheduleIds[i]);
             }
             validated = true;
           }
 
           // ── Tier 2 (only on manual edit): add placeholders ──────────
-          if (pendingManualEditHashRef.current && totalCount < expectedHours) {
+          // Skip subjects the user explicitly deleted from staging —
+          // those deletions are intentional and should not be reverted.
+          if (pendingManualEditHashRef.current && totalCount < expectedHours && !skipTier2SubjectIdsRef.current.has(subject.innerId)) {
             const missing = expectedHours - totalCount;
             const turnoKey = (subject.turnoName || turn).toLowerCase();
             const turnoSlots = activeTurnos[turnoKey] || [];
@@ -3422,7 +3432,7 @@ onOk: () => {
                   trayectoName: subject.trayectoName ?? '',
                   seccion: subject.seccion,
                   pnfName: subject.pnf ?? '',
-                  turnName: subject.turnoName,
+                  turnName: subject.turnoName?.toLowerCase() || turn.toLowerCase(),
                   blockId: `${day}-${subject.innerId}-staging-${Date.now()}-${i}`,
                   location: 'staging' as const,
                 }
@@ -3460,9 +3470,11 @@ onOk: () => {
           return totalPlaced < expected;
         }));
         pendingManualEditHashRef.current = '';
+        skipTier2SubjectIdsRef.current.clear();
         return;
       }
     }
+    skipTier2SubjectIdsRef.current.clear();
 
     // Even when eventData is already correct, prune stale "No Asignadas"
     // errors from the active section — they may have been introduced by a
@@ -3486,14 +3498,16 @@ onOk: () => {
     // will broadcast the corrected state shortly.
     if (recalcPendingRef.current) return;
 
+    const persistedGenerationErrors = getPersistedGenerationErrors(errors);
     const payload = {
       eventData: normalizedEventData,
       classroomOverrides,
       lockedSections,
       stagedEvents: [],
       scheduleConfig: scheduleConfig || {},
+      lastGenerationErrors: persistedGenerationErrors,
     };
-    const hash = getScheduleSnapshotHash(normalizedEventData, classroomOverrides, lockedSections);
+    const hash = getScheduleSnapshotHash(normalizedEventData, classroomOverrides, lockedSections, persistedGenerationErrors);
     if (hash === lastSyncedHashRef.current) {
       if (pendingManualEditHashRef.current === hash) {
         pendingManualEditHashRef.current = "";
@@ -3546,7 +3560,7 @@ onOk: () => {
 
     flushQueuedSnapshot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventData, classroomOverrides, lockedSections, scheduleConnected, proyectionId]);
+  }, [eventData, classroomOverrides, lockedSections, errors, scheduleConnected, proyectionId]);
 
 // ─── Backend sync: inbound (apply remote-sourced state) ───
   // When the backend pushes a state version we have not seen, apply it locally.
@@ -3557,7 +3571,8 @@ onOk: () => {
     const incomingHash = getScheduleSnapshotHash(
       Array.isArray(scheduleState.eventData) ? scheduleState.eventData : [],
       Array.isArray(scheduleState.classroomOverrides) ? scheduleState.classroomOverrides as ClassroomOverride[] : [],
-      scheduleState.lockedSections as typeof lockedSections
+      scheduleState.lockedSections as typeof lockedSections,
+      Array.isArray(scheduleState.lastGenerationErrors) ? scheduleState.lastGenerationErrors as scheduleError[] : []
     );
     const shouldPreservePendingManualEdit =
       !!pendingManualEditHashRef.current &&
@@ -3646,7 +3661,7 @@ onOk: () => {
           event.extendedProps.pnfId === pnf &&
           event.extendedProps.seccion === seccion &&
           event.extendedProps.trayectoId === trayectoId &&
-          event.extendedProps.turnName.toLowerCase() === turn
+          event.extendedProps.turnName?.toLowerCase() === turn
       );
 
       // Filtrar eventos generados con los mismos criterios (solo schedule events)
@@ -3655,7 +3670,7 @@ onOk: () => {
           event.extendedProps.pnfId === pnf &&
           event.extendedProps.seccion === seccion &&
           event.extendedProps.trayectoId === trayectoId &&
-          event.extendedProps.turnName.toLowerCase() === turn
+          event.extendedProps.turnName?.toLowerCase() === turn
       );
 
       // Ghosts: aulas/profesores que están ocupados por OTRO trim/PNF y por
@@ -5713,7 +5728,11 @@ if (conflictFound) {
                                                   if (!prof) return <div style={{ fontSize: "0.75rem", color: "#999" }}>Sin Profesor Asignado</div>;
                                                   const fullName = `${prof.name || ""} ${prof.lastName || ""}`.trim();
                                                   const academicTitle = prof.title || "Profesor";
-                                                  return (
+  // Paused features — kept for future use
+  void deleteSubjectFromStaging;
+  void handleAddSubjects;
+
+  return (
                                                     <div style={{ fontSize: "0.75rem", color: "#495057" }}>
                                                       {prof.is_placeholder ? (
                                                         <span style={{ fontStyle: "italic", color: "#666" }}>{fullName} (Propuesta)</span>
@@ -6351,7 +6370,6 @@ if (conflictFound) {
         />
       </Modal>
 
-      {/* Staging Area - Panel lateral para modo de edición oficial */}
       {isOfficialStageMode && (
         <div style={{
           position: 'fixed',
@@ -6372,8 +6390,6 @@ if (conflictFound) {
             manualEditSaving={manualEditSaving}
             onClose={() => setIsOfficialStageMode(false)}
             onRefresh={refreshStagingFromProjection}
-            onAddSubjects={handleAddSubjects}
-            onDeleteSubjectFromStaging={deleteSubjectFromStaging}
             onDragStart={(event) => setDraggingFromStaging(event)}
             onDragEnd={() => setDraggingFromStaging(null)}
             onDropFromSchedule={handleDropFromSchedule}

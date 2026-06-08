@@ -354,6 +354,30 @@ Un bloque de 3 horas movido desde el depósito podía colocar solo 2 horas y per
 
 ---
 
+### 12. Manual placement from deposit/unassigned tab reappears after refresh
+
+**Problem:**
+Subjects manually placed from the deposit or the "No Asignadas" tab could appear fixed in the UI but return after refreshing the browser.
+
+**Symptom:**
+After dragging a subject/block into the schedule and seeing it placed locally, a refresh loaded stale unassigned/deposit state from the backend.
+
+**Cause:**
+The manual `schedule:setState` snapshot persisted `eventData`, `lockedSections`, classroom overrides, and config, but did not include the filtered generation errors in the sync hash. Even when the payload carried `lastGenerationErrors`, the outbound effect could decide that the snapshot was already synced and skip the backend write.
+
+**Solution:**
+Include filtered non-conflict `lastGenerationErrors` in both the outbound manual snapshot and the snapshot hash used by inbound/outbound sync. Document the optional field in the backend schedule state typedef.
+
+**Affected Files:**
+- `src/components/SchoolSchedule/SchoolSchedule.tsx`
+- `backend/src/backEnd/schedule/stateTypes.js`
+
+**References:**
+- [SCHEDULE_RULES.md](../SCHEDULE_RULES.md) §10 — Persistence and Reports
+- [docs/BackendScheduleSync.md](./BackendScheduleSync.md)
+
+---
+
 ## 🔗 Referencias
 
 - **[agents.md](../agents.md)** - Índice de documentación
