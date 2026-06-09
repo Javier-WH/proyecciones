@@ -175,10 +175,18 @@ const dispatch = useMemo(
             resolve({ ok: false, code: "NO_SOCKET", message: "Socket no conectado" });
             return;
           }
-          socket.emit(
+          // Use an ack timeout so a lost ack (e.g. a transient disconnect mid
+          // dispatch) always rejects instead of hanging forever. Without this,
+          // an unresolved dispatch leaves the outbound setState pipeline stuck
+          // (setStateInFlightRef stays true) and blocks all future writes.
+          socket.timeout(20000).emit(
             name,
             { proyectionId, trimestre, baseVersion: versionRef.current, payload },
-            (ack: Ack) => {
+            (err: unknown, ack: Ack) => {
+              if (err) {
+                resolve({ ok: false, code: "TIMEOUT", message: "Sin respuesta del servidor" });
+                return;
+              }
               resolve(ack ?? { ok: false, code: "NO_ACK", message: "Sin respuesta" })
             }
           );

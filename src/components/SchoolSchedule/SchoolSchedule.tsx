@@ -209,13 +209,11 @@ const SchoolSchedule: React.FC = () => {
   const getScheduleSnapshotHash = (
     nextEventData: Event[],
     nextClassroomOverrides: ClassroomOverride[] = classroomOverrides,
-    nextLockedSections: typeof lockedSections = lockedSections,
-    nextLastGenerationErrors: scheduleError[] = getPersistedGenerationErrors(errors)
+    nextLockedSections: typeof lockedSections = lockedSections
   ) => JSON.stringify({
     eventData: nextEventData,
     classroomOverrides: nextClassroomOverrides,
     lockedSections: nextLockedSections,
-    lastGenerationErrors: nextLastGenerationErrors,
   });
 
   const normalizeEventData = (events: Event[]) => {
@@ -3498,16 +3496,15 @@ onOk: () => {
     // will broadcast the corrected state shortly.
     if (recalcPendingRef.current) return;
 
-    const persistedGenerationErrors = getPersistedGenerationErrors(errors);
     const payload = {
       eventData: normalizedEventData,
       classroomOverrides,
       lockedSections,
       stagedEvents: [],
       scheduleConfig: scheduleConfig || {},
-      lastGenerationErrors: persistedGenerationErrors,
+      lastGenerationErrors: getPersistedGenerationErrors(errors),
     };
-    const hash = getScheduleSnapshotHash(normalizedEventData, classroomOverrides, lockedSections, persistedGenerationErrors);
+    const hash = getScheduleSnapshotHash(normalizedEventData, classroomOverrides, lockedSections);
     if (hash === lastSyncedHashRef.current) {
       if (pendingManualEditHashRef.current === hash) {
         pendingManualEditHashRef.current = "";
@@ -3560,7 +3557,7 @@ onOk: () => {
 
     flushQueuedSnapshot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventData, classroomOverrides, lockedSections, errors, scheduleConnected, proyectionId]);
+  }, [eventData, classroomOverrides, lockedSections, scheduleConnected, proyectionId]);
 
 // ─── Backend sync: inbound (apply remote-sourced state) ───
   // When the backend pushes a state version we have not seen, apply it locally.
@@ -3571,8 +3568,7 @@ onOk: () => {
     const incomingHash = getScheduleSnapshotHash(
       Array.isArray(scheduleState.eventData) ? scheduleState.eventData : [],
       Array.isArray(scheduleState.classroomOverrides) ? scheduleState.classroomOverrides as ClassroomOverride[] : [],
-      scheduleState.lockedSections as typeof lockedSections,
-      Array.isArray(scheduleState.lastGenerationErrors) ? scheduleState.lastGenerationErrors as scheduleError[] : []
+      scheduleState.lockedSections as typeof lockedSections
     );
     const shouldPreservePendingManualEdit =
       !!pendingManualEditHashRef.current &&

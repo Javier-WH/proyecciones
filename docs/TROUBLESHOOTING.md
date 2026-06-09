@@ -360,17 +360,22 @@ Un bloque de 3 horas movido desde el depósito podía colocar solo 2 horas y per
 Subjects manually placed from the deposit or the "No Asignadas" tab could appear fixed in the UI but return after refreshing the browser.
 
 **Symptom:**
-After dragging a subject/block into the schedule and seeing it placed locally, a refresh loaded stale unassigned/deposit state from the backend.
+After dragging a subject/block into the schedule and seeing it placed locally, a refresh restored the old backend state (subject back in "No Asignadas"). Browser console showed the socket flapping `connected=false/true` right after dispatching `schedule:setState`, and the `setState` ack never arrived.
 
-**Cause:**
-The manual `schedule:setState` snapshot persisted `eventData`, `lockedSections`, classroom overrides, and config, but did not include the filtered generation errors in the sync hash. Even when the payload carried `lastGenerationErrors`, the outbound effect could decide that the snapshot was already synced and skip the backend write.
+**Cause (root cause):**
+The `schedule:setState` payload (full state snapshot) is ~1.1MB for a populated projection and grows as events are added. socket.io's server `maxHttpBufferSize` was left at the default **1MB**. When the client emitted a payload above that limit, socket.io **closed the connection**, so the ack never returned and the write never reached the backend. Because the client's `dispatch` had no ack timeout, the unresolved promise also left the outbound pipeline stuck (`setStateInFlightRef` permanently `true`), blocking all subsequent writes until reload.
+
+The earlier hypothesis (persisting filtered `lastGenerationErrors`) was wrong: the inbound-sync filter already clears "No Asignadas" errors from `eventData` on load, so the real failure was that the dropped `eventData` was never persisted.
 
 **Solution:**
-Include filtered non-conflict `lastGenerationErrors` in both the outbound manual snapshot and the snapshot hash used by inbound/outbound sync. Document the optional field in the backend schedule state typedef.
+- Set `maxHttpBufferSize: 5e7` (50MB) on the socket.io `Server` so large schedule snapshots are accepted.
+- Add a 20s ack timeout to the client `dispatch` so a lost ack (transient disconnect) always resolves and never wedges the outbound `setState` pipeline.
+
+**How to confirm payload size:** serialize the persisted `state_snapshot` of a `schedules` row and check `Buffer.byteLength(JSON.stringify(payload))` against `1e6`.
 
 **Affected Files:**
-- `src/components/SchoolSchedule/SchoolSchedule.tsx`
-- `backend/src/backEnd/schedule/stateTypes.js`
+- `backend/src/backEnd/socket/socket.js`
+- `src/hooks/useScheduleSocket.ts`
 
 **References:**
 - [SCHEDULE_RULES.md](../SCHEDULE_RULES.md) §10 — Persistence and Reports

@@ -56,6 +56,13 @@ export function getIO () { return io }
 
 export default function setupSocket (server, sessionMiddleware) {
   io = new Server(server, {
+    // Schedule snapshots sent via schedule:setState can exceed socket.io's
+    // default 1MB limit (a full projection is ~1.1MB and grows as the user
+    // places more events). When an inbound message exceeds maxHttpBufferSize,
+    // socket.io closes the connection, the setState ack never arrives, and the
+    // manual edit is silently lost. Raise the limit generously to fit large
+    // projections with headroom.
+    maxHttpBufferSize: 5e7,
     cors: {
       origin: '*',
       credentials: true
