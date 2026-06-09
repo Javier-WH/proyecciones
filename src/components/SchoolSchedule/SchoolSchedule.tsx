@@ -283,20 +283,45 @@ const SchoolSchedule: React.FC = () => {
     });
   }, [loadedScheduleEvents, eventData, lockedSections, subjects, trimestre]);
 
-  const isPnfSemestral = useMemo(() => {
-    if (!pnf || !subjects) return false;
-    const pnfSubjects = subjects.filter(s => s.pnfId === pnf);
-    return pnfSubjects.some(s => s.isSemestral);
-  }, [pnf, subjects]);
+  // Subjects belonging to the currently selected section
+  // (pnf + trayecto + seccion + turno). The semestral/trimestral condition is
+  // a per-section attribute, so it must be derived from this scoped list — not
+  // from the whole PNF, which can mix semestral and trimestral sections.
+  const currentSectionSubjects = useMemo(() => {
+    if (!pnf || !subjects) return [] as Subject[];
+    return subjects.filter(s =>
+      s.pnfId === pnf &&
+      (!trayectoId || s.trayectoId === trayectoId) &&
+      (!seccion || s.seccion === seccion) &&
+      (!turn || s.turnoName?.toLowerCase() === turn.toLowerCase())
+    );
+  }, [pnf, trayectoId, seccion, turn, subjects]);
+
+  const isSectionSemestral = useMemo(
+    () => currentSectionSubjects.some(s => s.isSemestral),
+    [currentSectionSubjects]
+  );
 
   const trimestresConSecciones = useMemo(() => {
-    if (!pnf || !subjects) return { q1: false, q2: false, q3: false };
-    const pnfSubjects = subjects.filter(s => s.pnfId === pnf);
-    const hasQ1 = pnfSubjects.some(s => s.hours?.q1 && s.hours.q1 > 0);
-    const hasQ2 = pnfSubjects.some(s => s.hours?.q2 && s.hours.q2 > 0);
-    const hasQ3 = pnfSubjects.some(s => s.hours?.q3 && s.hours.q3 > 0);
+    const hasQ1 = currentSectionSubjects.some(s => s.hours?.q1 && s.hours.q1 > 0);
+    const hasQ2 = currentSectionSubjects.some(s => s.hours?.q2 && s.hours.q2 > 0);
+    const hasQ3 = currentSectionSubjects.some(s => s.hours?.q3 && s.hours.q3 > 0);
     return { q1: hasQ1, q2: hasQ2, q3: hasQ3 };
-  }, [pnf, subjects]);
+  }, [currentSectionSubjects]);
+
+  // When the selected section changes its semestral/trimestral nature, the
+  // previously selected quarter may no longer be a valid option (e.g. q3 is
+  // not offered for semestral sections). Clamp it to the first available one.
+  useEffect(() => {
+    const available: ("q1" | "q2" | "q3")[] = [];
+    if (trimestresConSecciones.q1) available.push("q1");
+    if (trimestresConSecciones.q2) available.push("q2");
+    if (!isSectionSemestral && trimestresConSecciones.q3) available.push("q3");
+    if (available.length > 0 && !available.includes(trimestre)) {
+      setErrors([]);
+      setTrimestre(available[0]);
+    }
+  }, [trimestresConSecciones, isSectionSemestral, trimestre]);
 
   const turnosConSecciones = useMemo(() => {
     if (!pnf || !subjects) return new Set<string>();
@@ -4789,7 +4814,7 @@ if (conflictFound) {
                   />
                 </div>
                 <div className="schedule-select">
-                  <span>{isPnfSemestral ? "Semestre:" : "Trimestre:"}</span>
+                  <span>{isSectionSemestral ? "Semestre:" : "Trimestre:"}</span>
                   <Select
                     size="small"
                     value={trimestre}
@@ -4798,7 +4823,7 @@ if (conflictFound) {
                       setErrors([]);
                       setTrimestre(e);
                     }}
-                    options={isPnfSemestral
+                    options={isSectionSemestral
                       ? [
                           ...(trimestresConSecciones.q1 ? [{ value: "q1", label: "Semestre 1" }] : []),
                           ...(trimestresConSecciones.q2 ? [{ value: "q2", label: "Semestre 2" }] : []),
@@ -4907,7 +4932,7 @@ if (conflictFound) {
                   />
                 </div>
                 <div className="schedule-select">
-                  <span>{isPnfSemestral ? "Semestre:" : "Trimestre:"}</span>
+                  <span>{isSectionSemestral ? "Semestre:" : "Trimestre:"}</span>
                   <Select
                     size="small"
                     value={trimestre}
@@ -4916,7 +4941,7 @@ if (conflictFound) {
                       setErrors([]);
                       setTrimestre(e);
                     }}
-                    options={isPnfSemestral
+                    options={isSectionSemestral
                       ? [
                           ...(trimestresConSecciones.q1 ? [{ value: "q1", label: "Semestre 1" }] : []),
                           ...(trimestresConSecciones.q2 ? [{ value: "q2", label: "Semestre 2" }] : []),
@@ -4973,7 +4998,7 @@ if (conflictFound) {
                 </div>
 
                 <div className="schedule-select">
-                  <span>{isPnfSemestral ? "Semestre:" : "Trimestre:"}</span>
+                  <span>{isSectionSemestral ? "Semestre:" : "Trimestre:"}</span>
                   <Select
                     size="small"
                     value={trimestre}
@@ -4982,7 +5007,7 @@ if (conflictFound) {
                       setErrors([]);
                       setTrimestre(e);
                     }}
-                    options={isPnfSemestral
+                    options={isSectionSemestral
                       ? [
                           ...(trimestresConSecciones.q1 ? [{ value: "q1", label: "Semestre 1" }] : []),
                           ...(trimestresConSecciones.q2 ? [{ value: "q2", label: "Semestre 2" }] : []),
