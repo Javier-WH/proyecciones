@@ -3641,33 +3641,39 @@ onOk: () => {
     if (scheduleState.scheduleConfig && typeof scheduleState.scheduleConfig === 'object' && Object.keys(scheduleState.scheduleConfig).length > 0) {
       setScheduleConfig(scheduleState.scheduleConfig as unknown as ScheduleConfig);
     }
-    if (Array.isArray(scheduleState.lastGenerationErrors)) {
-      // Filter backend errors: keep only subjects that genuinely have missing
-      // hours in the incoming eventData, not subjects already fully placed.
-      const incomingEvents = Array.isArray(scheduleState.eventData) ? scheduleState.eventData : [];
-      setErrors(prev => {
-        const localErrors = prev.filter(e => e.description?.startsWith('[CONFLICTO'));
-        const filteredGenErrors = (scheduleState.lastGenerationErrors as scheduleError[]).filter(err => {
-          if (!err.subjectId) return true; // errors without a specific subject (e.g. "no classrooms")
-          const placedCount = incomingEvents.filter(
-            e => e.extendedProps?.subjectId === err.subjectId
-          ).length;
-          const subject = (subjects as Subject[])?.find(s => s.innerId === err.subjectId);
-          const expected = subject?.hours?.[trimestre] ?? 0;
-          return placedCount < expected;
-        });
-        const merged = [...localErrors, ...filteredGenErrors];
-        const seen = new Set<string>();
-        return merged.filter(e => {
-          const k = `${e.subjectId || ''}|${e.pnfId || ''}|${e.trayectoId || ''}|${e.seccion || ''}|${e.description?.substring(0, 80) || ''}`;
-          if (seen.has(k)) return false;
-          seen.add(k);
-          return true;
-        });
-      });
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleVersion]);
+
+  // ─── Filter lastGenerationErrors on every scheduleState change ───
+  // This effect runs on both initial load (schedule:join) and broadcasts,
+  // ensuring stale "No Asignadas" errors are always pruned when the backend
+  // state is applied. Without this, errors persisted before a manual edit
+  // would reappear after refresh even though the subject is now fully placed.
+  useEffect(() => {
+    if (!Array.isArray(scheduleState.lastGenerationErrors)) return;
+    const incomingEvents = Array.isArray(scheduleState.eventData) ? scheduleState.eventData : [];
+    setErrors(prev => {
+      const localErrors = prev.filter(e => e.description?.startsWith('[CONFLICTO'));
+      const filteredGenErrors = (scheduleState.lastGenerationErrors as scheduleError[]).filter(err => {
+        if (!err.subjectId) return true; // errors without a specific subject (e.g. "no classrooms")
+        const placedCount = incomingEvents.filter(
+          e => e.extendedProps?.subjectId === err.subjectId
+        ).length;
+        const subject = (subjects as Subject[])?.find(s => s.innerId === err.subjectId);
+        const expected = subject?.hours?.[trimestre] ?? 0;
+        return placedCount < expected;
+      });
+      const merged = [...localErrors, ...filteredGenErrors];
+      const seen = new Set<string>();
+      return merged.filter(e => {
+        const k = `${e.subjectId || ''}|${e.pnfId || ''}|${e.trayectoId || ''}|${e.seccion || ''}|${e.description?.substring(0, 80) || ''}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleState.lastGenerationErrors, scheduleState.eventData, subjects, trimestre]);
 
   // filtra los eventos segun el turno, seccion, pnf y trayecto y los agrupa
   useEffect(() => {

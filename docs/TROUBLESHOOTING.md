@@ -383,6 +383,29 @@ The earlier hypothesis (persisting filtered `lastGenerationErrors`) was wrong: t
 
 ---
 
+### 13. Stale "No Asignadas" errors reappear after refresh despite manual placement
+
+**Problem:**
+Subjects manually placed from the "No Asignadas" tab were correctly persisted in the backend snapshot, but after refreshing the browser they reappeared in the "No Asignadas" tab even though they were fully placed in the schedule.
+
+**Symptom:**
+After dragging a subject from "No Asignadas" into the schedule and assigning a classroom, the subject appeared correctly in the UI. However, after refreshing the browser, the subject reappeared in the "No Asignadas" tab, even though the backend snapshot showed the subject was fully placed in `eventData` with `location: 'schedule'`.
+
+**Cause (root cause):**
+The filter that prunes stale `lastGenerationErrors` (removing errors for subjects that are now fully placed) only ran in the inbound-sync effect, which is triggered by `schedule:state` broadcasts. However, the initial load from `schedule:join` does not trigger this effect because `scheduleVersion` does not change (it starts at 0 and stays 0 until the first broadcast). As a result, stale errors persisted in the backend snapshot were not filtered on initial load, causing subjects to reappear in "No Asignadas" even though they were fully placed.
+
+**Solution:**
+Move the `lastGenerationErrors` filter into a separate `useEffect` that runs whenever `scheduleState.lastGenerationErrors`, `scheduleState.eventData`, `subjects`, or `trimestre` changes. This ensures the filter runs on both initial load (from `schedule:join`) and subsequent broadcasts, so stale errors are always pruned when the backend state is applied.
+
+**Affected Files:**
+- `src/components/SchoolSchedule/SchoolSchedule.tsx`
+
+**References:**
+- [SCHEDULE_RULES.md](../SCHEDULE_RULES.md) §7.3 — un evento está exactamente en un lugar: horario o depósito.
+- [docs/BackendScheduleSync.md](./BackendScheduleSync.md)
+
+---
+
 ## 🔗 Referencias
 
 - **[agents.md](../agents.md)** - Índice de documentación
