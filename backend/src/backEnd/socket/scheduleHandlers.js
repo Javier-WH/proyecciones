@@ -35,6 +35,9 @@
 import {
   getState,
   applyAction,
+  getVersions,
+  getVersionState,
+  saveManualVersion,
   VersionConflictError,
   ValidationError,
   emptyState
@@ -207,8 +210,8 @@ export function registerScheduleHandlers (io, socket) {
         proyectionId,
         trimestre,
         baseVersion: Number(baseVersion ?? 0),
+        changeType: 'regenerate',
         mutator: async () => {
-          // ─── Load ALL data from database ───
           const proyection = await Proyections.findOne({ where: { id: proyectionId }, raw: true })
           if (!proyection) throw new ValidationError('proyection not found')
           const subjects = JSON.parse(proyection.subjects || '[]')
@@ -236,22 +239,18 @@ export function registerScheduleHandlers (io, socket) {
             breaks: scheduleConfig.breaks || []
           }
 
-          // ─── 1. VALIDATE locked sections (no mutations) ───
           const healed = selfHealLockedSections(lockedSections, subjects, trimestre)
           lockedSections = healed.lockedSections
           if (healed.warnings.length > 0) {
             console.warn('[scheduleHandlers] Frozen section validation warnings:', healed.warnings)
-            // TODO: Broadcast warnings to client for user visibility
           }
 
-          // Flat locked events for the active trimestre
           const lockedEventsActiveTrim = []
           for (const [key, events] of Object.entries(lockedSections)) {
             if (!key.endsWith(`-${trimestre}`)) continue
             lockedEventsActiveTrim.push(...events)
           }
 
-          // Cross-quarter ghosts
           let crossGhosts = []
           try {
             const allLockedEvents = []
@@ -267,8 +266,6 @@ export function registerScheduleHandlers (io, socket) {
             console.warn('[regenerate] crossQuarterGhost computation failed', e)
           }
 
-          // ─── 2. INITIAL GENERATION ───
-          /** @type {import('../schedule/engine/types.js').ScheduleError[]} */
           const initialErrors = []
           const generated = generateScheduleEvents({
             subjects,
@@ -289,7 +286,6 @@ export function registerScheduleHandlers (io, socket) {
             setErrors: (e) => initialErrors.push(e)
           })
 
-          // ─── 3. AUTO-SOLVE ───
           const solved = runAutoSolve({
             eventsdata: generated,
             initialErrors,
@@ -309,11 +305,8 @@ export function registerScheduleHandlers (io, socket) {
             lockedSections
           })
 
-          // ─── 4. PHANTOM CLEANUP ───
           let finalEvents = removePhantomEvents(solved.eventsdata)
 
-          // ─── 5. FROZEN SECTIONS ENFORCEMENT ───
-          // Tripwire: detect any unexpected mutations to locked sections
           const hashBefore = computeLockedSectionsHash(lockedSections)
           finalEvents = enforceFrozenSections(finalEvents, lockedSections, trimestre)
           const hashAfter = computeLockedSectionsHash(lockedSections)
@@ -345,9 +338,6 @@ export function registerScheduleHandlers (io, socket) {
   })
 
   // ─── escape-hatch: replace full state ───────────────────────────────────
-  // Used by the frontend while the fine-grained drag/drop/staging actions
-  // are still computed client-side. Removes the client→server race because
-  // every write goes through `applyAction` with optimistic locking.
   socket.on('schedule:setState', async (msg, ack) => {
     const { ok, fail } = makeResponders(ack)
     try {
@@ -361,6 +351,7 @@ export function registerScheduleHandlers (io, socket) {
         proyectionId,
         trimestre,
         baseVersion: Number(baseVersion ?? 0),
+        changeType: 'setState',
         mutator: () => ({ ...emptyState(), ...payload })
       })
       broadcastState(io, proyectionId, trimestre, result.version, result.state)
@@ -370,200 +361,9 @@ export function registerScheduleHandlers (io, socket) {
     }
   })
 
-  // ─── classroom overrides (DB-backed + reactive recalc) ──────────────────
-  // Overrides are persisted to the classroom_overrides DB table and a full
-  // schedule recalculation is triggered so all connected clients receive the
-  // updated state. The in-memory snapshot is no longer the source of truth.
-  socket.on('schedule:saveOverride', async (msg, ack) => {
-    const { ok, fail } = makeResponders(ack)
-    try {
-      requireAuth(socket)
-      const { proyectionId, payload } = msg || {}
-      if (!proyectionId) throw new ValidationError('proyectionId required')
-      const newOverrides = Array.isArray(payload?.overrides) ? payload.overrides : null
-      if (!newOverrides) throw new ValidationError('overrides must be an array')
+  // ─── fine-grained atomic actions ─────────────────────────────────────────
 
-      for (const ov of newOverrides) {
-        const subj = ov.subjectName || ov.subject_name
-        const day = ov.day
-        const start = ov.startTime || ov.start_time
-        // Drop any previous override for the same subject + day + start_time
-        // before inserting the new one. Without this, stale overrides
-        // accumulate in the DB and the recalc may pick the wrong classroom.
-        if (subj && day != null && start) {
-          await ClassroomOverrides.destroy({
-            where: {
-              proyection_id: proyectionId,
-              subject_name: subj,
-              day,
-              start_time: start
-            }
-          })
-        }
-        await ClassroomOverrides.create({
-          proyection_id: proyectionId,
-          subject_name: subj,
-          day,
-          start_time: start,
-          end_time: ov.endTime || ov.end_time,
-          classroom_id: ov.classroomId || ov.classroom_id,
-          seccion: ov.seccion || null,
-          pnf_id: ov.pnfId || ov.pnf_id || null,
-          trayecto_id: ov.trayectoId || ov.trayecto_id || null
-        })
-      }
-
-      // Recalculate only the affected trimestre instead of all three so
-      // classroom changes don't block the UI for seconds while the other
-      // trimestres are recomputed unnecessarily.
-      const affectedTrimestre = TRIM_VALUES.has(msg.trimestre) ? msg.trimestre : null
-      if (affectedTrimestre) {
-        recalcSingleTrimestre(proyectionId, io, affectedTrimestre)
-          .catch(err => console.error('[schedule:saveOverride] recalc failed:', err.message))
-      } else {
-        recalcSchedulesForProyection(proyectionId, io)
-          .catch(err => console.error('[schedule:saveOverride] recalc failed:', err.message))
-      }
-      ok({})
-    } catch (err) {
-      fail(err)
-    }
-  })
-
-  socket.on('schedule:deleteOverride', async (msg, ack) => {
-    const { ok, fail } = makeResponders(ack)
-    try {
-      requireAuth(socket)
-      const { proyectionId, payload } = msg || {}
-      if (!proyectionId) throw new ValidationError('proyectionId required')
-      const matcher = payload?.matcher
-      if (!matcher || typeof matcher !== 'object') {
-        throw new ValidationError('matcher is required')
-      }
-
-      // Convert camelCase matcher keys to DB snake_case column names
-      const where = { proyection_id: proyectionId }
-      const keyMap = {
-        id: 'id',
-        subjectName: 'subject_name',
-        day: 'day',
-        startTime: 'start_time',
-        endTime: 'end_time',
-        classroomId: 'classroom_id',
-        seccion: 'seccion',
-        pnfId: 'pnf_id',
-        trayectoId: 'trayecto_id'
-      }
-      for (const [k, v] of Object.entries(matcher)) {
-        const col = keyMap[k] || k
-        where[col] = v
-      }
-
-      await ClassroomOverrides.destroy({ where })
-
-      recalcSchedulesForProyection(proyectionId, io)
-        .catch(err => console.error('[deleteOverride] recalc failed:', err.message))
-      ok({})
-    } catch (err) {
-      fail(err)
-    }
-  })
-
-  socket.on('schedule:deleteAllOverrides', async (msg, ack) => {
-    const { ok, fail } = makeResponders(ack)
-    try {
-      requireAuth(socket)
-      const { proyectionId } = msg || {}
-      if (!proyectionId) throw new ValidationError('proyectionId required')
-
-      await ClassroomOverrides.destroy({ where: { proyection_id: proyectionId } })
-
-      recalcSchedulesForProyection(proyectionId, io)
-        .catch(err => console.error('[deleteAllOverrides] recalc failed:', err.message))
-      ok({})
-    } catch (err) {
-      fail(err)
-    }
-  })
-
-  // ─── fine-grained atomic actions (Fase C) ──────────────────────────────
-  //
-  // Each of the following handlers performs a single, atomic mutation on the
-  // schedule state via `applyAction`. They are versioned and broadcast just
-  // like `schedule:setState`, but they avoid sending the entire snapshot and
-  // make the intent explicit. The frontend can still optimistically apply
-  // the change locally; on the inbound `schedule:state` broadcast the
-  // authoritative state will overwrite any divergent client state.
-
-  // Toggle freeze on a section. When `freeze=true`, the events of the given
-  // section in the active trimestre are copied from `eventData` into
-  // ─── freeze / unfreeze sections (DB-backed + reactive recalc) ────────────
-  // Persists to `frozen_sections` table (not the schedule snapshot) and
-  // triggers a full recalculation so all connected clients receive the updated
-  // state. sectionKey format: `${pnfId}-${trayectoId}-${seccion}-${trimestre}`.
-  //
-  // Payload: { sectionKey: string, freeze: boolean, events?: ScheduleEvent[] }
-  socket.on('schedule:toggleFreeze', async (msg, ack) => {
-    const { ok, fail } = makeResponders(ack)
-    try {
-      requireAuth(socket)
-      const { proyectionId, payload } = msg || {}
-      console.log('[schedule:toggleFreeze] received:', { proyectionId, payload })
-      if (!proyectionId) throw new ValidationError('proyectionId required')
-      const sectionKey = payload?.sectionKey
-      const freeze = !!payload?.freeze
-      if (typeof sectionKey !== 'string') {
-        throw new ValidationError('sectionKey must be a string')
-      }
-
-      if (freeze) {
-        let events = payload?.events
-        if (!Array.isArray(events) || events.length === 0) {
-          const existing = await LockedSections.findOne({
-            where: { proyection_id: proyectionId, section_key: sectionKey }
-          })
-          events = existing?.events || []
-        }
-        await LockedSections.upsert({
-          proyection_id: proyectionId,
-          section_key: sectionKey,
-          events,
-          stage: 'planning'
-        })
-      } else {
-        await LockedSections.destroy({
-          where: { proyection_id: proyectionId, section_key: sectionKey }
-        })
-      }
-
-      // Extract the trimestre from the sectionKey so we only recalculate the
-      // affected trimestre instead of all three. This prevents version
-      // conflicts when the user toggles multiple sections rapidly.
-      const trimFromKey = sectionKey.split('-').pop()
-      const affectedTrimestre = TRIM_VALUES.has(trimFromKey) ? trimFromKey : null
-
-      console.log('[schedule:toggleFreeze] DB write done, calling recalc for', affectedTrimestre || 'all')
-      // Recalc in the background so the client gets the ack immediately.
-      // The client already updated its local lockedSections optimistically.
-      const recalcPromise = affectedTrimestre
-        ? recalcSingleTrimestre(proyectionId, io, affectedTrimestre)
-        : recalcSchedulesForProyection(proyectionId, io)
-
-      recalcPromise
-        .then(() => console.log('[schedule:toggleFreeze] recalc done'))
-        .catch((err) => console.error('[schedule:toggleFreeze] recalc failed:', err))
-
-      ok({})
-    } catch (err) {
-      console.error('[schedule:toggleFreeze] error:', err)
-      fail(err)
-    }
-  })
-
-  // Move events from `eventData` to `stagedEvents`. Events are matched by id
-  // (`subjectId-seccion-day-startTime`). Events not present in eventData are
-  // ignored silently.
-  //
+  // Move events from eventData to stagedEvents.
   // Payload: { eventIds: string[] }
   socket.on('schedule:moveToStaging', async (msg, ack) => {
     const { ok, fail } = makeResponders(ack)
@@ -579,6 +379,7 @@ export function registerScheduleHandlers (io, socket) {
         proyectionId,
         trimestre,
         baseVersion: Number(baseVersion ?? 0),
+        changeType: 'moveToStaging',
         mutator: (state) => {
           const eventData = state.eventData || []
           const stagedEvents = state.stagedEvents || []
@@ -602,8 +403,7 @@ export function registerScheduleHandlers (io, socket) {
     }
   })
 
-  // Move events from `stagedEvents` back to `eventData`.
-  //
+  // Move events from stagedEvents back to eventData.
   // Payload: { eventIds: string[] }
   socket.on('schedule:returnFromStaging', async (msg, ack) => {
     const { ok, fail } = makeResponders(ack)
@@ -619,6 +419,7 @@ export function registerScheduleHandlers (io, socket) {
         proyectionId,
         trimestre,
         baseVersion: Number(baseVersion ?? 0),
+        changeType: 'returnFromStaging',
         mutator: (state) => {
           const stagedEvents = state.stagedEvents || []
           const returned = []
@@ -641,8 +442,7 @@ export function registerScheduleHandlers (io, socket) {
     }
   })
 
-  // Clear all events from `stagedEvents`.
-  //
+  // Clear all events from stagedEvents.
   // Payload: {}
   socket.on('schedule:clearStaging', async (msg, ack) => {
     const { ok, fail } = makeResponders(ack)
@@ -654,6 +454,7 @@ export function registerScheduleHandlers (io, socket) {
         proyectionId,
         trimestre,
         baseVersion: Number(baseVersion ?? 0),
+        changeType: 'clearStaging',
         mutator: (state) => ({ ...state, stagedEvents: [] })
       })
       broadcastState(io, proyectionId, trimestre, result.version, result.state)
@@ -663,9 +464,7 @@ export function registerScheduleHandlers (io, socket) {
     }
   })
 
-  // Change the classroom of one or more events. Events are identified by id.
-  // The classroomId/classroomName are written into `extendedProps`.
-  //
+  // Change the classroom of one or more events.
   // Payload: { eventIds: string[], classroomId: string, classroomName: string }
   socket.on('schedule:changeClassroom', async (msg, ack) => {
     const { ok, fail } = makeResponders(ack)
@@ -680,7 +479,7 @@ export function registerScheduleHandlers (io, socket) {
       if (!classroomId) throw new ValidationError('classroomId is required')
 
       const idSet = new Set(ids)
-      const apply = (events) => events.map(ev => {
+      const applyFn = (events) => events.map(ev => {
         if (!idSet.has(scheduleEventId(ev))) return ev
         return {
           ...ev,
@@ -696,17 +495,16 @@ export function registerScheduleHandlers (io, socket) {
         proyectionId,
         trimestre,
         baseVersion: Number(baseVersion ?? 0),
+        changeType: 'changeClassroom',
         mutator: (state) => {
-          // Update both eventData and lockedSections so frozen sections
-          // also reflect the new classroom.
           const lockedSections = { ...(state.lockedSections || {}) }
           for (const [key, evs] of Object.entries(lockedSections)) {
             if (!key.endsWith(`-${trimestre}`)) continue
-            lockedSections[key] = apply(evs)
+            lockedSections[key] = applyFn(evs)
           }
           return {
             ...state,
-            eventData: apply(state.eventData || []),
+            eventData: applyFn(state.eventData || []),
             lockedSections
           }
         }
@@ -719,18 +517,7 @@ export function registerScheduleHandlers (io, socket) {
   })
 
   // Drop a single event onto a new (day, startTime, endTime, classroom).
-  // The new event id is recomputed from (subjectId, seccion, day, startTime).
-  // No conflict validation is performed here — the frontend pre-validates
-  // for instant UX and the optimistic version check guarantees ordering.
-  //
-  // Payload: {
-  //   eventId: string,
-  //   targetDay: number,
-  //   targetStartTime: string,
-  //   targetEndTime: string,
-  //   targetClassroomId: string,
-  //   targetClassroomName?: string
-  // }
+  // Payload: { eventId, targetDay, targetStartTime, targetEndTime, targetClassroomId, targetClassroomName? }
   socket.on('schedule:dropEvent', async (msg, ack) => {
     const { ok, fail } = makeResponders(ack)
     try {
@@ -750,6 +537,7 @@ export function registerScheduleHandlers (io, socket) {
         proyectionId,
         trimestre,
         baseVersion: Number(baseVersion ?? 0),
+        changeType: 'dropEvent',
         mutator: (state) => {
           const updateEvent = (ev) => {
             if (scheduleEventId(ev) !== eventId) return ev
@@ -879,6 +667,188 @@ export function registerScheduleHandlers (io, socket) {
       ok({})
     } catch (err) {
       console.error('[schedule:saveConfig] error:', err)
+      fail(err)
+    }
+  })
+
+  // ─── version history ──────────────────────────────────────────────────────
+
+  // Return the last 100 versions for the current (proyectionId, trimestre).
+  // Used by the "Abrir" button on the frontend to display available snapshots.
+  //
+  // Payload: {}
+  socket.on('schedule:getVersions', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, trimestre } = msg || {}
+      validateRoom({ proyectionId, trimestre })
+      const versions = await getVersions(proyectionId, trimestre)
+      ok({ versions })
+    } catch (err) {
+      fail(err)
+    }
+  })
+
+  // Restore a previous version by its id. Loads the version's state snapshot
+  // and writes it via applyAction (which will in turn create a new version
+  // snapshot of the state before the restore).
+  //
+  // Payload: { versionId: string }
+  socket.on('schedule:restoreVersion', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, trimestre, baseVersion, payload } = msg || {}
+      validateRoom({ proyectionId, trimestre })
+      const versionId = payload?.versionId
+      if (!versionId) throw new ValidationError('versionId is required')
+
+      const versionState = await getVersionState(versionId)
+      if (!versionState) throw new ValidationError('version not found or has no data')
+
+      const result = await applyAction({
+        proyectionId,
+        trimestre,
+        baseVersion: Number(baseVersion ?? 0),
+        changeType: 'restore',
+        changeDescription: `Restauró versión ${versionId}`,
+        mutator: () => versionState,
+      })
+      broadcastState(io, proyectionId, trimestre, result.version, result.state)
+      ok({ version: result.version })
+    } catch (err) {
+      fail(err)
+    }
+  })
+
+  // Manually save a named version snapshot. Used by the "Guardar" button.
+  // The frontend sends a description (name). The current state is read from
+  // the DB and saved as a version.
+  //
+  // Payload: { description?: string }
+  socket.on('schedule:saveManualVersion', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, trimestre, payload } = msg || {}
+      validateRoom({ proyectionId, trimestre })
+      const description = payload?.description || null
+
+      const { state } = await getState(proyectionId, trimestre)
+      await saveManualVersion({
+        proyectionId,
+        trimestre,
+        state,
+        changeType: 'manual',
+        description,
+      })
+      ok({})
+    } catch (err) {
+      fail(err)
+    }
+  })
+
+  // ─── classroom overrides ──────────────────────────────────────────────────
+  // Save classroom overrides (bulk replace). This replaces all overrides for
+  // the projection with the provided array and broadcasts the updated state
+  // to all connected clients.
+  //
+  // Payload: { overrides: ClassroomOverride[] }
+  socket.on('schedule:saveOverride', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, payload } = msg || {}
+      if (!proyectionId) throw new ValidationError('proyectionId is required')
+      const overrides = payload?.overrides
+      if (!Array.isArray(overrides)) throw new ValidationError('overrides must be an array')
+
+      // Replace all overrides for the projection
+      await ClassroomOverrides.destroy({ where: { proyection_id: proyectionId } })
+      if (overrides.length > 0) {
+        const records = overrides.map(ov => ({
+          id: ov.id,
+          subject_name: ov.subject_name,
+          day: ov.day,
+          start_time: ov.start_time,
+          end_time: ov.end_time,
+          classroom_id: ov.classroom_id,
+          seccion: ov.seccion || null,
+          pnf_id: ov.pnf_id || null,
+          trayecto_id: ov.trayecto_id || null,
+          proyection_id: proyectionId,
+        }))
+        await ClassroomOverrides.bulkCreate(records)
+      }
+
+      // Broadcast updated state to all trimestres for this projection
+      for (const trim of TRIM_VALUES) {
+        const { version, state } = await getState(proyectionId, trim)
+        const updatedOverrides = await loadClassroomOverrides(proyectionId)
+        const updatedState = { ...state, classroomOverrides: updatedOverrides }
+        broadcastState(io, proyectionId, trim, version, updatedState)
+      }
+
+      ok({})
+    } catch (err) {
+      console.error('[schedule:saveOverride] error:', err)
+      fail(err)
+    }
+  })
+
+  // Delete specific classroom overrides by their IDs.
+  //
+  // Payload: { ids: string[] }
+  socket.on('schedule:deleteOverride', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId, payload } = msg || {}
+      if (!proyectionId) throw new ValidationError('proyectionId is required')
+      const ids = payload?.ids
+      if (!Array.isArray(ids) || ids.length === 0) throw new ValidationError('ids must be a non-empty array')
+
+      await ClassroomOverrides.destroy({ where: { id: ids } })
+
+      // Broadcast updated state to all trimestres for this projection
+      for (const trim of TRIM_VALUES) {
+        const { version, state } = await getState(proyectionId, trim)
+        const updatedOverrides = await loadClassroomOverrides(proyectionId)
+        const updatedState = { ...state, classroomOverrides: updatedOverrides }
+        broadcastState(io, proyectionId, trim, version, updatedState)
+      }
+
+      ok({})
+    } catch (err) {
+      console.error('[schedule:deleteOverride] error:', err)
+      fail(err)
+    }
+  })
+
+  // Delete all classroom overrides for a projection.
+  //
+  // Payload: {}
+  socket.on('schedule:deleteAllOverrides', async (msg, ack) => {
+    const { ok, fail } = makeResponders(ack)
+    try {
+      requireAuth(socket)
+      const { proyectionId } = msg || {}
+      if (!proyectionId) throw new ValidationError('proyectionId is required')
+
+      await ClassroomOverrides.destroy({ where: { proyection_id: proyectionId } })
+
+      // Broadcast updated state to all trimestres for this projection
+      for (const trim of TRIM_VALUES) {
+        const { version, state } = await getState(proyectionId, trim)
+        const updatedOverrides = await loadClassroomOverrides(proyectionId)
+        const updatedState = { ...state, classroomOverrides: updatedOverrides }
+        broadcastState(io, proyectionId, trim, version, updatedState)
+      }
+
+      ok({})
+    } catch (err) {
+      console.error('[schedule:deleteAllOverrides] error:', err)
       fail(err)
     }
   })

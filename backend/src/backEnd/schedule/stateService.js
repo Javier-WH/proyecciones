@@ -1,3 +1,5 @@
+const MAX_VERSIONS = 100
+
 // =====================================================
 // Schedule state service — the single authoritative writer for the
 // backend-driven schedule state. Every socket action handler MUST go
@@ -20,7 +22,9 @@
 // =====================================================
 
 import sequelize from '#dataBaseConnection'
+import { Op } from 'sequelize'
 import Schedule from '#models/schedule/schedule.js'
+import ScheduleVersion from '#models/schedule/scheduleVersion.js'
 
 /** @typedef {'q1' | 'q2' | 'q3'} Trimestre */
 
@@ -106,6 +110,57 @@ export async function getState (proyectionId, trimestre) {
 }
 
 /**
+ * Save the current state as a version snapshot in the schedule_versions table,
+ * then prune versions beyond the last 100 for this (proyectionId, trimestre).
+ *
+ * @param {object} opts
+ * @param {string} opts.rowName
+ * @param {string} opts.proyectionId
+ * @param {Trimestre} opts.trimestre
+ * @param {number} opts.versionNumber
+ * @param {import('./stateTypes.js').ScheduleState} opts.state
+ * @param {string} [opts.changeType] — 'autosave' (default) | 'manual' | handler name
+ * @param {string} [opts.description]
+ * @param {import('sequelize').Transaction} opts.transaction
+ */
+async function saveVersionSnapshot ({ rowName, proyectionId, trimestre, versionNumber, state, changeType = 'autosave', description, transaction: tx }) {
+  console.log(`[stateService] saving version ${versionNumber} (${changeType}) for ${rowName}`)
+  await ScheduleVersion.create({
+    row_name: rowName,
+    proyection_id: proyectionId,
+    trimestre,
+    version_number: versionNumber,
+    state_snapshot: state,
+    change_type: changeType,
+    description: description || null,
+  }, { transaction: tx })
+
+  const count = await ScheduleVersion.count({
+    where: { row_name: rowName },
+    transaction: tx,
+  })
+  if (count > 100) {
+    const rows = await ScheduleVersion.findAll({
+      where: { row_name: rowName },
+      order: [['version_number', 'DESC']],
+      offset: 99,
+      limit: 1,
+      attributes: ['version_number'],
+      transaction: tx,
+    })
+    if (rows.length > 0) {
+      await ScheduleVersion.destroy({
+        where: {
+          row_name: rowName,
+          version_number: { [Op.lt]: rows[0].version_number },
+        },
+        transaction: tx,
+      })
+    }
+  }
+}
+
+/**
  * Apply a mutator to the state inside a transaction with optimistic locking.
  *
  * The `mutator` receives the current state and returns the new one (or a
@@ -117,11 +172,13 @@ export async function getState (proyectionId, trimestre) {
  *   proyectionId: string,
  *   trimestre: Trimestre,
  *   baseVersion: number,
- *   mutator: (state: import('./stateTypes.js').ScheduleState) => import('./stateTypes.js').ScheduleState | Promise<import('./stateTypes.js').ScheduleState>
+ *   mutator: (state: import('./stateTypes.js').ScheduleState) => import('./stateTypes.js').ScheduleState | Promise<import('./stateTypes.js').ScheduleState>,
+ *   changeType?: string,
+ *   changeDescription?: string,
  * }} params
  * @returns {Promise<{ version: number, state: import('./stateTypes.js').ScheduleState }>}
  */
-export async function applyAction ({ proyectionId, trimestre, baseVersion, mutator }) {
+export async function applyAction ({ proyectionId, trimestre, baseVersion, mutator, changeType, changeDescription }) {
   return sequelize.transaction(async (tx) => {
     const name = buildRowName(proyectionId, trimestre)
     const existing = await Schedule.findOne({
@@ -146,6 +203,25 @@ export async function applyAction ({ proyectionId, trimestre, baseVersion, mutat
         })()
       : emptyState()
 
+    // Save current state as a version snapshot before applying the mutation.
+    // This enables the "Abrir" modal to show the last 100 changes and allows
+    // users to restore any previous version.
+    try {
+      await saveVersionSnapshot({
+        rowName: name,
+        proyectionId,
+        trimestre,
+        versionNumber: currentVersion,
+        state: currentState,
+        changeType: changeType || 'autosave',
+        description: changeDescription || null,
+        transaction: tx,
+      })
+    } catch (err) {
+      console.error('[stateService] Failed to save version snapshot:', err.message)
+      // Non-blocking: the mutation proceeds even if version saving fails
+    }
+
     const nextState = await mutator(currentState)
     const nextVersion = currentVersion + 1
 
@@ -169,5 +245,75 @@ export async function applyAction ({ proyectionId, trimestre, baseVersion, mutat
     }
 
     return { version: nextVersion, state: nextState }
+  })
+}
+
+/**
+ * Retrieve the last N version snapshots for a (proyectionId, trimestre) pair.
+ * Returns at most MAX_VERSIONS (100) entries, ordered by version_number DESC.
+ *
+ * @param {string} proyectionId
+ * @param {Trimestre} trimestre
+ * @returns {Promise<Array<{ id: string, version_number: number, change_type: string, description: string|null, created_at: string }>>}
+ */
+export async function getVersions (proyectionId, trimestre) {
+  const name = buildRowName(proyectionId, trimestre)
+  const rows = await ScheduleVersion.findAll({
+    where: { row_name: name },
+    order: [['version_number', 'DESC']],
+    limit: MAX_VERSIONS,
+    attributes: ['id', 'version_number', 'change_type', 'description', 'created_at'],
+    raw: true,
+  })
+  return rows
+}
+
+/**
+ * Load the full state snapshot for a specific version by its id.
+ *
+ * @param {string} versionId
+ * @returns {Promise<import('./stateTypes.js').ScheduleState|null>}
+ */
+export async function getVersionState (versionId) {
+  const row = await ScheduleVersion.findByPk(versionId, {
+    attributes: ['state_snapshot'],
+    raw: true,
+  })
+  if (!row) return null
+  const snap = row.state_snapshot
+  if (!snap) return null
+  if (typeof snap === 'object') return { ...emptyState(), ...snap }
+  try {
+    return { ...emptyState(), ...JSON.parse(snap) }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Manually save a version snapshot. Used by the "Guardar" button to create a
+ * named version.
+ *
+ * @param {object} opts
+ * @param {string} opts.proyectionId
+ * @param {Trimestre} opts.trimestre
+ * @param {import('./stateTypes.js').ScheduleState} opts.state
+ * @param {string} opts.changeType
+ * @param {string} [opts.description]
+ */
+export async function saveManualVersion ({ proyectionId, trimestre, state, changeType = 'manual', description }) {
+  const name = buildRowName(proyectionId, trimestre)
+  const { version: currentVersion } = await getState(proyectionId, trimestre)
+  await sequelize.transaction(async (tx) => {
+    await saveVersionSnapshot({
+      rowName: name,
+      proyectionId,
+      trimestre,
+      versionNumber: currentVersion,
+      state,
+      changeType,
+      description,
+      transaction: tx,
+    })
   })
 }

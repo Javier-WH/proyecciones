@@ -185,6 +185,42 @@ export async function insertOrUpdateSchedule({
   return response.json();
 }
 
+export interface ScheduleVersion {
+  id: string;
+  version_number: number;
+  change_type: string;
+  description: string | null;
+  created_at: string;
+}
+
+export interface ScheduleVersionDetail {
+  state_snapshot: Record<string, unknown>;
+}
+
+export async function getScheduleVersions(proyectionId: string, trimestre: string) {
+  const headersList = { Accept: "*/*" };
+  const response = await fetch(`/schedule-versions/${proyectionId}/${trimestre}`, {
+    method: "GET",
+    headers: headersList,
+  });
+  if (!response.ok) {
+    return { error: true, message: await response.json() };
+  }
+  return response.json();
+}
+
+export async function getScheduleVersionDetail(id: string) {
+  const headersList = { Accept: "*/*" };
+  const response = await fetch(`/schedule-versions/detail/${id}`, {
+    method: "GET",
+    headers: headersList,
+  });
+  if (!response.ok) {
+    return { error: true, message: await response.json() };
+  }
+  return response.json();
+}
+
 export async function getSchedule({ id }: { id?: string | undefined }) {
   const headersList = {
     Accept: "*/*",

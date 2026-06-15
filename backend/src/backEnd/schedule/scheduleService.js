@@ -241,6 +241,7 @@ export async function recalcSingleTrimestre (proyectionId, io, trimestre, contex
         proyectionId,
         trimestre,
         baseVersion: currentVersion,
+        changeType: 'recalc',
         mutator: async () => {
           // Validate locked sections (no mutations - frozen sections are immutable)
           let localLockedSections = ctx.lockedSections

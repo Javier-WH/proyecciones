@@ -7,9 +7,8 @@ import { TeacherRestriction, SubjectRestriction } from "../../interfaces/teacher
 import "./SchoolSchedule.css";
 import {
   getClassrooms,
-  insertOrUpdateSchedule,
-  type ScheduleDataBase,
-  getSchedule,
+  getScheduleVersions,
+  type ScheduleVersion,
   saveSubjectRestrictions,
   getSubjectRestrictions,
 } from "../../fetch/schedule/scheduleFetch";
@@ -20,7 +19,6 @@ import { mergeConsecutiveEvents, turnos, Classroom, Event } from "./fucntions";
 import {
   buildCrossQuarterGhostEvents,
   doesEventConflictWithGhost,
-  stripGhostFlags,
   getSubjectPeriod,
   periodsOverlap,
 } from "./crossQuarterGhost";
@@ -232,6 +230,70 @@ const SchoolSchedule: React.FC = () => {
   const getPersistedGenerationErrors = (items: scheduleError[]) =>
     items.filter(err => !err.description?.startsWith('[CONFLICTO'));
 
+  // ─── Calculate section hours statistics ────────────────────────────────
+  const getSectionHoursStats = () => {
+    if (!subjects || !pnf || !seccion || !turn) return null;
+
+    // Filter subjects for current section (matching the logic in header filters)
+    const sectionSubjects = subjects.filter(s =>
+      s.pnfId === pnf &&
+      s.seccion === seccion &&
+      s.turnoName?.toLowerCase() === turn.toLowerCase() &&
+      (!trayectoId || s.trayectoId === trayectoId)
+    );
+
+    // Expected hours per subject for the current trimestre
+    const expectedBySubject = new Map<string, number>();
+    sectionSubjects.forEach(subject => {
+      const hoursForTrimestre = subject.hours?.[trimestre] || 0;
+      if (hoursForTrimestre > 0) {
+        expectedBySubject.set(subject.innerId, hoursForTrimestre);
+      }
+    });
+
+    // Total expected hours for the section
+    const totalHours = Array.from(expectedBySubject.values()).reduce((a, b) => a + b, 0);
+
+    // Count unique placed events per subject (events in schedule, location !== 'staging')
+    // Deduplicate by (subjectId, day, startTime) to avoid counting duplicate events.
+    const placedKeysBySubject = new Map<string, Set<string>>();
+    getScheduleEvents(eventData).forEach(e => {
+      const props = e.extendedProps;
+      if (!props || !props.subjectId) return;
+      // Filter by section criteria: PNF, turno, seccion, trayecto
+      if (props.pnfId !== pnf) return;
+      if (props.seccion !== seccion) return;
+      if (props.turnName?.toLowerCase() !== turn.toLowerCase()) return;
+      if (trayectoId && props.trayectoId !== trayectoId) return;
+      if (!expectedBySubject.has(props.subjectId)) return;
+
+      const uniqueKey = `${e.daysOfWeek?.[0] || 0}-${e.startTime || ''}`;
+      if (!placedKeysBySubject.has(props.subjectId)) {
+        placedKeysBySubject.set(props.subjectId, new Set());
+      }
+      placedKeysBySubject.get(props.subjectId)!.add(uniqueKey);
+    });
+
+    // Assigned hours = sum over subjects of min(placed, expected).
+    // Capping per subject prevents duplicated events from inflating the count.
+    let assignedHours = 0;
+    expectedBySubject.forEach((expected, subjectId) => {
+      const placed = placedKeysBySubject.get(subjectId)?.size || 0;
+      assignedHours += Math.min(placed, expected);
+    });
+
+    // Remaining hours = those not placed in the schedule (in deposit or unassigned).
+    const remainingHours = Math.max(0, totalHours - assignedHours);
+
+    return {
+      total: totalHours,
+      assigned: assignedHours,
+      remaining: remainingHours,
+      isComplete: assignedHours >= totalHours && totalHours > 0,
+      isOverAssigned: false,
+    };
+  };
+
   const markManualEditPending = (nextEventData: Event[], changedEventKeys?: string[]) => {
     pendingManualEditHashRef.current = getScheduleSnapshotHash(normalizeEventData(nextEventData));
     setManualEditSaving(true);
@@ -338,10 +400,11 @@ const SchoolSchedule: React.FC = () => {
   const [errors, setErrors] = useState<scheduleError[]>([]);
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig | null>(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleDataBase | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [scheduleList, setScheduleList] = useState<ScheduleDataBase[]>([]);
   const [activeScheduleName, setActiveScheduleName] = useState<string>("Horario fresco");
+  const [versionList, setVersionList] = useState<ScheduleVersion[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState<ScheduleVersion | null>(null);
+  const [isVersionRestoring, setIsVersionRestoring] = useState(false);
 
   // Classroom overrides state
   const [classroomOverrides, setClassroomOverrides] = useState<ClassroomOverride[]>([]);
@@ -2460,11 +2523,17 @@ onOk: () => {
       return updated;
     });
 
-    // Guardar directamente en la base de datos
+    // Guardar usando socket cuando está conectado, fallback a HTTP
     if (proyectionId) {
       try {
-        await saveClassroomOverrides(proyectionId, newOverrides);
-        message.success(`Cambio${overridesToDelete.length > 1 ? 's' : ''} de aula eliminado${overridesToDelete.length > 1 ? 's' : ''}`);
+        if (scheduleConnected) {
+          const ids = overridesToDelete.map(o => o.id);
+          await scheduleDispatch("schedule:deleteOverride", { ids });
+          message.success(`Cambio${overridesToDelete.length > 1 ? 's' : ''} de aula eliminado${overridesToDelete.length > 1 ? 's' : ''}`);
+        } else {
+          await saveClassroomOverrides(proyectionId, newOverrides);
+          message.success(`Cambio${overridesToDelete.length > 1 ? 's' : ''} de aula eliminado${overridesToDelete.length > 1 ? 's' : ''}`);
+        }
         setHasUnsavedOverrides(false);
       } catch (err) {
         console.error(err);
@@ -2485,8 +2554,13 @@ onOk: () => {
 
     if (proyectionId) {
       try {
-        await saveClassroomOverrides(proyectionId, newOverrides);
-        message.success("Aula fijada en esta posición");
+        if (scheduleConnected) {
+          await scheduleDispatch("schedule:saveOverride", { overrides: newOverrides });
+          message.success("Aula fijada en esta posición");
+        } else {
+          await saveClassroomOverrides(proyectionId, newOverrides);
+          message.success("Aula fijada en esta posición");
+        }
         setHasUnsavedOverrides(false);
       } catch (err) {
         console.error(err);
@@ -2510,8 +2584,13 @@ onOk: () => {
 
         if (proyectionId) {
           try {
-            await saveClassroomOverrides(proyectionId, []);
-            message.success("Todos los cambios de aula eliminados");
+            if (scheduleConnected) {
+              await scheduleDispatch("schedule:deleteAllOverrides", {});
+              message.success("Todos los cambios de aula eliminados");
+            } else {
+              await saveClassroomOverrides(proyectionId, []);
+              message.success("Todos los cambios de aula eliminados");
+            }
             setHasUnsavedOverrides(false);
           } catch (err) {
             console.error(err);
@@ -3197,17 +3276,21 @@ onOk: () => {
       return;
     }
 
-    // Usar Modal.confirm o Modal.prompt de Ant Design para pedir el nombre
+    if (!scheduleConnected) {
+      message.error("No se puede guardar porque el servidor de horarios no está conectado.");
+      return;
+    }
+
     Modal.confirm({
-      title: "Guardar Horario",
+      title: "Guardar Versión",
       content: (
         <div>
-          <p>Por favor, introduce un nombre para el horario:</p>
+          <p>Introduce un nombre descriptivo para esta versión:</p>
           <input
             id="schedule-name-input"
             type="text"
-            placeholder="Nombre del Horario"
-            defaultValue={`Horario ${new Date().toLocaleDateString()} `}
+            placeholder="Nombre de la versión"
+            defaultValue={`Versión ${new Date().toLocaleDateString()}`}
             style={{ width: "100%", padding: "8px", marginTop: "10px" }}
           />
         </div>
@@ -3216,72 +3299,54 @@ onOk: () => {
       cancelText: "Cancelar",
       onOk: async () => {
         const nameInput = document.getElementById("schedule-name-input") as HTMLInputElement;
-        const scheduleName = nameInput.value.trim();
+        const versionName = nameInput.value.trim();
 
-        if (!scheduleName) {
-          message.error("El nombre del horario no puede estar vacío.");
-          return Promise.reject(new Error("Nombre vacío")); // Evita que el modal se cierre si hay error
+        if (!versionName) {
+          message.error("El nombre de la versión no puede estar vacío.");
+          return Promise.reject(new Error("Nombre vacío"));
         }
 
-        // Quitamos los ghost events cross-quarter antes de persistir: son
-        // calculados en runtime y no deben contaminar el JSON guardado.
-        const persistableEvents = stripGhostFlags(events as unknown as Event[]);
-        const newSchedule: ScheduleDataBase = {
-          name: scheduleName,
-          schedule: JSON.stringify(persistableEvents),
-          proyection_id: proyectionId,
-        };
-
-        const { error, message: msg } = await insertOrUpdateSchedule(newSchedule);
-
-        if (error) {
-          // Muestra un mensaje de error si la inserción/actualización falla
-          message.error(`Error al guardar el horario: ${msg || "Error desconocido."} `);
-          // Evita que el modal se cierre si la acción asíncrona falla
+        const ack = await scheduleDispatch("schedule:saveManualVersion", {
+          description: versionName,
+        });
+        if (!ack.ok) {
+          message.error(ack.message || "Error al guardar la versión.");
           return Promise.reject(new Error("Error de guardado"));
-        } else {
-          // Muestra un mensaje de éxito
-          setActiveScheduleName(scheduleName);
-          message.success(`Horario "${scheduleName}" guardado con éxito.`);
         }
+        setActiveScheduleName(versionName);
+        message.success(`Versión "${versionName}" guardada con éxito.`);
       },
       onCancel() {
-        // El usuario canceló la operación
-        console.log("Guardado de horario cancelado");
+        console.log("Guardado de versión cancelado");
       },
     });
   };
 
-  // Función para abrir el modal (se conecta al click del icono FaRegFolderOpen)
   const openSchedule = async () => {
     if (!proyectionId) {
-      message.error("Error: ID de proyección no disponible. No se puede cargar la lista de horarios.");
+      message.error("Error: ID de proyección no disponible.");
       return;
     }
 
-    // Reiniciar estados y empezar a cargar
-    setScheduleList([]);
-    setSelectedSchedule(null);
-
-    // (Opcional): Si tienes un estado de `isLoading` lo puedes usar aquí.
-    // setIsFetchingSchedules(true);
+    setSelectedVersion(null);
+    setVersionList([]);
 
     try {
-      const result = await getSchedule({});
-
-      // Asumiendo que getSchedule devuelve una lista o un objeto con error/lista.
-      if (result.error || result.length === 0) {
-        message.info("No se encontraron horarios guardados.");
+      const data = await getScheduleVersions(proyectionId, trimestre);
+      if (data?.error) {
+        message.error(`Error al cargar versiones: ${data?.message || "Error desconocido"}`);
         return;
       }
-
-      setScheduleList(result);
-      setIsScheduleModalOpen(true); // Abrir el modal solo si hay datos
+      if (!data || data.length === 0) {
+        message.info("No se encontraron versiones guardadas. Las versiones se crean automáticamente al hacer cambios en el horario.");
+        return;
+      }
+      setVersionList(data);
+      setIsScheduleModalOpen(true);
     } catch (error) {
-      console.error("Error fetching schedules:", error);
-      message.error("Ocurrió un error inesperado al cargar los horarios.");
+      console.error("Error fetching versions:", error);
+      message.error("No se pudieron cargar las versiones. Verifica que el servidor esté actualizado.");
     }
-    // finally { setIsFetchingSchedules(false); }
   };
 
   const recalculateSchedule = async () => {
@@ -3309,41 +3374,36 @@ onOk: () => {
     }
   };
 
-  // Función que se ejecuta al presionar "Abrir" dentro del Modal
-  const handleOpenScheduleOk = () => {
-    if (!selectedSchedule?.id) {
-      message.warning("Por favor, selecciona un horario para abrir.");
-      return; // El Modal no se cerrará
-    }
-
-    // 1. Encontrar el objeto completo del horario seleccionado
-    const _selectedSchedule = scheduleList.find((s) => s.id === selectedSchedule.id);
-
-    if (!_selectedSchedule) {
-      message.error("Error: Horario seleccionado no encontrado en la lista.");
+  const handleOpenScheduleOk = async () => {
+    if (!selectedVersion?.id) {
+      message.warning("Por favor, selecciona una versión para restaurar.");
       return;
     }
 
+    if (!scheduleConnected) {
+      message.error("No se puede restaurar porque el servidor de horarios no está conectado.");
+      return;
+    }
+
+    setIsVersionRestoring(true);
     try {
-      // 2. Parsear el JSON string
-      const parsedEvents: Event[] = JSON.parse(_selectedSchedule.schedule);
-      // Defensa en profundidad: si por error un guardado antiguo trae ghosts,
-      // los descartamos al cargar (se recalculan en runtime).
-      const loadedEvents: Event[] = stripGhostFlags(parsedEvents);
+      const ack = await scheduleDispatch("schedule:restoreVersion", { versionId: selectedVersion.id });
+      if (!ack.ok) {
+        message.error(ack.message || "No se pudo restaurar la versión.");
+        return;
+      }
 
-      // 3. IMPORTANTE: Limpiar eventos generados previamente
-      setEventData([]);
-
-      // 4. Cargar los eventos del horario
-      setLoadedScheduleEvents(loadedEvents);
-
-      // 5. Cerrar el modal y notificar éxito
       setIsScheduleModalOpen(false);
-      setActiveScheduleName(_selectedSchedule.name);
-      message.success(`Horario "${_selectedSchedule.name}" cargado con éxito.`);
+      const desc = selectedVersion.description
+        ? `"${selectedVersion.description}"`
+        : `v${selectedVersion.version_number}`;
+      setActiveScheduleName(desc);
+      message.success(`Versión ${desc} restaurada con éxito.`);
     } catch (error) {
-      console.error("Error parsing schedule data:", error);
-      message.error(`Error al procesar los datos del horario "${_selectedSchedule.name}".`);
+      console.error("Error restoring version:", error);
+      message.error("Ocurrió un error al restaurar la versión.");
+    } finally {
+      setIsVersionRestoring(false);
     }
   };
 
@@ -5148,6 +5208,73 @@ if (conflictFound) {
               />
             </div>
           </div>
+
+          {/* Section Hours Statistics */}
+          {viewMode === "pnf" && (() => {
+            const stats = getSectionHoursStats();
+            if (!stats || stats.total === 0) return null;
+            return (
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "16px",
+                padding: "8px 16px",
+                backgroundColor: stats.isComplete ? "#f6ffed" : stats.isOverAssigned ? "#fff2f0" : "#f9fafb",
+                borderRadius: "6px",
+                border: `1px solid ${stats.isComplete ? "#b7eb8f" : stats.isOverAssigned ? "#ffccc7" : "#e5e7eb"}`,
+                marginBottom: "12px",
+                fontSize: "0.9rem",
+              }}>
+                <div style={{ fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>
+                  Horas de la sección:
+                </div>
+                <div style={{ display: "flex", gap: "20px", flex: 1 }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 500 }}>TOTAL</div>
+                    <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827" }}>{stats.total}</div>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 500 }}>ASIGNADAS</div>
+                    <div style={{
+                      fontSize: "1.1rem",
+                      fontWeight: 700,
+                      color: stats.assigned > 0 ? "#52c41a" : "#9ca3af"
+                    }}>{stats.assigned}</div>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 500 }}>FALTAN</div>
+                    <div style={{
+                      fontSize: "1.1rem",
+                      fontWeight: 700,
+                      color: stats.isComplete ? "#52c41a" : stats.remaining > 0 ? "#fa8c16" : "#9ca3af"
+                    }}>
+                      {stats.isComplete ? "✓" : stats.remaining}
+                    </div>
+                  </div>
+                </div>
+                {stats.isComplete && (
+                  <div style={{
+                    fontSize: "0.8rem",
+                    color: "#52c41a",
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  }}>
+                    ✓ Completado
+                  </div>
+                )}
+                {stats.isOverAssigned && (
+                  <div style={{
+                    fontSize: "0.8rem",
+                    color: "#ff4d4f",
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  }}>
+                    ⚠ Sobrepasado ({stats.assigned - stats.total}h extra)
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         <div
@@ -5978,27 +6105,43 @@ if (conflictFound) {
         onOk={handleOpenScheduleOk}
         onCancel={() => {
           setIsScheduleModalOpen(false);
-          setSelectedSchedule(null);
+          setSelectedVersion(null);
         }}
-        okText="Abrir Horario"
-        cancelText="Cancelar">
-        <p>Selecciona un horario de la lista para cargarlo:</p>
+        okText="Restaurar Versión"
+        cancelText="Cancelar"
+        okButtonProps={{ loading: isVersionRestoring }}>
+        <p>Selecciona una versión anterior para restaurar:</p>
 
         <div style={{ maxHeight: "400px", overflowY: "auto" }}>
           <List
             size="small"
             bordered
-            dataSource={[...scheduleList].reverse()}
-            renderItem={(schedule: ScheduleDataBase) => (
-              <List.Item
-                style={{
-                  cursor: "pointer",
-                  backgroundColor: selectedSchedule?.id === schedule.id ? "#e6f7ff" : "transparent",
-                }}
-                onClick={() => setSelectedSchedule(schedule || null)}>
-                {schedule.name}
-              </List.Item>
-            )}
+            dataSource={versionList}
+            renderItem={(version: ScheduleVersion) => {
+              const date = new Date(version.created_at);
+              const formattedDate = date.toLocaleDateString() + " " + date.toLocaleTimeString();
+              const typeLabel =
+                version.change_type === "manual" ? "💾" :
+                version.change_type === "regenerate" ? "🔄" :
+                version.change_type === "restore" ? "⏪" : "📝";
+              return (
+                <List.Item
+                  style={{
+                    cursor: "pointer",
+                    backgroundColor: selectedVersion?.id === version.id ? "#e6f7ff" : "transparent",
+                  }}
+                  onClick={() => setSelectedVersion(version || null)}>
+                  <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>
+                        {typeLabel} {version.description || `v${version.version_number}`}
+                      </span>
+                      <span style={{ fontSize: "0.8rem", color: "#999" }}>{formattedDate}</span>
+                    </div>
+                  </div>
+                </List.Item>
+              );
+            }}
           />
         </div>
       </Modal>

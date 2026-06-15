@@ -22,6 +22,7 @@ import TeachersRestrictions from '#models/schedule/teacherRestrictions.js'
 import ScheduleConfig from '#models/schedule/scheduleConfig.js'
 import ClassroomOverrides from '#models/schedule/classroomOverrides.js'
 import LockedSections from '#models/schedule/lockedSections.js'
+import ScheduleVersion from '#models/schedule/scheduleVersion.js'
 /*
  * No se debe cambiar el orden de las tablas, ya que se crearía un error de foreign key
  */
@@ -49,7 +50,8 @@ const tableList = [
   TeachersRestrictions,
   ScheduleConfig,
   ClassroomOverrides,
-  LockedSections
+  LockedSections,
+  ScheduleVersion
 ]
 
 export default tableList
