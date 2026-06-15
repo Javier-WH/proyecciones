@@ -9,6 +9,15 @@ async function tableExists(tableName) {
   return Number(rows[0].c) > 0
 }
 
+async function columnExists(tableName, columnName) {
+  const [rows] = await sequelize.query(
+    `SELECT COUNT(*) AS c FROM information_schema.columns
+      WHERE table_schema = DATABASE() AND table_name = :tableName AND column_name = :columnName`,
+    { replacements: { tableName, columnName } }
+  )
+  return Number(rows[0].c) > 0
+}
+
 export async function up () {
   console.log('🔧 Creating schedule_versions table...')
   if (!(await tableExists('schedule_versions'))) {
@@ -32,6 +41,17 @@ export async function up () {
     console.log('  ✅ Created schedule_versions table')
   } else {
     console.log('  ℹ️  schedule_versions table already exists')
+    // Legacy fix: earlier the model created camelCase timestamp columns
+    // (createdAt/updatedAt) which mismatched the routes that query
+    // created_at/updated_at. Rename them to snake_case if present.
+    if ((await columnExists('schedule_versions', 'createdAt')) && !(await columnExists('schedule_versions', 'created_at'))) {
+      await sequelize.query('ALTER TABLE schedule_versions CHANGE `createdAt` `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP')
+      console.log('  ✅ Renamed createdAt → created_at')
+    }
+    if ((await columnExists('schedule_versions', 'updatedAt')) && !(await columnExists('schedule_versions', 'updated_at'))) {
+      await sequelize.query('ALTER TABLE schedule_versions CHANGE `updatedAt` `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
+      console.log('  ✅ Renamed updatedAt → updated_at')
+    }
   }
   return { success: true }
 }

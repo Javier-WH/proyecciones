@@ -406,6 +406,34 @@ Move the `lastGenerationErrors` filter into a separate `useEffect` that runs whe
 
 ---
 
+### Schedule Versions Modal Fails to Open (500 error)
+
+**Problem Identified:**
+Opening the "saved versions" modal threw a 500 error from `GET /schedule-versions/:proyectionId/:trimestre`.
+
+**Symptom:**
+"Error al cargar versiones" / no version list appears when opening the version control modal.
+
+**Cause:**
+Two issues in the new schedule-versions feature:
+1. The `scheduleVersion.js` model declared `timestamps: true` without mapping the timestamp columns, so `ScheduleVersion.sync()` created camelCase columns `createdAt`/`updatedAt`. The route queried `created_at`, producing an "Unknown column 'created_at'" SQL error.
+2. The route `GET /schedule-versions/detail/:id` was registered AFTER the generic `GET /schedule-versions/:proyectionId/:trimestre`, so the detail endpoint was shadowed (`detail` matched as a `proyectionId`).
+
+**Solution:**
+1. Added `createdAt: "created_at"` and `updatedAt: "updated_at"` to the model (matching the project convention used by `classroomOverrides.js`).
+2. Enhanced the `addScheduleVersionsTable.js` migration to rename legacy `createdAt`/`updatedAt` columns to snake_case if the table already exists, and wired it into backend startup in `index.js`.
+3. Reordered the routes so `/schedule-versions/detail/:id` is registered before the generic route.
+
+**Affected Files:**
+- `backend/src/backEnd/dataBase/models/schedule/scheduleVersion.js`
+- `backend/src/backEnd/dataBase/alters/addScheduleVersionsTable.js`
+- `backend/src/backEnd/index.js`
+- `backend/src/backEnd/routes/scheduleRoutes/scheduleVersionRoutes.js`
+
+**Note:** Requires a backend restart so the migration renames the columns / recreates the table with the correct schema.
+
+---
+
 ## 🔗 Referencias
 
 - **[agents.md](../agents.md)** - Índice de documentación
