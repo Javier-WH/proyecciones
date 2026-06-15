@@ -5217,61 +5217,26 @@ if (conflictFound) {
               <div style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "16px",
-                padding: "8px 16px",
-                backgroundColor: stats.isComplete ? "#f6ffed" : stats.isOverAssigned ? "#fff2f0" : "#f9fafb",
-                borderRadius: "6px",
-                border: `1px solid ${stats.isComplete ? "#b7eb8f" : stats.isOverAssigned ? "#ffccc7" : "#e5e7eb"}`,
-                marginBottom: "12px",
-                fontSize: "0.9rem",
+                gap: "24px",
+                padding: "6px 0",
+                marginBottom: "8px",
+                fontSize: "0.85rem",
+                color: "#6b7280",
               }}>
-                <div style={{ fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>
-                  Horas de la sección:
-                </div>
-                <div style={{ display: "flex", gap: "20px", flex: 1 }}>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 500 }}>TOTAL</div>
-                    <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827" }}>{stats.total}</div>
-                  </div>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 500 }}>ASIGNADAS</div>
-                    <div style={{
-                      fontSize: "1.1rem",
-                      fontWeight: 700,
-                      color: stats.assigned > 0 ? "#52c41a" : "#9ca3af"
-                    }}>{stats.assigned}</div>
-                  </div>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 500 }}>FALTAN</div>
-                    <div style={{
-                      fontSize: "1.1rem",
-                      fontWeight: 700,
-                      color: stats.isComplete ? "#52c41a" : stats.remaining > 0 ? "#fa8c16" : "#9ca3af"
-                    }}>
-                      {stats.isComplete ? "✓" : stats.remaining}
-                    </div>
-                  </div>
-                </div>
-                {stats.isComplete && (
-                  <div style={{
-                    fontSize: "0.8rem",
-                    color: "#52c41a",
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
-                  }}>
-                    ✓ Completado
-                  </div>
-                )}
-                {stats.isOverAssigned && (
-                  <div style={{
-                    fontSize: "0.8rem",
-                    color: "#ff4d4f",
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
-                  }}>
-                    ⚠ Sobrepasado ({stats.assigned - stats.total}h extra)
-                  </div>
-                )}
+                <span style={{ fontWeight: 500 }}>
+                  Horas:
+                </span>
+                <span>
+                  <span style={{ color: "#374151", fontWeight: 600 }}>{stats.total}</span> total
+                </span>
+                <span style={{ color: "#d1d5db" }}>•</span>
+                <span>
+                  <span style={{ color: stats.assigned > 0 ? "#059669" : "#9ca3af", fontWeight: 600 }}>{stats.assigned}</span> asignadas
+                </span>
+                <span style={{ color: "#d1d5db" }}>•</span>
+                <span>
+                  <span style={{ color: stats.remaining > 0 ? "#d97706" : "#9ca3af", fontWeight: 600 }}>{stats.remaining}</span> faltan
+                </span>
               </div>
             );
           })()}
