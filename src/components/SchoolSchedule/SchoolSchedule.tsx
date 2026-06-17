@@ -234,8 +234,11 @@ const SchoolSchedule: React.FC = () => {
   const getSectionHoursStats = () => {
     if (!subjects || !pnf || !seccion || !turn) return null;
 
-    // Filter subjects for current section (matching the logic in header filters)
+    // Filter subjects for current section (matching the logic in header filters).
+    // Exclude linked subjects (linkedToSection): their hours are shared with the
+    // main section's schedule and must NOT inflate this section's totals.
     const sectionSubjects = subjects.filter(s =>
+      !s.linkedToSection &&
       s.pnfId === pnf &&
       s.seccion === seccion &&
       s.turnoName?.toLowerCase() === turn.toLowerCase() &&
@@ -1121,7 +1124,11 @@ onOk: () => {
       return;
     }
 
+    // Exclude linked subjects (linkedToSection): they share the main section's
+    // schedule and must NOT generate independent events. Including them here
+    // caused the refresh to refill "missing" hours and duplicate subjects.
     const activeSubjects = (subjects as Subject[]).filter(s =>
+      !s.linkedToSection &&
       s.pnfId === pnf && s.trayectoId === trayectoId && s.seccion === seccion
     );
     if (activeSubjects.length === 0) {
@@ -1139,6 +1146,38 @@ onOk: () => {
 
     let updated = [...eventData];
     let changes = 0;
+
+    // ── Remove linked-section subject events ──
+    // Linked subjects (linkedToSection) must NEVER appear in the schedule. If
+    // any already exist (e.g. from legacy cloned state), purge them from both
+    // the schedule grid and the deposit/staging.
+    const linkedInnerIds = new Set(
+      (subjects as Subject[]).filter(s => s.linkedToSection).map(s => s.innerId)
+    );
+    let removedLinked = 0;
+    if (linkedInnerIds.size > 0) {
+      const beforeLinked = updated.length;
+      updated = updated.filter(e => !linkedInnerIds.has(e.extendedProps?.subjectId));
+      removedLinked = beforeLinked - updated.length;
+    }
+
+    // ── Remove duplicate events ──
+    // Keep a single event per (subjectId, day, startTime); drop exact repeats.
+    let removedDuplicates = 0;
+    {
+      const seen = new Set<string>();
+      const deduped: Event[] = [];
+      for (const e of updated) {
+        const key = `${e.extendedProps?.subjectId}|${e.daysOfWeek?.[0]}|${e.startTime}`;
+        if (seen.has(key)) {
+          removedDuplicates++;
+          continue;
+        }
+        seen.add(key);
+        deduped.push(e);
+      }
+      updated = deduped;
+    }
 
     // Sync professor assignments: update events where teacher differs from projection
     updated = updated.map(e => {
@@ -1232,7 +1271,7 @@ onOk: () => {
       );
     }
 
-    const totalChanges = changes + idToRemove.size + idToStage.size + (validated ? 1 : 0);
+    const totalChanges = changes + idToRemove.size + idToStage.size + removedLinked + removedDuplicates + (validated ? 1 : 0);
     if (totalChanges > 0) {
       const clean = normalizeEventData(updated);
       setEventData(clean);
@@ -1247,7 +1286,7 @@ onOk: () => {
         return totalPlaced < expected;
       }));
       markManualEditPending(updated);
-      message.success(`Sincronizado: ${changes} prof. actualizado(s), ${idToRemove.size} evento(s) eliminado(s) del depósito.`);
+      message.success(`Sincronizado: ${changes} prof. actualizado(s), ${idToRemove.size} del depósito, ${removedLinked} vinculada(s) y ${removedDuplicates} duplicada(s) eliminada(s).`);
     } else {
       message.info("Los datos ya están sincronizados con la proyección.");
     }
@@ -3453,7 +3492,11 @@ onOk: () => {
       let idToStage = new Set<string>();
 
       if (hasActiveSection) {
+        // Exclude linked subjects (linkedToSection): they share the main
+        // section's schedule and must NOT generate independent events. Counting
+        // them here made Tier 2 add duplicate placeholder staging events.
         const activeSubjects = (subjects as Subject[]).filter(s =>
+          !s.linkedToSection &&
           s.pnfId === pnf && s.trayectoId === trayectoId && s.seccion === seccion
         );
 
@@ -6486,7 +6529,7 @@ if (conflictFound) {
           value={selectedSubjectsToAdd}
           onChange={setSelectedSubjectsToAdd}
           options={(subjects as Subject[])
-            ?.filter(s => s.pnfId === pnf && s.trayectoId === trayectoId && s.seccion === seccion && (s.hours?.[trimestre] ?? 0) > 0)
+            ?.filter(s => !s.linkedToSection && s.pnfId === pnf && s.trayectoId === trayectoId && s.seccion === seccion && (s.hours?.[trimestre] ?? 0) > 0)
             .map(s => {
               const existing = eventData.filter(e => e.extendedProps?.subjectId === s.innerId).length;
               const total = s.hours?.[trimestre] ?? 0;

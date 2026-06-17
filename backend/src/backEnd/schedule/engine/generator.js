@@ -157,34 +157,10 @@ export function generateScheduleEvents (params) {
     return !!isQuarterMatch
   })
 
-  // ─── Build linked-subject mapping ───
-  // Linked sections (linkedToSection) share the main section's schedule.
-  // They must NOT generate independent events (SCHEDULE_RULES.md §linked sections).
-  /** @type {Map<string, {linkedSub: object, mainInnerId: string}>} */
-  const linkedSubjectMap = new Map()
-
-  for (const sub of filteredSubjects) {
-    if (sub.linkedToSection) {
-      const parts = sub.linkedToSection.split(' - ')
-      const targetSeccion = parts[0]
-      const targetTurno = parts.slice(1).join(' - ')
-
-      const mainSub = filteredSubjects.find(s =>
-        !s.linkedToSection &&
-        normalizeText(s.subject) === normalizeText(sub.subject) &&
-        s.seccion === targetSeccion &&
-        normalizeText(s.turnoName || '') === normalizeText(targetTurno) &&
-        s.pnfId === sub.pnfId &&
-        s.trayectoId === sub.trayectoId
-      )
-
-      if (mainSub) {
-        linkedSubjectMap.set(sub.innerId, { linkedSub: sub, mainInnerId: mainSub.innerId })
-      }
-    }
-  }
-
-  const nonLinkedSubjects = filteredSubjects.filter(sub => !linkedSubjectMap.has(sub.innerId))
+  // ─── Exclude linked subjects ───
+  // Linked sections (linkedToSection) must NOT appear in the schedule: they are
+  // neither scheduled independently nor cloned from a main section.
+  const nonLinkedSubjects = filteredSubjects.filter(sub => !sub.linkedToSection)
 
   /** @type {import('./types.js').SubjectTask[]} */
   const tasks = nonLinkedSubjects.flatMap((sub) => {
@@ -637,34 +613,6 @@ export function generateScheduleEvents (params) {
           }
         })
       }
-    }
-  }
-
-  // ─── Clone events for linked sections ───
-  // Linked sections share the same teacher, classroom, and time slots as the
-  // main section. Hours MUST NOT be duplicated for the teacher.
-  for (const [, { linkedSub, mainInnerId }] of linkedSubjectMap) {
-    const mainEvents = events.filter(e => e.extendedProps.subjectId === mainInnerId)
-    for (const evt of mainEvents) {
-      events.push({
-        title: linkedSub.subject,
-        daysOfWeek: evt.daysOfWeek,
-        startTime: evt.startTime,
-        endTime: evt.endTime,
-        extendedProps: {
-          subjectId: linkedSub.innerId,
-          professorId: evt.extendedProps.professorId,
-          classroomId: evt.extendedProps.classroomId,
-          classroomName: evt.extendedProps.classroomName,
-          pnfId: linkedSub.pnfId,
-          trayectoId: linkedSub.trayectoId,
-          trayectoName: linkedSub.trayectoName || evt.extendedProps.trayectoName,
-          seccion: linkedSub.seccion,
-          pnfName: linkedSub.pnf || evt.extendedProps.pnfName,
-          turnName: linkedSub.turnoName,
-          blockId: `${evt.daysOfWeek[0]}-${linkedSub.innerId}`
-        }
-      })
     }
   }
 

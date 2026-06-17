@@ -434,6 +434,38 @@ Two issues in the new schedule-versions feature:
 
 ---
 
+### Linked Subjects Duplicated on Refresh
+
+**Problem Identified:**
+Pressing "Refrescar" (or after an automatic hours-validation sync) duplicated subjects in the deposit / schedule, including linked-section subjects.
+
+**Symptom:**
+Linked-section subjects appeared as extra staging events, inflating the section's subjects.
+
+**Cause:**
+Linked subjects (`linkedToSection`) share the main section's schedule and must NOT generate independent events. However, three section subject filters did not exclude them:
+1. `refreshStagingFromProjection` — its "missing hours" refill created new staging events for linked subjects.
+2. The Tier 1/Tier 2 outbound-sync validation `useEffect` — Tier 2 added placeholder staging events for linked subjects.
+3. The "Agregar materias" modal options — let the user add linked subjects manually.
+
+**Solution (frontend):**
+Added `!s.linkedToSection` to all three section subject filters, consistent with `schedulableSubjects` and the section hours stats calculation.
+
+**Root cause (backend) — the real source:**
+The schedule engine `generator.js` deliberately CLONED linked-section events from the main section (`seccion: linkedSub.seccion`), so linked subjects kept appearing in the generated/persisted state regardless of the frontend filters. Per the product owner, linked-section subjects must NOT appear in the schedule at all.
+
+**Solution (backend):**
+In `generator.js`: (1) exclude ALL linked subjects from task generation (`filteredSubjects.filter(sub => !sub.linkedToSection)`), and (2) removed the linked-section event cloning block entirely. Linked subjects are now neither scheduled nor cloned. NOTE: existing persisted state still contains old clones until the next `schedule:regenerate` (Recalcular) rebuilds the state.
+
+**Affected Files:**
+- `src/components/SchoolSchedule/SchoolSchedule.tsx`
+- `backend/src/backEnd/schedule/engine/generator.js`
+
+**References:**
+- [SCHEDULE_RULES.md](../SCHEDULE_RULES.md) §3.4 — linked-section hours must not be duplicated.
+
+---
+
 ## 🔗 Referencias
 
 - **[agents.md](../agents.md)** - Índice de documentación
