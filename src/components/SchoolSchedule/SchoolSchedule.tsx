@@ -5601,6 +5601,10 @@ if (conflictFound) {
                                   // the first one.
                                   const cellConflicts: string[] = [];
                                   const blockSpan = cell.rowSpan || 1;
+                                  const firstSlotStart = tableSlots[rowIndex]?.[0];
+                                  const cellEventId = firstSlotStart
+                                    ? `${cell.extendedProps?.subjectId}-${cell.extendedProps?.seccion}-${day}-${firstSlotStart}`
+                                    : "";
                                   for (let s = 0; s < blockSpan; s++) {
                                     const slotStart = tableSlots[rowIndex + s]?.[0];
                                     if (!slotStart) continue;
