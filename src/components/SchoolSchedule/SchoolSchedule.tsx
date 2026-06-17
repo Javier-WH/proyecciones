@@ -1431,6 +1431,29 @@ onOk: () => {
     const trayectoId = props.trayectoId;
     const seccion = props.seccion;
 
+    // ─── Teacher availability restrictions (unavailable days / hours) ───
+    // Mirrors the engine's placement rules (findSlotPlacements): a teacher
+    // cannot teach on a restricted day, nor at a specific restricted hour.
+    // Surfacing this here makes the red-border conflict appear on manual
+    // drag/drop and, for frozen sections, a persistent error entry.
+    if (professorId) {
+      const profRestriction = teacherRestrictions.find(
+        r => String(r.teacherId) === String(professorId)
+      );
+      if (profRestriction) {
+        const prof = teachers?.find((t: { id: string; name?: string; lastName?: string }) => t.id === professorId);
+        const profName = prof ? `${prof.name || ''} ${prof.lastName || ''}`.trim() : 'Profesor';
+        const restrictionDayNames = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+        const dayLabel = restrictionDayNames[targetDay] || `día ${targetDay}`;
+        if (profRestriction.days?.includes(targetDay)) {
+          conflicts.push(`Restricción de profesor: ${profName} no está disponible los ${dayLabel}.`);
+        }
+        if (profRestriction.hours?.some(rh => rh.day === targetDay && rh.start === targetStartTime)) {
+          conflicts.push(`Restricción de profesor: ${profName} tiene restringida la hora ${targetStartTime} del ${dayLabel}.`);
+        }
+      }
+    }
+
     // Check all existing events for conflicts
     for (const existingEvent of eventsToCheck) {
       if (!existingEvent.extendedProps) continue;
@@ -1561,7 +1584,7 @@ onOk: () => {
     setEventsWithConflicts(next);
     setConflictNavMeta(navMeta);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventData, crossQuarterGhostEvents, teachers, classrooms, subjects, trimestre]);
+  }, [eventData, crossQuarterGhostEvents, teachers, classrooms, subjects, trimestre, teacherRestrictions]);
 
   // ─── Derive frozen-section conflict errors from reactive detection ───
   // When eventsWithConflicts changes (every eventData mutation), convert
