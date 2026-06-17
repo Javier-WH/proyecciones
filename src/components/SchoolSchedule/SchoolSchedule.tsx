@@ -5593,11 +5593,26 @@ if (conflictFound) {
                                     ] : []),
                                   ];
 
-                                  // Check if this cell has conflicts
-                                  const cellEventId = `${cell.extendedProps?.subjectId}-${cell.extendedProps?.seccion}-${day}-${slot[0]}`;
-                                  const baseCellConflicts = eventsWithConflicts[cellEventId] || [];
-                                  const profMismatch = professorMismatchConflicts.get(cellEventId) || [];
-                                  const cellConflicts = [...baseCellConflicts, ...profMismatch];
+                                  // Check if this cell has conflicts. A merged block is rendered
+                                  // as a single <td> with rowSpan over cell.rowSpan slots starting
+                                  // at rowIndex. A conflict can occur on ANY of those slots (e.g. a
+                                  // teacher-restricted hour in the middle/end of the block), so we
+                                  // aggregate conflicts across every slot the block covers — not just
+                                  // the first one.
+                                  const cellConflicts: string[] = [];
+                                  const blockSpan = cell.rowSpan || 1;
+                                  for (let s = 0; s < blockSpan; s++) {
+                                    const slotStart = tableSlots[rowIndex + s]?.[0];
+                                    if (!slotStart) continue;
+                                    const slotEventId = `${cell.extendedProps?.subjectId}-${cell.extendedProps?.seccion}-${day}-${slotStart}`;
+                                    const slotConflicts = [
+                                      ...(eventsWithConflicts[slotEventId] || []),
+                                      ...(professorMismatchConflicts.get(slotEventId) || []),
+                                    ];
+                                    for (const c of slotConflicts) {
+                                      if (!cellConflicts.includes(c)) cellConflicts.push(c);
+                                    }
+                                  }
                                   const hasConflict = cellConflicts.length > 0;
                                   const isEventSaving = savingEventKeys.has(getEventId(cell));
 
