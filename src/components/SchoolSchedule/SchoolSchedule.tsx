@@ -2134,6 +2134,7 @@ onOk: () => {
   // New state for view mode and selected professor
   const [viewMode, setViewMode] = useState<"pnf" | "professor" | "classroom">(() => (localStorage.getItem("schedule_viewMode") as "pnf" | "professor" | "classroom") || "pnf");
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(() => localStorage.getItem("schedule_selectedClassroomId") || null);
+  const [showGhosts, setShowGhosts] = useState<boolean>(() => localStorage.getItem("schedule_showGhosts") !== "false");
   const [profPnf, setProfPnf] = useState(() => localStorage.getItem("schedule_profPnf") || "");
   const [scrollToProfessorId, setScrollToProfessorId] = useState<string | null>(() => localStorage.getItem("schedule_scrollToProfessorId") || null);
   const [isScrollingToProf, setIsScrollingToProf] = useState<boolean>(() => localStorage.getItem("schedule_viewMode") === "professor" && !!localStorage.getItem("schedule_scrollToProfessorId"));
@@ -2164,6 +2165,7 @@ onOk: () => {
     localStorage.setItem("schedule_trayectoId", trayectoId);
     localStorage.setItem("schedule_trimestre", trimestre);
     localStorage.setItem("schedule_viewMode", viewMode);
+    localStorage.setItem("schedule_showGhosts", String(showGhosts));
 
     if (selectedClassroomId) localStorage.setItem("schedule_selectedClassroomId", selectedClassroomId);
     else localStorage.removeItem("schedule_selectedClassroomId");
@@ -2173,7 +2175,7 @@ onOk: () => {
 
     if (scrollToProfessorId) localStorage.setItem("schedule_scrollToProfessorId", scrollToProfessorId);
     else localStorage.removeItem("schedule_scrollToProfessorId");
-  }, [turn, seccion, pnf, trayectoId, trimestre, viewMode, selectedClassroomId, profPnf, scrollToProfessorId]);
+  }, [turn, seccion, pnf, trayectoId, trimestre, viewMode, showGhosts, selectedClassroomId, profPnf, scrollToProfessorId]);
 
   const activeTurnos = useMemo(() => {
     const base = scheduleConfig?.turnos || turnos;
@@ -4054,7 +4056,7 @@ onOk: () => {
 
     const mergedLoaded = mergeConsecutiveEvents(snapEventsToSlots(filteredLoaded));
     const mergedGenerated = mergeConsecutiveEvents(snapEventsToSlots(filteredGenerated));
-    const mergedGhosts = mergeConsecutiveEvents(snapEventsToSlots(filteredGhosts));
+    const mergedGhosts = showGhosts ? mergeConsecutiveEvents(snapEventsToSlots(filteredGhosts)) : [];
 
     const combinedEvents = [...mergedLoaded, ...mergedGenerated, ...mergedGhosts];
     setEvents(combinedEvents);
@@ -4081,6 +4083,7 @@ onOk: () => {
     profPnf,
     teachers,
     trayectoId,
+    showGhosts,
     trimestre,
     viewMode,
     selectedClassroomId,
@@ -4773,6 +4776,15 @@ if (conflictFound) {
               <span className="schedule-name">{activeScheduleName}</span>
               <Tooltip title={scheduleConnected ? `Sincronizado con backend (v${scheduleVersion})` : "Desconectado del backend"}>
                 <div className={`sync-dot ${scheduleConnected ? "connected" : "disconnected"}`} />
+              </Tooltip>
+              <Tooltip title="Mostrar/ocultar horas solapadas entre semestres y trimestres">
+                <Checkbox
+                  checked={showGhosts}
+                  onChange={(e) => setShowGhosts(e.target.checked)}
+                  style={{ marginLeft: 12 }}
+                >
+                  Fantasmas
+                </Checkbox>
               </Tooltip>
             </div>
           </div>
