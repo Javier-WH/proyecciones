@@ -6,15 +6,15 @@ Last updated: 2026-06-22
 
 | # | Title | Severity | Status | File |
 |---|-------|----------|--------|------|
-| 1 | Debug logs in production | Low-Med | Pending | `SchoolSchedule.tsx` |
-| 2 | Corrupted characters "SecciA3n" | Medium | Pending | `SchoolSchedule.tsx` |
+| 1 | Debug logs in production | Low-Med | **Fixed** | `SchoolSchedule.tsx` |
+| 2 | Corrupted characters "SecciA3n" | Medium | **Fixed** | `SchoolSchedule.tsx` |
 | 3 | Non-frozen classroom change doesn't persist via socket | **High** | **Fixed** | `SchoolSchedule.tsx` |
-| 4 | `clearAllStaged` no re-verification before applying | Medium | Pending | `SchoolSchedule.tsx` |
-| 5 | Reactive conflict detection excludes `loadedScheduleEvents` | Medium | Pending | `SchoolSchedule.tsx` |
+| 4 | `clearAllStaged` no re-verification before applying | Medium | **Fixed** | `SchoolSchedule.tsx` |
+| 5 | Reactive conflict detection excludes `loadedScheduleEvents` | Medium | **Fixed** | `SchoolSchedule.tsx` |
 | 6 | Ghosts included in classroom change search | Low | **Fixed** | `SchoolSchedule.tsx` |
-| 7 | Inconsistent indentation in `toggleFreezeSection` | Low | Pending | `SchoolSchedule.tsx` |
-| 8 | `handleDropBetweenCells` moves with conflicts without warning | Medium | Pending | `SchoolSchedule.tsx` |
-| 9 | 15s silent timer for `markManualEditPending` | Medium | Pending | `SchoolSchedule.tsx` |
+| 7 | Inconsistent indentation in `toggleFreezeSection` | Low | **Fixed** | `SchoolSchedule.tsx` |
+| 8 | `handleDropBetweenCells` moves with conflicts without warning | Medium | **Not a bug** | `SchoolSchedule.tsx` |
+| 9 | 15s silent timer for `markManualEditPending` | Medium | **Fixed** | `SchoolSchedule.tsx` |
 
 ---
 
@@ -81,3 +81,10 @@ Last updated: 2026-06-22
 
 - 2026-06-22: Bug tracker created. Starting with Bug 3.
 - 2026-06-22: **Fixed Bug 3** — `applyClassroomChangeAndRecalculate` now writes modified events back to `eventData` and `loadedScheduleEvents`, and calls `markManualEditPending` so socket sync persists the change. Also **fixed Bug 6** incidentally by removing `crossQuarterGhostEvents` from the search array.
+- 2026-06-22: **Fixed Bug 1** — Removed `console.warn` in professorMismatchConflict, `console.log` in ConflictCheck, `window.__*` debug exposures, and `console.log` in HappyPath/InboundSync.
+- 2026-06-22: **Fixed Bug 2** — Replaced corrupted `SecciA3n` with `Sección` in user-facing messages and comments.
+- 2026-06-22: **Fixed Bug 5** — Reactive conflict detection now includes `loadedScheduleEvents` in the events array passed to `checkEventConflicts`.
+- 2026-06-22: **Fixed Bug 9** — 15s timer now shows `message.warning` if socket ack hasn't arrived, instead of silently clearing state.
+- 2026-06-22: **Fixed Bug 4** — `clearAllStaged` now re-checks conflicts inside `onOk` callback at execution time.
+- 2026-06-22: **Bug 8** — Reviewed and classified as **not a bug**. `handleDropBetweenCells` already shows `message.warning` with conflict count; allowing move with visible conflicts is intentional design.
+- 2026-06-22: **Fixed Bug 7** — Fixed indentation of `onOk` callback and `} else {` block in `toggleFreezeSection`.

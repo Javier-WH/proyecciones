@@ -310,6 +310,9 @@ const SchoolSchedule: React.FC = () => {
     // Safety timeout: clear pending hash + saving state if not acked in 15 s
     if (pendingManualEditTimerRef.current) clearTimeout(pendingManualEditTimerRef.current);
     pendingManualEditTimerRef.current = setTimeout(() => {
+      if (pendingManualEditHashRef.current) {
+        message.warning("La sincronización de cambios está tardando. Verifica tu conexión e intenta nuevamente si los cambios no se guardaron.");
+      }
       pendingManualEditHashRef.current = '';
       setManualEditSaving(false);
       setSavingEventKeys(new Set());
@@ -497,32 +500,6 @@ const SchoolSchedule: React.FC = () => {
           a.extendedProps?.subjectId === b.extendedProps?.subjectId;
         if (sameSection) continue;
 
-        // ⚠ DEBUG TEMPORAL: loggear cada conflicto detectado con todo el contexto.
-        // Esto ayuda a identificar eventos fantasma o duplicados en lockedSections.
-        console.warn('[professorMismatchConflict]', {
-          A: {
-            title: a.title,
-            subjectId: a.extendedProps?.subjectId,
-            pnfId: a.extendedProps?.pnfId,
-            trayectoId: a.extendedProps?.trayectoId,
-            seccion: a.extendedProps?.seccion,
-            day: dayA,
-            start: startA,
-            originKey: eventOrigin.get(a),
-          },
-          B: {
-            title: b.title,
-            subjectId: b.extendedProps?.subjectId,
-            pnfId: b.extendedProps?.pnfId,
-            trayectoId: b.extendedProps?.trayectoId,
-            seccion: b.extendedProps?.seccion,
-            day: b.daysOfWeek?.[0],
-            start: b.startTime,
-            originKey: eventOrigin.get(b),
-          },
-          professorId: profA,
-        });
-
         const prof = teachers?.find(t => t.id === profA);
         const profName = prof ? `${prof.name} ${prof.lastName}` : 'Profesor';
         const eventId = `${a.extendedProps?.subjectId}-${a.extendedProps?.seccion}-${dayA}-${startA}`;
@@ -556,13 +533,13 @@ const SchoolSchedule: React.FC = () => {
         content: "Al desbloquear esta sección, las materias se recalcularán automáticamente en el próximo proceso de generación y su orden o ubicación podrían cambiar. ¿Deseas continuar?",
         okText: "Sí, desbloquear",
         cancelText: "Cancelar",
-onOk: () => {
+        onOk: () => {
           startRecalcLoading();
           pendingUnfreezesRef.current.add(key);
           setLockedSections((prev: any) => {
             const newObj = { ...prev };
             delete newObj[key];
-            message.info(`SecciA3n ${sec} desbloqueada.`);
+            message.info(`Sección ${sec} desbloqueada.`);
             return newObj;
           });
           setIsOfficialStageMode(false);
@@ -573,7 +550,7 @@ onOk: () => {
             .catch(() => stopRecalcLoading());
         }
       });
-} else {
+    } else {
       pendingUnfreezesRef.current.delete(key);
       const sectionEvents = getScheduleEvents(eventData).filter(e =>
         e.extendedProps.pnfId === pnfId &&
@@ -583,7 +560,7 @@ onOk: () => {
       setLockedSections((prev: any) => {
         const newObj = { ...prev };
         newObj[key] = sectionEvents;
-        message.success(`SecciA3n ${sec} bloqueada.`);
+        message.success(`Sección ${sec} bloqueada.`);
         return newObj;
       });
       scheduleDispatch("schedule:toggleFreeze", { sectionKey: key, freeze: true, events: sectionEvents });
@@ -1295,50 +1272,7 @@ onOk: () => {
   const clearAllStaged = () => {
     const currentStagedEvents = getStagingEvents(eventData);
     if (currentStagedEvents.length === 0) return;
-    
-    // Check for conflicts in all staged events
-    const conflictsByEvent: { event: Event; conflicts: string[] }[] = [];
-    
-    for (const event of currentStagedEvents) {
-      const targetDay = event.daysOfWeek?.[0];
-      const targetStartTime = event.startTime;
-      
-      if (targetDay && targetStartTime) {
-        const conflicts = checkEventConflicts(event, targetDay, targetStartTime);
-        if (conflicts.length > 0) {
-          conflictsByEvent.push({ event, conflicts });
-        }
-      }
-    }
-    
-    if (conflictsByEvent.length > 0) {
-      // Show warning with all conflicts
-      Modal.warning({
-        title: "Conflictos al Devolver Eventos",
-        content: (
-          <div>
-            <p>No se pueden devolver {conflictsByEvent.length} eventos porque sus ubicaciones originales están ocupadas:</p>
-            <div style={{ maxHeight: '300px', overflowY: 'auto', margin: '10px 0' }}>
-              {conflictsByEvent.map(({ event, conflicts }, index) => (
-                <div key={index} style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#fff2f0', borderRadius: '4px' }}>
-                  <strong>{event.title}</strong>
-                  <ul style={{ margin: '5px 0', paddingLeft: '20px', fontSize: '12px' }}>
-                    {conflicts.map((conflict, conflictIndex) => (
-                      <li key={conflictIndex}>{conflict}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-            <p>Por favor, resuelve los conflictos manualmente arrastrando las materias a celdas disponibles.</p>
-          </div>
-        ),
-        width: 600,
-        okText: "Entendido"
-      });
-      return; // Prevent the action
-    }
-    
+
     // If no conflicts, proceed with confirmation
     Modal.confirm({
       title: "¿Limpiar área de depósito?",
@@ -1346,7 +1280,50 @@ onOk: () => {
       okText: "Sí, devolver todos",
       cancelText: "Cancelar",
       onOk: () => {
-        const stagedEventIds = currentStagedEvents.map(e => getEventId(e));
+        // Re-check conflicts at execution time (state may have changed since modal opened)
+        const stagedNow = getStagingEvents(eventData);
+        const conflictsByEvent: { event: Event; conflicts: string[] }[] = [];
+
+        for (const event of stagedNow) {
+          const targetDay = event.daysOfWeek?.[0];
+          const targetStartTime = event.startTime;
+
+          if (targetDay && targetStartTime) {
+            const conflicts = checkEventConflicts(event, targetDay, targetStartTime);
+            if (conflicts.length > 0) {
+              conflictsByEvent.push({ event, conflicts });
+            }
+          }
+        }
+
+        if (conflictsByEvent.length > 0) {
+          Modal.warning({
+            title: "Conflictos al Devolver Eventos",
+            content: (
+              <div>
+                <p>No se pueden devolver {conflictsByEvent.length} eventos porque sus ubicaciones originales están ocupadas:</p>
+                <div style={{ maxHeight: '300px', overflowY: 'auto', margin: '10px 0' }}>
+                  {conflictsByEvent.map(({ event, conflicts }, index) => (
+                    <div key={index} style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#fff2f0', borderRadius: '4px' }}>
+                      <strong>{event.title}</strong>
+                      <ul style={{ margin: '5px 0', paddingLeft: '20px', fontSize: '12px' }}>
+                        {conflicts.map((conflict, conflictIndex) => (
+                          <li key={conflictIndex}>{conflict}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+                <p>Por favor, resuelve los conflictos manualmente arrastrando las materias a celdas disponibles.</p>
+              </div>
+            ),
+            width: 600,
+            okText: "Entendido"
+          });
+          return;
+        }
+
+        const stagedEventIds = stagedNow.map(e => getEventId(e));
         // Change location to 'schedule' for all staged events
         setEventData(prev => {
           const updated = prev.map(e => {
@@ -1555,6 +1532,7 @@ onOk: () => {
   useEffect(() => {
     if (recalcPendingRef.current) return;
     const scheduleEvents = getScheduleEvents(eventData);
+    const allEvents = [...scheduleEvents, ...loadedScheduleEvents];
     if (scheduleEvents.length === 0) {
       setEventsWithConflicts({});
       return;
@@ -1565,7 +1543,7 @@ onOk: () => {
       const day = ev.daysOfWeek?.[0];
       const start = ev.startTime;
       if (!day || !start) continue;
-      const conflicts = checkEventConflicts(ev, day, start, scheduleEvents);
+      const conflicts = checkEventConflicts(ev, day, start, allEvents);
       if (conflicts.length > 0) {
         next[getEventId(ev)] = conflicts;
         // Find conflicting events at same day+time to build nav metadata
@@ -1591,14 +1569,10 @@ onOk: () => {
         }));
       }
     }
-    const conflictCount = Object.keys(next).length;
-    if (conflictCount > 0) {
-      console.log('[ConflictCheck] Found', conflictCount, 'conflicts:', next);
-    }
     setEventsWithConflicts(next);
     setConflictNavMeta(navMeta);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventData, crossQuarterGhostEvents, teachers, classrooms, subjects, trimestre, teacherRestrictions]);
+  }, [eventData, loadedScheduleEvents, crossQuarterGhostEvents, teachers, classrooms, subjects, trimestre, teacherRestrictions]);
 
   // ─── Derive frozen-section conflict errors from reactive detection ───
   // When eventsWithConflicts changes (every eventData mutation), convert
@@ -3195,17 +3169,13 @@ onOk: () => {
         );
         const nextOverrides = [...filtered, newOverride];
 
-        console.log('[HappyPath] Persisting locked section', changedSectionKey, 'events count', updatedLockedEvents.length);
         upsertLockedSection(proyectionId, changedSectionKey, updatedLockedEvents)
-          .then((saveResp) => {
-            console.log('[HappyPath] locked section saved', saveResp);
+          .then(() => {
             // Use schedule:saveOverride instead of manual save + schedule:regenerate.
             // saveOverride writes to DB and triggers recalc automatically WITHOUT
             // optimistic locking, so it never fails with VERSION_CONFLICT.
             if (scheduleConnected) {
-              console.log('[HappyPath] dispatching schedule:saveOverride');
               return scheduleDispatch("schedule:saveOverride", { overrides: [newOverride] }).then((ack) => {
-                console.log('[HappyPath] schedule:saveOverride ack', ack);
                 if (ack?.ok) {
                   setHasUnsavedOverrides(false);
                 } else {
@@ -3407,7 +3377,6 @@ onOk: () => {
         message.success(`Versión "${versionName}" guardada con éxito.`);
       },
       onCancel() {
-        console.log("Guardado de versión cancelado");
       },
     });
   };
@@ -3743,7 +3712,6 @@ onOk: () => {
   // Updates the hash ref so the outbound effect won't re-push the same content.
   useEffect(() => {
     if (!scheduleVersion || scheduleVersion === lastSyncedVersionRef.current) return;
-    console.log('[InboundSync] received schedule:state version', scheduleVersion, 'eventData length', scheduleState.eventData?.length, 'lockedSections keys', Object.keys(scheduleState.lockedSections || {}));
     const incomingHash = getScheduleSnapshotHash(
       Array.isArray(scheduleState.eventData) ? scheduleState.eventData : [],
       Array.isArray(scheduleState.classroomOverrides) ? scheduleState.classroomOverrides as ClassroomOverride[] : [],
@@ -4086,19 +4054,6 @@ onOk: () => {
 
     const combinedEvents = [...mergedLoaded, ...mergedGenerated, ...mergedGhosts];
     setEvents(combinedEvents);
-
-    // [DEBUG TEMPORAL] Exponer estado para inspección desde consola.
-    // Quitar tras diagnosticar pérdida de horas al renderizar bloques.
-    if (typeof window !== "undefined") {
-      (window as any).__events = combinedEvents;
-      (window as any).__eventData = eventData;
-      (window as any).__loadedScheduleEvents = loadedScheduleEvents;
-      (window as any).__filteredLoaded = filteredLoaded;
-      (window as any).__filteredGenerated = filteredGenerated;
-      (window as any).__mergedLoaded = mergedLoaded;
-      (window as any).__mergedGenerated = mergedGenerated;
-      (window as any).__lockedSections = lockedSections;
-    }
   }, [
     eventData,
     loadedScheduleEvents,
@@ -4640,12 +4595,12 @@ setClassroomOverrides(prev => {
     // - Si NO está congelada y hay conflicto: mostrar confirmación
     // - Si NO está congelada y NO hay conflicto: aplicar con recálculo
 if (isFrozen) {
-      // SecciA3n congelada: aplicar drop localmente
+      // Sección congelada: aplicar drop localmente
 pinDraggedEventsAndRecalculate(isFrozen);
       setDraggedEventInfo(null);
 
-      // Guardar overrides a BD y disparar schedule:toggleFreeze para la secciA3n congelada.
-      // toggleFreeze persiste en DB + dispara recalc automA�ticamente, evitando
+      // Guardar overrides a BD y disparar schedule:toggleFreeze para la sección congelada.
+      // toggleFreeze persiste en DB + dispara recalc automáticamente, evitando
       // el deadlock que causaba saveLockedSections (DELETE masivo + INSERT).
       if (proyectionId) {
         const frozenKey = `${firstMovingEvent.extendedProps?.pnfId}-${firstMovingEvent.extendedProps?.trayectoId}-${firstMovingEvent.extendedProps?.seccion}-${trimestre}`;
@@ -4654,7 +4609,7 @@ pinDraggedEventsAndRecalculate(isFrozen);
             e.extendedProps?.trayectoId === firstMovingEvent.extendedProps?.trayectoId &&
             e.extendedProps?.seccion === firstMovingEvent.extendedProps?.seccion
         );
-        // Aplicar transformaciA3n de posiciA3n a los eventos movidos dentro del array frozen
+        // Aplicar transformación de posición a los eventos movidos dentro del array frozen
         const movingIds = new Set(movingEvents.map(e =>
           `${e.extendedProps?.subjectId}|${e.daysOfWeek?.[0]}|${e.startTime}`
         ));
