@@ -1394,6 +1394,20 @@ onOk: () => {
         [sectionKey]: sectionEvents,
       }));
 
+      // Also save any pending classroom overrides so they persist together
+      if (hasUnsavedOverrides && classroomOverrides.length > 0) {
+        try {
+          if (scheduleConnected) {
+            await scheduleDispatch("schedule:saveOverride", { overrides: classroomOverrides });
+          } else {
+            await saveClassroomOverrides(proyectionId, classroomOverrides);
+          }
+          setHasUnsavedOverrides(false);
+        } catch (overrideErr) {
+          console.error("Error saving classroom overrides during staging confirm:", overrideErr);
+        }
+      }
+
       setDraggingFromStaging(null);
       setIsOfficialStageMode(false);
       message.success("Cambios confirmados y guardados correctamente");
@@ -2871,7 +2885,7 @@ onOk: () => {
     });
 
     const applyClassroomChangeAndRecalculate = (returnFirstModifiedOnly = false) => {
-      const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData), ...crossQuarterGhostEvents];
+      const allEvents = [...loadedScheduleEvents, ...getScheduleEvents(eventData)];
 
       // Find the specific events we are modifying
       const modifiedEvents = allEvents
@@ -2927,10 +2941,22 @@ onOk: () => {
 
       if (returnFirstModifiedOnly) return firstModified;
 
-      // Backend recalc is triggered reactively via socket when restrictions change.
-      // No local counter bump needed when backend is connected.
-
-
+      // Apply the classroom change to eventData and loadedScheduleEvents
+      const modifiedIds = new Set(modifiedEvents.map(e => getEventId(e)));
+      setEventData(prev => {
+        const nextEventData = prev.map(e =>
+          modifiedIds.has(getEventId(e))
+            ? { ...e, extendedProps: { ...e.extendedProps, classroomId: newClassroomId, classroomName: newClassroom.classroom } }
+            : e
+        );
+        markManualEditPending(nextEventData, Array.from(modifiedIds));
+        return nextEventData;
+      });
+      setLoadedScheduleEvents(prev => prev.map(e =>
+        modifiedIds.has(getEventId(e))
+          ? { ...e, extendedProps: { ...e.extendedProps, classroomId: newClassroomId, classroomName: newClassroom.classroom } }
+          : e
+      ));
 
       message.success(
         `Aula cambiada a "${newClassroom.classroom}" para ${classroomChangeEvent.title} el día seleccionado.`
