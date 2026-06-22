@@ -264,6 +264,13 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
             margin: 0;
             padding: 0;
           }
+
+          .schedule-grid {
+            border: 0.3mm solid #000 !important;
+            border-left: 0.3mm solid #000 !important;
+            outline: 0.3mm solid #000 !important;
+            outline-offset: 0 !important;
+          }
           
           /* Force font sizes in print */
           .subject-title {
@@ -375,18 +382,20 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
             </div>
 
             {/* CSS Grid Schedule */}
-            <div style={{
+            <div className="schedule-grid" style={{
               display: "grid",
               gridTemplateColumns: gridTemplateColumns,
               gridTemplateRows: gridTemplateRows,
-              border: "0.4mm solid #000",
+              border: "0.25mm solid #000",
               width: "273mm"
             }}>
               {/* Header Row */}
               <div style={{
                 gridColumn: "1",
                 gridRow: "1",
-                border: "0.4mm solid #000",
+                borderLeft: "0.25mm solid #000",
+                borderRight: "0.1mm solid #000",
+                borderBottom: "0.1mm solid #000",
                 padding: "2mm",
                 fontWeight: "bold",
                 fontSize: "4mm",
@@ -399,7 +408,8 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                 <div key={`hdr-${day}`} style={{
                   gridColumn: `${idx + 2}`,
                   gridRow: "1",
-                  border: "0.4mm solid #000",
+                  borderRight: idx < days.length - 1 ? "0.1mm solid #000" : undefined,
+                  borderBottom: "0.1mm solid #000",
                   padding: "2mm",
                   fontWeight: "bold",
                   fontSize: "3.5mm",
@@ -421,7 +431,9 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                     <div style={{
                       gridColumn: "1",
                       gridRow: `${gridRowNum}`,
-                      border: "0.4mm solid #000",
+                      borderLeft: "0.25mm solid #000",
+                      borderRight: "0.1mm solid #000",
+                      borderBottom: rowIndex < timeSlots.length - 1 ? "0.1mm solid #000" : undefined,
                       padding: "1mm",
                       fontSize: "3.2mm",
                       lineHeight: "1.2",
@@ -452,7 +464,8 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                             style={{
                               gridColumn: `${gridColumn}`,
                               gridRow: `${gridRowNum} / ${gridRowEnd}`,
-                              border: "0.4mm solid #000",
+                              borderRight: idx < days.length - 1 ? "0.1mm solid #000" : undefined,
+                              borderBottom: "0.1mm solid #000",
                               padding: (viewMode === "professor" || viewMode === "classroom") ? "0.5mm" : "1.5mm",
                               display: "flex",
                               flexDirection: "column",
@@ -529,7 +542,8 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                             style={{
                               gridColumn: `${gridColumn}`,
                               gridRow: `${gridRowNum}`,
-                              border: "0.4mm solid #000",
+                              borderRight: idx < days.length - 1 ? "0.1mm solid #000" : undefined,
+                              borderBottom: rowIndex < timeSlots.length - 1 ? "0.1mm solid #000" : undefined,
                               backgroundColor: "#fff"
                             }}
                           ></div>
