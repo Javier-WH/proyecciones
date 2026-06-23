@@ -458,6 +458,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
 
                       if (cell) {
                         const gridRowEnd = gridRowNum + cell.span;
+                        const isLastRow = gridRowNum + cell.span - 1 >= timeSlots.length;
                         return (
                           <div
                             key={day}
@@ -465,7 +466,7 @@ const PrintableSchedule = forwardRef<HTMLDivElement, PrintableScheduleProps>(({ 
                               gridColumn: `${gridColumn}`,
                               gridRow: `${gridRowNum} / ${gridRowEnd}`,
                               borderRight: idx < days.length - 1 ? "0.1mm solid #000" : undefined,
-                              borderBottom: "0.1mm solid #000",
+                              borderBottom: isLastRow ? undefined : "0.1mm solid #000",
                               padding: (viewMode === "professor" || viewMode === "classroom") ? "0.5mm" : "1.5mm",
                               display: "flex",
                               flexDirection: "column",
