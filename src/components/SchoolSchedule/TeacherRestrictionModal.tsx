@@ -198,7 +198,7 @@ const TeacherRestrictionModal: React.FC<{
         const sectionName = conflictingEvent.extendedProps?.seccion || "desconocida";
         const trimLabel = trimestreSuffix === 'q1' ? 'Trimestre 1' : trimestreSuffix === 'q2' ? 'Trimestre 2' : 'Trimestre 3';
 
-        setLocalError(`El profesor tiene una clase de "${conflictingEvent.title}" en la sección ${sectionName} (${trimLabel}), la cual está congelada. Descongele la sección para aplicar este cambio.`);
+        setLocalError(`El profesor tiene una clase de "${conflictingEvent.title}" en la sección ${sectionName} (${trimLabel}), la cual está bloqueada. Desbloque la sección para aplicar este cambio.`);
         return;
       }
     }
@@ -245,7 +245,7 @@ const TeacherRestrictionModal: React.FC<{
         <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
           {localError && (
             <Alert
-              message="Conflicto con Sección Congelada"
+              message="Conflicto con Sección Bloqueada"
               description={localError}
               type="error"
               showIcon

@@ -73,7 +73,7 @@ const EditSubjectQuarterModal: React.FC<{
   const handleOk = () => {
     if (!subject || !subjects) return;
 
-    // NOTA: Se permite cambiar profesor aunque la sección esté congelada en fase 2.
+    // NOTA: Se permite cambiar profesor aunque la sección esté bloqueada en fase 2.
     // El conflicto se detecta visualmente en el horario (borde rojo) y en el panel del profesor.
 
     const subjectCopy = [...subjects];
@@ -144,7 +144,7 @@ const EditSubjectQuarterModal: React.FC<{
         ]}>
         {localError && (
           <Alert
-            message="Sección Congelada"
+            message="Sección Bloqueada"
             description={localError}
             type="error"
             showIcon

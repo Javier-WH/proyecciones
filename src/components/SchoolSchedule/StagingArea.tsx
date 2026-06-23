@@ -150,7 +150,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
       <div className={styles.header}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <h3 className={styles.title}>
-            📦 Área de Depósito
+            📦 Área de Edición Manual
             {stagedEvents.length > 0 && activeTab === 'staged' && (
               <Badge
                 count={stagedEvents.length}
@@ -216,7 +216,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
             Confirmar cambios
           </Button>
           {onAddSubjects && (
-            <Tooltip title="Agregar materias de la proyección al depósito">
+            <Tooltip title="Agregar materias de la proyección a la edición manual">
               <Button
                 size="small"
                 icon={<PlusOutlined />}
@@ -305,7 +305,7 @@ const StagingArea: React.FC<StagingAreaProps> = ({
                         />
                       </Tooltip>
                       {onDeleteSubjectFromStaging && (
-                        <Tooltip title={`Eliminar "${truncateText(group.title, 20)}" del depósito`}>
+                        <Tooltip title={`Eliminar "${truncateText(group.title, 20)}" de la edición manual`}>
                           <Button
                             type="text"
                             size="small"

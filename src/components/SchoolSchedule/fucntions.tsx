@@ -32,7 +32,7 @@ export interface Event {
     pnfName: string;
     turnName: string;
     blockId: string;
-    location?: 'schedule' | 'staging'; // Ubicación del evento: horario o depósito
+    location?: 'schedule' | 'staging'; // Ubicación del evento: horario o edición manual
     // ─── Cross-quarter ghost flags (semestral ↔ trimestral overlap) ───
     // Cuando es true, el evento se usa solo para bloquear aula/profesor en la
     // generación/validación, pero NO se cuenta en placedHours ni se emite en
@@ -956,12 +956,12 @@ export function generateScheduleEvents({
         }
 
         // Ghosts cross-quarter solo pre-ocupan aula/profesor; no dispararan las
-        // validaciones de "sección congelada" (no pertenecen al trim activo).
+        // validaciones de "sección bloqueada" (no pertenecen al trim activo).
         if (evt.extendedProps.isCrossQuarterGhost) {
           continue;
         }
 
-        // --- VALIDACIONES DE SECCIÓN CONGELADA ---
+        // --- VALIDACIONES DE SECCIÓN BLOQUEADA ---
         const teacherObj = teachers?.find((t: any) => t.id === professorId);
         const professorName = teacherObj
           ? `${teacherObj.name} ${teacherObj.lastName}`
@@ -971,8 +971,8 @@ export function generateScheduleEvents({
         const baseErrKey = `${evt.extendedProps.subjectId}-${evt.extendedProps.seccion}-${evt.extendedProps.trayectoId}`;
 
         // 1. (ELIMINADO) Validar restricciones de disponibilidad del profesor.
-        // Se ha suprimido esta validación para las secciones congeladas porque:
-        // Si el event está congelado es porque el usuario/generador forzó que fuese correcto.
+        // Se ha suprimido esta validación para las secciones bloqueadas porque:
+        // Si el event está bloqueado es porque el usuario/generador forzó que fuese correcto.
         // Alertar aquí generaba una contradicción fantasma si los días difieren.
 
         // 2. Validar restricciones exclusivas de aula
@@ -997,7 +997,7 @@ export function generateScheduleEvents({
               const classObj = classrooms?.find(c => stringifiedClassroomIds.includes(String(c.id)));
               setErrors({
                 name: evt.title,
-                description: `[SECCIÓN CONGELADA] Conflicto de Aula: Esta materia exige un aula exclusiva (ej. ${classObj?.classroom || "Otra"}), pero está fijada en otra distinta. Descongele la sección.`,
+                description: `[SECCIÓN BLOQUEADA] Conflicto de Aula: Esta materia exige un aula exclusiva (ej. ${classObj?.classroom || "Otra"}), pero está fijada en otra distinta. Desbloque la sección.`,
                 seccion: evt.extendedProps.seccion,
                 year: evt.extendedProps.trayectoName || "",
                 turn: evt.extendedProps.turnName || "",
@@ -1036,7 +1036,7 @@ export function generateScheduleEvents({
 
     if (!isQuarterMatch) return false;
 
-    // Ya no cortamos por frozenSet; las porciones sin asignar de secciones congeladas deben intentar resolverse
+    // Ya no cortamos por frozenSet; las porciones sin asignar de secciones bloqueadas deben intentar resolverse
     return true;
   });
 

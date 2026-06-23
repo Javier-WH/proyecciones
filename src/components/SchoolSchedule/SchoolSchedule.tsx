@@ -461,7 +461,7 @@ const SchoolSchedule: React.FC = () => {
 
   // Detectar conflictos de doble-asignación de profesor: cuando un mismo profesor
   // tiene dos clases asignadas en el mismo día/hora pero en distintas secciones/aulas.
-  // Esto ocurre típicamente al cambiar el profesor de una materia congelada en fase 2,
+  // Esto ocurre típicamente al cambiar el profesor de una materia bloqueada en fase 2,
   // si el nuevo profesor ya tiene otra clase en ese horario.
   const professorMismatchConflicts = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -676,7 +676,7 @@ const SchoolSchedule: React.FC = () => {
     if (!day || !subjectId || !seccion) {
       const singleEventId = getEventId(event);
       if (getStagingEvents(eventData).some(e => getEventId(e) === singleEventId)) {
-        message.warning("Este evento ya está en el área de depósito");
+        message.warning("Este evento ya está en el área de edición manual");
         return;
       }
       // Change location to 'staging' instead of moving between arrays
@@ -690,7 +690,7 @@ const SchoolSchedule: React.FC = () => {
         markManualEditPending(updated, [singleEventId]);
         return updated;
       });
-      message.info("Evento movido al área de depósito");
+      message.info("Evento movido al área de edición manual");
       return;
     }
 
@@ -747,7 +747,7 @@ const SchoolSchedule: React.FC = () => {
       getStagingEvents(eventData).some(se => getEventId(se) === getEventId(e))
     );
     if (allAlreadyStaged) {
-      message.warning("Este bloque ya está en el área de depósito");
+      message.warning("Este bloque ya está en el área de edición manual");
       return;
     }
 
@@ -762,7 +762,7 @@ const SchoolSchedule: React.FC = () => {
       markManualEditPending(updated, Array.from(eventsToMoveIds));
       return updated;
     });
-    message.info(`Bloque movido al área de depósito (${eventsToMove.length} hora(s))`);
+    message.info(`Bloque movido al área de edición manual (${eventsToMove.length} hora(s))`);
   };
 
   // Helper function to calculate time difference in minutes
@@ -782,7 +782,7 @@ const SchoolSchedule: React.FC = () => {
   // Handle drop from schedule onto staging area
   const handleDropFromSchedule = (event: Event) => {
     if (!isOfficialStageMode) {
-      message.warning("El modo de depósito solo está disponible en modo oficial");
+      message.warning("El modo de edición manual solo está disponible en modo oficial");
       return;
     }
     moveEventToStaging(event);
@@ -1022,7 +1022,7 @@ const SchoolSchedule: React.FC = () => {
       markManualEditPending(updated);
       return updated;
     });
-    message.info(`${events.length} hora(s) eliminada(s) del depósito.`);
+    message.info(`${events.length} hora(s) eliminada(s) de la edición manual.`);
   };
 
   const handleAddSubjects = () => {
@@ -1091,7 +1091,7 @@ const SchoolSchedule: React.FC = () => {
       markManualEditPending(updated);
       return updated;
     });
-    message.success(`${selected.length} materia(s) agregada(s) al depósito.`);
+    message.success(`${selected.length} materia(s) agregada(s) a la edición manual.`);
     setIsAddSubjectsModalOpen(false);
   };
 
@@ -1263,7 +1263,7 @@ const SchoolSchedule: React.FC = () => {
         return totalPlaced < expected;
       }));
       markManualEditPending(updated);
-      message.success(`Sincronizado: ${changes} prof. actualizado(s), ${idToRemove.size} del depósito, ${removedLinked} vinculada(s) y ${removedDuplicates} duplicada(s) eliminada(s).`);
+      message.success(`Sincronizado: ${changes} prof. actualizado(s), ${idToRemove.size} de edición manual, ${removedLinked} vinculada(s) y ${removedDuplicates} duplicada(s) eliminada(s).`);
     } else {
       message.info("Los datos ya están sincronizados con la proyección.");
     }
@@ -1275,7 +1275,7 @@ const SchoolSchedule: React.FC = () => {
 
     // If no conflicts, proceed with confirmation
     Modal.confirm({
-      title: "¿Limpiar área de depósito?",
+      title: "¿Limpiar área de edición manual?",
       content: `Se devolverán ${currentStagedEvents.length} eventos al horario.`,
       okText: "Sí, devolver todos",
       cancelText: "Cancelar",
@@ -1348,7 +1348,7 @@ const SchoolSchedule: React.FC = () => {
 
     const sectionKey = `${pnf}-${trayectoId}-${seccion}-${trimestre}`;
     if (!lockedSections[sectionKey]) {
-      message.warning("La sección debe estar congelada para confirmar cambios oficiales");
+      message.warning("La sección debe estar bloqueada para confirmar cambios oficiales");
       return;
     }
 
@@ -1362,7 +1362,7 @@ const SchoolSchedule: React.FC = () => {
     try {
       const response = await upsertLockedSection(proyectionId, sectionKey, sectionEvents);
       if (response?.error) {
-        message.error("No se pudieron guardar los cambios del depósito en la base de datos");
+        message.error("No se pudieron guardar los cambios de edición manual en la base de datos");
         return;
       }
 
@@ -1390,7 +1390,7 @@ const SchoolSchedule: React.FC = () => {
       message.success("Cambios confirmados y guardados correctamente");
     } catch (error) {
       console.error("Error confirming staging changes:", error);
-      message.error("Error al guardar los cambios del depósito");
+      message.error("Error al guardar los cambios de edición manual");
     } finally {
       setConfirmStagingLoading(false);
     }
@@ -1775,7 +1775,7 @@ const SchoolSchedule: React.FC = () => {
       
       message.warning(`Bloque reubicado con ${conflicts.length} conflicto(s) (${processedEvents.length} eventos)`);
     } else {
-      const stagedSuffix = keptInStagingCount > 0 ? `, ${keptInStagingCount} quedaron en depósito` : "";
+      const stagedSuffix = keptInStagingCount > 0 ? `, ${keptInStagingCount} quedaron en edición manual` : "";
       message.success(`Bloque reubicado en el horario (${processedEvents.length} eventos${stagedSuffix})`);
     }
 
@@ -1994,7 +1994,7 @@ const SchoolSchedule: React.FC = () => {
     if (allConflicts.length > 0) {
       message.warning(`Bloque movido con ${allConflicts.length} conflicto(s) (${newEvents.length} horas)`);
     } else {
-      const displacedSuffix = displacedIds.size > 0 ? `, ${displacedIds.size} hora(s) al depósito` : "";
+      const displacedSuffix = displacedIds.size > 0 ? `, ${displacedIds.size} hora(s) a edición manual` : "";
       message.success(`Bloque movido correctamente (${newEvents.length} horas${displacedSuffix})`);
     }
   };
@@ -2004,13 +2004,13 @@ const SchoolSchedule: React.FC = () => {
 
     if (isCurrentlyFrozen) {
       if (!isSuperUser) {
-        message.error("Solo los Super Usuarios pueden descongelar trayectos.");
+        message.error("Solo los Super Usuarios pueden desbloquear trayectos.");
         return;
       }
       Modal.confirm({
-        title: "¿Descongelar trayecto completo?",
-        content: `Vas a descongelar todas las secciones del trayecto ${trayName}. Las materias se recalcularán y el orden actual podría perderse. ¿Deseas continuar?`,
-        okText: "Sí, descongelar todo",
+        title: "¿Desbloquear trayecto completo?",
+        content: `Vas a desbloquear todas las secciones del trayecto ${trayName}. Las materias se recalcularán y el orden actual podría perderse. ¿Deseas continuar?`,
+        okText: "Sí, desbloquear todo",
         cancelText: "Cancelar",
         onOk: () => {
           startRecalcLoading();
@@ -2018,7 +2018,7 @@ const SchoolSchedule: React.FC = () => {
           setLockedSections(prev => {
             const newObj = { ...prev };
             sections.forEach(sec => delete newObj[`${pnfId}-${trayId}-${sec}-${trim}`]);
-            message.info(`Trayecto ${trayName} descongelado.`);
+            message.info(`Trayecto ${trayName} desbloqueado.`);
             return newObj;
           });
           Promise.all(sections.map(sec => scheduleDispatch("schedule:toggleFreeze", { sectionKey: `${pnfId}-${trayId}-${sec}-${trim}`, freeze: false })))
@@ -2041,7 +2041,7 @@ const SchoolSchedule: React.FC = () => {
             newObj[key] = sectionEvents;
           }
         });
-        message.success(`Trayecto ${trayName} congelado.`);
+        message.success(`Trayecto ${trayName} bloqueado.`);
         return newObj;
       });
       sections.forEach(sec => {
@@ -2059,13 +2059,13 @@ const SchoolSchedule: React.FC = () => {
 
     if (isCurrentlyFrozen) {
       if (!isSuperUser) {
-        message.error("Solo los Super Usuarios pueden descongelar PNFs completos.");
+        message.error("Solo los Super Usuarios pueden desbloquear PNFs completos.");
         return;
       }
       Modal.confirm({
-        title: `¿Descongelar PNF ${pnfName}?`,
-        content: `Esta acción descongelará absolutamente todas las secciones de este PNF. El generador intentará reubicar todas las materias, lo que cambiará el horario actual. ¿Deseas continuar?`,
-        okText: "Sí, descongelar PNF",
+        title: `¿Desbloquear PNF ${pnfName}?`,
+        content: `Esta acción desbloqueará absolutamente todas las secciones de este PNF. El generador intentará reubicar todas las materias, lo que cambiará el horario actual. ¿Deseas continuar?`,
+        okText: "Sí, desbloquear PNF",
         cancelText: "Cancelar",
         onOk: () => {
           startRecalcLoading();
@@ -2073,7 +2073,7 @@ const SchoolSchedule: React.FC = () => {
           setLockedSections(prev => {
             const newObj = { ...prev };
             sectionsMap.forEach(({ trayId, sec }) => delete newObj[`${pnfId}-${trayId}-${sec}-${trim}`]);
-            message.info(`PNF ${pnfName} descongelado.`);
+            message.info(`PNF ${pnfName} desbloqueado.`);
             return newObj;
           });
           Promise.all(sectionsMap.map(({ trayId, sec }) => scheduleDispatch("schedule:toggleFreeze", { sectionKey: `${pnfId}-${trayId}-${sec}-${trim}`, freeze: false })))
@@ -2098,7 +2098,7 @@ const SchoolSchedule: React.FC = () => {
             newObj[key] = sectionEvents;
           }
         });
-        message.success(`PNF ${pnfName} congelado.`);
+        message.success(`PNF ${pnfName} bloqueado.`);
         return newObj;
       });
       sectionsMap.forEach(({ trayId, sec }) => {
@@ -2942,11 +2942,11 @@ const SchoolSchedule: React.FC = () => {
     const firstModifiedEvent = applyClassroomChangeAndRecalculate(true) as any;
     const isFrozen = firstModifiedEvent ? !!lockedSections[`${firstModifiedEvent.extendedProps?.pnfId}-${firstModifiedEvent.extendedProps?.trayectoId}-${firstModifiedEvent.extendedProps?.seccion}-${trimestre}`] : false;
 
-    // ─── Lógica de cambio de aula para secciones congeladas ───
-    // - Si está congelada: aplicar cambio directo SIN recalcular (sin importar conflictos)
+    // ─── Lógica de cambio de aula para secciones bloqueadas ───
+    // - Si está bloqueada: aplicar cambio directo SIN recalcular (sin importar conflictos)
     //   Los conflictos se marcarán con borde rojo en el render
-    // - Si NO está congelada y hay conflicto: mostrar confirmación
-    // - Si NO está congelada y NO hay conflicto: aplicar cambio con recálculo
+    // - Si NO está bloqueada y hay conflicto: mostrar confirmación
+    // - Si NO está bloqueada y NO hay conflicto: aplicar cambio con recálculo
     if (isFrozen) {
       // Si el usuario selecciona la misma aula que ya tenía, limpiar conflictos y salir
       if (newClassroomId === classroomChangeEvent.currentClassroomId) {
@@ -2972,7 +2972,7 @@ const SchoolSchedule: React.FC = () => {
         return;
       }
 
-      // Sección congelada: detectar conflictos ANTES de aplicar el cambio
+      // Sección bloqueada: detectar conflictos ANTES de aplicar el cambio
       // Exclude cross-quarter ghosts from both the events to check and the
       // events to compare against. Ghosts represent subjects from another
       // trimester and must not be treated as "real" occupants of the target
@@ -3114,10 +3114,10 @@ const SchoolSchedule: React.FC = () => {
           return updated;
         });
         message.error(
-          `No se puede asignar el aula "${_nc.classroom}" porque está ocupada a esta hora por una sección congelada.`
+          `No se puede asignar el aula "${_nc.classroom}" porque está ocupada a esta hora por una sección bloqueada.`
         );
         setErrors(prev => {
-          const desc = `[CONFLICTO] No se puede asignar el aula "${_nc.classroom}" a "${_cce.title}" porque está ocupada por una sección congelada.`;
+          const desc = `[CONFLICTO] No se puede asignar el aula "${_nc.classroom}" a "${_cce.title}" porque está ocupada por una sección bloqueada.`;
           return [...prev.filter(e => e.description !== desc), {
             name: _cce.title,
             description: desc,
@@ -3146,7 +3146,7 @@ const SchoolSchedule: React.FC = () => {
           return updated;
         });
         message.success(
-          `Aula cambiada a "${_nc.classroom}" para ${_cce.title}. Recalculando secciones descongeladas...`
+          `Aula cambiada a "${_nc.classroom}" para ${_cce.title}. Recalculando secciones desbloqueadas...`
         );
 
         // Persist the updated locked section to frozen_sections FIRST so that
@@ -3197,7 +3197,7 @@ const SchoolSchedule: React.FC = () => {
       } else {
         // No conflicts at all
         message.success(
-          `Aula cambiada a "${_nc.classroom}" para ${_cce.title} (sección congelada, sin conflicto).`
+          `Aula cambiada a "${_nc.classroom}" para ${_cce.title} (sección bloqueada, sin conflicto).`
         );
       }
       setClassroomChangeEvent(null);
@@ -3223,7 +3223,7 @@ const SchoolSchedule: React.FC = () => {
       return;
     }
 
-    // No está congelada y no hay conflicto: aplicar con recálculo normal
+    // No está bloqueada y no hay conflicto: aplicar con recálculo normal
     applyClassroomChangeAndRecalculate();
   };
 
@@ -4404,12 +4404,12 @@ const SchoolSchedule: React.FC = () => {
         return !!lockedSections[evtSectionKey];
       });
       if (firstConflictEvent) {
-        message.error(`No se puede mover: el aula ya está ocupada por "${firstConflictEvent.title}" (sección congelada).`);
+        message.error(`No se puede mover: el aula ya está ocupada por "${firstConflictEvent.title}" (sección bloqueada).`);
         setErrors(prev => {
-          const filtered = prev.filter(e => e.description !== `[CONFLICTO] No se puede mover "${title}" porque "${firstConflictEvent.title}" (sección congelada) ocupa el mismo espacio.`);
+          const filtered = prev.filter(e => e.description !== `[CONFLICTO] No se puede mover "${title}" porque "${firstConflictEvent.title}" (sección bloqueada) ocupa el mismo espacio.`);
           return [...filtered, {
             name: title,
-            description: `[CONFLICTO] No se puede mover "${title}" porque "${firstConflictEvent.title}" (sección congelada) ocupa el mismo espacio.`,
+            description: `[CONFLICTO] No se puede mover "${title}" porque "${firstConflictEvent.title}" (sección bloqueada) ocupa el mismo espacio.`,
             seccion: seccion || '',
             turn: firstMovingEvent?.extendedProps?.turnName || '',
             year: firstMovingEvent?.extendedProps?.trayectoName || '',
@@ -4421,7 +4421,7 @@ const SchoolSchedule: React.FC = () => {
           }];
         });
       } else {
-        message.error("No se puede mover: hay conflicto con otra sección congelada.");
+        message.error("No se puede mover: hay conflicto con otra sección bloqueada.");
       }
       setDraggedEventInfo(null);
       return;
@@ -4590,16 +4590,16 @@ setClassroomOverrides(prev => {
       }
     };
 
-    // ─── Lógica de drop para secciones congeladas ───
-    // - Si está congelada: aplicar drop y disparar recálculo backend para ajustar secciones descongeladas
-    // - Si NO está congelada y hay conflicto: mostrar confirmación
-    // - Si NO está congelada y NO hay conflicto: aplicar con recálculo
+    // ─── Lógica de drop para secciones bloqueadas ───
+    // - Si está bloqueada: aplicar drop y disparar recálculo backend para ajustar secciones desbloqueadas
+    // - Si NO está bloqueada y hay conflicto: mostrar confirmación
+    // - Si NO está bloqueada y NO hay conflicto: aplicar con recálculo
 if (isFrozen) {
-      // Sección congelada: aplicar drop localmente
+      // Sección bloqueada: aplicar drop localmente
 pinDraggedEventsAndRecalculate(isFrozen);
       setDraggedEventInfo(null);
 
-      // Guardar overrides a BD y disparar schedule:toggleFreeze para la sección congelada.
+      // Guardar overrides a BD y disparar schedule:toggleFreeze para la sección bloqueada.
       // toggleFreeze persiste en DB + dispara recalc automáticamente, evitando
       // el deadlock que causaba saveLockedSections (DELETE masivo + INSERT).
       if (proyectionId) {
@@ -4697,7 +4697,7 @@ if (conflictFound) {
       return;
     }
 
-    // Si no hay conflicto y no está congelada: aplicar con recálculo normal
+    // Si no hay conflicto y no está bloqueada: aplicar con recálculo normal
     pinDraggedEventsAndRecalculate(false);
     setDraggedEventInfo(null);
   };
@@ -5219,7 +5219,7 @@ if (conflictFound) {
                   )}
                 </span>
               </Tooltip>
-              <Tooltip title="Gestionar Secciones Congeladas">
+              <Tooltip title="Gestionar Secciones Bloqueadas">
                 <span style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }} onClick={() => { setFrozenModalTab(trimestre); setIsFrozenManagerOpen(true); }}>
                   <GiFrozenBlock className={styles.icon} style={{ color: Object.keys(lockedSections).some(k => k.endsWith(`-${trimestre}`)) ? "#1890ff" : undefined }} />
                   {Object.keys(lockedSections).some(k => k.endsWith(`-${trimestre}`)) && (
@@ -5538,7 +5538,7 @@ if (conflictFound) {
                                       <div>{dayNames[day]}</div>
                                       {isFrozen && (
                                         <div style={{ marginTop: "6px", color: "#69c0ff", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
-                                          <LockOutlined /> Sección Congelada
+                                          <LockOutlined /> Sección Bloqueada
                                         </div>
                                       )}
                                     </div>
@@ -5857,7 +5857,7 @@ if (conflictFound) {
                                                   <TbPinFilled style={{ color: "#1890ff", fontSize: "0.8rem", flexShrink: 0 }} title="Aula fijada manualmente" />
                                                 )}
                                                 {isOfficialStageMode && (
-                                                  <Tooltip title="Enviar al depósito">
+                                                  <Tooltip title="Enviar a edición manual">
                                                     <div
                                                       onClick={(e) => {
                                                         e.stopPropagation();
@@ -6033,8 +6033,8 @@ if (conflictFound) {
                                         // But wait, if someone is dragging *into* a frozen grid, we should warn them
                                         if (isGridFrozen) {
                                           Modal.confirm({
-                                            title: "Confirmar Cambios en Grilla Congelada",
-                                            content: `Estás a punto de reasignar una materia hacia una grilla que actualmente se encuentra congelada para este trimestre. ¿Estás seguro de forzar el cambio?`,
+                                            title: "Confirmar Cambios en Grilla Bloqueada",
+                                            content: `Estás a punto de reasignar una materia hacia una grilla que actualmente se encuentra bloqueada para este trimestre. ¿Estás seguro de forzar el cambio?`,
                                             okText: "Sí, forzar",
                                             cancelText: "Deshacer",
                                             okButtonProps: { danger: true },
@@ -6077,7 +6077,7 @@ if (conflictFound) {
                     <div style={{ position: "relative" }}>
                       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px", marginTop: "10px", paddingRight: "10px", gap: "8px" }}>
                         {isFrozen && (
-                          <Tooltip title={isOfficialStageMode ? "Cerrar Área de Depósito" : "Abrir Área de Depósito"}>
+                          <Tooltip title={isOfficialStageMode ? "Cerrar Área de Edición Manual" : "Abrir Área de Edición Manual"}>
                             <Button
                               type={isOfficialStageMode ? "primary" : "default"}
                               icon={<span style={{ fontSize: "14px" }}>📦</span>}
@@ -6089,7 +6089,7 @@ if (conflictFound) {
                                 backgroundColor: isOfficialStageMode ? "#722ed1" : undefined
                               }}
                             >
-                               Depósito{activeStagingEvents.length > 0 ? ` (${activeStagingEvents.length})` : ""}
+                               Edición Manual{activeStagingEvents.length > 0 ? ` (${activeStagingEvents.length})` : ""}
                             </Button>
                           </Tooltip>
                         )}
@@ -6100,7 +6100,7 @@ if (conflictFound) {
                           onClick={() => toggleFreezeSection(pnf, trayectoId, seccion)}
                           style={{ boxShadow: isFrozen ? "0 0 8px rgba(255, 77, 79, 0.4)" : "0 0 8px rgba(0, 191, 255, 0.4)", borderColor: isFrozen ? "#ff4d4f" : "#1890ff", color: isFrozen ? "#fff" : "#1890ff" }}
                         >
-                          {isFrozen ? "Descongelar Sección" : "Congelar Sección"}
+                          {isFrozen ? "Desbloquear Sección" : "Bloquear Sección"}
                         </Button>
                       </div>
                       {renderScheduleGrid(tableGrid)}
@@ -6376,7 +6376,7 @@ if (conflictFound) {
 
       {/* Frozen Sections Manager Modal */}
       <Modal
-        title={<div><LockOutlined style={{ color: "#1890ff", marginRight: "8px" }} /> Gestionar Secciones Congeladas</div>}
+        title={<div><LockOutlined style={{ color: "#1890ff", marginRight: "8px" }} /> Gestionar Secciones Bloqueadas</div>}
         open={isFrozenManagerOpen}
         onCancel={() => { setIsFrozenManagerOpen(false); setFrozenPnfFilter([]); }}
         footer={[
@@ -6477,7 +6477,7 @@ if (conflictFound) {
                     checked={isPnfAllFrozen}
                     onChange={() => toggleFreezePnf(pnfId as string, pnfName as string, allPnfSections as { trayId: string, sec: string }[], isPnfAllFrozen, frozenModalTab)}
                   >
-                    Congelar PNF Completo
+                    Bloquear PNF Completo
                   </Checkbox>
                 </div>
                 <div style={{ padding: "10px" }}>
@@ -6499,7 +6499,7 @@ if (conflictFound) {
                             checked={isTrayAllFrozen}
                             onChange={() => toggleFreezeTrayecto(pnfId as string, trayId as string, trayName as string, sectionsInTray as string[], isTrayAllFrozen, frozenModalTab)}
                           >
-                            Congelar Trayecto
+                            Bloquear Trayecto
                           </Checkbox>
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
@@ -6546,7 +6546,7 @@ if (conflictFound) {
 
       {/* Add Subjects Modal */}
       <Modal
-        title="Agregar materias al depósito"
+        title="Agregar materias a la edición manual"
         open={isAddSubjectsModalOpen}
         onCancel={() => setIsAddSubjectsModalOpen(false)}
         onOk={confirmAddSelectedSubjects}
@@ -6555,7 +6555,7 @@ if (conflictFound) {
         width={500}
       >
         <p style={{ marginBottom: 12, color: '#595959' }}>
-          Selecciona las materias de la proyección para agregar al depósito. Solo se agregan las horas faltantes.
+          Selecciona las materias de la proyección para agregar a la edición manual. Solo se agregan las horas faltantes.
         </p>
         <Select
           mode="multiple"

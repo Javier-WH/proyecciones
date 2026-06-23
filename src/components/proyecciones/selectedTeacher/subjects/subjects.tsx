@@ -37,7 +37,7 @@ const Subjects: React.FC<{
   } = useContext(MainContext) as MainContextValues;
 
   // Detecta si el profesor seleccionado tiene doble-asignación a la misma hora
-  // entre esta materia (congelada) y otra materia en cualquier sección congelada.
+  // entre esta materia (bloqueada) y otra materia en cualquier sección bloqueada.
   const getSubjectConflicts = (subject: Subject): { quarter: string; otherSubject: string; time: string }[] => {
     if (!subject || !selectedTeacerId || !lockedSections || subject.key === "ADMINISTRATIVE_HOURS") return [];
     const conflicts: { quarter: string; otherSubject: string; time: string }[] = [];
@@ -49,7 +49,7 @@ const Subjects: React.FC<{
       const subjectEvents = lockedSections[lockedKey];
       if (!subjectEvents || subjectEvents.length === 0) continue;
 
-      // Reunir todos los eventos de OTRAS secciones congeladas del mismo trimestre
+      // Reunir todos los eventos de OTRAS secciones bloqueadas del mismo trimestre
       const otherEvents: any[] = [];
       Object.entries(lockedSections).forEach(([k, evs]) => {
         if (k === lockedKey) return;
