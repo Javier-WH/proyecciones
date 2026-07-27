@@ -123,7 +123,7 @@ export function generateScheduleEvents (params) {
               const classObj = classrooms?.find(c => stringifiedClassroomIds.includes(String(c.id)))
               setErrors({
                 name: evt.title,
-                description: `[SECCIÓN CONGELADA] Conflicto de Aula: Esta materia exige un aula exclusiva (ej. ${classObj?.classroom || 'Otra'}), pero está fijada en otra distinta. Descongele la sección.`,
+                description: `[SECCIÓN BLOQUEADA] Conflicto de Aula: Esta materia exige un aula exclusiva (ej. ${classObj?.classroom || 'Otra'}), pero está fijada en otra distinta. Desbloque la sección.`,
                 seccion: evt.extendedProps.seccion,
                 year: evt.extendedProps.trayectoName || '',
                 turn: evt.extendedProps.turnName || '',
